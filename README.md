@@ -24,7 +24,7 @@ Its key features are:
 
 ## Paper
 More details on the hardware design and instruction set can be found in the
-BISMO paper. TODO arxiv link.
+[BISMO paper](https://arxiv.org/abs/1806.08862).
 If you find BISMO useful, please use the following citation:
 ```
 @inproceedings{bismo,
@@ -92,7 +92,8 @@ components from the [fpga-tidbits](https://github.com/maltanar/fpga-tidbits/)
 framework, and targets Xilinx FPGAs.
 The Chisel source code can be found under `src/main/scala`.
 Currently there is no separate documentation available for the hardware design,
-the best sources of information are the paper and the comments in the code.
+the best sources of information are the [BISMO paper](https://arxiv.org/abs/1806.08862) 
+and the comments in the code.
 
 ### Overlay Configuration
 BISMO is parametrized and can be instantiated in different sizes to generate a
