@@ -80,7 +80,7 @@ For instance `export PYNQZ1_URI=xilinx@192.168.2.10:/home/xilinx/bismo`
 for the password for the specified PYNQ-Z1 user.
 
 Afterwards, run the following on a terminal on the PYNQ-Z1:
-1. On the PYNQ-Z1, `cd /home/xilinx/bismo` to go into the deployment package.
+1. On the PYNQ-Z1, `cd /home/xilinx/bismo/deploy` to go into the deployment package.
 2. `./compile_sw.sh` to compile the driver and tests.
 3. `sudo ./setclk.sh 200` to set the clock to 200 MHz.
 4. `sudo ./load_bitfile.sh` to load the BISMO bitfile.
