@@ -110,10 +110,6 @@ hw_driver: $(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp
 $(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp:
 	mkdir -p "$(BUILD_DIR_HWDRV)"; $(SBT) $(SBT_FLAGS) "runMain bismo.DriverMain $(PLATFORM) $(BUILD_DIR_HWDRV) $(TIDBITS_REGDRV_ROOT)"
 
-# copy all user sources and driver sources to the deployment folder
-sw: $(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp
-	mkdir -p $(BUILD_DIR_DEPLOY); cp $(BUILD_DIR_HWDRV)/* $(BUILD_DIR_DEPLOY)/; cp -r $(APP_SRC_DIR)/* $(BUILD_DIR_DEPLOY)/
-
 # generate Verilog for the Chisel accelerator
 hw_verilog: $(HW_VERILOG)
 
