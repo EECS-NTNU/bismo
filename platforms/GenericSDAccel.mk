@@ -29,13 +29,13 @@ $(EXTRA_VERILOG):
 	cp $(TIDBITS_ROOT)/src/main/resources/verilog/*.v $(BUILD_DIR_VERILOG)
 
 $(SDACCEL_IP): $(HW_VERILOG) $(EXTRA_VERILOG)
-	vivado -mode batch -source $(SDACCEL_IP_SCRIPT) -tclargs GenericSDAccelWrapperTop $(BUILD_DIR_VERILOG) $(SDACCEL_IP)
+	cd $(BUILD_DIR)/hw; vivado -mode batch -source $(SDACCEL_IP_SCRIPT) -tclargs GenericSDAccelWrapperTop $(BUILD_DIR_VERILOG) $(SDACCEL_IP)
 
 $(SDACCEL_XO): $(SDACCEL_IP)
-	vivado -mode batch -source $(SDACCEL_XO_SCRIPT) -tclargs $(SDACCEL_XO) GenericSDAccelWrapperTop $(SDACCEL_IP) $(SDACCEL_XML)
+	cd $(BUILD_DIR)/hw; vivado -mode batch -source $(SDACCEL_XO_SCRIPT) -tclargs $(SDACCEL_XO) GenericSDAccelWrapperTop $(SDACCEL_IP) $(SDACCEL_XML)
 
 $(SDACCEL_XCLBIN): $(SDACCEL_XO)
-	xocc --link --save-temps --target hw --kernel_frequency "0:$(FREQ_MHZ)|1:$(FREQ_MHZ)" --optimize $(SDACCEL_OPTIMIZE) --platform $(SDACCEL_DSA) $(SDACCEL_XO) -o $(SDACCEL_XCLBIN)
+	cd $(BUILD_DIR)/hw; xocc --link --save-temps --target hw --kernel_frequency "0:$(FREQ_MHZ)|1:$(FREQ_MHZ)" --optimize $(SDACCEL_OPTIMIZE) --platform $(SDACCEL_DSA) $(SDACCEL_XO) -o $(SDACCEL_XCLBIN)
 
 hw: $(SDACCEL_XCLBIN)
 	mkdir -p $(BUILD_DIR_DEPLOY); cp $(SDACCEL_XCLBIN) $(BUILD_DIR_DEPLOY)/BitSerialMatMulAccel
