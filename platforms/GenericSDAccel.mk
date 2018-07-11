@@ -8,6 +8,7 @@ SDACCEL_XO_SCRIPT := $(TIDBITS_ROOT)/src/main/resources/script/gen_xo.tcl
 SDACCEL_XCLBIN := $(BUILD_DIR)/hw/bismo.xclbin
 SDACCEL_IP_SCRIPT := $(TIDBITS_ROOT)/src/main/resources/script/package_ip.tcl
 SDACCEL_IP := $(BUILD_DIR)/hw/ip
+SDACCEL_IMPL_DIR := $(BUILD_DIR)/hw//_xocc_link_bismo_bismo.dir/_vpl/ipi/imp/imp.runs/impl_1
 EXTRA_VERILOG := $(BUILD_DIR_VERILOG)/GenericSDAccelWrapperTop.v
 SDX_ENVVAR_SET := $(ls ${XILINX_SDX} 2> /dev/null)
 RUN_APP :=  $(BUILD_DIR_DEPLOY)/bismo
@@ -35,7 +36,7 @@ $(SDACCEL_XO): $(SDACCEL_IP)
 	cd $(BUILD_DIR)/hw; vivado -mode batch -source $(SDACCEL_XO_SCRIPT) -tclargs $(SDACCEL_XO) GenericSDAccelWrapperTop $(SDACCEL_IP) $(SDACCEL_XML)
 
 $(SDACCEL_XCLBIN): $(SDACCEL_XO)
-	cd $(BUILD_DIR)/hw; xocc --link --save-temps --target hw --kernel_frequency "0:$(FREQ_MHZ)|1:$(FREQ_MHZ)" --optimize $(SDACCEL_OPTIMIZE) --platform $(SDACCEL_DSA) $(SDACCEL_XO) -o $(SDACCEL_XCLBIN)
+	cd $(BUILD_DIR)/hw; xocc --link --report system --save-temps --target hw --kernel_frequency "0:$(FREQ_MHZ)|1:$(FREQ_MHZ)" --optimize $(SDACCEL_OPTIMIZE) --platform $(SDACCEL_DSA) $(SDACCEL_XO) -o $(SDACCEL_XCLBIN)
 
 hw: $(SDACCEL_XCLBIN)
 	mkdir -p $(BUILD_DIR_DEPLOY); cp $(SDACCEL_XCLBIN) $(BUILD_DIR_DEPLOY)/BitSerialMatMulAccel
@@ -47,5 +48,12 @@ $(RUN_APP): $(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp
 	cd $(BUILD_DIR_DEPLOY)/;
 	g++ -std=c++11 -DCSR_BASE_ADDR=0x1800000  -DFCLK_MHZ=$(FREQ_MHZ) -I$(XILINX_SDX)/runtime/driver/include  -L$(XILINX_SDX)/platforms/$(SDACCEL_DSA)/sw/driver/gem -L$(XILINX_SDX)/runtime/lib/x86_64 -lxilinxopencl -lxclgemdrv -lpthread -lrt -lstdc++ $(BUILD_DIR_DEPLOY)/*.cpp -o $(BUILD_DIR_DEPLOY)/bismo
 
+report: $(SDACCEL_XCLBIN)
+	cat $(SDACCEL_IMPL_DIR)/updated_full_design_utilization_placed.rpt | grep "CLB LUTs" -B 3 -A 15
+	cat $(SDACCEL_IMPL_DIR)/updated_full_design_utilization_placed.rpt | grep "RAMB36/FIFO" -B 4 -A 4
+	cat $(SDACCEL_IMPL_DIR)/updated_full_design_utilization_placed.rpt | grep "DSP48E2 only" -B 4 -A 1
+	cat $(SDACCEL_IMPL_DIR)/updated_full_design_utilization_placed.rpt | grep "SLR Index |  CLBs" -B 1 -A 7
+	cat $(SDACCEL_IMPL_DIR)/updated_full_design_timing_summary_routed.rpt | grep "Design Timing Summary" -B 1 -A 10
+	
 run: $(RUN_APP)
 	cd $(BUILD_DIR_DEPLOY); LD_LIBRARY_PATH=$(LD_LIBRARY_PATH):$(XILINX_SDX)/runtime/lib/x86_64:$(XILINX_SDX)/platforms/$(SDACCEL_DSA)/sw/driver/gem $(BUILD_DIR_DEPLOY)/bismo
