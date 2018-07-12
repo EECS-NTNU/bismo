@@ -99,3 +99,19 @@ class BISMOExecRunInstruction extends Bundle {
   override def cloneType: this.type =
     new BISMOExecRunInstruction().asInstanceOf[this.type]
 }
+
+class BISMOResultRunInstruction extends Bundle {
+  // always stgFetch
+  val targetStage = UInt(width = 2)
+  // always true
+  val isRunCfg = Bool()
+  // rest of instruction data
+  val instrData = new Bundle {
+    val runcfg = new ResultStageCtrlIO()
+    // rest of instruction data, fill up 128 bits
+    val unused = UInt(width = 125 - runcfg.getWidth())
+  }
+
+  override def cloneType: this.type =
+    new BISMOResultRunInstruction().asInstanceOf[this.type]
+}

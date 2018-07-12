@@ -167,5 +167,5 @@ class ExecController(val myP: ExecStageParams) extends BaseController(
 ){ }
 
 class ResultController(val myP: ResultStageParams) extends BaseController(
-  genStageO = new ResultStageCtrlIO(myP), inChannels = 1, outChannels = 1
+  genStageO = new ResultStageCtrlIO(), inChannels = 1, outChannels = 1
 ){ }

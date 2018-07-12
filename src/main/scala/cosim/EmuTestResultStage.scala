@@ -50,7 +50,7 @@ class EmuTestResultStage(
     // base control signals
     val start = Bool(INPUT)                   // hold high while running
     val done = Bool(OUTPUT)                   // high when done until start=0
-    val csr = new ResultStageCtrlIO(myP).asInput
+    val csr = new ResultStageCtrlIO().asInput
     val accwr_en = Bool(INPUT)
     val accwr_lhs = UInt(INPUT, width = log2Up(myP.dpa_lhs))
     val accwr_rhs = UInt(INPUT, width = log2Up(myP.dpa_rhs))

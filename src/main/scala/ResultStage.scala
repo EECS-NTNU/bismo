@@ -90,18 +90,18 @@ class ResultStageParams(
   assert(resMemReadLatency == 0)
 }
 
-class ResultStageCtrlIO(myP: ResultStageParams) extends Bundle {
+class ResultStageCtrlIO() extends Bundle {
   // DRAM controls
-  val dram_base = UInt(width = 64)
-  val dram_skip = UInt(width = 64)
+  val dram_base = UInt(width = BISMOLimits.dramAddrBits)
+  val dram_skip = UInt(width = BISMOLimits.dramBlockSizeBits)
   // wait for completion of all writes (no new DRAM wr generated)
   val waitComplete = Bool()
-  val waitCompleteBytes = UInt(width = 32)
+  val waitCompleteBytes = UInt(width = BISMOLimits.dramBlockSizeBits)
   // result memory to read from
-  val resmem_addr = UInt(width = log2Up(myP.resEntriesPerMem))
+  val resmem_addr = UInt(width = BISMOLimits.resAddrBits)
 
   override def cloneType: this.type =
-    new ResultStageCtrlIO(myP).asInstanceOf[this.type]
+    new ResultStageCtrlIO().asInstanceOf[this.type]
 }
 
 class ResultStageDRAMIO(myP: ResultStageParams) extends Bundle {
@@ -119,7 +119,7 @@ class ResultStage(val myP: ResultStageParams) extends Module {
     // base control signals
     val start = Bool(INPUT)                   // hold high while running
     val done = Bool(OUTPUT)                   // high when done until start=0
-    val csr = new ResultStageCtrlIO(myP).asInput
+    val csr = new ResultStageCtrlIO().asInput
     val dram = new ResultStageDRAMIO(myP)
     // interface towards result memory
     val resmem_req = Vec.fill(myP.dpa_lhs) { Vec.fill(myP.dpa_rhs) {
