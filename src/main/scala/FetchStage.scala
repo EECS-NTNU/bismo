@@ -82,6 +82,8 @@ class FetchStageParams(
     val routegen_cycles = 1 // due to queuing between routegen and interconnect
     return routegen_cycles + max_interconnect_cycles + bramWrLat
   }
+
+  Predef.assert(getIDBits() <= BISMOLimits.fetchIDBits)
 }
 
 // data fetched from DRAM is combined with destination memory information from
@@ -143,29 +145,29 @@ class FetchStagePerfIO(myP: FetchStageParams) extends Bundle {
 }
 
 // fetch stage IO: controls to BRAM and DRAM
-class FetchStageCtrlIO(myP: FetchStageParams) extends PrintableBundle {
+class FetchStageCtrlIO() extends PrintableBundle {
   // DRAM fetch config
   // base address for all fetch groups
-  val dram_base = UInt(width = 64)
+  val dram_base = UInt(width = BISMOLimits.dramAddrBits)
   // size of each block (contiguous read) from DRAM
-  val dram_block_size_bytes = UInt(width = 32)
+  val dram_block_size_bytes = UInt(width = BISMOLimits.dramBlockSizeBits)
   // offset (in bytes) to start of next block in DRAM
-  val dram_block_offset_bytes = UInt(width = 32)
+  val dram_block_offset_bytes = UInt(width = BISMOLimits.dramBlockSizeBits)
   // number of blocks to fetch for each group
-  val dram_block_count = UInt(width = 32)
+  val dram_block_count = UInt(width = BISMOLimits.dramBlockCountBits)
 
   // router config
   // tiles per row (number of writes before going to next BRAM)
-  val tiles_per_row = UInt(width = 16)
+  val tiles_per_row = UInt(width = BISMOLimits.inpBufAddrBits)
   // base BRAM address to start from for writes
-  val bram_addr_base = UInt(width = myP.numAddrBits)
+  val bram_addr_base = UInt(width = BISMOLimits.inpBufAddrBits)
   // ID of BRAM to start from
-  val bram_id_start = UInt(width = myP.getIDBits())
+  val bram_id_start = UInt(width = BISMOLimits.fetchIDBits)
   // ID range of BRAM to end at. start+range will be included.
-  val bram_id_range = UInt(width = myP.getIDBits())
+  val bram_id_range = UInt(width = BISMOLimits.fetchIDBits)
 
   override def cloneType: this.type =
-    new FetchStageCtrlIO(myP).asInstanceOf[this.type]
+    new FetchStageCtrlIO().asInstanceOf[this.type]
 
   val printfStr = "(dram (base = %x, bsize = %d, boffs = %d, bcnt = %d), bramstart = %d, bramrange = %d, tiles = %d)\n"
   val printfElems = {() =>  Seq(dram_base, dram_block_size_bytes, dram_block_offset_bytes, dram_block_count, bram_id_start, bram_id_range, tiles_per_row)}
@@ -254,7 +256,7 @@ class FetchStage(val myP: FetchStageParams) extends Module {
     // base control signals
     val start = Bool(INPUT)                   // hold high while running
     val done = Bool(OUTPUT)                   // high when done until start=0
-    val csr = new FetchStageCtrlIO(myP).asInput
+    val csr = new FetchStageCtrlIO().asInput
     val perf = new FetchStagePerfIO(myP)
     val bram = new FetchStageBRAMIO(myP)
     val dram = new FetchStageDRAMIO(myP)

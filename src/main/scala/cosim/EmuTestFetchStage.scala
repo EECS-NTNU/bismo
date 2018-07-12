@@ -50,7 +50,7 @@ class EmuTestFetchStage(
     val start = Bool(INPUT)                   // hold high while running
     val done = Bool(OUTPUT)                   // high when done until start=0
     val perf = new FetchStagePerfIO(myP)
-    val csr = new FetchStageCtrlIO(myP).asInput
+    val csr = new FetchStageCtrlIO().asInput
     val bram_sel = UInt(INPUT, width = 32)
     val bram_req = new OCMRequest(myP.mrp.dataWidth, myP.numAddrBits).asInput
     val bram_rsp = UInt(OUTPUT, width = myP.mrp.dataWidth)

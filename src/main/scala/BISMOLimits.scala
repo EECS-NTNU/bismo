@@ -1,4 +1,5 @@
 // Copyright (c) 2018 Xilinx
+// Copyright (c) 2018 Norwegian University of Science and Technology (NTNU)
 //
 // BSD v3 License
 //
@@ -31,46 +32,10 @@
 
 package bismo
 
-import Chisel._
-
-object TargetStages {
-  val stgFetch :: stgExec :: stgResult :: Nil = Enum(UInt(), 3)
-}
-
-class BISMOInstruction extends Bundle {
-  // which stage this instruction is targeting (TargetStages)
-  val targetStage = UInt(width = 2)
-  // run stage if true, sync otherwise
-  val isRunCfg = Bool()
-  // rest of instruction data, fill up 128 bits
-  val instrData = UInt(width = 128-3)
-}
-
-class BISMOSyncInstruction extends Bundle {
-  // which stage this instruction is targeting (TargetStages)
-  val targetStage = UInt(width = 2)
-  // always false since this is a sync instruction
-  val isRunCfg = Bool()
-  // rest of instruction data
-  val instrData = new Bundle {
-    // send token if true, receive if false
-    val iSendToken = Bool()
-    // channel number for token sync
-    val chanID = UInt(width = 2)
-    // rest of instruction data, fill up 128 bits
-    val unused = UInt(width = 125 - 3)
-  }
-}
-
-class BISMOFetchRunInstruction extends Bundle {
-  // always stgFetch
-  val targetStage = UInt(width = 2)
-  // always true
-  val isRunCfg = Bool()
-  // rest of instruction data
-  val instrData = new Bundle {
-    val runcfg = new FetchStageCtrlIO()
-    // rest of instruction data, fill up 128 bits
-    val unused = UInt(width = 125 - runcfg.getWidth())
-  }
+object BISMOLimits {
+  val fetchIDBits = 5
+  val inpBufAddrBits = 16
+  val dramAddrBits = 32
+  val dramBlockSizeBits = 16
+  val dramBlockCountBits = 16
 }

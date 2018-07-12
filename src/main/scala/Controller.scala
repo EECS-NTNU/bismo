@@ -159,7 +159,7 @@ class BaseController[Ts <: Bundle](
 
 // derived classes for each type of controller.
 class FetchController(val myP: FetchStageParams) extends BaseController(
-  genStageO = new FetchStageCtrlIO(myP), inChannels = 1, outChannels = 1
+  genStageO = new FetchStageCtrlIO(), inChannels = 1, outChannels = 1
 ){ }
 
 class ExecController(val myP: ExecStageParams) extends BaseController(
