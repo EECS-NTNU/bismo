@@ -54,7 +54,7 @@ class EmuTestExecStage(p: PlatformWrapperParams) extends GenericAccelerator(p) {
     val start = Bool(INPUT)                   // hold high while running
     val done = Bool(OUTPUT)                   // high when done until start=0
     val cfg = new ExecStageCfgIO()
-    val csr = new ExecStageCtrlIO(myP).asInput
+    val csr = new ExecStageCtrlIO().asInput
     // write access to input matrix tile memory
     val tilemem_lhs_sel = UInt(INPUT, width = log2Up(myP.getM()))
     val tilemem_lhs_addr = UInt(INPUT, width = log2Up(myP.lhsTileMem))

@@ -32,10 +32,15 @@
 
 package bismo
 
+import Chisel._
+
 object BISMOLimits {
   val fetchIDBits = 5
   val inpBufAddrBits = 16
   val dramAddrBits = 32
   val dramBlockSizeBits = 16
   val dramBlockCountBits = 16
+  val maxShift = 16
+  val maxShiftBits = log2Up(maxShift+1)
+  val resAddrBits = 1
 }

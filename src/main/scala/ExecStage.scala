@@ -113,12 +113,12 @@ class ExecStageCfgIO() extends Bundle {
 }
 
 // interface towards controller for the execute stage
-class ExecStageCtrlIO(myP: ExecStageParams) extends PrintableBundle {
-  val lhsOffset = UInt(width = 32)   // start offset for LHS tiles
-  val rhsOffset = UInt(width = 32)   // start offset for RHS tiles
-  val numTiles = UInt(width = 32)    // num of L0 tiles to execute
+class ExecStageCtrlIO() extends PrintableBundle {
+  val lhsOffset = UInt(width = BISMOLimits.inpBufAddrBits)   // start offset for LHS tiles
+  val rhsOffset = UInt(width = BISMOLimits.inpBufAddrBits)   // start offset for RHS tiles
+  val numTiles = UInt(width = BISMOLimits.inpBufAddrBits)    // num of L0 tiles to execute
   // how much left shift to use
-  val shiftAmount = UInt(width = log2Up(myP.dpaParams.dpuParams.maxShiftSteps+1))
+  val shiftAmount = UInt(width = BISMOLimits.maxShiftBits)
   // negate during accumulation
   val negate = Bool()
   // clear accumulators prior to first accumulation
@@ -126,10 +126,10 @@ class ExecStageCtrlIO(myP: ExecStageParams) extends PrintableBundle {
   // write to result memory at the end of current execution
   val writeEn = Bool()
   // result memory address to use for writing
-  val writeAddr = UInt(width = log2Up(myP.resEntriesPerMem))
+  val writeAddr = UInt(width = BISMOLimits.resAddrBits)
 
   override def cloneType: this.type =
-    new ExecStageCtrlIO(myP).asInstanceOf[this.type]
+    new ExecStageCtrlIO().asInstanceOf[this.type]
 
   val printfStr = "(offs lhs/rhs = %d/%d, ntiles = %d, << %d, w? %d/%d)\n"
   val printfElems = {() =>  Seq(
@@ -174,7 +174,7 @@ class ExecStage(val myP: ExecStageParams) extends Module {
     val start = Bool(INPUT)                   // hold high while running
     val done = Bool(OUTPUT)                   // high when done until start=0
     val cfg = new ExecStageCfgIO()
-    val csr = new ExecStageCtrlIO(myP).asInput
+    val csr = new ExecStageCtrlIO().asInput
     val tilemem = new ExecStageTileMemIO(myP)
     val res = new ExecStageResMemIO(myP)
   }

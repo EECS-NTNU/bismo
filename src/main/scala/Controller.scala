@@ -163,7 +163,7 @@ class FetchController(val myP: FetchStageParams) extends BaseController(
 ){ }
 
 class ExecController(val myP: ExecStageParams) extends BaseController(
-  genStageO = new ExecStageCtrlIO(myP), inChannels = 2, outChannels = 2
+  genStageO = new ExecStageCtrlIO(), inChannels = 2, outChannels = 2
 ){ }
 
 class ResultController(val myP: ResultStageParams) extends BaseController(

@@ -193,7 +193,7 @@ class BitSerialMatMulAccel(
     val result_op = Decoupled(new ControllerCmd(1, 1)).flip
     // config for run ops
     val fetch_runcfg = Decoupled(new FetchStageCtrlIO()).flip
-    val exec_runcfg = Decoupled(new ExecStageCtrlIO(myP.execStageParams)).flip
+    val exec_runcfg = Decoupled(new ExecStageCtrlIO()).flip
     val result_runcfg = Decoupled(new ResultStageCtrlIO(myP.resultStageParams)).flip
     // command counts in each queue
     val fetch_op_count = UInt(OUTPUT, width = 32)
