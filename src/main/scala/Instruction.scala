@@ -44,6 +44,9 @@ class BISMOInstruction extends Bundle {
   val isRunCfg = Bool()
   // rest of instruction data, fill up 128 bits
   val instrData = UInt(width = 128-3)
+
+  override def cloneType: this.type =
+    new BISMOInstruction().asInstanceOf[this.type]
 }
 
 class BISMOSyncInstruction extends Bundle {
@@ -60,6 +63,9 @@ class BISMOSyncInstruction extends Bundle {
     // rest of instruction data, fill up 128 bits
     val unused = UInt(width = 125 - 3)
   }
+
+  override def cloneType: this.type =
+    new BISMOSyncInstruction().asInstanceOf[this.type]
 }
 
 class BISMOFetchRunInstruction extends Bundle {
@@ -73,4 +79,23 @@ class BISMOFetchRunInstruction extends Bundle {
     // rest of instruction data, fill up 128 bits
     val unused = UInt(width = 125 - runcfg.getWidth())
   }
+
+  override def cloneType: this.type =
+    new BISMOFetchRunInstruction().asInstanceOf[this.type]
+}
+
+class BISMOExecRunInstruction extends Bundle {
+  // always stgFetch
+  val targetStage = UInt(width = 2)
+  // always true
+  val isRunCfg = Bool()
+  // rest of instruction data
+  val instrData = new Bundle {
+    val runcfg = new ExecStageCtrlIO()
+    // rest of instruction data, fill up 128 bits
+    val unused = UInt(width = 125 - runcfg.getWidth())
+  }
+
+  override def cloneType: this.type =
+    new BISMOExecRunInstruction().asInstanceOf[this.type]
 }
