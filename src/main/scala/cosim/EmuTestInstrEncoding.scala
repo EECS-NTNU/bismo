@@ -44,20 +44,22 @@ class EmuTestInstrEncoding(p: PlatformWrapperParams) extends GenericAccelerator(
   val io = new GenericAcceleratorIF(numMemPorts, p) {
     val raw_instr_in = UInt(INPUT, width = 128)
     val sync_instr_out = new BISMOSyncInstruction().asOutput()
+    val fr_instr_out = new BISMOFetchRunInstruction().asOutput()
   }
   // the signature can be e.g. used for checking that the accelerator has the
   // correct version. here the signature is regenerated from the current date.
   io.signature := makeDefaultSignature()
 
 
-  val m = new BISMOSyncInstruction()
+  /*val m = new BISMOSyncInstruction()
   m.isRunCfg := UInt(1)
   m.targetStage := UInt(2)
   m.isSendToken := UInt(0)
-  m.chanID := UInt(3)
+  m.chanID := UInt(3)*/
 
   //printf("Instr in: %x \n", io.raw_instr_in)
   //printf("Chisel int: %x reversed %x \n", m.toBits(), Reverse(m.toBits()))
 
   io.sync_instr_out := io.sync_instr_out.fromBits(Reverse(io.raw_instr_in))
+  io.fr_instr_out := io.fr_instr_out.fromBits(Reverse(io.raw_instr_in))
 }

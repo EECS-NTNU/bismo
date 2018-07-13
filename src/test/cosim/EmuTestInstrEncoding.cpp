@@ -51,31 +51,61 @@ int main()
     t = new EmuTestInstrEncoding(p);
 
 
-    BISMOSyncInstruction sw_ins, hw_ins;
+    BISMOSyncInstruction sw_ins_sync, hw_ins_sync;
     /*for(int i = 0; i < 4; i++) {
-      cout << "raw " << i << " " << bitset<32>(sw_ins.raw[i]) << endl;
+      cout << "raw " << i << " " << bitset<32>(sw_ins_sync.raw[i]) << endl;
     }*/
-    sw_ins.isRunCfg = 1;
-    sw_ins.targetStage = 2;
-    sw_ins.isSendToken = 0;
-    sw_ins.chanID = 3;
+    sw_ins_sync.isRunCfg = 1;
+    sw_ins_sync.targetStage = 2;
+    sw_ins_sync.isSendToken = 0;
+    sw_ins_sync.chanID = 3;
     /*for(int i = 0; i < 4; i++) {
-      cout << "raw " << i << " " << bitset<32>(sw_ins.raw[i]) << endl;
+      cout << "raw " << i << " " << bitset<32>(sw_ins_sync.raw[i]) << endl;
     }*/
 
     // BitFieldMember uses big-endian packing but
     // Chisel expects little-endian, so swap storage order here
-    t->set_raw_instr_in0(sw_ins.raw[3]);
-    t->set_raw_instr_in1(sw_ins.raw[2]);
-    t->set_raw_instr_in2(sw_ins.raw[1]);
-    t->set_raw_instr_in3(sw_ins.raw[0]);
+    t->set_raw_instr_in0(sw_ins_sync.raw[3]);
+    t->set_raw_instr_in1(sw_ins_sync.raw[2]);
+    t->set_raw_instr_in2(sw_ins_sync.raw[1]);
+    t->set_raw_instr_in3(sw_ins_sync.raw[0]);
 
-    hw_ins.isRunCfg = t->get_sync_instr_out_isRunCfg();
-    hw_ins.targetStage = t->get_sync_instr_out_targetStage();
-    hw_ins.isSendToken = t->get_sync_instr_out_isSendToken();
-    hw_ins.chanID = t->get_sync_instr_out_chanID();
+    hw_ins_sync.isRunCfg = t->get_sync_instr_out_isRunCfg();
+    hw_ins_sync.targetStage = t->get_sync_instr_out_targetStage();
+    hw_ins_sync.isSendToken = t->get_sync_instr_out_isSendToken();
+    hw_ins_sync.chanID = t->get_sync_instr_out_chanID();
 
-    t_okay &= (memcmp(sw_ins.raw, hw_ins.raw, 16) == 0);
+    bool sync_ok = (memcmp(sw_ins_sync.raw, hw_ins_sync.raw, 16) == 0);
+    cout << "Sync instruction encoding: " << sync_ok << endl;
+    t_okay &= sync_ok;
+
+    // test fetch runcfg instructions
+    BISMOFetchRunInstruction sw_ins_fetch, hw_ins_fetch;
+    sw_ins_fetch.isRunCfg = 1;
+    sw_ins_fetch.targetStage = 0;
+    sw_ins_fetch.dram_base = 0xdead;
+    sw_ins_fetch.dram_block_size_bytes = 0xbeef;
+    sw_ins_fetch.dram_block_offset_bytes = 0xfeed;
+    sw_ins_fetch.dram_block_count = 0xdeaf;
+    sw_ins_fetch.tiles_per_row = 0xb00b;
+    sw_ins_fetch.bram_addr_base = 0xd00d;
+    sw_ins_fetch.bram_id_start = 10;
+    sw_ins_fetch.bram_id_range = 20;
+
+    hw_ins_fetch.isRunCfg = t->get_fr_instr_out_isRunCfg();
+    hw_ins_fetch.targetStage = t->get_fr_instr_out_targetStage();
+    hw_ins_fetch.dram_base = t->get_fr_instr_out_runcfg_dram_base();
+    hw_ins_fetch.dram_block_size_bytes = t->get_fr_instr_out_runcfg_dram_block_size_bytes();
+    hw_ins_fetch.dram_block_offset_bytes = t->get_fr_instr_out_runcfg_dram_block_offset_bytes();
+    hw_ins_fetch.dram_block_count = t->get_fr_instr_out_runcfg_dram_block_count();
+    hw_ins_fetch.tiles_per_row = t->get_fr_instr_out_runcfg_tiles_per_row();
+    hw_ins_fetch.bram_addr_base = t->get_fr_instr_out_runcfg_bram_addr_base();
+    hw_ins_fetch.bram_id_start = t->get_fr_instr_out_runcfg_bram_id_start();
+    hw_ins_fetch.bram_id_range = t->get_fr_instr_out_runcfg_bram_id_range();
+
+    bool fr_ok = (memcmp(sw_ins_fetch.raw, hw_ins_fetch.raw, 16) == 0);
+    cout << "Fetch instruction encoding: " << fr_ok << endl;
+    t_okay &= fr_ok;
 
     if(t_okay) {
       cout << "All tests passed" << endl;
