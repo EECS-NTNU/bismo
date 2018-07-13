@@ -91,7 +91,7 @@ Test%:
 
 # run hardware-software cosimulation tests
 EmuTest%:
-	mkdir -p $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@"; cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; cd $(BUILD_DIR)/$@; g++ -std=c++11 *.cpp driver.a -o $@; ./$@
+	mkdir -p $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@"; cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; cd $(BUILD_DIR)/$@; g++ -std=c++11 -I$(APP_SRC_DIR) *.cpp driver.a -o $@; ./$@
 
 # generate cycle-accurate C++ emulator driver lib
 $(BUILD_DIR_EMU)/driver.a:
