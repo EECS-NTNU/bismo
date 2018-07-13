@@ -107,6 +107,55 @@ int main()
     cout << "Fetch instruction encoding: " << fr_ok << endl;
     t_okay &= fr_ok;
 
+    // test exec runcfg instructions
+    BISMOExecRunInstruction sw_ins_exec, hw_ins_exec;
+    sw_ins_exec.isRunCfg = 1;
+    sw_ins_exec.targetStage = 1;
+    sw_ins_exec.lhsOffset = 161;
+    sw_ins_exec.rhsOffset = 177;
+    sw_ins_exec.numTiles = 17;
+    sw_ins_exec.shiftAmount = 4;
+    sw_ins_exec.negate = 0;
+    sw_ins_exec.clear_before_first_accumulation = 1;
+    sw_ins_exec.writeEn = 0;
+    sw_ins_exec.writeAddr = 1;
+
+    hw_ins_exec.isRunCfg = t->get_er_instr_out_isRunCfg();
+    hw_ins_exec.targetStage = t->get_er_instr_out_targetStage();
+    hw_ins_exec.lhsOffset = t->get_er_instr_out_runcfg_lhsOffset();
+    hw_ins_exec.rhsOffset = t->get_er_instr_out_runcfg_rhsOffset();
+    hw_ins_exec.numTiles = t->get_er_instr_out_runcfg_numTiles();
+    hw_ins_exec.shiftAmount = t->get_er_instr_out_runcfg_shiftAmount();
+    hw_ins_exec.negate = t->get_er_instr_out_runcfg_negate();
+    hw_ins_exec.clear_before_first_accumulation = t->get_er_instr_out_runcfg_clear_before_first_accumulation();
+    hw_ins_exec.writeEn = t->get_er_instr_out_runcfg_writeEn();
+    hw_ins_exec.writeAddr = t->get_er_instr_out_runcfg_writeAddr();
+
+    bool er_ok = (memcmp(sw_ins_exec.raw, hw_ins_exec.raw, 16) == 0);
+    cout << "Execute instruction encoding: " << er_ok << endl;
+    t_okay &= er_ok;
+
+    BISMOResultRunInstruction sw_ins_res, hw_ins_res;
+    sw_ins_res.isRunCfg = 1;
+    sw_ins_res.targetStage = 2;
+    sw_ins_res.dram_base = 193;
+    sw_ins_res.dram_skip = 795;
+    sw_ins_res.waitComplete = 1;
+    sw_ins_res.waitCompleteBytes = 1539;
+    sw_ins_res.resmem_addr = 0;
+
+    hw_ins_res.isRunCfg = t->get_rr_instr_out_isRunCfg();
+    hw_ins_res.targetStage = t->get_rr_instr_out_targetStage();
+    hw_ins_res.dram_base = t->get_rr_instr_out_runcfg_dram_base();
+    hw_ins_res.dram_skip = t->get_rr_instr_out_runcfg_dram_skip();
+    hw_ins_res.waitComplete = t->get_rr_instr_out_runcfg_waitComplete();
+    hw_ins_res.waitCompleteBytes = t->get_rr_instr_out_runcfg_waitCompleteBytes();
+    hw_ins_res.resmem_addr = t->get_rr_instr_out_runcfg_resmem_addr();
+
+    bool rr_ok = (memcmp(sw_ins_res.raw, hw_ins_res.raw, 16) == 0);
+    cout << "Result instruction encoding: " << rr_ok << endl;
+    t_okay &= rr_ok;
+
     if(t_okay) {
       cout << "All tests passed" << endl;
     } else {
