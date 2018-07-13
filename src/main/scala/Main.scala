@@ -78,7 +78,8 @@ object Settings {
     // that defines the software part of the test under test/cosim
     "EmuTestExecStage" -> {p => new EmuTestExecStage(emuP)},
     "EmuTestFetchStage" -> {p => new EmuTestFetchStage(2, 2, emuP)},
-    "EmuTestResultStage" -> {p => new EmuTestResultStage(2, emuP)}
+    "EmuTestResultStage" -> {p => new EmuTestResultStage(2, emuP)},
+    "EmuTestInstrEncoding" -> {p => new EmuTestInstrEncoding(emuP)}
   )
 }
 

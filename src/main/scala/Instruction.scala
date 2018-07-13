@@ -54,15 +54,13 @@ class BISMOSyncInstruction extends Bundle {
   val targetStage = UInt(width = 2)
   // always false since this is a sync instruction
   val isRunCfg = Bool()
-  // rest of instruction data
-  val instrData = new Bundle {
-    // send token if true, receive if false
-    val iSendToken = Bool()
-    // channel number for token sync
-    val chanID = UInt(width = 2)
-    // rest of instruction data, fill up 128 bits
-    val unused = UInt(width = 125 - 3)
-  }
+  // rest of instruction data:
+  // send token if true, receive if false
+  val isSendToken = Bool()
+  // channel number for token sync
+  val chanID = UInt(width = 2)
+  // rest of instruction data, fill up 128 bits
+  val unused = UInt(width = 128 - 6)
 
   override def cloneType: this.type =
     new BISMOSyncInstruction().asInstanceOf[this.type]
