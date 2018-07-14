@@ -38,7 +38,11 @@ import fpgatidbits.PlatformWrapper._
 
 
 // test to ensure that hardware and software encode/decode instrs in the
-// same way.
+// same way. this is accomplished by letting software write to a 128-bit
+// register, whose contents are re-interpreted and made available field by
+// field on the hardware side. the software can then do a loopback and compare
+// what it gets out to ensure it was the same as the input.
+
 class EmuTestInstrEncoding(p: PlatformWrapperParams) extends GenericAccelerator(p) {
   val numMemPorts = 0
   val io = new GenericAcceleratorIF(numMemPorts, p) {
@@ -48,22 +52,17 @@ class EmuTestInstrEncoding(p: PlatformWrapperParams) extends GenericAccelerator(
     val er_instr_out = new BISMOExecRunInstruction().asOutput()
     val rr_instr_out = new BISMOResultRunInstruction().asOutput()
   }
-  // the signature can be e.g. used for checking that the accelerator has the
-  // correct version. here the signature is regenerated from the current date.
   io.signature := makeDefaultSignature()
 
+  // static check to ensure all instrs are 128-bit
+  Predef.assert(io.sync_instr_out.getWidth() == 128)
+  Predef.assert(io.fr_instr_out.getWidth() == 128)
+  Predef.assert(io.er_instr_out.getWidth() == 128)
+  Predef.assert(io.rr_instr_out.getWidth() == 128)
 
-  /*val m = new BISMOSyncInstruction()
-  m.isRunCfg := UInt(1)
-  m.targetStage := UInt(2)
-  m.isSendToken := UInt(0)
-  m.chanID := UInt(3)*/
-
-  //printf("Instr in: %x \n", io.raw_instr_in)
-  //printf("Chisel int: %x reversed %x \n", m.toBits(), Reverse(m.toBits()))
-
-  io.sync_instr_out := io.sync_instr_out.fromBits(Reverse(io.raw_instr_in))
-  io.fr_instr_out := io.fr_instr_out.fromBits(Reverse(io.raw_instr_in))
-  io.er_instr_out := io.er_instr_out.fromBits(Reverse(io.raw_instr_in))
-  io.rr_instr_out := io.rr_instr_out.fromBits(Reverse(io.raw_instr_in))
+  // reinterpret raw input as different instructions and give as output
+  io.sync_instr_out := io.sync_instr_out.fromBits((io.raw_instr_in))
+  io.fr_instr_out := io.fr_instr_out.fromBits((io.raw_instr_in))
+  io.er_instr_out := io.er_instr_out.fromBits((io.raw_instr_in))
+  io.rr_instr_out := io.rr_instr_out.fromBits((io.raw_instr_in))
 }

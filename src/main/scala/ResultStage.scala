@@ -91,14 +91,13 @@ class ResultStageParams(
 }
 
 class ResultStageCtrlIO() extends Bundle {
-  // DRAM controls
-  val dram_base = UInt(width = BISMOLimits.dramAddrBits)
-  val dram_skip = UInt(width = BISMOLimits.dramBlockSizeBits)
-  // wait for completion of all writes (no new DRAM wr generated)
-  val waitComplete = Bool()
   val waitCompleteBytes = UInt(width = BISMOLimits.dramBlockSizeBits)
+  val dram_skip = UInt(width = BISMOLimits.dramBlockSizeBits)
+  val dram_base = UInt(width = BISMOLimits.dramAddrBits)
   // result memory to read from
   val resmem_addr = UInt(width = BISMOLimits.resAddrBits)
+  // wait for completion of all writes (no new DRAM wr generated)
+  val waitComplete = Bool()
 
   override def cloneType: this.type =
     new ResultStageCtrlIO().asInstanceOf[this.type]

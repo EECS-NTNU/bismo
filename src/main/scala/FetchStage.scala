@@ -146,25 +146,23 @@ class FetchStagePerfIO(myP: FetchStageParams) extends Bundle {
 
 // fetch stage IO: controls to BRAM and DRAM
 class FetchStageCtrlIO() extends PrintableBundle {
-  // DRAM fetch config
-  // base address for all fetch groups
-  val dram_base = UInt(width = BISMOLimits.dramAddrBits)
-  // size of each block (contiguous read) from DRAM
-  val dram_block_size_bytes = UInt(width = BISMOLimits.dramBlockSizeBits)
-  // offset (in bytes) to start of next block in DRAM
-  val dram_block_offset_bytes = UInt(width = BISMOLimits.dramBlockSizeBits)
-  // number of blocks to fetch for each group
-  val dram_block_count = UInt(width = BISMOLimits.dramBlockCountBits)
-
-  // router config
   // tiles per row (number of writes before going to next BRAM)
   val tiles_per_row = UInt(width = BISMOLimits.inpBufAddrBits)
+  // number of blocks to fetch for each group
+  val dram_block_count = UInt(width = BISMOLimits.dramBlockCountBits)
+  // offset (in bytes) to start of next block in DRAM
+  val dram_block_offset_bytes = UInt(width = BISMOLimits.dramBlockSizeBits)
+  // size of each block (contiguous read) from DRAM
+  val dram_block_size_bytes = UInt(width = BISMOLimits.dramBlockSizeBits)
+  // DRAM base address for all fetch groups
+  val dram_base = UInt(width = BISMOLimits.dramAddrBits)
+
   // base BRAM address to start from for writes
   val bram_addr_base = UInt(width = BISMOLimits.inpBufAddrBits)
-  // ID of BRAM to start from
-  val bram_id_start = UInt(width = BISMOLimits.fetchIDBits)
   // ID range of BRAM to end at. start+range will be included.
   val bram_id_range = UInt(width = BISMOLimits.fetchIDBits)
+  // ID of BRAM to start from
+  val bram_id_start = UInt(width = BISMOLimits.fetchIDBits)
 
   override def cloneType: this.type =
     new FetchStageCtrlIO().asInstanceOf[this.type]

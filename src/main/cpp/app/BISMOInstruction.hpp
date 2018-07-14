@@ -1,57 +1,70 @@
 #include <stdint.h>
-#include "bitfield.hpp"
 
-union BISMOSyncInstruction {
-  // storage for the instruction: 128 bits
-  uint32_t raw[4] = {0, 0, 0, 0};
-  // interpreted as bitfields
-  BitField<0,1> isRunCfg;
-  BitField<1,2> targetStage;
-  BitField<3,1> isSendToken;
-  BitField<4,2> chanID;
+// defines the data layout and fields for BISMO instructions
+
+// NOTE: the ordering of the fields is important and should
+// not be changed without making corresponding changes on the
+// hardware side as well. additionally, since bit packing
+// data layout is compiler implementation-dependent, it is
+// necessary to run the EmuTestInstrEncoding on a new platform
+// to make sure the default assumptions still hold.
+
+struct BISMOSyncInstruction {
+  uint64_t targetStage : 2;
+  uint64_t isRunCfg : 1;
+  uint64_t isSendToken : 1;
+  uint64_t chanID : 2;
+  uint64_t unused0 : 58;
+  uint64_t unused1 : 64;
 };
 
-union BISMOFetchRunInstruction {
-  // storage for the instruction: 128 bits
-  uint32_t raw[4] = {0, 0, 0, 0};
-  // interpreted as bitfields
-  BitField<0,1> isRunCfg;
-  BitField<1,2> targetStage;
-  BitField<3,32> dram_base;
-  BitField<35,16> dram_block_size_bytes;
-  BitField<51,16> dram_block_offset_bytes;
-  BitField<67,16> dram_block_count;
-  BitField<83,16> tiles_per_row;
-  BitField<99,16> bram_addr_base;
-  BitField<115,5> bram_id_start;
-  BitField<120,5> bram_id_range;
+struct BISMOFetchRunInstruction {
+  uint64_t targetStage : 2;
+  uint64_t isRunCfg : 1;
+  uint64_t unused0 : 3;
+  uint64_t bram_id_start : 5;
+  uint64_t bram_id_range : 5;
+  uint64_t bram_addr_base : 16;
+  uint64_t dram_base : 32;
+  uint64_t dram_block_size_bytes : 16;
+  uint64_t dram_block_offset_bytes : 16;
+  uint64_t dram_block_count : 16;
+  uint64_t tiles_per_row : 16;
 };
 
-union BISMOExecRunInstruction {
-  // storage for the instruction: 128 bits
-  uint32_t raw[4] = {0, 0, 0, 0};
-  // interpreted as bitfields
-  BitField<0,1> isRunCfg;
-  BitField<1,2> targetStage;
-  BitField<3,16> lhsOffset;
-  BitField<19,16> rhsOffset;
-  BitField<35,16> numTiles;
-  BitField<51,5> shiftAmount;
-  BitField<56,1> negate;
-  BitField<57,1> clear_before_first_accumulation;
-  BitField<58,1> writeEn;
-  BitField<59,1> writeAddr;
+struct BISMOExecRunInstruction {
+  uint64_t targetStage : 2;
+  uint64_t isRunCfg : 1;
+  uint64_t unused0 : 61;
+  uint64_t unused1 : 7;
+  uint64_t lhsOffset : 16;
+  uint64_t rhsOffset : 16;
+  uint64_t numTiles : 16;
+  uint64_t shiftAmount : 5;
+  uint64_t negate : 1;
+  uint64_t clear_before_first_accumulation : 1;
+  uint64_t writeEn : 1;
+  uint64_t writeAddr : 1;
 };
 
-union BISMOResultRunInstruction {
-  // storage for the instruction: 128 bits
+struct BISMOResultRunInstruction {
+  uint64_t targetStage : 2;
+  uint64_t isRunCfg : 1;
+  uint64_t unused0 : 59;
+  uint64_t waitComplete : 1;
+  uint64_t resmem_addr : 1;
+  uint64_t dram_base : 32;
+  uint64_t dram_skip : 16;
+  uint64_t waitCompleteBytes : 16;
+};
+
+// union to store and decode all instruction types
+// all instructions are currently 128 bits
+
+union BISMOInstruction {
   uint32_t raw[4] = {0, 0, 0, 0};
-  // interpreted as bitfields
-  BitField<0,1> isRunCfg;
-  BitField<1,2> targetStage;
-  BitField<3,32> dram_base;
-  BitField<35,16> dram_skip;
-  BitField<51,1> waitComplete;
-  BitField<52,16> waitCompleteBytes;
-  BitField<68,1> resmem_addr;
+  BISMOSyncInstruction sync;
+  BISMOFetchRunInstruction fetch;
+  BISMOExecRunInstruction exec;
+  BISMOResultRunInstruction res;
 };

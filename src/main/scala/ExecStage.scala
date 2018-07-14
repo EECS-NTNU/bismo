@@ -114,19 +114,19 @@ class ExecStageCfgIO() extends Bundle {
 
 // interface towards controller for the execute stage
 class ExecStageCtrlIO() extends PrintableBundle {
-  val lhsOffset = UInt(width = BISMOLimits.inpBufAddrBits)   // start offset for LHS tiles
-  val rhsOffset = UInt(width = BISMOLimits.inpBufAddrBits)   // start offset for RHS tiles
-  val numTiles = UInt(width = BISMOLimits.inpBufAddrBits)    // num of L0 tiles to execute
-  // how much left shift to use
-  val shiftAmount = UInt(width = BISMOLimits.maxShiftBits)
-  // negate during accumulation
-  val negate = Bool()
-  // clear accumulators prior to first accumulation
-  val clear_before_first_accumulation = Bool()
-  // write to result memory at the end of current execution
-  val writeEn = Bool()
   // result memory address to use for writing
   val writeAddr = UInt(width = BISMOLimits.resAddrBits)
+  // write to result memory at the end of current execution
+  val writeEn = Bool()
+  // clear accumulators prior to first accumulation
+  val clear_before_first_accumulation = Bool()
+  // negate during accumulation
+  val negate = Bool()
+  // how much left shift to use
+  val shiftAmount = UInt(width = BISMOLimits.maxShiftBits)
+  val numTiles = UInt(width = BISMOLimits.inpBufAddrBits)    // num of L0 tiles to execute
+  val rhsOffset = UInt(width = BISMOLimits.inpBufAddrBits)   // start offset for RHS tiles
+  val lhsOffset = UInt(width = BISMOLimits.inpBufAddrBits)   // start offset for LHS tiles
 
   override def cloneType: this.type =
     new ExecStageCtrlIO().asInstanceOf[this.type]
