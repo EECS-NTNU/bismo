@@ -65,19 +65,27 @@ int main()
     assert(sizeof(BISMOFetchRunInstruction) == 16);
     assert(sizeof(BISMOExecRunInstruction) == 16);
 
-    sw_ins.sync.targetStage = 2;
-    sw_ins.sync.isRunCfg = 1;
-    sw_ins.sync.isSendToken = 0;
-    sw_ins.sync.chanID = 3;
+    bool sync_ok = true;
 
-    write_sw_instruction();
+    for(int ts = 0; ts < 3; ts++) {
+      for(int irc = 0; irc < 2; irc++) {
+        for(int ist = 0; ist < 2; ist++) {
+          sw_ins.sync.targetStage = ts;
+          sw_ins.sync.isRunCfg = irc;
+          sw_ins.sync.isSendToken = ist;
+          sw_ins.sync.chanID = 3;
 
-    hw_ins.sync.isRunCfg = t->get_sync_instr_out_isRunCfg();
-    hw_ins.sync.targetStage = t->get_sync_instr_out_targetStage();
-    hw_ins.sync.isSendToken = t->get_sync_instr_out_isSendToken();
-    hw_ins.sync.chanID = t->get_sync_instr_out_chanID();
+          write_sw_instruction();
 
-    bool sync_ok = (memcmp(sw_ins.raw, hw_ins.raw, 16) == 0);
+          hw_ins.sync.isRunCfg = t->get_sync_instr_out_isRunCfg();
+          hw_ins.sync.targetStage = t->get_sync_instr_out_targetStage();
+          hw_ins.sync.isSendToken = t->get_sync_instr_out_isSendToken();
+          hw_ins.sync.chanID = t->get_sync_instr_out_chanID();
+          sync_ok &= (memcmp(sw_ins.raw, hw_ins.raw, 16) == 0);
+        }
+      }
+    }
+
     cout << "Sync instruction encoding: " << sync_ok << endl;
     t_okay &= sync_ok;
 
