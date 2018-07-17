@@ -39,6 +39,7 @@
 #include "BitSerialMatMulAccel.hpp"
 #include <iostream>
 #include "gemmbitserial/gemmbitserial.hpp"
+#include "BISMOInstruction.hpp"
 
 #define CMDFIFO_CAP       16
 #define FETCHEXEC_TOKENS  2
@@ -67,7 +68,7 @@ typedef struct {
   uint32_t bram_addr_base;
   uint32_t bram_id_start;
   uint32_t bram_id_range;
-  void * dram_base;
+  uint64_t dram_base;
   uint32_t dram_block_offset_bytes;
   uint32_t dram_block_size_bytes;
   uint32_t dram_block_count;
@@ -77,19 +78,19 @@ typedef struct {
 typedef struct {
   uint32_t lhsOffset;
   uint32_t rhsOffset;
-  uint32_t doNegate;
+  uint32_t negate;
   uint32_t numTiles;
   uint32_t shiftAmount;
-  bool doClear;
-  bool writeEn;
+  uint8_t clear_before_first_accumulation;
+  uint8_t writeEn;
   uint32_t writeAddr;
 } ExecRunCfg;
 
 typedef struct {
-  void * dram_base;
+  uint64_t dram_base;
   uint64_t dram_skip;
   uint32_t resmem_addr;
-  bool waitComplete;
+  uint8_t waitComplete;
   uint32_t waitCompleteBytes;
 } ResultRunCfg;
 
@@ -108,6 +109,10 @@ typedef struct {
 
 typedef uint64_t PackedBitGroupType;
 typedef int32_t ResultType;
+
+static const FetchRunCfg dummyFetchRunCfg = {0};
+static const ExecRunCfg dummyExecRunCfg = {0};
+static const ResultRunCfg dummyResultRunCfg = {0};
 
 class BitSerialMatMulAccelDriver {
 public:
@@ -202,10 +207,10 @@ public:
     cout << "ExecRunCfg ============================" << endl;
     cout << "lhsOffset: " << r.lhsOffset << endl;
     cout << "rhsOffset: " << r.rhsOffset << endl;
-    cout << "doNegate: " << r.doNegate << endl;
+    cout << "negate: " << r.negate << endl;
     cout << "numTiles: " << r.numTiles << endl;
     cout << "shiftAmount: " << r.shiftAmount << endl;
-    cout << "doClear: " << r.doClear << endl;
+    cout << "clear_before_first_accumulation: " << r.clear_before_first_accumulation << endl;
     cout << "writeEn: " << r.writeEn << endl;
     cout << "writeAddr: " << r.writeAddr << endl;
     cout << "========================================" << endl;
@@ -278,15 +283,6 @@ public:
   const bool result_op_full() {
     return m_accel->get_result_op_ready() == 1 ? false : true;
   }
-  const bool fetch_runcfg_full() {
-    return m_accel->get_fetch_runcfg_ready() == 1 ? false : true;
-  }
-  const bool exec_runcfg_full() {
-    return m_accel->get_exec_runcfg_ready() == 1 ? false : true;
-  }
-  const bool result_runcfg_full() {
-    return m_accel->get_result_runcfg_ready() == 1 ? false : true;
-  }
 
   // reset the accelerator
   void reset() {
@@ -309,9 +305,33 @@ public:
   }
 
   // push a command to the Fetch op queue
-  void push_fetch_op(Op op) {
-    m_accel->set_fetch_op_bits_opcode((AccelReg) op.opcode);
-    m_accel->set_fetch_op_bits_token_channel(op.syncChannel);
+  void push_fetch_op(Op op, FetchRunCfg cfg) {
+    BISMOInstruction ins;
+    if(op.opcode == opRun) {
+      ins.fetch.targetStage = stgFetch;
+      ins.fetch.isRunCfg = 1;
+      ins.fetch.unused0 = 0;
+      ins.fetch.bram_id_start = cfg.bram_id_start;
+      ins.fetch.bram_id_range = cfg.bram_id_range;
+      ins.fetch.dram_base = cfg.dram_base;
+      ins.fetch.dram_block_size_bytes = cfg.dram_block_size_bytes;
+      ins.fetch.dram_block_offset_bytes = cfg.dram_block_offset_bytes;
+      ins.fetch.dram_block_count = cfg.dram_block_count;
+      // hw limitation: tiles_per_row is internally 16 bits
+      assert(cfg.tiles_per_row < (1 << 16));
+      ins.fetch.tiles_per_row = cfg.tiles_per_row;
+    } else if(op.opcode == opSendToken || op.opcode == opReceiveToken) {
+      ins.sync.targetStage = stgFetch;
+      ins.sync.isRunCfg = 0;
+      ins.sync.isSendToken = op.opcode == opSendToken ? 1 : 0;
+      ins.sync.chanID = op.syncChannel;
+      ins.sync.unused0 = 0;
+      ins.sync.unused1 = 0;
+    }
+    m_accel->set_fetch_op_bits0(ins.raw[3]);
+    m_accel->set_fetch_op_bits1(ins.raw[2]);
+    m_accel->set_fetch_op_bits2(ins.raw[1]);
+    m_accel->set_fetch_op_bits3(ins.raw[0]);
     // push into fetch op FIFO
     assert(!fetch_op_full());
     m_accel->set_fetch_op_valid(1);
@@ -319,9 +339,33 @@ public:
   }
 
   // push a command to the Exec op queue
-  void push_exec_op(Op op) {
-    m_accel->set_exec_op_bits_opcode((AccelReg) op.opcode);
-    m_accel->set_exec_op_bits_token_channel(op.syncChannel);
+  void push_exec_op(Op op, ExecRunCfg cfg) {
+    BISMOInstruction ins;
+    if(op.opcode == opRun) {
+      ins.exec.targetStage = stgExec;
+      ins.exec.isRunCfg = 1;
+      ins.exec.unused0 = 0;
+      ins.exec.unused1 = 0;
+      ins.exec.lhsOffset = cfg.lhsOffset;
+      ins.exec.rhsOffset = cfg.rhsOffset;
+      ins.exec.numTiles = cfg.numTiles;
+      ins.exec.shiftAmount = cfg.shiftAmount;
+      ins.exec.negate = cfg.negate;
+      ins.exec.clear_before_first_accumulation = cfg.clear_before_first_accumulation;
+      ins.exec.writeEn = cfg.writeEn;
+      ins.exec.writeAddr = cfg.writeAddr;
+    } else if(op.opcode == opSendToken || op.opcode == opReceiveToken) {
+      ins.sync.targetStage = stgFetch;
+      ins.sync.isRunCfg = 0;
+      ins.sync.isSendToken = op.opcode == opSendToken ? 1 : 0;
+      ins.sync.chanID = op.syncChannel;
+      ins.sync.unused0 = 0;
+      ins.sync.unused1 = 0;
+    }
+    m_accel->set_exec_op_bits0(ins.raw[3]);
+    m_accel->set_exec_op_bits1(ins.raw[2]);
+    m_accel->set_exec_op_bits2(ins.raw[1]);
+    m_accel->set_exec_op_bits3(ins.raw[0]);
     // push into exec op FIFO
     assert(!exec_op_full());
     m_accel->set_exec_op_valid(1);
@@ -329,70 +373,40 @@ public:
   }
 
   // push a command to the Result op queue
-  void push_result_op(Op op) {
-    m_accel->set_result_op_bits_opcode((AccelReg) op.opcode);
-    m_accel->set_result_op_bits_token_channel(op.syncChannel);
+  void push_result_op(Op op, ResultRunCfg cfg) {
+    BISMOInstruction ins;
+    if(op.opcode == opRun) {
+      ins.res.targetStage = stgResult;
+      ins.res.isRunCfg = 1;
+      ins.res.unused0 = 0;
+      ins.res.waitComplete = cfg.waitComplete;
+      ins.res.resmem_addr = cfg.resmem_addr;
+      ins.res.dram_base = cfg.dram_base;
+      ins.res.dram_skip = cfg.dram_skip;
+      ins.res.waitCompleteBytes = cfg.waitCompleteBytes;
+    } else if(op.opcode == opSendToken || op.opcode == opReceiveToken) {
+      ins.sync.targetStage = stgFetch;
+      ins.sync.isRunCfg = 0;
+      ins.sync.isSendToken = op.opcode == opSendToken ? 1 : 0;
+      ins.sync.chanID = op.syncChannel;
+      ins.sync.unused0 = 0;
+      ins.sync.unused1 = 0;
+    }
+    m_accel->set_result_op_bits0(ins.raw[3]);
+    m_accel->set_result_op_bits1(ins.raw[2]);
+    m_accel->set_result_op_bits2(ins.raw[1]);
+    m_accel->set_result_op_bits3(ins.raw[0]);
     // push into result op FIFO
     assert(!result_op_full());
     m_accel->set_result_op_valid(1);
     m_accel->set_result_op_valid(0);
   }
 
-  // push a command to the Fetch runcfg queue
-  void push_fetch_runcfg(FetchRunCfg cfg) {
-    // set up all the fields for the runcfg
-    m_accel->set_fetch_runcfg_bits_bram_addr_base(cfg.bram_addr_base);
-    m_accel->set_fetch_runcfg_bits_bram_id_range(cfg.bram_id_range);
-    m_accel->set_fetch_runcfg_bits_bram_id_start(cfg.bram_id_start);
-    m_accel->set_fetch_runcfg_bits_dram_base((AccelDblReg) cfg.dram_base);
-    m_accel->set_fetch_runcfg_bits_dram_block_offset_bytes(cfg.dram_block_offset_bytes);
-    m_accel->set_fetch_runcfg_bits_dram_block_size_bytes(cfg.dram_block_size_bytes);
-    m_accel->set_fetch_runcfg_bits_dram_block_count(cfg.dram_block_count);
-    // hw limitation: tiles_per_row is internally 16 bits
-    assert(cfg.tiles_per_row < (1 << 16));
-    m_accel->set_fetch_runcfg_bits_tiles_per_row(cfg.tiles_per_row);
-    // push to runcfg FIFO
-    assert(!fetch_runcfg_full());
-    m_accel->set_fetch_runcfg_valid(1);
-    m_accel->set_fetch_runcfg_valid(0);
-  }
-
-  // push a command to the Exec runcfg queue
-  void push_exec_runcfg(ExecRunCfg cfg) {
-    // set up all the fields for the runcfg
-    m_accel->set_exec_runcfg_bits_clear_before_first_accumulation(cfg.doClear ? 1 : 0);
-    m_accel->set_exec_runcfg_bits_lhsOffset(cfg.lhsOffset);
-    m_accel->set_exec_runcfg_bits_negate(cfg.doNegate);
-    m_accel->set_exec_runcfg_bits_numTiles(cfg.numTiles);
-    m_accel->set_exec_runcfg_bits_rhsOffset(cfg.rhsOffset);
-    m_accel->set_exec_runcfg_bits_shiftAmount(cfg.shiftAmount);
-    m_accel->set_exec_runcfg_bits_writeEn(cfg.writeEn);
-    m_accel->set_exec_runcfg_bits_writeAddr(cfg.writeAddr);
-    assert(!exec_runcfg_full());
-    // push to runcfg FIFO
-    m_accel->set_exec_runcfg_valid(1);
-    m_accel->set_exec_runcfg_valid(0);
-  }
-
-  // push a command to the Result runcfg queue
-  void push_result_runcfg(ResultRunCfg cfg) {
-    // set up all the fields for the command
-    m_accel->set_result_runcfg_bits_dram_base((AccelDblReg) cfg.dram_base);
-    m_accel->set_result_runcfg_bits_dram_skip(cfg.dram_skip);
-    m_accel->set_result_runcfg_bits_resmem_addr(cfg.resmem_addr);
-    m_accel->set_result_runcfg_bits_waitComplete(cfg.waitComplete ? 1 : 0);
-    m_accel->set_result_runcfg_bits_waitCompleteBytes(cfg.waitCompleteBytes);
-    // push to runcfg FIFO
-    assert(!result_runcfg_full());
-    m_accel->set_result_runcfg_valid(1);
-    m_accel->set_result_runcfg_valid(0);
-  }
-
   // initialize the tokens in FIFOs representing shared resources
   void init_resource_pools() {
     set_stage_enables(0, 0, 0);
     for(int i = 0; i < FETCHEXEC_TOKENS; i++) {
-      push_exec_op(make_op(opSendToken, 0));
+      push_exec_op(make_op(opSendToken, 0), dummyExecRunCfg);
     }
     assert(m_accel->get_exec_op_count() == FETCHEXEC_TOKENS);
     set_stage_enables(0, 1, 0);
@@ -400,7 +414,7 @@ public:
 
     set_stage_enables(0, 0, 0);
     for(int i = 0; i < EXECRES_TOKENS; i++) {
-      push_result_op(make_op(opSendToken, 0));
+      push_result_op(make_op(opSendToken, 0), dummyResultRunCfg);
     }
     assert(m_accel->get_result_op_count() == EXECRES_TOKENS);
     set_stage_enables(0, 0, 1);

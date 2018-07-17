@@ -43,4 +43,5 @@ object BISMOLimits {
   val maxShift = 16
   val maxShiftBits = log2Up(maxShift+1)
   val resAddrBits = 1
+  val instrBits = 128
 }

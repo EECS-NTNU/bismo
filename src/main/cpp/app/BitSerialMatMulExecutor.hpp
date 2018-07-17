@@ -131,11 +131,8 @@ public:
     m_acc->set_stage_enables(0, 0, 0);
     // initial fill-up of the instruction queues
     fill_fetch_op();
-    fill_fetch_runcfg();
     fill_exec_op();
-    fill_exec_runcfg();
     fill_result_op();
-    fill_result_runcfg();
     // start the cycle counter
     m_acc->perf_set_cc_enable(true);
     // enable all stages
@@ -144,11 +141,8 @@ public:
     // instructions have been pushed
     while(!allPushed()) {
       fill_fetch_op();
-      fill_fetch_runcfg();
       fill_exec_op();
-      fill_exec_runcfg();
       fill_result_op();
-      fill_result_runcfg();
     }
     // wait until the result stage has no instructions std::left (= all finished)
     while(!allFinished());
@@ -352,11 +346,11 @@ protected:
   std::vector<ExecRunCfg> m_exec_runcfg;
   std::vector<ResultRunCfg> m_result_runcfg;
   size_t m_fetch_op_ptr, m_result_op_ptr, m_exec_op_ptr;
-  size_t m_fetch_runcfg_ptr, m_result_runcfg_ptr, m_exec_runcfg_ptr;
 
   // keep track of what we have in the on-chip memory to avoid re-fetching
   std::vector<uint64_t> m_cached_lhs, m_cached_rhs;
 
+/*
   void printExecQueue() {
     std::vector<string> opName {"run", "send", "receive"};
     int runcfg_cnt = 0;
@@ -382,6 +376,7 @@ protected:
       }
     }
   }
+*/
 
   void makeinstr_fetch_run(FetchRunCfg r) {
     if(r.dram_block_size_bytes == r.dram_block_offset_bytes) {
@@ -417,7 +412,6 @@ protected:
   void clear_all_queue_pointers() {
     // set queue pointers to zero
     m_fetch_op_ptr = m_result_op_ptr = m_exec_op_ptr = 0;
-    m_fetch_runcfg_ptr = m_result_runcfg_ptr = m_exec_runcfg_ptr = 0;
   }
 
   // whether all instruction execution has finished
@@ -436,71 +430,64 @@ protected:
 
   void fill_fetch_op() {
     while(!m_acc->fetch_op_full() && m_fetch_op_ptr < m_fetch_op.size()) {
-      m_acc->push_fetch_op(m_fetch_op[m_fetch_op_ptr++]);
+      m_acc->push_fetch_op(m_fetch_op[m_fetch_op_ptr], m_fetch_runcfg[m_fetch_op_ptr]);
+      m_fetch_op_ptr++;
     }
   }
 
   void fill_exec_op() {
     while(!m_acc->exec_op_full() && m_exec_op_ptr < m_exec_op.size()) {
-      m_acc->push_exec_op(m_exec_op[m_exec_op_ptr++]);
+      m_acc->push_exec_op(m_exec_op[m_exec_op_ptr], m_exec_runcfg[m_exec_op_ptr]);
+      m_exec_op_ptr++;
     }
   }
 
   void fill_result_op() {
     while(!m_acc->result_op_full() && m_result_op_ptr < m_result_op.size()) {
-      m_acc->push_result_op(m_result_op[m_result_op_ptr++]);
-    }
-  }
-
-  void fill_fetch_runcfg() {
-    while(!m_acc->fetch_runcfg_full() && m_fetch_runcfg_ptr < m_fetch_runcfg.size()) {
-      m_acc->push_fetch_runcfg(m_fetch_runcfg[m_fetch_runcfg_ptr++]);
-    }
-  }
-
-  void fill_exec_runcfg() {
-    while(!m_acc->exec_runcfg_full() && m_exec_runcfg_ptr < m_exec_runcfg.size()) {
-      m_acc->push_exec_runcfg(m_exec_runcfg[m_exec_runcfg_ptr++]);
-    }
-  }
-
-  void fill_result_runcfg() {
-    while(!m_acc->result_runcfg_full() && m_result_runcfg_ptr < m_result_runcfg.size()) {
-      m_acc->push_result_runcfg(m_result_runcfg[m_result_runcfg_ptr++]);
+      m_acc->push_result_op(m_result_op[m_result_op_ptr], m_result_runcfg[m_result_op_ptr]);
+      m_result_op_ptr++;
     }
   }
 
   // helper functions for generating sync instructions
   void makeinstr_fetch_sync_getexecbuffer() {
     m_fetch_op.push_back(m_acc->make_op(opReceiveToken, 0));
+    m_fetch_runcfg.push_back( dummyFetchRunCfg);
   }
 
   void makeinstr_fetch_sync_putexecbuffer() {
     m_fetch_op.push_back(m_acc->make_op(opSendToken, 0));
+    m_fetch_runcfg.push_back( dummyFetchRunCfg);
   }
 
   void makeinstr_exec_sync_getfetchbuffer() {
     m_exec_op.push_back(m_acc->make_op(opReceiveToken, 0));
+    m_exec_runcfg.push_back( dummyExecRunCfg);
   }
 
   void makeinstr_exec_sync_putfetchbuffer() {
     m_exec_op.push_back(m_acc->make_op(opSendToken, 0));
+    m_exec_runcfg.push_back( dummyExecRunCfg);
   }
 
   void makeinstr_exec_sync_getresultbuffer() {
     m_exec_op.push_back(m_acc->make_op(opReceiveToken, 1));
+    m_exec_runcfg.push_back( dummyExecRunCfg);
   }
 
   void makeinstr_exec_sync_putresultbuffer() {
     m_exec_op.push_back(m_acc->make_op(opSendToken, 1));
+    m_exec_runcfg.push_back( dummyExecRunCfg);
   }
 
   void makeinstr_result_sync_getexecbuffer() {
     m_result_op.push_back(m_acc->make_op(opReceiveToken, 0));
+    m_result_runcfg.push_back( dummyResultRunCfg);
   }
 
   void makeinstr_result_sync_putexecbuffer() {
     m_result_op.push_back(m_acc->make_op(opSendToken, 0));
+    m_result_runcfg.push_back( dummyResultRunCfg);
   }
 
   void updateFetchStateCounters() {
@@ -522,7 +509,7 @@ protected:
   }
 
   // get the pointer to the start of given result tile
-  void * get_result_tile_ptr(const size_t lhs_tile, const size_t rhs_tile) {
+  uint64_t get_result_tile_ptr(const size_t lhs_tile, const size_t rhs_tile) {
     uint32_t lhs_ind = m_hwcfg.dpaDimLHS * lhs_tile;
     uint32_t rhs_ind = m_hwcfg.dpaDimRHS * rhs_tile;
     assert(lhs_ind < lhs_eff_rows());
@@ -530,7 +517,7 @@ protected:
     size_t ind = rhs_ind * lhs_eff_rows() + lhs_ind;
     assert((ind * sizeof(ResultType)) < resBytes());
     uint64_t ret = (uint64_t)m_accelRes + (ind * sizeof(ResultType));
-    return (void*) ret;
+    return ret;
   }
 
   const size_t lhs_eff_rows() {
@@ -653,7 +640,7 @@ protected:
           frc.tiles_per_row = lhs_l0_per_l1 * exec_to_fetch_width_ratio;
           // size of each block in bytes (contiguous in memory)
           frc.dram_block_size_bytes = lhs_l0_per_l1 * dpa_z_bytes;
-          frc.dram_base = (void *)(fetch_base_lhs + lhs_l2*z_l2_per_matrix*lhs_bytes_per_l2 + z_l2 * frc.dram_block_size_bytes);
+          frc.dram_base = (fetch_base_lhs + lhs_l2*z_l2_per_matrix*lhs_bytes_per_l2 + z_l2 * frc.dram_block_size_bytes);
           // number of blocks to fetch
           assert(bytesPerFetchGroup % frc.dram_block_size_bytes == 0);
           assert(bytesPerFetchGroup / frc.dram_block_size_bytes >= 1);
@@ -676,7 +663,7 @@ protected:
           frc.tiles_per_row = rhs_l0_per_l1 * exec_to_fetch_width_ratio;
           // size of each block in bytes (contiguous in memory)
           frc.dram_block_size_bytes = rhs_l0_per_l1 * dpa_z_bytes;
-          frc.dram_base = (void *)(fetch_base_rhs + rhs_l2*z_l2_per_matrix*rhs_bytes_per_l2 + z_l2 * frc.dram_block_size_bytes);
+          frc.dram_base = (fetch_base_rhs + rhs_l2*z_l2_per_matrix*rhs_bytes_per_l2 + z_l2 * frc.dram_block_size_bytes);
           // number of blocks to fetch
           assert(bytesPerFetchGroup % frc.dram_block_size_bytes == 0);
           assert(bytesPerFetchGroup / frc.dram_block_size_bytes >= 1);
@@ -711,9 +698,9 @@ protected:
               erc.lhsOffset *= exec_to_fetch_width_ratio;
               erc.rhsOffset = current_bram_region * rhs_l0_per_bram + rhs_l1 * erc.numTiles;
               erc.rhsOffset *= exec_to_fetch_width_ratio;
-              erc.doNegate = 0;
+              erc.negate = 0;
               erc.shiftAmount = 0;
-              erc.doClear = (z_l2 == 0 ? 1 : 0); // clear when starting new stripe
+              erc.clear_before_first_accumulation = (z_l2 == 0 ? 1 : 0); // clear when starting new stripe
               // write result at the end of z tile
               erc.writeEn = (z_l2 == z_l2_per_matrix - 1 ? 1 : 0);
               erc.writeAddr = current_resmem_region;

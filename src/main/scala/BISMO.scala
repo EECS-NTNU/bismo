@@ -188,9 +188,9 @@ class BitSerialMatMulAccel(
     val exec_enable = Bool(INPUT)
     val result_enable = Bool(INPUT)
     // instruction queues
-    val fetch_op = Decoupled(new BISMOFetchRunInstruction()).flip
-    val exec_op = Decoupled(new BISMOExecRunInstruction()).flip
-    val result_op = Decoupled(new BISMOResultRunInstruction()).flip
+    val fetch_op = Decoupled(UInt(width = BISMOLimits.instrBits)).flip
+    val exec_op = Decoupled(UInt(width = BISMOLimits.instrBits)).flip
+    val result_op = Decoupled(UInt(width = BISMOLimits.instrBits)).flip
     // command counts in each queue
     val fetch_op_count = UInt(OUTPUT, width = 32)
     val exec_op_count = UInt(OUTPUT, width = 32)
@@ -257,19 +257,25 @@ class BitSerialMatMulAccel(
   // wire-up: command queues and pulse generators for fetch stage
   fetchCtrl.enable := io.fetch_enable
   io.fetch_op_count := fetchOpQ.count
-  fetchOpQ.deq <> fetchCtrl.op
+  fetchOpQ.deq.ready := fetchCtrl.op.ready
+  fetchCtrl.op.valid := fetchOpQ.deq.valid
+  fetchCtrl.op.bits := fetchCtrl.op.bits.fromBits(fetchOpQ.deq.bits)
   enqPulseGenFromValid(fetchOpQ.enq, io.fetch_op)
 
   // wire-up: command queues and pulse generators for exec stage
   execCtrl.enable := io.exec_enable
   io.exec_op_count := execOpQ.count
-  execOpQ.deq <> execCtrl.op
+  execOpQ.deq.ready := execCtrl.op.ready
+  execCtrl.op.valid := execOpQ.deq.valid
+  execCtrl.op.bits := execCtrl.op.bits.fromBits(execOpQ.deq.bits)
   enqPulseGenFromValid(execOpQ.enq, io.exec_op)
 
   // wire-up: command queues and pulse generators for result stage
   resultCtrl.enable := io.result_enable
   io.result_op_count := resultOpQ.count
-  resultOpQ.deq <> resultCtrl.op
+  resultOpQ.deq.ready := resultCtrl.op.ready
+  resultCtrl.op.valid := resultOpQ.deq.valid
+  resultCtrl.op.bits := resultCtrl.op.bits.fromBits(resultOpQ.deq.bits)
   enqPulseGenFromValid(resultOpQ.enq, io.result_op)
 
   // wire-up: fetch controller and stage
