@@ -1,6 +1,7 @@
 
 SDACCEL_DSA ?= xilinx_kcu1500_dynamic_5_0
 SDACCEL_OPTIMIZE ?= 3
+SDACCEL_SLR ?= SLR0
 
 SDACCEL_XML := $(TIDBITS_ROOT)/src/main/resources/xml/kernel_GenericSDAccelWrapperTop.xml
 SDACCEL_XO := $(BUILD_DIR)/hw/bismo.xo
@@ -8,7 +9,8 @@ SDACCEL_XO_SCRIPT := $(TIDBITS_ROOT)/src/main/resources/script/gen_xo.tcl
 SDACCEL_XCLBIN := $(BUILD_DIR)/hw/bismo.xclbin
 SDACCEL_IP_SCRIPT := $(TIDBITS_ROOT)/src/main/resources/script/package_ip.tcl
 SDACCEL_IP := $(BUILD_DIR)/hw/ip
-SDACCEL_IMPL_DIR := $(BUILD_DIR)/hw//_xocc_link_bismo_bismo.dir/_vpl/ipi/imp/imp.runs/impl_1
+SDACCEL_IMPL_DIR := $(BUILD_DIR)/hw/_xocc_link_bismo_bismo.dir/_vpl/ipi/imp/imp.runs/impl_1
+SDACCEL_SLR_TCL := $(BUILD_DIR)/hw/userPostSysLink.tcl
 EXTRA_VERILOG := $(BUILD_DIR_VERILOG)/GenericSDAccelWrapperTop.v
 SDX_ENVVAR_SET := $(ls ${XILINX_SDX} 2> /dev/null)
 RUN_APP :=  $(BUILD_DIR_DEPLOY)/bismo
@@ -35,8 +37,11 @@ $(SDACCEL_IP): $(HW_VERILOG) $(EXTRA_VERILOG)
 $(SDACCEL_XO): $(SDACCEL_IP)
 	cd $(BUILD_DIR)/hw; vivado -mode batch -source $(SDACCEL_XO_SCRIPT) -tclargs $(SDACCEL_XO) GenericSDAccelWrapperTop $(SDACCEL_IP) $(SDACCEL_XML)
 
-$(SDACCEL_XCLBIN): $(SDACCEL_XO)
-	cd $(BUILD_DIR)/hw; xocc --link --report system --save-temps --target hw --kernel_frequency "0:$(FREQ_MHZ)|1:$(FREQ_MHZ)" --optimize $(SDACCEL_OPTIMIZE) --platform $(SDACCEL_DSA) $(SDACCEL_XO) -o $(SDACCEL_XCLBIN)
+$(SDACCEL_SLR_TCL):
+	echo "set_property CONFIG.SLR_ASSIGNMENTS $(SDACCEL_SLR) [get_bd_cells GenericSDAccelWrapperTop_1_0]" > $(SDACCEL_SLR_TCL)
+
+$(SDACCEL_XCLBIN): $(SDACCEL_XO) $(SDACCEL_SLR_TCL)
+	cd $(BUILD_DIR)/hw; xocc --link --xp param:compiler.userPostSysLinkTcl=$(SDACCEL_SLR_TCL) --report system --save-temps --target hw --kernel_frequency "0:$(FREQ_MHZ)|1:$(FREQ_MHZ)" --optimize $(SDACCEL_OPTIMIZE) --platform $(SDACCEL_DSA) $(SDACCEL_XO) -o $(SDACCEL_XCLBIN)
 
 hw: $(SDACCEL_XCLBIN)
 	mkdir -p $(BUILD_DIR_DEPLOY); cp $(SDACCEL_XCLBIN) $(BUILD_DIR_DEPLOY)/BitSerialMatMulAccel
