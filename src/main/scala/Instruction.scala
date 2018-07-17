@@ -37,6 +37,15 @@ object TargetStages {
   val stgFetch :: stgExec :: stgResult :: Nil = Enum(UInt(), 3)
 }
 
+class BISMOInstruction extends Bundle {
+  val instrData = UInt(width = 128 - 3)
+  val isRunCfg = Bool()
+  val targetStage = UInt(width = 2)
+
+  override def cloneType: this.type =
+    new BISMOInstruction().asInstanceOf[this.type]
+}
+
 class BISMOSyncInstruction extends Bundle {
   val unused = UInt(width = 128 - 6)
   // channel number for token sync

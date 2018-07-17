@@ -187,14 +187,10 @@ class BitSerialMatMulAccel(
     val fetch_enable = Bool(INPUT)
     val exec_enable = Bool(INPUT)
     val result_enable = Bool(INPUT)
-    // op queues
-    val fetch_op = Decoupled(new ControllerCmd(1, 1)).flip
-    val exec_op = Decoupled(new ControllerCmd(2, 2)).flip
-    val result_op = Decoupled(new ControllerCmd(1, 1)).flip
-    // config for run ops
-    val fetch_runcfg = Decoupled(new FetchStageCtrlIO()).flip
-    val exec_runcfg = Decoupled(new ExecStageCtrlIO()).flip
-    val result_runcfg = Decoupled(new ResultStageCtrlIO()).flip
+    // instruction queues
+    val fetch_op = Decoupled(new BISMOFetchRunInstruction()).flip
+    val exec_op = Decoupled(new BISMOExecRunInstruction()).flip
+    val result_op = Decoupled(new BISMOResultRunInstruction()).flip
     // command counts in each queue
     val fetch_op_count = UInt(OUTPUT, width = 32)
     val exec_op_count = UInt(OUTPUT, width = 32)
@@ -210,16 +206,13 @@ class BitSerialMatMulAccel(
   val execStage = Module(new ExecStage(myP.execStageParams)).io
   val resultStage = Module(new ResultStage(myP.resultStageParams)).io
   // instantiate the controllers for each stage
-  val fetchCtrl = Module(new FetchController(myP.fetchStageParams)).io
-  val execCtrl = Module(new ExecController(myP.execStageParams)).io
-  val resultCtrl = Module(new ResultController(myP.resultStageParams)).io
-  // instantiate op and runcfg queues
+  val fetchCtrl = Module(new FetchController()).io
+  val execCtrl = Module(new ExecController()).io
+  val resultCtrl = Module(new ResultController()).io
+  // instantiate op queues
   val fetchOpQ = Module(new FPGAQueue(io.fetch_op.bits, myP.cmdQueueEntries)).io
   val execOpQ = Module(new FPGAQueue(io.exec_op.bits, myP.cmdQueueEntries)).io
   val resultOpQ = Module(new FPGAQueue(io.result_op.bits, myP.cmdQueueEntries)).io
-  val fetchRunCfgQ = Module(new FPGAQueue(io.fetch_runcfg.bits, myP.cmdQueueEntries)).io
-  val execRunCfgQ = Module(new FPGAQueue(io.exec_runcfg.bits, myP.cmdQueueEntries)).io
-  val resultRunCfgQ = Module(new FPGAQueue(io.result_runcfg.bits, myP.cmdQueueEntries)).io
   // instantiate tile memories
   val tilemem_lhs = Vec.fill(myP.dpaDimLHS) {
     Module(new AsymPipelinedDualPortBRAM(
@@ -265,25 +258,19 @@ class BitSerialMatMulAccel(
   fetchCtrl.enable := io.fetch_enable
   io.fetch_op_count := fetchOpQ.count
   fetchOpQ.deq <> fetchCtrl.op
-  fetchRunCfgQ.deq <> fetchCtrl.runcfg
   enqPulseGenFromValid(fetchOpQ.enq, io.fetch_op)
-  enqPulseGenFromValid(fetchRunCfgQ.enq, io.fetch_runcfg)
 
   // wire-up: command queues and pulse generators for exec stage
   execCtrl.enable := io.exec_enable
   io.exec_op_count := execOpQ.count
   execOpQ.deq <> execCtrl.op
-  execRunCfgQ.deq <> execCtrl.runcfg
   enqPulseGenFromValid(execOpQ.enq, io.exec_op)
-  enqPulseGenFromValid(execRunCfgQ.enq, io.exec_runcfg)
 
   // wire-up: command queues and pulse generators for result stage
   resultCtrl.enable := io.result_enable
   io.result_op_count := resultOpQ.count
   resultOpQ.deq <> resultCtrl.op
-  resultRunCfgQ.deq <> resultCtrl.runcfg
   enqPulseGenFromValid(resultOpQ.enq, io.result_op)
-  enqPulseGenFromValid(resultRunCfgQ.enq, io.result_runcfg)
 
   // wire-up: fetch controller and stage
   fetchStage.start := fetchCtrl.start

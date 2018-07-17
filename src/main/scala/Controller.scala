@@ -42,35 +42,18 @@ import fpgatidbits.profiler._
 // Each stage has its own derived *Controller class, defined at the bottom of
 // this file.
 
-// Currently, there are two queues associated with each controller:
-// - an "op" queue that only contains an opcode (run, send token, receive token)
-//   and the token queue ID to send/receive from if applicable
-// - a separate "runcfg" queue that contains stage-specific configuration. for
-//   each run opcode, an item will be popped from this queue.
-object Opcodes {
-  val opRun :: opSendToken :: opReceiveToken :: Nil = Enum(UInt(), 3)
-}
-
-class ControllerCmd(inChannels: Int, outChannels: Int) extends Bundle {
-  val opcode = UInt(width = 2)
-  val token_channel = UInt(width = log2Up(math.max(inChannels, outChannels)))
-
-  override def cloneType: this.type =
-    new ControllerCmd(inChannels, outChannels).asInstanceOf[this.type]
-}
-
 // base class for all stage controllers, taking in a stream of commands and
 // individually executing each while respecting shared resource access locks.
-class BaseController[Ts <: Bundle](
+class BaseController[Ts <: Bundle, Ti <: Bundle](
   inChannels: Int,          // number of input sync channels
   outChannels: Int,         // number of output sync channels
-  genStageO: => Ts          // gentype for stage output
+  genStageO: => Ts,         // gentype for stage output
+  genInstr: => Ti,          // gentype for instructions
+  instr2StageO: Ti => Ts    // convert instruction to stage output
 ) extends Module {
   val io = new Bundle {
-    // command queue input
-    val op = Decoupled(new ControllerCmd(inChannels, outChannels)).flip
-    // config for run commands
-    val runcfg = Decoupled(genStageO).flip
+    // instruction queue input
+    val op = Decoupled(genInstr).flip
     // enable/disable execution of new instructions for this stage
     val enable = Bool(INPUT)
     // stage start/stop signals to stage
@@ -88,11 +71,11 @@ class BaseController[Ts <: Bundle](
       val sel = UInt(INPUT, log2Up(4))
     }
   }
+  val instrAsSync = new BISMOSyncInstruction().fromBits(io.op.bits.toBits())
   // default values
   io.op.ready := Bool(false)
-  io.runcfg.ready := Bool(false)
   io.start := Bool(false)
-  io.stageO := io.runcfg.bits
+  io.stageO := instr2StageO(io.op.bits)
   for(i <- 0 until inChannels) { io.sync_in(i).ready := Bool(false) }
   for(i <- 0 until outChannels) {
     io.sync_out(i).valid := Bool(false)
@@ -109,13 +92,12 @@ class BaseController[Ts <: Bundle](
   switch(regState) {
     is(sGetCmd) {
       when(io.op.valid & io.enable) {
-        // "peek" into the new command:
-        when(io.op.bits.opcode === Opcodes.opRun && io.runcfg.valid && !io.done) {
+        when(instrAsSync.isRunCfg) {
+          // runcfg instruction
           regState := sRun
-        } .elsewhen(io.op.bits.opcode === Opcodes.opSendToken) {
-          regState := sSend
-        } .elsewhen(io.op.bits.opcode === Opcodes.opReceiveToken) {
-          regState := sReceive
+        } .otherwise {
+          // sync instruction
+          regState := Mux(instrAsSync.isSendToken, sSend, sReceive)
         }
       }
     }
@@ -125,14 +107,13 @@ class BaseController[Ts <: Bundle](
       when(io.done) {
         // pop from command queue when done
         io.op.ready := Bool(true)
-        io.runcfg.ready := Bool(true)
         // get new command
         regState := sGetCmd
       }
     }
     is(sSend) {
       // send sync token
-      val sendChannel = io.sync_out(io.op.bits.token_channel)
+      val sendChannel = io.sync_out(instrAsSync.chanID)
       sendChannel.valid := Bool(true)
       when(sendChannel.ready) {
         regState := sGetCmd
@@ -141,7 +122,7 @@ class BaseController[Ts <: Bundle](
     }
     is(sReceive) {
       // receive sync token
-      val receiveChannel = io.sync_in(io.op.bits.token_channel)
+      val receiveChannel = io.sync_in(instrAsSync.chanID)
       receiveChannel.ready := Bool(true)
       when(receiveChannel.valid) {
         regState := sGetCmd
@@ -158,14 +139,20 @@ class BaseController[Ts <: Bundle](
 }
 
 // derived classes for each type of controller.
-class FetchController(val myP: FetchStageParams) extends BaseController(
-  genStageO = new FetchStageCtrlIO(), inChannels = 1, outChannels = 1
+class FetchController extends BaseController(
+  genStageO = new FetchStageCtrlIO(), inChannels = 1, outChannels = 1,
+  genInstr = new BISMOFetchRunInstruction(),
+  instr2StageO = (x: BISMOFetchRunInstruction) => x.runcfg
 ){ }
 
-class ExecController(val myP: ExecStageParams) extends BaseController(
-  genStageO = new ExecStageCtrlIO(), inChannels = 2, outChannels = 2
+class ExecController extends BaseController(
+  genStageO = new ExecStageCtrlIO(), inChannels = 2, outChannels = 2,
+  genInstr = new BISMOExecRunInstruction(),
+  instr2StageO = (x: BISMOExecRunInstruction) => x.runcfg
 ){ }
 
-class ResultController(val myP: ResultStageParams) extends BaseController(
-  genStageO = new ResultStageCtrlIO(), inChannels = 1, outChannels = 1
+class ResultController extends BaseController(
+  genStageO = new ResultStageCtrlIO(), inChannels = 1, outChannels = 1,
+  genInstr = new BISMOResultRunInstruction(),
+  instr2StageO = (x: BISMOResultRunInstruction) => x.runcfg
 ){ }
