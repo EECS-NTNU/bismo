@@ -2,6 +2,10 @@
 
 // defines the data layout and fields for BISMO instructions
 
+enum BISMOTargetStage {
+  stgFetch, stgExec, stgResult
+};
+
 // NOTE: the ordering of the fields is important and should
 // not be changed without making corresponding changes on the
 // hardware side as well. additionally, since bit packing
