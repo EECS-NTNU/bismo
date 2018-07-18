@@ -22,6 +22,16 @@ struct BISMOSyncInstruction {
   uint64_t unused1 : 64;
 };
 
+ostream& operator<<(ostream& os, const BISMOSyncInstruction& dt)
+{
+    os << "sync: ";
+    os << "stage="<< dt.targetStage << " ";
+    os << "isRunCfg="<< dt.isRunCfg << " ";
+    os << "isSend="<< dt.isSendToken << " ";
+    os << "chanID="<< dt.chanID << std::endl;
+    return os;
+}
+
 struct BISMOFetchRunInstruction {
   uint64_t targetStage : 2;
   uint64_t isRunCfg : 1;
