@@ -81,8 +81,8 @@ typedef struct {
   uint32_t negate;
   uint32_t numTiles;
   uint32_t shiftAmount;
-  uint8_t clear_before_first_accumulation;
-  uint8_t writeEn;
+  uint32_t clear_before_first_accumulation;
+  uint32_t writeEn;
   uint32_t writeAddr;
 } ExecRunCfg;
 
@@ -90,7 +90,7 @@ typedef struct {
   uint64_t dram_base;
   uint64_t dram_skip;
   uint32_t resmem_addr;
-  uint8_t waitComplete;
+  uint32_t waitComplete;
   uint32_t waitCompleteBytes;
 } ResultRunCfg;
 
@@ -216,6 +216,16 @@ public:
     cout << "========================================" << endl;
   }
 
+  static void printResultRunCfg(ResultRunCfg r) {
+    cout << "ResultRunCfg ============================" << endl;
+    cout << "dram_base: " << r.dram_base << endl;
+    cout << "dram_skip: " << r.dram_skip << endl;
+    cout << "resmem_addr: " << r.resmem_addr << endl;
+    cout << "waitComplete: " << r.waitComplete << endl;
+    cout << "waitCompleteBytes: " << r.waitCompleteBytes << endl;
+    cout << "========================================" << endl;
+  }
+
   const size_t get_lhs_total_BRAM_bytes() {
     return m_cfg.dpaDimLHS * m_cfg.lhsEntriesPerMem * m_cfg.dpaDimCommon / 8;
   }
@@ -320,7 +330,7 @@ public:
       // hw limitation: tiles_per_row is internally 16 bits
       assert(cfg.tiles_per_row < (1 << 16));
       ins.fetch.tiles_per_row = cfg.tiles_per_row;
-    } else if(op.opcode == opSendToken || op.opcode == opReceiveToken) {
+    } else {
       ins.sync.targetStage = stgFetch;
       ins.sync.isRunCfg = 0;
       ins.sync.isSendToken = op.opcode == opSendToken ? 1 : 0;
@@ -354,8 +364,8 @@ public:
       ins.exec.clear_before_first_accumulation = cfg.clear_before_first_accumulation;
       ins.exec.writeEn = cfg.writeEn;
       ins.exec.writeAddr = cfg.writeAddr;
-    } else if(op.opcode == opSendToken || op.opcode == opReceiveToken) {
-      ins.sync.targetStage = stgFetch;
+    } else {
+      ins.sync.targetStage = stgExec;
       ins.sync.isRunCfg = 0;
       ins.sync.isSendToken = op.opcode == opSendToken ? 1 : 0;
       ins.sync.chanID = op.syncChannel;
@@ -384,8 +394,8 @@ public:
       ins.res.dram_base = cfg.dram_base;
       ins.res.dram_skip = cfg.dram_skip;
       ins.res.waitCompleteBytes = cfg.waitCompleteBytes;
-    } else if(op.opcode == opSendToken || op.opcode == opReceiveToken) {
-      ins.sync.targetStage = stgFetch;
+    } else {
+      ins.sync.targetStage = stgResult;
       ins.sync.isRunCfg = 0;
       ins.sync.isSendToken = op.opcode == opSendToken ? 1 : 0;
       ins.sync.chanID = op.syncChannel;
