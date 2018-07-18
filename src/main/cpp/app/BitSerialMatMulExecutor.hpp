@@ -350,33 +350,40 @@ protected:
   // keep track of what we have in the on-chip memory to avoid re-fetching
   std::vector<uint64_t> m_cached_lhs, m_cached_rhs;
 
-/*
+
   void printExecQueue() {
     std::vector<string> opName {"run", "send", "receive"};
-    int runcfg_cnt = 0;
     for(int i = 0; i < m_exec_op.size(); i++) {
       std::cout << "Exec op " << i << " type " << opName[m_exec_op[i].opcode];
       std::cout << " channel " << m_exec_op[i].syncChannel << std::endl;
       if(m_exec_op[i].opcode == opRun) {
-        m_acc->printExecRunCfg(m_exec_runcfg[runcfg_cnt]);
-        runcfg_cnt++;
+        m_acc->printExecRunCfg(m_exec_runcfg[i]);
       }
     }
   }
 
   void printFetchQueue() {
     std::vector<string> opName {"run", "send", "receive"};
-    int runcfg_cnt = 0;
     for(int i = 0; i < m_fetch_op.size(); i++) {
       std::cout << "Fetch op " << i << " type " << opName[m_fetch_op[i].opcode];
       std::cout << " channel " << m_fetch_op[i].syncChannel << std::endl;
       if(m_fetch_op[i].opcode == opRun) {
-        m_acc->printFetchRunCfg(m_fetch_runcfg[runcfg_cnt]);
-        runcfg_cnt++;
+        m_acc->printFetchRunCfg(m_fetch_runcfg[i]);
       }
     }
   }
-*/
+
+  void printResultQueue() {
+    std::vector<string> opName {"run", "send", "receive"};
+    for(int i = 0; i < m_fetch_op.size(); i++) {
+      std::cout << "Result op " << i << " type " << opName[m_fetch_op[i].opcode];
+      std::cout << " channel " << m_fetch_op[i].syncChannel << std::endl;
+      if(m_result_op[i].opcode == opRun) {
+        m_acc->printResultRunCfg(m_result_runcfg[i]);
+      }
+    }
+  }
+
 
   void makeinstr_fetch_run(FetchRunCfg r) {
     if(r.dram_block_size_bytes == r.dram_block_offset_bytes) {
@@ -720,7 +727,7 @@ protected:
                 size_t rhs_tile = rhs_l1_per_l2 * rhs_l2 + rhs_l1;
                 rrc.dram_base = get_result_tile_ptr(lhs_tile, rhs_tile);
                 rrc.dram_skip = lhs_eff_rows() * sizeof(ResultType);
-                rrc.waitComplete = false;
+                rrc.waitComplete = 0;
                 rrc.waitCompleteBytes = 0;
                 makeinstr_result_run(rrc);
                 makeinstr_result_sync_putexecbuffer();
@@ -745,5 +752,12 @@ protected:
     rrc.dram_base = 0;
     rrc.dram_skip = 0;
     makeinstr_result_run(rrc);
+
+    // display instruction sequence for debug
+    /*printFetchQueue();
+    cout << endl << endl;
+    printExecQueue();
+    cout << endl << endl;
+    printResultQueue();*/
   }
 };
