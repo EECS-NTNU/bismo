@@ -354,6 +354,7 @@ public:
       ins.fetch.unused0 = 0;
       ins.fetch.bram_id_start = cfg.bram_id_start;
       ins.fetch.bram_id_range = cfg.bram_id_range;
+      ins.fetch.bram_addr_base = cfg.bram_addr_base;
       ins.fetch.dram_base = cfg.dram_base;
       ins.fetch.dram_block_size_bytes = cfg.dram_block_size_bytes;
       ins.fetch.dram_block_offset_bytes = cfg.dram_block_offset_bytes;
