@@ -375,8 +375,8 @@ protected:
 
   void printResultQueue() {
     std::vector<string> opName {"run", "send", "receive"};
-    for(int i = 0; i < m_fetch_op.size(); i++) {
-      std::cout << "Result op " << i << " type " << opName[m_fetch_op[i].opcode];
+    for(int i = 0; i < m_result_op.size(); i++) {
+      std::cout << "Result op " << i << " type " << opName[m_result_op[i].opcode];
       std::cout << " channel " << m_fetch_op[i].syncChannel << std::endl;
       if(m_result_op[i].opcode == opRun) {
         m_acc->printResultRunCfg(m_result_runcfg[i]);
