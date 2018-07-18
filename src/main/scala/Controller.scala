@@ -92,10 +92,10 @@ class BaseController[Ts <: Bundle, Ti <: Bundle](
   switch(regState) {
     is(sGetCmd) {
       when(io.op.valid & io.enable) {
-        when(instrAsSync.isRunCfg) {
+        when(instrAsSync.isRunCfg & !io.done) {
           // runcfg instruction
           regState := sRun
-        } .otherwise {
+        } .elsewhen(!instrAsSync.isRunCfg) {
           // sync instruction
           regState := Mux(instrAsSync.isSendToken, sSend, sReceive)
         }
@@ -143,16 +143,25 @@ class FetchController extends BaseController(
   genStageO = new FetchStageCtrlIO(), inChannels = 1, outChannels = 1,
   genInstr = new BISMOFetchRunInstruction(),
   instr2StageO = (x: BISMOFetchRunInstruction) => x.runcfg
-){ }
+){
+  val prevState = Reg(next=regState)
+  //when(regState != prevState { printf("FetchController state: %d\n", regState) }
+}
 
 class ExecController extends BaseController(
   genStageO = new ExecStageCtrlIO(), inChannels = 2, outChannels = 2,
   genInstr = new BISMOExecRunInstruction(),
   instr2StageO = (x: BISMOExecRunInstruction) => x.runcfg
-){ }
+){
+  val prevState = Reg(next=regState)
+  //when(regState != prevState { printf("ExecController state: %d\n", regState) }
+}
 
 class ResultController extends BaseController(
   genStageO = new ResultStageCtrlIO(), inChannels = 1, outChannels = 1,
   genInstr = new BISMOResultRunInstruction(),
   instr2StageO = (x: BISMOResultRunInstruction) => x.runcfg
-){ }
+){
+  val prevState = Reg(next=regState)
+  //when(regState != prevState { printf("ResultController state: %d\n", regState) }
+}
