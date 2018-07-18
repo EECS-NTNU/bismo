@@ -142,7 +142,6 @@ class BitSerialMatMulParams(
     dpuParams = dpuParams, m = dpaDimLHS, n = dpaDimRHS,
     extraPipelineRegs = extraRegs_DPA
   )
-  Predef.assert(dpaDimCommon >= mrp.dataWidth)
   val execStageParams = new ExecStageParams(
     dpaParams = dpaParams, lhsTileMem = lhsEntriesPerMem, rhsTileMem = rhsEntriesPerMem,
     bramInRegs = bramPipelineBefore, bramOutRegs = bramPipelineAfter,
@@ -155,6 +154,11 @@ class BitSerialMatMulParams(
     resEntriesPerMem = resEntriesPerMem,
     resMemReadLatency = 0
   )
+  Predef.assert(dpaDimCommon >= mrp.dataWidth)
+  Predef.assert(log2Up(lhsEntriesPerMem) <= BISMOLimits.inpBufAddrBits)
+  Predef.assert(log2Up(rhsEntriesPerMem) <= BISMOLimits.inpBufAddrBits)
+  Predef.assert(maxShiftSteps <= BISMOLimits.maxShift)
+  Predef.assert(log2Up(resEntriesPerMem) <= BISMOLimits.resAddrBits)
 }
 
 // Bundle to expose performance counter data to the CPU
