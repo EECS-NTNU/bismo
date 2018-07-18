@@ -6,6 +6,16 @@ enum BISMOTargetStage {
   stgFetch, stgExec, stgResult
 };
 
+// these should match the values defined in BISMOLimits.scala
+#define BISMO_LIMIT_FETCHID_BITS    5
+#define BISMO_LIMIT_INBUFADDR_BITS  16
+#define BISMO_LIMIT_DRAMADDR_BITS   32
+#define BISMO_LIMIT_DRAM_BSIZE_BITS 16
+#define BISMO_LIMIT_DRAM_BCNT_BITS  16
+#define BISMO_LIMIT_MAXSHIFT_BITS   5
+#define BISMO_LIMIT_RESADDR_BITS    1
+
+
 // NOTE: the ordering of the fields is important and should
 // not be changed without making corresponding changes on the
 // hardware side as well. additionally, since bit packing
