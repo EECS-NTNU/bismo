@@ -33,10 +33,6 @@ package bismo
 
 import Chisel._
 
-object TargetStages {
-  val stgFetch :: stgExec :: stgResult :: Nil = Enum(UInt(), 3)
-}
-
 class BISMOInstruction extends Bundle {
   val instrData = UInt(width = 128 - 3)
   val isRunCfg = Bool()

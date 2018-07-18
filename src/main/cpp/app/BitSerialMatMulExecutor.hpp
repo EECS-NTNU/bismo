@@ -432,21 +432,21 @@ protected:
   }
 
   void fill_fetch_op() {
-    while(!m_acc->fetch_op_full() && m_fetch_op_ptr < m_fetch_op.size()) {
+    while(!m_acc->op_full() && m_fetch_op_ptr < m_fetch_op.size()) {
       m_acc->push_fetch_op(m_fetch_op[m_fetch_op_ptr], m_fetch_runcfg[m_fetch_op_ptr]);
       m_fetch_op_ptr++;
     }
   }
 
   void fill_exec_op() {
-    while(!m_acc->exec_op_full() && m_exec_op_ptr < m_exec_op.size()) {
+    while(!m_acc->op_full() && m_exec_op_ptr < m_exec_op.size()) {
       m_acc->push_exec_op(m_exec_op[m_exec_op_ptr], m_exec_runcfg[m_exec_op_ptr]);
       m_exec_op_ptr++;
     }
   }
 
   void fill_result_op() {
-    while(!m_acc->result_op_full() && m_result_op_ptr < m_result_op.size()) {
+    while(!m_acc->op_full() && m_result_op_ptr < m_result_op.size()) {
       m_acc->push_result_op(m_result_op[m_result_op_ptr], m_result_runcfg[m_result_op_ptr]);
       m_result_op_ptr++;
     }

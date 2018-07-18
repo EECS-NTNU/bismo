@@ -313,15 +313,9 @@ public:
     return m_accel->get_result_op_count();
   }
 
-  // check whether it's possible to write a new element into a queue
-  const bool fetch_op_full() {
-    return m_accel->get_fetch_op_ready() == 1 ? false : true;
-  }
-  const bool exec_op_full() {
-    return m_accel->get_exec_op_ready() == 1 ? false : true;
-  }
-  const bool result_op_full() {
-    return m_accel->get_result_op_ready() == 1 ? false : true;
+  // check whether it's possible to write a new instruction into the queue
+  const bool op_full() {
+    return m_accel->get_op_ready() == 1 ? false : true;
   }
 
   // reset the accelerator
@@ -370,14 +364,14 @@ public:
       ins.sync.unused0 = 0;
       ins.sync.unused1 = 0;
     }
-    m_accel->set_fetch_op_bits0(ins.raw[3]);
-    m_accel->set_fetch_op_bits1(ins.raw[2]);
-    m_accel->set_fetch_op_bits2(ins.raw[1]);
-    m_accel->set_fetch_op_bits3(ins.raw[0]);
-    // push into fetch op FIFO
-    assert(!fetch_op_full());
-    m_accel->set_fetch_op_valid(1);
-    m_accel->set_fetch_op_valid(0);
+    m_accel->set_op_bits0(ins.raw[3]);
+    m_accel->set_op_bits1(ins.raw[2]);
+    m_accel->set_op_bits2(ins.raw[1]);
+    m_accel->set_op_bits3(ins.raw[0]);
+    // push into fetch op FIFO when available
+    while(op_full());
+    m_accel->set_op_valid(1);
+    m_accel->set_op_valid(0);
   }
 
   // push a command to the Exec op queue
@@ -405,14 +399,14 @@ public:
       ins.sync.unused0 = 0;
       ins.sync.unused1 = 0;
     }
-    m_accel->set_exec_op_bits0(ins.raw[3]);
-    m_accel->set_exec_op_bits1(ins.raw[2]);
-    m_accel->set_exec_op_bits2(ins.raw[1]);
-    m_accel->set_exec_op_bits3(ins.raw[0]);
+    m_accel->set_op_bits0(ins.raw[3]);
+    m_accel->set_op_bits1(ins.raw[2]);
+    m_accel->set_op_bits2(ins.raw[1]);
+    m_accel->set_op_bits3(ins.raw[0]);
     // push into exec op FIFO
-    assert(!exec_op_full());
-    m_accel->set_exec_op_valid(1);
-    m_accel->set_exec_op_valid(0);
+    while(op_full());
+    m_accel->set_op_valid(1);
+    m_accel->set_op_valid(0);
   }
 
   // push a command to the Result op queue
@@ -436,14 +430,14 @@ public:
       ins.sync.unused0 = 0;
       ins.sync.unused1 = 0;
     }
-    m_accel->set_result_op_bits0(ins.raw[3]);
-    m_accel->set_result_op_bits1(ins.raw[2]);
-    m_accel->set_result_op_bits2(ins.raw[1]);
-    m_accel->set_result_op_bits3(ins.raw[0]);
+    m_accel->set_op_bits0(ins.raw[3]);
+    m_accel->set_op_bits1(ins.raw[2]);
+    m_accel->set_op_bits2(ins.raw[1]);
+    m_accel->set_op_bits3(ins.raw[0]);
     // push into result op FIFO
-    assert(!result_op_full());
-    m_accel->set_result_op_valid(1);
-    m_accel->set_result_op_valid(0);
+    while(op_full());
+    m_accel->set_op_valid(1);
+    m_accel->set_op_valid(0);
   }
 
   // initialize the tokens in FIFOs representing shared resources

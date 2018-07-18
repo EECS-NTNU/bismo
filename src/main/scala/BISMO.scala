@@ -178,6 +178,41 @@ class BitSerialMatMulPerf(myP: BitSerialMatMulParams) extends Bundle {
     new BitSerialMatMulPerf(myP).asInstanceOf[this.type]
 }
 
+object Stages {
+  val stgFetch :: stgExec :: stgResult :: Nil = Enum(UInt(), 3)
+}
+
+class BISMOInstructionRouter extends Module {
+  val io = new Bundle {
+    val in = Decoupled(UInt(width = BISMOLimits.instrBits)).flip
+    val out_fetch = Decoupled(new BISMOFetchRunInstruction())
+    val out_exec = Decoupled(new BISMOExecRunInstruction())
+    val out_result = Decoupled(new BISMOResultRunInstruction())
+  }
+  val deintl = Module(new StreamDeinterleaver(
+    numDests = 3, gen = io.in.bits,
+    route = (x: UInt) => new BISMOInstruction().fromBits(x).targetStage
+  )).io
+  io.in <> deintl.in
+  deintl.out.map(_.ready := Bool(false))
+  /*deintl.out(0).ready := Bool(false)
+  deintl.out(1).ready := Bool(false)
+  deintl.out(2).ready := Bool(false)*/
+
+  // fetch
+  io.out_fetch.valid := deintl.out(Stages.stgFetch).valid
+  io.out_fetch.bits := io.out_fetch.bits.fromBits(deintl.out(Stages.stgFetch).bits.toBits)
+  deintl.out(Stages.stgFetch).ready := io.out_fetch.ready
+  // exec
+  io.out_exec.valid := deintl.out(Stages.stgExec).valid
+  io.out_exec.bits := io.out_exec.bits.fromBits(deintl.out(Stages.stgExec).bits.toBits)
+  deintl.out(Stages.stgExec).ready := io.out_exec.ready
+  // result
+  io.out_result.valid := deintl.out(Stages.stgResult).valid
+  io.out_result.bits := io.out_result.bits.fromBits(deintl.out(Stages.stgResult).bits.toBits)
+  deintl.out(Stages.stgResult).ready := io.out_result.ready
+}
+
 class BitSerialMatMulAccel(
   val myP: BitSerialMatMulParams, p: PlatformWrapperParams
 ) extends GenericAccelerator(p) {
@@ -187,10 +222,8 @@ class BitSerialMatMulAccel(
     val fetch_enable = Bool(INPUT)
     val exec_enable = Bool(INPUT)
     val result_enable = Bool(INPUT)
-    // instruction queues
-    val fetch_op = Decoupled(UInt(width = BISMOLimits.instrBits)).flip
-    val exec_op = Decoupled(UInt(width = BISMOLimits.instrBits)).flip
-    val result_op = Decoupled(UInt(width = BISMOLimits.instrBits)).flip
+    // instructions
+    val op = Decoupled(UInt(width = BISMOLimits.instrBits)).flip
     // command counts in each queue
     val fetch_op_count = UInt(OUTPUT, width = 32)
     val exec_op_count = UInt(OUTPUT, width = 32)
@@ -201,6 +234,7 @@ class BitSerialMatMulAccel(
     val perf = new BitSerialMatMulPerf(myP)
   }
   io.hw := myP.asHWCfgBundle(32)
+  val opSwitch = Module(new BISMOInstructionRouter()).io
   // instantiate accelerator stages
   val fetchStage = Module(new FetchStage(myP.fetchStageParams)).io
   val execStage = Module(new ExecStage(myP.execStageParams)).io
@@ -210,9 +244,9 @@ class BitSerialMatMulAccel(
   val execCtrl = Module(new ExecController()).io
   val resultCtrl = Module(new ResultController()).io
   // instantiate op queues
-  val fetchOpQ = Module(new FPGAQueue(io.fetch_op.bits, myP.cmdQueueEntries)).io
-  val execOpQ = Module(new FPGAQueue(io.exec_op.bits, myP.cmdQueueEntries)).io
-  val resultOpQ = Module(new FPGAQueue(io.result_op.bits, myP.cmdQueueEntries)).io
+  val fetchOpQ = Module(new FPGAQueue(new BISMOFetchRunInstruction(), myP.cmdQueueEntries)).io
+  val execOpQ = Module(new FPGAQueue(new BISMOExecRunInstruction(), myP.cmdQueueEntries)).io
+  val resultOpQ = Module(new FPGAQueue(new BISMOResultRunInstruction(), myP.cmdQueueEntries)).io
   // instantiate tile memories
   val tilemem_lhs = Vec.fill(myP.dpaDimLHS) {
     Module(new AsymPipelinedDualPortBRAM(
@@ -254,29 +288,34 @@ class BitSerialMatMulAccel(
     vld.ready := enq.ready
   }
 
+  // route incoming instructions according to target stage
+  val inQ = Module(new FPGAQueue(io.op.bits, 2)).io
+  enqPulseGenFromValid(inQ.enq, io.op)
+  inQ.deq <> opSwitch.in
+  opSwitch.out_fetch <> fetchOpQ.enq
+  opSwitch.out_exec <> execOpQ.enq
+  opSwitch.out_result <> resultOpQ.enq
+
+  /*StreamMonitor(inQ.enq, Bool(true), "in", true)
+  StreamMonitor(opSwitch.in, Bool(true), "sw_in", true)
+  StreamMonitor(opSwitch.out_fetch, Bool(true), "fetch", true)
+  StreamMonitor(opSwitch.out_exec, Bool(true), "exec", true)
+  StreamMonitor(opSwitch.out_result, Bool(true), "res", true)*/
+
   // wire-up: command queues and pulse generators for fetch stage
   fetchCtrl.enable := io.fetch_enable
   io.fetch_op_count := fetchOpQ.count
-  fetchOpQ.deq.ready := fetchCtrl.op.ready
-  fetchCtrl.op.valid := fetchOpQ.deq.valid
-  fetchCtrl.op.bits := fetchCtrl.op.bits.fromBits(fetchOpQ.deq.bits)
-  enqPulseGenFromValid(fetchOpQ.enq, io.fetch_op)
+  fetchOpQ.deq <> fetchCtrl.op
 
   // wire-up: command queues and pulse generators for exec stage
   execCtrl.enable := io.exec_enable
   io.exec_op_count := execOpQ.count
-  execOpQ.deq.ready := execCtrl.op.ready
-  execCtrl.op.valid := execOpQ.deq.valid
-  execCtrl.op.bits := execCtrl.op.bits.fromBits(execOpQ.deq.bits)
-  enqPulseGenFromValid(execOpQ.enq, io.exec_op)
+  execOpQ.deq <> execCtrl.op
 
   // wire-up: command queues and pulse generators for result stage
   resultCtrl.enable := io.result_enable
   io.result_op_count := resultOpQ.count
-  resultOpQ.deq.ready := resultCtrl.op.ready
-  resultCtrl.op.valid := resultOpQ.deq.valid
-  resultCtrl.op.bits := resultCtrl.op.bits.fromBits(resultOpQ.deq.bits)
-  enqPulseGenFromValid(resultOpQ.enq, io.result_op)
+  resultOpQ.deq <> resultCtrl.op
 
   // wire-up: fetch controller and stage
   fetchStage.start := fetchCtrl.start
