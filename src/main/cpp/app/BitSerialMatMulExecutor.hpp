@@ -393,8 +393,6 @@ protected:
       r.dram_block_offset_bytes *= r.dram_block_count;
       r.dram_block_count = 1;
     }
-    // ensure generated runcfg for fetch is valid
-    m_acc->verifyFetchRunCfg(r);
     // count requested fetch bytes for statistics
     uint32_t fetchPerGroup = r.dram_block_size_bytes * r.dram_block_count;
     m_bytes_to_fetch += fetchPerGroup;
@@ -408,8 +406,6 @@ protected:
   }
 
   void makeinstr_result_run(ResultRunCfg rrc) {
-    // ensure generated runcfg for result is valid
-    m_acc->verifyResultRunCfg(rrc);
     // count result bytes for statistics
     m_bytes_to_write += m_hwcfg.dpaDimLHS * m_hwcfg.dpaDimRHS * sizeof(ResultType);
     m_result_op.push_back(m_acc->make_op(opRun, 0));
