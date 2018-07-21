@@ -1,3 +1,4 @@
+// Copyright (c) 2018 Xilinx
 // Copyright (c) 2018 Norwegian University of Science and Technology (NTNU)
 //
 // BSD v3 License
@@ -338,6 +339,17 @@ public:
     return ret;
   }
 
+  void push_instruction(BISMOInstruction ins) {
+    m_accel->set_op_bits0(ins.raw[3]);
+    m_accel->set_op_bits1(ins.raw[2]);
+    m_accel->set_op_bits2(ins.raw[1]);
+    m_accel->set_op_bits3(ins.raw[0]);
+    // push into fetch op FIFO when available
+    while(op_full());
+    m_accel->set_op_valid(1);
+    m_accel->set_op_valid(0);
+  }
+
   // push a command to the Fetch op queue
   void push_fetch_op(Op op, FetchRunCfg cfg) {
     BISMOInstruction ins;
@@ -364,14 +376,7 @@ public:
       ins.sync.unused0 = 0;
       ins.sync.unused1 = 0;
     }
-    m_accel->set_op_bits0(ins.raw[3]);
-    m_accel->set_op_bits1(ins.raw[2]);
-    m_accel->set_op_bits2(ins.raw[1]);
-    m_accel->set_op_bits3(ins.raw[0]);
-    // push into fetch op FIFO when available
-    while(op_full());
-    m_accel->set_op_valid(1);
-    m_accel->set_op_valid(0);
+    push_instruction(ins);
   }
 
   // push a command to the Exec op queue
@@ -399,14 +404,7 @@ public:
       ins.sync.unused0 = 0;
       ins.sync.unused1 = 0;
     }
-    m_accel->set_op_bits0(ins.raw[3]);
-    m_accel->set_op_bits1(ins.raw[2]);
-    m_accel->set_op_bits2(ins.raw[1]);
-    m_accel->set_op_bits3(ins.raw[0]);
-    // push into exec op FIFO
-    while(op_full());
-    m_accel->set_op_valid(1);
-    m_accel->set_op_valid(0);
+    push_instruction(ins);
   }
 
   // push a command to the Result op queue
@@ -430,14 +428,7 @@ public:
       ins.sync.unused0 = 0;
       ins.sync.unused1 = 0;
     }
-    m_accel->set_op_bits0(ins.raw[3]);
-    m_accel->set_op_bits1(ins.raw[2]);
-    m_accel->set_op_bits2(ins.raw[1]);
-    m_accel->set_op_bits3(ins.raw[0]);
-    // push into result op FIFO
-    while(op_full());
-    m_accel->set_op_valid(1);
-    m_accel->set_op_valid(0);
+    push_instruction(ins);
   }
 
   // initialize the tokens in FIFOs representing shared resources
