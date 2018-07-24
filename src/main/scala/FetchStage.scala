@@ -258,6 +258,8 @@ class FetchStage(val myP: FetchStageParams) extends Module {
     val perf = new FetchStagePerfIO(myP)
     val bram = new FetchStageBRAMIO(myP)
     val dram = new FetchStageDRAMIO(myP)
+    // instructions fetched from DRAM
+    val instrs = Decoupled(UInt(width = BISMOLimits.instrBits))
   }
 
   /*when(io.start) {
@@ -299,6 +301,15 @@ class FetchStage(val myP: FetchStageParams) extends Module {
   routegen.bram_id_start := io.csr.bram_id_start
   routegen.bram_id_range := io.csr.bram_id_range
   FPGAQueue(routegen.out, 2) <> conn.in
+  // statically assign ID 0 for the instruction output
+  val instrOut = conn.node_ind(0)
+  // TODO add StreamResizer here to match instr q output width
+  // TODO the FetchInterconnect does not support backpressure -- how to handle
+  // this? might be easiest if software/compiler guarantees that there is
+  // space in the instruction queue.
+  io.instrs.valid := instrOut.writeEn
+  io.instrs.bits :=
+
   // assign IDs to LHS and RHS memories for interconnect
   // 0...numLHSMems-1 are the LHS IDs
   // numLHSMems..numLHSMems+numRHSMems-1 are the RHS IDs
