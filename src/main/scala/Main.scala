@@ -49,8 +49,8 @@ object Settings {
 
   val myInstParams = new BitSerialMatMulParams(
     dpaDimLHS = 8, dpaDimRHS = 8, dpaDimCommon = 256,
-    lhsEntriesPerMem = 64 * 32 * 1024 / (8 * 256),
-    rhsEntriesPerMem = 64 * 32 * 1024 / (8 * 256),
+    lhsEntriesPerMem = 1024,
+    rhsEntriesPerMem = 1024,
     mrp = PYNQZ1Params.toMemReqParams(),
     cmdQueueEntries = 256
   )
@@ -114,8 +114,8 @@ object ResModelMain {
     val dpaDimRHS: Int = args(4).toInt
     val params = new BitSerialMatMulParams(
       dpaDimLHS = dpaDimLHS, dpaDimRHS = dpaDimRHS, dpaDimCommon = dpaDimCommon,
-      lhsEntriesPerMem = 64 * 32 * 1024 / (dpaDimLHS * dpaDimCommon),
-      rhsEntriesPerMem = 64 * 32 * 1024 / (dpaDimRHS * dpaDimCommon),
+      lhsEntriesPerMem = 1024,
+      rhsEntriesPerMem = 1024,
       mrp = PYNQZ1Params.toMemReqParams()
     )
     params.estimateResources()
