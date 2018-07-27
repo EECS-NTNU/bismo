@@ -72,7 +72,8 @@ PLATFORM_SCRIPT_DIR := $(TOP)/src/main/script/$(PLATFORM)/target
 include platforms/$(PLATFORM).mk
 
 # note that all targets are phony targets, no proper dependency tracking
-.PHONY: hw_verilog emulib hw_driver hw_vivadoproj bitfile hw sw all rsync test characterize check_vivado
+.PHONY: hw_verilog emulib hw_driver hw_vivadoproj bitfile hw sw all rsync test
+.PHONY: resmodel characterize check_vivado
 
 check_vivado:
 ifndef VIVADO_IN_PATH
@@ -115,6 +116,9 @@ hw_verilog: $(HW_VERILOG)
 
 $(HW_VERILOG):
 	$(SBT) $(SBT_FLAGS) "runMain bismo.ChiselMain $(PLATFORM) $(BUILD_DIR_VERILOG) $M $K $N"
+
+resmodel:
+	$(SBT) $(SBT_FLAGS) "runMain bismo.ResModelMain $(PLATFORM) $(BUILD_DIR_VERILOG) $M $K $N"
 
 # copy scripts to the deployment folder
 script:
