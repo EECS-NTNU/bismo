@@ -143,30 +143,56 @@ public:
     // memset(m_hostSideInstrBuf, 0, dramInstrBytes());
   }
 
+  void add_dram_instr_fetches() {
+    // create instruction to initiate the DRAM instruction fetch
+    BISMOInstruction ins;
+    ins.fetch.targetStage = stgFetch;
+    ins.fetch.isRunCfg = 1;
+    ins.fetch.unused0 = 0;
+    ins.fetch.bram_id_start = 0;
+    ins.fetch.bram_id_range = 0;
+    ins.fetch.bram_addr_base = 0;
+    ins.fetch.dram_base = (uint64_t) m_accelSideInstrBuf;
+    ins.fetch.dram_block_size_bytes = dramInstrBytes();
+    ins.fetch.dram_block_offset_bytes = 0;
+    ins.fetch.dram_block_count = 1;
+    ins.fetch.tiles_per_row = 0;
+    // push directly into on-chip instruction queue
+    push_instruction(ins, true);
+  }
+
   // copy instructions to accel buffer
   void sync_instrs() {
     m_platform->copyBufferHostToAccel(m_hostSideInstrBuf, m_accelSideInstrBuf, dramInstrBytes());
   }
 
   const size_t dramInstrBytes() const {
-    // TODO use m_dramInstrCount to minimize copies -- need to make sure
-    // that an aligned size is passed?
-    return MAX_DRAM_INSTRS * DRAM_INSTR_BYTES;
+    // TODO make sure that an aligned size is passed?
+    return m_dramInstrCount * DRAM_INSTR_BYTES;
   }
 
-  void push_instruction(BISMOInstruction ins) {
-    m_accel->set_op_bits0(ins.raw[3]);
-    m_accel->set_op_bits1(ins.raw[2]);
-    m_accel->set_op_bits2(ins.raw[1]);
-    m_accel->set_op_bits3(ins.raw[0]);
-    // push into fetch op FIFO when available
-    while(op_full());
-    m_accel->set_op_valid(1);
-    m_accel->set_op_valid(0);
-    // write instruction into the DRAM instruction buffer
-    assert(m_dramInstrCount < MAX_DRAM_INSTRS);
-    m_hostSideInstrBuf[m_dramInstrCount] = ins;
-    m_dramInstrCount++;
+  void push_instruction(BISMOInstruction ins, bool use_ocm=true) {
+    // TODO refactor in the following manner:
+    // - put new instructions onto a std::vector<BISMOInstruction>
+    // - add DRAM fetch instructions as necessary
+    if(use_ocm) {
+      // use regs to directly push into OCM instruction queue
+      m_accel->set_op_bits0(ins.raw[3]);
+      m_accel->set_op_bits1(ins.raw[2]);
+      m_accel->set_op_bits2(ins.raw[1]);
+      m_accel->set_op_bits3(ins.raw[0]);
+      // push into fetch op FIFO when available
+      while(op_full());
+      m_accel->set_op_valid(1);
+      m_accel->set_op_valid(0);
+    } else {
+      // write instruction into the DRAM instruction buffer
+      assert(m_dramInstrCount < MAX_DRAM_INSTRS);
+      // TODO remove once we have full DRAM instr fetch
+      assert(m_dramInstrCount < m_cfg.cmdQueueEntries);
+      m_hostSideInstrBuf[m_dramInstrCount] = ins;
+      m_dramInstrCount++;
+    }
   }
 
   void measure_fclk() {
@@ -394,8 +420,6 @@ public:
       ins.fetch.dram_block_size_bytes = cfg.dram_block_size_bytes;
       ins.fetch.dram_block_offset_bytes = cfg.dram_block_offset_bytes;
       ins.fetch.dram_block_count = cfg.dram_block_count;
-      // hw limitation: tiles_per_row is internally 16 bits
-      assert(cfg.tiles_per_row < (1 << 16));
       ins.fetch.tiles_per_row = cfg.tiles_per_row;
     } else {
       ins.sync.targetStage = stgFetch;

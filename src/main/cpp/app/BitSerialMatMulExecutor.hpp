@@ -130,6 +130,7 @@ public:
   void run() {
     clear_all_queue_pointers();
     m_acc->set_stage_enables(0, 0, 0);
+    m_acc->sync_instrs();
     // initial fill-up of the instruction queues
     fill_fetch_op();
     fill_exec_op();
