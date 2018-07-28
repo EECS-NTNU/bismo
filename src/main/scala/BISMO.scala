@@ -292,10 +292,19 @@ class BitSerialMatMulAccel(
     vld.ready := enq.ready
   }
 
+  // fill ocmInstrQ with instructions pushed via the CSRs
+  val ocmInstrQ = Module(new FPGAQueue(io.op.bits, 2)).io
+  enqPulseGenFromValid(ocmInstrQ.enq, io.op)
+
+  // create mix of instructions from OCM and DRAM
+  val instrMixer = Module(new StreamInterleaver(
+    numSources = 2, gen = UInt(width = BISMOLimits.instrBits)
+  )).io
+  ocmInstrQ.deq <> instrMixer.in(0)
+  FPGAQueue(fetchStage.instrs, 2) <> instrMixer.in(1)
+
   // route incoming instructions according to target stage
-  val inQ = Module(new FPGAQueue(io.op.bits, 2)).io
-  enqPulseGenFromValid(inQ.enq, io.op)
-  inQ.deq <> opSwitch.in
+  FPGAQueue(instrMixer.out, 2) <> opSwitch.in
   opSwitch.out_fetch <> fetchOpQ.enq
   opSwitch.out_exec <> execOpQ.enq
   opSwitch.out_result <> resultOpQ.enq
