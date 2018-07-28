@@ -199,10 +199,6 @@ class BISMOInstructionRouter extends Module {
   )).io
   io.in <> deintl.in
   deintl.out.map(_.ready := Bool(false))
-  /*deintl.out(0).ready := Bool(false)
-  deintl.out(1).ready := Bool(false)
-  deintl.out(2).ready := Bool(false)*/
-
   // fetch
   io.out_fetch.valid := deintl.out(Stages.stgFetch).valid
   io.out_fetch.bits := io.out_fetch.bits.fromBits(deintl.out(Stages.stgFetch).bits.toBits)
@@ -215,6 +211,9 @@ class BISMOInstructionRouter extends Module {
   io.out_result.valid := deintl.out(Stages.stgResult).valid
   io.out_result.bits := io.out_result.bits.fromBits(deintl.out(Stages.stgResult).bits.toBits)
   deintl.out(Stages.stgResult).ready := io.out_result.ready
+  /*when(io.in.fire()) {
+    printf("Routing new instruction, target stage = %d\n", new BISMOInstruction().fromBits(io.in.bits).targetStage)
+  }*/
 }
 
 class BitSerialMatMulAccel(
@@ -313,6 +312,9 @@ class BitSerialMatMulAccel(
   opSwitch.out_result <> resultOpQ.enq
 
   /*
+  when(opSwitch.in.fire()) {
+    printf("opSwitch %x\n", opSwitch.in.bits)
+  }
   when(ocmInstrQ.enq.fire()) {
     printf("OCM instrq %x\n", ocmInstrQ.enq.bits)
   }
@@ -320,11 +322,11 @@ class BitSerialMatMulAccel(
   when(fetchStage.instrs.fire()) {
     printf("DRAM instrq %x\n", fetchStage.instrs.bits)
   }
-  StreamMonitor(instrMixer.in(1), Bool(true), "dram_ins", true
-  StreamMonitor(ocmInstrQ.enq, Bool(true), "ocm_ins", true)
   StreamMonitor(opSwitch.out_fetch, Bool(true), "fetch", true)
   StreamMonitor(opSwitch.out_exec, Bool(true), "exec", true)
   StreamMonitor(opSwitch.out_result, Bool(true), "res", true)
+  StreamMonitor(instrMixer.in(1), Bool(true), "dram_ins", true)
+  StreamMonitor(ocmInstrQ.enq, Bool(true), "ocm_ins", true)
   */
 
   // wire-up: command queues and pulse generators for fetch stage
