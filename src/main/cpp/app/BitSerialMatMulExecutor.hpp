@@ -661,7 +661,7 @@ protected:
           // TODO avoid redundant fetches here
           // fetch lhs l2 tile
           frc.bram_addr_base = current_bram_region * lhs_l0_per_bram * exec_to_fetch_width_ratio;
-          frc.bram_id_start = 0;
+          frc.bram_id_start = m_acc->get_fetch_first_lhs_id() ;
           frc.bram_id_range = dpa_y - 1;
 
           size_t bytesPerFetchGroup, bytesPerRow;
@@ -687,7 +687,7 @@ protected:
 
           // fetch rhs l2 tile
           frc.bram_addr_base = current_bram_region * rhs_l0_per_bram * exec_to_fetch_width_ratio;
-          frc.bram_id_start = dpa_y;
+          frc.bram_id_start = m_acc->get_fetch_first_rhs_id() ;
           frc.bram_id_range = dpa_x - 1;
           bytesPerFetchGroup = rhs_bytes_per_l2;
           // was: rhs_l0_per_l1 * rhs_l1_per_l2

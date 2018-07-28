@@ -237,16 +237,16 @@ public:
     return m_cfg.dpaDimRHS * m_cfg.rhsEntriesPerMem * m_cfg.dpaDimCommon / 8;
   }
 
-  const size_t get_fetch_nodes_per_group() {
-    return (m_cfg.dpaDimLHS + m_cfg.dpaDimRHS);
+  const size_t get_num_fetch_nodes() {
+    return (m_cfg.dpaDimLHS + m_cfg.dpaDimRHS + 1);
   }
 
   const size_t get_fetch_first_lhs_id() {
-    return 0;
+    return 1;
   }
 
   const size_t get_fetch_first_rhs_id() {
-    return m_cfg.dpaDimLHS;
+    return 1 + m_cfg.dpaDimLHS;
   }
 
   // do a sanity check on a FetchRunCfg in terms of alignment and
@@ -268,8 +268,8 @@ public:
     assert(f.dram_block_offset_bytes % FETCH_ADDRALIGN == 0);
     assert(f.dram_block_size_bytes % FETCH_SIZEALIGN == 0);
     // ensure that BRAM accesses are within existing range
-    assert(f.bram_id_start < get_fetch_nodes_per_group());
-    assert(f.bram_id_start + f.bram_id_range < get_fetch_nodes_per_group());
+    assert(f.bram_id_start < get_num_fetch_nodes());
+    assert(f.bram_id_start + f.bram_id_range < get_num_fetch_nodes());
     if(f.bram_id_start < get_fetch_first_rhs_id()) {
       assert(f.bram_addr_base < m_cfg.lhsEntriesPerMem * exec_to_fetch_width_ratio);
     } else {
