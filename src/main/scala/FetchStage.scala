@@ -134,6 +134,8 @@ class FetchInterconnect(val myP: FetchStageParams) extends Module {
     // the correct destination is the only node that gets its write enable
     io.node_out(i).writeEn := (regNodePacket(i).id === UInt(i)) & regNodeValid(i)
   }
+  // uncomment to see all fetch packets passing through:
+  //PrintableBundleStreamMonitor(io.in, Bool(true), "FetchInterconnect.in", true)
 }
 
 // fetch stage IO: performance counters
@@ -304,18 +306,21 @@ class FetchStage(val myP: FetchStageParams) extends Module {
   FPGAQueue(routegen.out, 2) <> conn.in
   // statically assign ID 0 for the instruction output
   val instrNode = conn.node_out(0)
+  val instrResizeQ = Module(new FPGAQueue(UInt(width=myP.mrp.dataWidth), 1024)).io
+  instrResizeQ.enq.valid := instrNode.writeEn
+  instrResizeQ.enq.bits := instrNode.writeData
+  // TODO the FetchInterconnect does not support backpressure -- how to handle
+  // this? easiest if software/compiler guarantees that there is
+  // space in the instruction queue.
+  when(!instrResizeQ.enq.ready & instrResizeQ.enq.valid) {
+    printf("ERROR: DRAM instruction queue could not receive data\n")
+  }
+
   // StreamResizer to match instr q output width
   val instrResize = Module(new StreamResizer(
     inWidth = myP.mrp.dataWidth, outWidth = BISMOLimits.instrBits
   )).io
-  instrResize.in.valid := instrNode.writeEn
-  instrResize.in.bits := instrNode.writeData
-  // TODO the FetchInterconnect does not support backpressure -- how to handle
-  // this? easiest if software/compiler guarantees that there is
-  // space in the instruction queue.
-  when(!instrResize.in.ready & instrResize.in.valid) {
-    printf("ERROR: DRAM instruction queue could not receive data")
-  }
+  instrResizeQ.deq <> instrResize.in
   instrResize.out <> io.instrs
   println("Instruction queue assigned to node# 0")
 
