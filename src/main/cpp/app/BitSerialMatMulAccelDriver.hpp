@@ -127,7 +127,7 @@ public:
     m_fclk = 200.0;
     // buffer allocation for instruction buffer in DRAM
     m_hostSideInstrBuf = new BISMOInstruction[MAX_DRAM_INSTRS];
-    m_accelSideInstrBuf = m_platform->allocAccelBuffer(dramInstrBytes());
+    m_accelSideInstrBuf = m_platform->allocAccelBuffer(maxDRAMInstrBytes());
     clearInstrBuf();
     update_hw_cfg();
     measure_fclk();
@@ -170,6 +170,10 @@ public:
     return m_dramInstrCount * DRAM_INSTR_BYTES;
   }
 
+  const size_t maxDRAMInstrBytes() const {
+    return MAX_DRAM_INSTRS * DRAM_INSTR_BYTES;
+  }
+
   void push_instruction_ocm(BISMOInstruction ins) {
     // use regs to directly push into OCM instruction queue
     m_accel->set_op_bits0(ins.raw[3]);
@@ -190,6 +194,7 @@ public:
     // TODO remove once we have full DRAM instr fetch
     assert(m_dramInstrCount < m_cfg.cmdQueueEntries);
     m_hostSideInstrBuf[m_dramInstrCount] = ins;
+    //cout << ins << endl;
     m_dramInstrCount++;
   }
 
@@ -404,7 +409,7 @@ public:
   }
 
   // push a command to the Fetch op queue
-  void push_fetch_op(Op op, FetchRunCfg cfg, bool forceOCM=true) {
+  void push_fetch_op(Op op, FetchRunCfg cfg, bool forceOCM=false) {
     BISMOInstruction ins;
     if(op.opcode == opRun) {
       verifyFetchRunCfg(cfg);
@@ -435,7 +440,7 @@ public:
   }
 
   // push a command to the Exec op queue
-  void push_exec_op(Op op, ExecRunCfg cfg, bool forceOCM=true) {
+  void push_exec_op(Op op, ExecRunCfg cfg, bool forceOCM=false) {
     BISMOInstruction ins;
     if(op.opcode == opRun) {
       verifyExecRunCfg(cfg);
@@ -467,7 +472,7 @@ public:
   }
 
   // push a command to the Result op queue
-  void push_result_op(Op op, ResultRunCfg cfg, bool forceOCM=true) {
+  void push_result_op(Op op, ResultRunCfg cfg, bool forceOCM=false) {
     BISMOInstruction ins;
     if(op.opcode == opRun) {
       verifyResultRunCfg(cfg);

@@ -130,22 +130,21 @@ public:
   void run() {
     clear_all_queue_pointers();
     m_acc->set_stage_enables(0, 0, 0);
-    //m_acc->create_instr_stream();
-    // initial fill-up of the instruction queues
     fill_fetch_op();
     fill_exec_op();
     fill_result_op();
+    m_acc->create_instr_stream();
     // start the cycle counter
     m_acc->perf_set_cc_enable(true);
     // enable all stages
     m_acc->set_stage_enables(1, 1, 1);
     // run the generated schedule -- keep pushing operands until all generated
     // instructions have been pushed
-    while(!allPushed()) {
+    /*while(!allPushed()) {
       fill_fetch_op();
       fill_exec_op();
       fill_result_op();
-    }
+    }*/
     // wait until the result stage has no instructions std::left (= all finished)
     while(!allFinished());
     // disable all stages
@@ -432,21 +431,21 @@ protected:
   }
 
   void fill_fetch_op() {
-    while(!m_acc->op_full() && m_fetch_op_ptr < m_fetch_op.size()) {
+    while(/*!m_acc->op_full() && */m_fetch_op_ptr < m_fetch_op.size()) {
       m_acc->push_fetch_op(m_fetch_op[m_fetch_op_ptr], m_fetch_runcfg[m_fetch_op_ptr]);
       m_fetch_op_ptr++;
     }
   }
 
   void fill_exec_op() {
-    while(!m_acc->op_full() && m_exec_op_ptr < m_exec_op.size()) {
+    while(/*!m_acc->op_full() && */m_exec_op_ptr < m_exec_op.size()) {
       m_acc->push_exec_op(m_exec_op[m_exec_op_ptr], m_exec_runcfg[m_exec_op_ptr]);
       m_exec_op_ptr++;
     }
   }
 
   void fill_result_op() {
-    while(!m_acc->op_full() && m_result_op_ptr < m_result_op.size()) {
+    while(/*!m_acc->op_full() && */m_result_op_ptr < m_result_op.size()) {
       m_acc->push_result_op(m_result_op[m_result_op_ptr], m_result_runcfg[m_result_op_ptr]);
       m_result_op_ptr++;
     }
