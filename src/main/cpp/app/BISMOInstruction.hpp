@@ -56,6 +56,16 @@ struct BISMOFetchRunInstruction {
   uint64_t tiles_per_row : 16;
 };
 
+ostream& operator<<(ostream& os, const BISMOFetchRunInstruction& dt)
+{
+    os << "fetch run: ";
+    os << "stage="<< dt.targetStage << " ";
+    os << "isRunCfg="<< dt.isRunCfg << " ";
+    os << "bram id="<< dt.bram_id_start << "+" << dt.bram_id_range << " ";
+    os << "dram base=" << dt.dram_base << " bytes " << dt.dram_block_size_bytes;
+    return os;
+}
+
 struct BISMOExecRunInstruction {
   uint64_t targetStage : 2;
   uint64_t isRunCfg : 1;
@@ -71,6 +81,16 @@ struct BISMOExecRunInstruction {
   uint64_t writeAddr : 1;
 };
 
+ostream& operator<<(ostream& os, const BISMOExecRunInstruction& dt)
+{
+    os << "exec run: ";
+    os << "stage="<< dt.targetStage << " ";
+    os << "isRunCfg="<< dt.isRunCfg << " ";
+    os << "offset lhs rhs " << dt.lhsOffset << " " << dt.rhsOffset;
+    os << "ntiles " << dt.numTiles;
+    return os;
+}
+
 struct BISMOResultRunInstruction {
   uint64_t targetStage : 2;
   uint64_t isRunCfg : 1;
@@ -82,6 +102,15 @@ struct BISMOResultRunInstruction {
   uint64_t waitCompleteBytes : 16;
 };
 
+ostream& operator<<(ostream& os, const BISMOResultRunInstruction& dt)
+{
+    os << "result run: ";
+    os << "stage="<< dt.targetStage << " ";
+    os << "isRunCfg="<< dt.isRunCfg << " ";
+    os << "dram_base=" << dt.dram_base;
+    return os;
+}
+
 // union to store and decode all instruction types
 // all instructions are currently 128 bits
 
@@ -92,3 +121,27 @@ union BISMOInstruction {
   BISMOExecRunInstruction exec;
   BISMOResultRunInstruction res;
 };
+
+#include <iomanip>
+
+ostream& operator<<(ostream& os, const BISMOInstruction& dt)
+{
+    os.fill('0');
+    os << "raw " << std::hex << setw(8) << dt.raw[0] << setw(8) << dt.raw[1] << setw(8) << dt.raw[2] << setw(8) << dt.raw[3];
+    os << std::dec << std::endl;
+    os.fill(' ');
+    if(dt.sync.isRunCfg == 0) {
+      os << dt.sync;
+    } else {
+      if(dt.sync.targetStage == 0) {
+        os << dt.fetch;
+      } else if(dt.sync.targetStage == 1) {
+        os << dt.exec;
+      } else if(dt.sync.targetStage == 2) {
+        os << dt.res;
+      } else {
+        os << "illegal target stage";
+      }
+    }
+    return os;
+}
