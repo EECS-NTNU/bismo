@@ -302,27 +302,33 @@ class FetchStage(val myP: FetchStageParams) extends Module {
   routegen.bram_id_range := io.csr.bram_id_range
   FPGAQueue(routegen.out, 2) <> conn.in
   // statically assign ID 0 for the instruction output
-  val instrOut = conn.node_ind(0)
-  // TODO add StreamResizer here to match instr q output width
+  val instrNode = conn.node_out(0)
+  // StreamResizer to match instr q output width
+  val instrResize = Module(new StreamResizer(
+    inWidth = myP.mrp.dataWidth, outWidth = BISMOLimits.instrBits
+  )).io
+  instrResize.in.valid := instrNode.writeEn
+  instrResize.in.bits := instrNode.writeData
   // TODO the FetchInterconnect does not support backpressure -- how to handle
-  // this? might be easiest if software/compiler guarantees that there is
+  // this? easiest if software/compiler guarantees that there is
   // space in the instruction queue.
-  io.instrs.valid := instrOut.writeEn
-  io.instrs.bits :=
+  assert(!instrResize.in.ready & instrResize.in.valid)
+  instrResize.out <> io.instrs
+  println("Instruction queue assigned to node# 0")
 
   // assign IDs to LHS and RHS memories for interconnect
-  // 0...numLHSMems-1 are the LHS IDs
-  // numLHSMems..numLHSMems+numRHSMems-1 are the RHS IDs
+  // 0 is the instruction queue
+  // 1...numLHSMems are the LHS IDs
+  // numLHSMems+1..numLHSMems+numRHSMems are the RHS IDs
   for(i <- 0 until myP.numLHSMems) {
     val lhs_mem_ind =  i
-    val node_ind = i
+    val node_ind = i + 1
     io.bram.lhs_req(lhs_mem_ind) := conn.node_out(node_ind)
     println(s"LHS $lhs_mem_ind assigned to node# $node_ind")
   }
-
   for(i <- 0 until myP.numRHSMems) {
     val rhs_mem_ind = i
-    val node_ind = myP.numLHSMems + i
+    val node_ind = myP.numLHSMems + i + 1
     io.bram.rhs_req(rhs_mem_ind) := conn.node_out(node_ind)
     println(s"RHS $rhs_mem_ind assigned to node# $node_ind")
   }
