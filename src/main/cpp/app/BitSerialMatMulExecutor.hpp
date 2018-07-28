@@ -39,8 +39,6 @@
 #define min(x,y) (x < y ? x : y)
 #define max(x,y) (x > y ? x : y)
 #define INVALID_CACHE_ENTRY         (uint64_t) -1
-#define MAX_DRAM_INSTRS   (1024)
-#define DRAM_INSTR_BYTES  16
 
 // TODO:
 // - define own context allocator for the accelerator, including
@@ -61,10 +59,6 @@ public:
     m_platform = platform;
     m_bytes_to_fetch = 0;
     m_bytes_to_write = 0;
-    // buffer allocation for instruction buffer in DRAM
-    m_hostSideInstrBuf = new BISMOInstruction[MAX_DRAM_INSTRS];
-    m_accelSideInstrBuf = m_platform->allocAccelBuffer(dramInstrBytes());
-    clearInstrBuf();
     // TODO verify alignment etc for instantiated hardware dimensions
     // allocate accelerator memory for given shape
     m_accelLHS = m_platform->allocAccelBuffer(lhsBytes());
@@ -83,6 +77,7 @@ public:
     clear_all_queue_pointers();
     // prepare the accelerator for operation
     m_acc->reset();
+    m_acc->clearInstrBuf();
     m_acc->init_resource_pools();
     m_acc->set_stage_enables(1, 1, 1);
   }
@@ -92,12 +87,6 @@ public:
     m_platform->deallocAccelBuffer(m_accelLHS);
     m_platform->deallocAccelBuffer(m_accelRHS);
     m_platform->deallocAccelBuffer(m_accelRes);
-    m_platform->deallocAccelBuffer(m_accelSideInstrBuf);
-    delete [] m_hostSideInstrBuf;
-  }
-
-  const size_t dramInstrBytes() const {
-    return MAX_DRAM_INSTRS * DRAM_INSTR_BYTES;
   }
 
   void setLHS(gemmbitserial::BitSerialMatrix from) {
@@ -141,8 +130,6 @@ public:
   void run() {
     clear_all_queue_pointers();
     m_acc->set_stage_enables(0, 0, 0);
-    // copy instructions to accel buffer
-    m_platform->copyBufferHostToAccel(m_hostSideInstrBuf, m_accelSideInstrBuf, dramInstrBytes());
     // initial fill-up of the instruction queues
     fill_fetch_op();
     fill_exec_op();
@@ -354,9 +341,6 @@ protected:
   void * m_accelLHS;
   void * m_accelRHS;
   void * m_accelRes;
-  void * m_accelSideInstrBuf;
-  BISMOInstruction * m_hostSideInstrBuf;
-  size_t m_dramInstrCount;
 
   std::vector<Op> m_fetch_op, m_exec_op, m_result_op;
   std::vector<FetchRunCfg> m_fetch_runcfg;
@@ -366,11 +350,6 @@ protected:
 
   // keep track of what we have in the on-chip memory to avoid re-fetching
   std::vector<uint64_t> m_cached_lhs, m_cached_rhs;
-
-  void clearInstrBuf() {
-    m_dramInstrCount = 0;
-    memset(m_hostSideInstrBuf, 0, dramInstrBytes());
-  }
 
   void printExecQueue() {
     std::vector<string> opName {"run", "send", "receive"};
@@ -451,13 +430,6 @@ protected:
       m_exec_op_ptr == m_exec_op.size() &&
       m_result_op_ptr == m_result_op.size();
   }
-
-  /* TODO:
-  // write instruction into the DRAM instruction buffer
-  assert(m_dramInstrCount < MAX_DRAM_INSTRS);
-  m_hostSideInstrBuf[m_dramInstrCount] = ins;
-  m_dramInstrCount++;
-  */
 
   void fill_fetch_op() {
     while(!m_acc->op_full() && m_fetch_op_ptr < m_fetch_op.size()) {

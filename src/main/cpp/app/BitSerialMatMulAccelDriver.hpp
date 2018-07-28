@@ -50,6 +50,8 @@
 #define N_CTRL_STATES     4
 #define FETCH_ADDRALIGN   64
 #define FETCH_SIZEALIGN   8
+#define MAX_DRAM_INSTRS   (1024)
+#define DRAM_INSTR_BYTES  16
 
 #define max(x,y) (x > y ? x : y)
 #define FETCH_ALIGN       max(FETCH_ADDRALIGN, FETCH_SIZEALIGN)
@@ -123,10 +125,48 @@ public:
     m_platform = platform;
     m_accel = new BitSerialMatMulAccel(m_platform);
     m_fclk = 200.0;
+    // buffer allocation for instruction buffer in DRAM
+    m_hostSideInstrBuf = new BISMOInstruction[MAX_DRAM_INSTRS];
+    m_accelSideInstrBuf = m_platform->allocAccelBuffer(dramInstrBytes());
+    clearInstrBuf();
     update_hw_cfg();
     measure_fclk();
   }
   ~BitSerialMatMulAccelDriver() {
+    m_platform->deallocAccelBuffer(m_accelSideInstrBuf);
+    delete [] m_hostSideInstrBuf;
+  }
+
+  // clear the DRAM instruction buffer
+  void clearInstrBuf() {
+    m_dramInstrCount = 0;
+    // memset(m_hostSideInstrBuf, 0, dramInstrBytes());
+  }
+
+  // copy instructions to accel buffer
+  void sync_instrs() {
+    m_platform->copyBufferHostToAccel(m_hostSideInstrBuf, m_accelSideInstrBuf, dramInstrBytes());
+  }
+
+  const size_t dramInstrBytes() const {
+    // TODO use m_dramInstrCount to minimize copies -- need to make sure
+    // that an aligned size is passed?
+    return MAX_DRAM_INSTRS * DRAM_INSTR_BYTES;
+  }
+
+  void push_instruction(BISMOInstruction ins) {
+    m_accel->set_op_bits0(ins.raw[3]);
+    m_accel->set_op_bits1(ins.raw[2]);
+    m_accel->set_op_bits2(ins.raw[1]);
+    m_accel->set_op_bits3(ins.raw[0]);
+    // push into fetch op FIFO when available
+    while(op_full());
+    m_accel->set_op_valid(1);
+    m_accel->set_op_valid(0);
+    // write instruction into the DRAM instruction buffer
+    assert(m_dramInstrCount < MAX_DRAM_INSTRS);
+    m_hostSideInstrBuf[m_dramInstrCount] = ins;
+    m_dramInstrCount++;
   }
 
   void measure_fclk() {
@@ -339,17 +379,6 @@ public:
     return ret;
   }
 
-  void push_instruction(BISMOInstruction ins) {
-    m_accel->set_op_bits0(ins.raw[3]);
-    m_accel->set_op_bits1(ins.raw[2]);
-    m_accel->set_op_bits2(ins.raw[1]);
-    m_accel->set_op_bits3(ins.raw[0]);
-    // push into fetch op FIFO when available
-    while(op_full());
-    m_accel->set_op_valid(1);
-    m_accel->set_op_valid(0);
-  }
-
   // push a command to the Fetch op queue
   void push_fetch_op(Op op, FetchRunCfg cfg) {
     BISMOInstruction ins;
@@ -475,6 +504,9 @@ protected:
   WrapperRegDriver * m_platform;
   HardwareCfg m_cfg;
   float m_fclk;
+  void * m_accelSideInstrBuf;
+  BISMOInstruction * m_hostSideInstrBuf;
+  size_t m_dramInstrCount;
 
   // get the instantiated hardware config from accelerator
   void update_hw_cfg() {
