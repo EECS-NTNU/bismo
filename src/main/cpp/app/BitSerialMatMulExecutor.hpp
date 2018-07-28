@@ -130,7 +130,7 @@ public:
   void run() {
     clear_all_queue_pointers();
     m_acc->set_stage_enables(0, 0, 0);
-    m_acc->sync_instrs();
+    //m_acc->create_instr_stream();
     // initial fill-up of the instruction queues
     fill_fetch_op();
     fill_exec_op();
@@ -419,9 +419,8 @@ protected:
   }
 
   // whether all instruction execution has finished
-  // = no instrs in result queue and all instrs pushed to queue
   bool allFinished() {
-    return m_acc->res_opcount() == 0 && m_result_op_ptr == m_result_op.size();
+    return m_acc->prog_finished();
   }
 
   // whether all instructions have been pushed to the queues

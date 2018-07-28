@@ -120,6 +120,7 @@ class ResultStage(val myP: ResultStageParams) extends Module {
     val done = Bool(OUTPUT)                   // high when done until start=0
     val csr = new ResultStageCtrlIO().asInput
     val dram = new ResultStageDRAMIO(myP)
+    val prog_finished = Bool(OUTPUT)
     // interface towards result memory
     val resmem_req = Vec.fill(myP.dpa_lhs) { Vec.fill(myP.dpa_rhs) {
       new OCMRequest(myP.accWidth, log2Up(myP.resEntriesPerMem)).asOutput
@@ -184,6 +185,8 @@ class ResultStage(val myP: ResultStageParams) extends Module {
   val regState = Reg(init = UInt(sIdle))
 
   io.done := Bool(false)
+  val regProgFinished = Reg(init = Bool(false))
+  io.prog_finished := regProgFinished
 
   switch(regState) {
       is(sIdle) {
@@ -217,7 +220,10 @@ class ResultStage(val myP: ResultStageParams) extends Module {
       }
 
       is(sWaitComplete) {
-        when(allComplete) { regState := sFinished }
+        when(allComplete) {
+          regState := sFinished
+          regProgFinished := Bool(true)
+        }
       }
 
       is(sFinished) {

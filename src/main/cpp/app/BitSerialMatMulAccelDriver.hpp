@@ -143,7 +143,11 @@ public:
     // memset(m_hostSideInstrBuf, 0, dramInstrBytes());
   }
 
-  void add_dram_instr_fetches() {
+  // copy instructions to accel buffer
+  void create_instr_stream() {
+    // TODO refactor in the following manner:
+    // - add DRAM fetch instructions as necessary into the std::vector
+    m_platform->copyBufferHostToAccel(m_hostSideInstrBuf, m_accelSideInstrBuf, dramInstrBytes());
     // create instruction to initiate the DRAM instruction fetch
     BISMOInstruction ins;
     ins.fetch.targetStage = stgFetch;
@@ -158,12 +162,7 @@ public:
     ins.fetch.dram_block_count = 1;
     ins.fetch.tiles_per_row = 0;
     // push directly into on-chip instruction queue
-    push_instruction(ins, true);
-  }
-
-  // copy instructions to accel buffer
-  void sync_instrs() {
-    m_platform->copyBufferHostToAccel(m_hostSideInstrBuf, m_accelSideInstrBuf, dramInstrBytes());
+    push_instruction_ocm(ins);
   }
 
   const size_t dramInstrBytes() const {
@@ -171,28 +170,27 @@ public:
     return m_dramInstrCount * DRAM_INSTR_BYTES;
   }
 
-  void push_instruction(BISMOInstruction ins, bool use_ocm=true) {
+  void push_instruction_ocm(BISMOInstruction ins) {
+    // use regs to directly push into OCM instruction queue
+    m_accel->set_op_bits0(ins.raw[3]);
+    m_accel->set_op_bits1(ins.raw[2]);
+    m_accel->set_op_bits2(ins.raw[1]);
+    m_accel->set_op_bits3(ins.raw[0]);
+    // push into fetch op FIFO when available
+    while(op_full());
+    m_accel->set_op_valid(1);
+    m_accel->set_op_valid(0);
+  }
+
+  void push_instruction_dram(BISMOInstruction ins) {
     // TODO refactor in the following manner:
     // - put new instructions onto a std::vector<BISMOInstruction>
-    // - add DRAM fetch instructions as necessary
-    if(use_ocm) {
-      // use regs to directly push into OCM instruction queue
-      m_accel->set_op_bits0(ins.raw[3]);
-      m_accel->set_op_bits1(ins.raw[2]);
-      m_accel->set_op_bits2(ins.raw[1]);
-      m_accel->set_op_bits3(ins.raw[0]);
-      // push into fetch op FIFO when available
-      while(op_full());
-      m_accel->set_op_valid(1);
-      m_accel->set_op_valid(0);
-    } else {
-      // write instruction into the DRAM instruction buffer
-      assert(m_dramInstrCount < MAX_DRAM_INSTRS);
-      // TODO remove once we have full DRAM instr fetch
-      assert(m_dramInstrCount < m_cfg.cmdQueueEntries);
-      m_hostSideInstrBuf[m_dramInstrCount] = ins;
-      m_dramInstrCount++;
-    }
+    // write instruction into the DRAM instruction buffer
+    assert(m_dramInstrCount < MAX_DRAM_INSTRS);
+    // TODO remove once we have full DRAM instr fetch
+    assert(m_dramInstrCount < m_cfg.cmdQueueEntries);
+    m_hostSideInstrBuf[m_dramInstrCount] = ins;
+    m_dramInstrCount++;
   }
 
   void measure_fclk() {
@@ -406,7 +404,7 @@ public:
   }
 
   // push a command to the Fetch op queue
-  void push_fetch_op(Op op, FetchRunCfg cfg) {
+  void push_fetch_op(Op op, FetchRunCfg cfg, bool forceOCM=true) {
     BISMOInstruction ins;
     if(op.opcode == opRun) {
       verifyFetchRunCfg(cfg);
@@ -429,11 +427,15 @@ public:
       ins.sync.unused0 = 0;
       ins.sync.unused1 = 0;
     }
-    push_instruction(ins);
+    if(forceOCM) {
+      push_instruction_ocm(ins);
+    } else {
+      push_instruction_dram(ins);
+    }
   }
 
   // push a command to the Exec op queue
-  void push_exec_op(Op op, ExecRunCfg cfg) {
+  void push_exec_op(Op op, ExecRunCfg cfg, bool forceOCM=true) {
     BISMOInstruction ins;
     if(op.opcode == opRun) {
       verifyExecRunCfg(cfg);
@@ -457,11 +459,15 @@ public:
       ins.sync.unused0 = 0;
       ins.sync.unused1 = 0;
     }
-    push_instruction(ins);
+    if(forceOCM) {
+      push_instruction_ocm(ins);
+    } else {
+      push_instruction_dram(ins);
+    }
   }
 
   // push a command to the Result op queue
-  void push_result_op(Op op, ResultRunCfg cfg) {
+  void push_result_op(Op op, ResultRunCfg cfg, bool forceOCM=true) {
     BISMOInstruction ins;
     if(op.opcode == opRun) {
       verifyResultRunCfg(cfg);
@@ -481,14 +487,18 @@ public:
       ins.sync.unused0 = 0;
       ins.sync.unused1 = 0;
     }
-    push_instruction(ins);
+    if(forceOCM) {
+      push_instruction_ocm(ins);
+    } else {
+      push_instruction_dram(ins);
+    }
   }
 
   // initialize the tokens in FIFOs representing shared resources
   void init_resource_pools() {
     set_stage_enables(0, 0, 0);
     for(int i = 0; i < FETCHEXEC_TOKENS; i++) {
-      push_exec_op(make_op(opSendToken, 0), dummyExecRunCfg);
+      push_exec_op(make_op(opSendToken, 0), dummyExecRunCfg, true);
     }
     assert(m_accel->get_exec_op_count() == FETCHEXEC_TOKENS);
     set_stage_enables(0, 1, 0);
@@ -496,7 +506,7 @@ public:
 
     set_stage_enables(0, 0, 0);
     for(int i = 0; i < EXECRES_TOKENS; i++) {
-      push_result_op(make_op(opSendToken, 0), dummyResultRunCfg);
+      push_result_op(make_op(opSendToken, 0), dummyResultRunCfg, true);
     }
     assert(m_accel->get_result_op_count() == EXECRES_TOKENS);
     set_stage_enables(0, 0, 1);
@@ -521,6 +531,10 @@ public:
     cout << "readChanWidth = " << m_cfg.readChanWidth << endl;
     cout << "rhsEntriesPerMem = " << m_cfg.rhsEntriesPerMem << endl;
     cout << "writeChanWidth = " << m_cfg.writeChanWidth << endl;
+  }
+
+  bool prog_finished() {
+    return m_accel->get_prog_finished() == 1;
   }
 
 protected:

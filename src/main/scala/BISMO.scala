@@ -226,6 +226,8 @@ class BitSerialMatMulAccel(
     val fetch_enable = Bool(INPUT)
     val exec_enable = Bool(INPUT)
     val result_enable = Bool(INPUT)
+    // all instructions finished
+    val prog_finished = Bool(OUTPUT)
     // instructions
     val op = Decoupled(UInt(width = BISMOLimits.instrBits)).flip
     // command counts in each queue
@@ -243,6 +245,7 @@ class BitSerialMatMulAccel(
   val fetchStage = Module(new FetchStage(myP.fetchStageParams)).io
   val execStage = Module(new ExecStage(myP.execStageParams)).io
   val resultStage = Module(new ResultStage(myP.resultStageParams)).io
+  io.prog_finished := resultStage.prog_finished
   // instantiate the controllers for each stage
   val fetchCtrl = Module(new FetchController()).io
   val execCtrl = Module(new ExecController()).io
@@ -309,11 +312,20 @@ class BitSerialMatMulAccel(
   opSwitch.out_exec <> execOpQ.enq
   opSwitch.out_result <> resultOpQ.enq
 
-  /*StreamMonitor(inQ.enq, Bool(true), "in", true)
-  StreamMonitor(opSwitch.in, Bool(true), "sw_in", true)
+  /*
+  when(ocmInstrQ.enq.fire()) {
+    printf("OCM instrq %x\n", ocmInstrQ.enq.bits)
+  }
+
+  when(fetchStage.instrs.fire()) {
+    printf("DRAM instrq %x\n", fetchStage.instrs.bits)
+  }
+  StreamMonitor(instrMixer.in(1), Bool(true), "dram_ins", true
+  StreamMonitor(ocmInstrQ.enq, Bool(true), "ocm_ins", true)
   StreamMonitor(opSwitch.out_fetch, Bool(true), "fetch", true)
   StreamMonitor(opSwitch.out_exec, Bool(true), "exec", true)
-  StreamMonitor(opSwitch.out_result, Bool(true), "res", true)*/
+  StreamMonitor(opSwitch.out_result, Bool(true), "res", true)
+  */
 
   // wire-up: command queues and pulse generators for fetch stage
   fetchCtrl.enable := io.fetch_enable
