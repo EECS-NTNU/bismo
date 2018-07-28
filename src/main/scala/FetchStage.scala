@@ -313,7 +313,9 @@ class FetchStage(val myP: FetchStageParams) extends Module {
   // TODO the FetchInterconnect does not support backpressure -- how to handle
   // this? easiest if software/compiler guarantees that there is
   // space in the instruction queue.
-  assert(!instrResize.in.ready & instrResize.in.valid)
+  when(!instrResize.in.ready & instrResize.in.valid) {
+    printf("ERROR: DRAM instruction queue could not receive data")
+  }
   instrResize.out <> io.instrs
   println("Instruction queue assigned to node# 0")
 
