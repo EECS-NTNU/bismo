@@ -57,7 +57,8 @@ class FetchStageParams(
   }
 
   // total number of nodes (LHS or RHS mems) targeted by the FetchStage
-  val numNodes = numLHSMems + numRHSMems
+  // the +1 is for the instruction queue
+  val numNodes = numLHSMems + numRHSMems + 1
 
   // number of ID bits to identify a node
   def getIDBits(): Int = {
