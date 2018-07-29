@@ -298,12 +298,40 @@ class BitSerialMatMulAccel(
   val ocmInstrQ = Module(new FPGAQueue(io.op.bits, 2)).io
   enqPulseGenFromValid(ocmInstrQ.enq, io.op)
 
+  // Fetch stage exposes instructions fetched from DRAM, but does not support
+  // backpressure. even if the SW does not push too much instructions at once,
+  // the upsizer here can cause data loss here since it's not fully pipelined.
+  // solution: add a queue at the upsizer entry. how many elements?
+  /*
+  Assume we have 3x worth of instructions (x = cmdQueueEntries and 3 because we have 3 stages).
+  Assume that the DDR channel width (64) is half the instruction width (128), using this as the base element.
+  It'll normally take 6x cycles to write all the instructions in a FIFO with enough space.
+  The upsizer will pop 2 basic elements (=1 instruction) every third cycle.
+  So in the space of 6x cycles, it will pop 2*(6x/3) = 4x basic elements.
+  This means the FIFO needs to have space for at least 6x - 4x = 2x basic elements.
+  */
+  // TODO generalize calculation for other DDRw/instrw ratios
+  Predef.assert(myP.mrp.dataWidth * 2 == BISMOLimits.instrBits)
+  val upsizerQueueElems = 2 * myP.cmdQueueEntries
+  val instrResizeQ = Module(new FPGAQueue(UInt(width=myP.mrp.dataWidth), upsizerQueueElems)).io
+  instrResizeQ.enq.valid := fetchStage.instrs.valid
+  instrResizeQ.enq.bits := fetchStage.instrs.bits
+  when(!instrResizeQ.enq.ready & instrResizeQ.enq.valid) {
+    printf("ERROR: DRAM instruction queue could not receive data\n")
+  }
+  // StreamResizer to match instr q output width
+  val instrResize = Module(new StreamResizer(
+    inWidth = myP.mrp.dataWidth, outWidth = BISMOLimits.instrBits
+  )).io
+  instrResizeQ.deq <> instrResize.in
+
   // create mix of instructions from OCM and DRAM
   val instrMixer = Module(new StreamInterleaver(
     numSources = 2, gen = UInt(width = BISMOLimits.instrBits)
   )).io
   ocmInstrQ.deq <> instrMixer.in(0)
-  FPGAQueue(fetchStage.instrs, 2) <> instrMixer.in(1)
+  //FPGAQueue(fetchStage.instrs, 2) <> instrMixer.in(1)
+  FPGAQueue(instrResize.out, 2) <> instrMixer.in(1)
 
   // route incoming instructions according to target stage
   FPGAQueue(instrMixer.out, 2) <> opSwitch.in
