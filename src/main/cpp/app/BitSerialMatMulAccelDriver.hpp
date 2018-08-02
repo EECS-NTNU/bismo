@@ -44,14 +44,16 @@
 
 #define ASSERT_BITS(v,b)  assert(v <= (((uint64_t)1 << b) - 1));
 
-#define CMDFIFO_CAP       16
-#define FETCHEXEC_TOKENS  2
-#define EXECRES_TOKENS    2
-#define N_CTRL_STATES     4
-#define FETCH_ADDRALIGN   64
-#define FETCH_SIZEALIGN   8
-#define MAX_DRAM_INSTRS   (1024)
-#define DRAM_INSTR_BYTES  16
+#define CMDFIFO_CAP               16
+#define FETCHEXEC_TOKENS          2
+#define EXECRES_TOKENS            2
+#define N_CTRL_STATES             4
+#define FETCH_ADDRALIGN           64
+#define FETCH_SIZEALIGN           8
+#define MAX_DRAM_INSTRS           (1024 * 512)
+#define DRAM_INSTR_BYTES          16
+//#define INSTR_FETCH_GRANULARITY   m_cfg.cmdQueueEntries
+#define INSTR_FETCH_GRANULARITY  8
 
 #define max(x,y) (x > y ? x : y)
 #define FETCH_ALIGN       max(FETCH_ADDRALIGN, FETCH_SIZEALIGN)
@@ -145,10 +147,18 @@ public:
 
   // copy instructions to accel buffer
   void create_instr_stream() {
-    // TODO refactor in the following manner:
-    // - add DRAM fetch instructions as necessary into the std::vector
+    sanitize_instruction_fetches();
     m_platform->copyBufferHostToAccel(m_hostSideInstrBuf, m_accelSideInstrBuf, dramInstrBytes());
     // create instruction to initiate the DRAM instruction fetch
+    // only fetch a single instruction from DRAM (for kickstart)
+    // the rest is fetched by in-DRAM instructions
+    BISMOInstruction ins = makeInstructionFetch(0, 1);
+    // push directly into on-chip instruction queue
+    push_instruction_ocm(ins);
+  }
+
+  // create a fetch instruction to fetch more instructions
+  BISMOInstruction makeInstructionFetch(size_t start_ind, size_t n_instrs) {
     BISMOInstruction ins;
     ins.fetch.targetStage = stgFetch;
     ins.fetch.isRunCfg = 1;
@@ -156,13 +166,12 @@ public:
     ins.fetch.bram_id_start = 0;
     ins.fetch.bram_id_range = 0;
     ins.fetch.bram_addr_base = 0;
-    ins.fetch.dram_base = (uint64_t) m_accelSideInstrBuf;
-    ins.fetch.dram_block_size_bytes = dramInstrBytes();
+    ins.fetch.dram_base = (uint64_t) m_accelSideInstrBuf + (start_ind * DRAM_INSTR_BYTES);
+    ins.fetch.dram_block_size_bytes = DRAM_INSTR_BYTES * n_instrs;
     ins.fetch.dram_block_offset_bytes = 0;
     ins.fetch.dram_block_count = 1;
     ins.fetch.tiles_per_row = 0;
-    // push directly into on-chip instruction queue
-    push_instruction_ocm(ins);
+    return ins;
   }
 
   const size_t dramInstrBytes() const {
@@ -187,15 +196,40 @@ public:
   }
 
   void push_instruction_dram(BISMOInstruction ins) {
-    // TODO refactor in the following manner:
-    // - put new instructions onto a std::vector<BISMOInstruction>
-    // write instruction into the DRAM instruction buffer
     assert(m_dramInstrCount < MAX_DRAM_INSTRS);
-    // TODO remove once we have full DRAM instr fetch
-    assert(m_dramInstrCount < m_cfg.cmdQueueEntries);
+    if(m_dramInstrCount % INSTR_FETCH_GRANULARITY == 0) {
+      // add a fetch to load the new segment with instructions
+      BISMOInstruction fetch_next_seg = makeInstructionFetch(m_dramInstrCount+1, INSTR_FETCH_GRANULARITY);
+      m_hostSideInstrBuf[m_dramInstrCount] = fetch_next_seg;
+      m_dramInstrCount++;
+    }
+    // add the actual instruction
     m_hostSideInstrBuf[m_dramInstrCount] = ins;
-    //cout << ins << endl;
     m_dramInstrCount++;
+  }
+
+  bool isInstructionFetch(BISMOInstruction ins) {
+    return  (ins.fetch.targetStage == stgFetch) &&
+            (ins.fetch.isRunCfg == 1) &&
+            (ins.fetch.bram_id_start == 0);
+  }
+
+  void sanitize_instruction_fetches() {
+    // by default we create instruction fetches that grab a certain number of
+    // instructions all at once (INSTR_FETCH_GRANULARITY). however, we may
+    // have fewer instructions in the final segment, so go fix this.
+    size_t final_segment_instrcount = (m_dramInstrCount - 1) % INSTR_FETCH_GRANULARITY;
+    for(size_t i = m_dramInstrCount - 1; i >= 0; i--) {
+      // find the final instruction fetch
+      if(isInstructionFetch(m_hostSideInstrBuf[i])) {
+        cout << "segment count " << ((m_dramInstrCount - final_segment_instrcount) / INSTR_FETCH_GRANULARITY) + 1 << endl;
+        cout << "found final instr at " << i << endl;
+        cout << "settings final seg instrs to " << final_segment_instrcount << endl;
+        cout << "total DRAM instrs is " << m_dramInstrCount << endl;
+        m_hostSideInstrBuf[i].fetch.dram_block_size_bytes = final_segment_instrcount * DRAM_INSTR_BYTES;
+        break;
+      }
+    }
   }
 
   void measure_fclk() {
