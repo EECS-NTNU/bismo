@@ -159,15 +159,79 @@ public:
     m_icnt_result = 0;
   }
 
-  // copy instructions to accel buffer
   void create_instr_stream() {
-    // TODO create instruction fetch instructions for each stage and push into
-    // OCM queues
+    create_instr_stream(stgFetch);
+    create_instr_stream(stgExec);
+    create_instr_stream(stgResult);
+  }
 
-    // copy DRAM instr buffers from host to accel
-    m_platform->copyBufferHostToAccel(m_host_ibuf_fetch, m_acc_ibuf_fetch, dramInstrBytes(stgFetch));
-    m_platform->copyBufferHostToAccel(m_host_ibuf_exec, m_acc_ibuf_exec, dramInstrBytes(stgExec));
-    m_platform->copyBufferHostToAccel(m_host_ibuf_result, m_acc_ibuf_result, dramInstrBytes(stgResult));
+  // for the given stage, create instruction fetches to pull out instrs from
+  // DRAM, and ensure that instr buffer is copied to accel DRAM
+  void create_instr_stream(BISMOTargetStage stg) {
+    size_t n_instrs = 0;
+    void * stgBufferBase = 0;
+    BISMOInstruction * hostInstrs = 0;
+
+    switch (stg) {
+      case stgFetch:
+        n_instrs = m_icnt_fetch;
+        hostInstrs = m_host_ibuf_fetch;
+        stgBufferBase = m_acc_ibuf_fetch;
+        break;
+      case stgExec:
+        n_instrs = m_icnt_exec;
+        hostInstrs = m_host_ibuf_exec;
+        stgBufferBase = m_acc_ibuf_exec;
+        break;
+      case stgResult:
+        n_instrs = m_icnt_result;
+        hostInstrs = m_host_ibuf_result;
+        stgBufferBase = m_acc_ibuf_exec;
+        break;
+      default:
+        cerr << "Unrecognized state in makeInstructionFetch" << endl;
+        assert(0);
+    }
+
+    // round-up integer division to compute number of segments
+    const size_t n_segments = (n_instrs + INSTR_FETCH_GRANULARITY - 1) / INSTR_FETCH_GRANULARITY;
+    std::vector<BISMOInstruction> fetch_instrs;
+    cout << "num segments for stage " << stg << " is " << n_segments << endl;
+    // for each segment of instructions, create an instruction fetch
+    size_t n_instrs_left = n_instrs;
+    for(size_t seg = 0; seg < n_segments; seg++) {
+      size_t start_ind = INSTR_FETCH_GRANULARITY * seg;
+      size_t count = n_instrs_left < INSTR_FETCH_GRANULARITY ? n_instrs_left : INSTR_FETCH_GRANULARITY;
+      BISMOInstruction ins = makeInstructionFetch(stgBufferBase, start_ind, count);
+      cout << "segment " << seg << ": start = " << start_ind << " " << " count " << count << endl;
+      fetch_instrs.push_back(ins);
+      n_instrs_left -= count;
+    }
+
+    // copy the actual instructions to DRAM
+    const size_t instr_bytes = DRAM_INSTR_BYTES * n_instrs;
+    m_platform->copyBufferHostToAccel(hostInstrs, stgBufferBase, instr_bytes);
+
+    // put the fetch instructions in OCM
+    for(auto &fi : fetch_instrs) {
+      switch (stg) {
+        case stgFetch:
+          if_fetch(fi);
+          m_accel->set_total_instr_fetch(n_instrs);
+          break;
+        case stgExec:
+          if_exec(fi);
+          m_accel->set_total_instr_exec(n_instrs);
+          break;
+        case stgResult:
+          if_result(fi);
+          m_accel->set_total_instr_result(n_instrs);
+          break;
+        default:
+          cerr << "Unrecognized state in makeInstructionFetch" << endl;
+          assert(0);
+      }
+    }
   }
 
   // create a fetch instruction to fetch more instructions
@@ -432,11 +496,6 @@ public:
     return m_accel->get_result_op_count();
   }
 
-  // check whether it's possible to write a new instruction into the queue
-  const bool op_full() {
-    return m_accel->get_op_ready() == 1 ? false : true;
-  }
-
   // reset the accelerator
   void reset() {
     m_platform->writeReg(0, 1);
@@ -458,7 +517,7 @@ public:
   }
 
   // push a command to the Fetch op queue
-  void push_fetch_op(Op op, FetchRunCfg cfg, bool forceOCM=false) {
+  void push_fetch_op(Op op, FetchRunCfg cfg) {
     BISMOInstruction ins;
     if(op.opcode == opRun) {
       verifyFetchRunCfg(cfg);
@@ -481,15 +540,11 @@ public:
       ins.sync.unused0 = 0;
       ins.sync.unused1 = 0;
     }
-    if(forceOCM) {
-      push_instruction_ocm(ins);
-    } else {
-      push_instruction_dram(ins);
-    }
+    push_instruction_dram(ins);
   }
 
   // push a command to the Exec op queue
-  void push_exec_op(Op op, ExecRunCfg cfg, bool forceOCM=false) {
+  void push_exec_op(Op op, ExecRunCfg cfg) {
     BISMOInstruction ins;
     if(op.opcode == opRun) {
       verifyExecRunCfg(cfg);
@@ -513,15 +568,11 @@ public:
       ins.sync.unused0 = 0;
       ins.sync.unused1 = 0;
     }
-    if(forceOCM) {
-      push_instruction_ocm(ins);
-    } else {
-      push_instruction_dram(ins);
-    }
+    push_instruction_dram(ins);
   }
 
   // push a command to the Result op queue
-  void push_result_op(Op op, ResultRunCfg cfg, bool forceOCM=false) {
+  void push_result_op(Op op, ResultRunCfg cfg) {
     BISMOInstruction ins;
     if(op.opcode == opRun) {
       verifyResultRunCfg(cfg);
@@ -541,31 +592,49 @@ public:
       ins.sync.unused0 = 0;
       ins.sync.unused1 = 0;
     }
-    if(forceOCM) {
-      push_instruction_ocm(ins);
-    } else {
-      push_instruction_dram(ins);
-    }
+    push_instruction_dram(ins);
   }
 
   // initialize the tokens in FIFOs representing shared resources
+  // this also serves as a sanity check for basic functionality in the hardware
   void init_resource_pools() {
-    set_stage_enables(0, 0, 0);
+    //cout << "init_resource_pools: starting" << endl;
+    // note: fetch stage must be enabled to fetch instructions that initialize
+    // the token pools
+    // fetch-exec token
     for(int i = 0; i < FETCHEXEC_TOKENS; i++) {
-      push_exec_op(make_op(opSendToken, 0), dummyExecRunCfg, true);
+      push_exec_op(make_op(opSendToken, 0), dummyExecRunCfg);
     }
-    assert(m_accel->get_exec_op_count() == FETCHEXEC_TOKENS);
+    create_instr_stream(stgExec);
+    // issue instr fetches for exec
+    set_stage_enables(0, 1, 0);
+    // run instr fetches for exec
+    set_stage_enables(1, 0, 0);
+    while(m_accel->get_exec_op_count() != FETCHEXEC_TOKENS);
+    //cout << "init_resource_pools: fetch-exec token instrs OK" << endl;
+    // run exec stage to complete token init
     set_stage_enables(0, 1, 0);
     while(m_accel->get_exec_op_count() != 0);
+    //cout << "init_resource_pools: fetch-exec tokens OK" << endl;
 
-    set_stage_enables(0, 0, 0);
     for(int i = 0; i < EXECRES_TOKENS; i++) {
-      push_result_op(make_op(opSendToken, 0), dummyResultRunCfg, true);
+      push_result_op(make_op(opSendToken, 0), dummyResultRunCfg);
     }
-    assert(m_accel->get_result_op_count() == EXECRES_TOKENS);
+    create_instr_stream(stgResult);
+    // issue instr fetches for res
+    set_stage_enables(0, 0, 1);
+    // run instr fetches for res
+    set_stage_enables(1, 0, 0);
+    while(m_accel->get_result_op_count() != EXECRES_TOKENS);
+    //cout << "init_resource_pools: exec-res token instrs OK" << endl;
+    // run result stage to complete token init
     set_stage_enables(0, 0, 1);
     while(m_accel->get_result_op_count() != 0);
+    //cout << "init_resource_pools: exec-res tokens OK" << endl;
     set_stage_enables(0, 0, 0);
+
+    clearInstrBuf();
+    //cout << "init_resource_pools: completed" << endl;
   }
 
   // get the instantiated hardware config
