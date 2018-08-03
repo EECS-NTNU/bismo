@@ -50,10 +50,12 @@
 #define N_CTRL_STATES             4
 #define FETCH_ADDRALIGN           64
 #define FETCH_SIZEALIGN           8
-#define MAX_DRAM_INSTRS           (1024)
+
+#define MAX_INSTR_SEGS            64
+#define MAX_DRAM_INSTRS           (MAX_INSTR_SEGS*m_cfg.cmdQueueEntries)
 #define DRAM_INSTR_BYTES          16
-//#define INSTR_FETCH_GRANULARITY   m_cfg.cmdQueueEntries
-#define INSTR_FETCH_GRANULARITY   64
+#define INSTR_FETCH_GRANULARITY   (m_cfg.cmdQueueEntries/2)
+//#define INSTR_FETCH_GRANULARITY   64
 
 #define max(x,y) (x > y ? x : y)
 #define FETCH_ALIGN       max(FETCH_ADDRALIGN, FETCH_SIZEALIGN)
@@ -127,6 +129,8 @@ public:
     m_platform = platform;
     m_accel = new BitSerialMatMulAccel(m_platform);
     m_fclk = 200.0;
+    update_hw_cfg();
+    measure_fclk();
     // buffer allocation for instruction buffers in DRAM
     m_host_ibuf_fetch = new BISMOInstruction[MAX_DRAM_INSTRS];
     m_host_ibuf_exec = new BISMOInstruction[MAX_DRAM_INSTRS];
@@ -138,8 +142,6 @@ public:
     m_accel->set_if_threshold(m_cfg.cmdQueueEntries-INSTR_FETCH_GRANULARITY);
 
     clearInstrBuf();
-    update_hw_cfg();
-    measure_fclk();
   }
 
   ~BitSerialMatMulAccelDriver() {

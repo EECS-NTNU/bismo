@@ -299,9 +299,9 @@ class BitSerialMatMulAccel(
   }
 
   // OCM queues for storing instruction fetch instructions for each stage
-  val ifq_fetch = Module(new FPGAQueue(io.if_fetch.bits, 64)).io
-  val ifq_exec = Module(new FPGAQueue(io.if_exec.bits, 64)).io
-  val ifq_result = Module(new FPGAQueue(io.if_result.bits, 64)).io
+  val ifq_fetch = Module(new FPGAQueue(io.if_fetch.bits, BISMOLimits.maxInstrSegments)).io
+  val ifq_exec = Module(new FPGAQueue(io.if_exec.bits, BISMOLimits.maxInstrSegments)).io
+  val ifq_result = Module(new FPGAQueue(io.if_result.bits, BISMOLimits.maxInstrSegments)).io
   enqPulseGenFromValid(ifq_fetch.enq, io.if_fetch)
   enqPulseGenFromValid(ifq_exec.enq, io.if_exec)
   enqPulseGenFromValid(ifq_result.enq, io.if_result)
