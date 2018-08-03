@@ -50,10 +50,10 @@
 #define N_CTRL_STATES             4
 #define FETCH_ADDRALIGN           64
 #define FETCH_SIZEALIGN           8
-#define MAX_DRAM_INSTRS           (1024 * 512)
+#define MAX_DRAM_INSTRS           (1024)
 #define DRAM_INSTR_BYTES          16
 //#define INSTR_FETCH_GRANULARITY   m_cfg.cmdQueueEntries
-#define INSTR_FETCH_GRANULARITY  8
+#define INSTR_FETCH_GRANULARITY   64
 
 #define max(x,y) (x > y ? x : y)
 #define FETCH_ALIGN       max(FETCH_ADDRALIGN, FETCH_SIZEALIGN)
@@ -127,38 +127,51 @@ public:
     m_platform = platform;
     m_accel = new BitSerialMatMulAccel(m_platform);
     m_fclk = 200.0;
-    // buffer allocation for instruction buffer in DRAM
-    m_hostSideInstrBuf = new BISMOInstruction[MAX_DRAM_INSTRS];
-    m_accelSideInstrBuf = m_platform->allocAccelBuffer(maxDRAMInstrBytes());
+    // buffer allocation for instruction buffers in DRAM
+    m_host_ibuf_fetch = new BISMOInstruction[MAX_DRAM_INSTRS];
+    m_host_ibuf_exec = new BISMOInstruction[MAX_DRAM_INSTRS];
+    m_host_ibuf_result = new BISMOInstruction[MAX_DRAM_INSTRS];
+    m_acc_ibuf_fetch = m_platform->allocAccelBuffer(maxDRAMInstrBytes());
+    m_acc_ibuf_exec = m_platform->allocAccelBuffer(maxDRAMInstrBytes());
+    m_acc_ibuf_result = m_platform->allocAccelBuffer(maxDRAMInstrBytes());
+    // set up instruction fetch threshold
+    m_accel->set_if_threshold(INSTR_FETCH_GRANULARITY);
+
     clearInstrBuf();
     update_hw_cfg();
     measure_fclk();
   }
+
   ~BitSerialMatMulAccelDriver() {
-    m_platform->deallocAccelBuffer(m_accelSideInstrBuf);
-    delete [] m_hostSideInstrBuf;
+    m_platform->deallocAccelBuffer(m_acc_ibuf_fetch);
+    m_platform->deallocAccelBuffer(m_acc_ibuf_exec);
+    m_platform->deallocAccelBuffer(m_acc_ibuf_result);
+
+    delete [] m_host_ibuf_fetch;
+    delete [] m_host_ibuf_exec;
+    delete [] m_host_ibuf_result;
   }
 
   // clear the DRAM instruction buffer
   void clearInstrBuf() {
-    m_dramInstrCount = 0;
-    // memset(m_hostSideInstrBuf, 0, dramInstrBytes());
+    m_icnt_fetch = 0;
+    m_icnt_exec = 0;
+    m_icnt_result = 0;
   }
 
   // copy instructions to accel buffer
   void create_instr_stream() {
-    sanitize_instruction_fetches();
-    m_platform->copyBufferHostToAccel(m_hostSideInstrBuf, m_accelSideInstrBuf, dramInstrBytes());
-    // create instruction to initiate the DRAM instruction fetch
-    // only fetch a single instruction from DRAM (for kickstart)
-    // the rest is fetched by in-DRAM instructions
-    BISMOInstruction ins = makeInstructionFetch(0, 1);
-    // push directly into on-chip instruction queue
-    push_instruction_ocm(ins);
+    // TODO create instruction fetch instructions for each stage and push into
+    // OCM queues
+
+    // copy DRAM instr buffers from host to accel
+    m_platform->copyBufferHostToAccel(m_host_ibuf_fetch, m_acc_ibuf_fetch, dramInstrBytes(stgFetch));
+    m_platform->copyBufferHostToAccel(m_host_ibuf_exec, m_acc_ibuf_exec, dramInstrBytes(stgExec));
+    m_platform->copyBufferHostToAccel(m_host_ibuf_result, m_acc_ibuf_result, dramInstrBytes(stgResult));
   }
 
   // create a fetch instruction to fetch more instructions
-  BISMOInstruction makeInstructionFetch(size_t start_ind, size_t n_instrs) {
+  BISMOInstruction makeInstructionFetch(void * base, size_t start_ind, size_t n_instrs) {
     BISMOInstruction ins;
     ins.fetch.targetStage = stgFetch;
     ins.fetch.isRunCfg = 1;
@@ -166,7 +179,7 @@ public:
     ins.fetch.bram_id_start = 0;
     ins.fetch.bram_id_range = 0;
     ins.fetch.bram_addr_base = 0;
-    ins.fetch.dram_base = (uint64_t) m_accelSideInstrBuf + (start_ind * DRAM_INSTR_BYTES);
+    ins.fetch.dram_base = (uint64_t) base + (start_ind * DRAM_INSTR_BYTES);
     ins.fetch.dram_block_size_bytes = DRAM_INSTR_BYTES * n_instrs;
     ins.fetch.dram_block_offset_bytes = 0;
     ins.fetch.dram_block_count = 1;
@@ -174,61 +187,63 @@ public:
     return ins;
   }
 
-  const size_t dramInstrBytes() const {
-    // TODO make sure that an aligned size is passed?
-    return m_dramInstrCount * DRAM_INSTR_BYTES;
-  }
-
   const size_t maxDRAMInstrBytes() const {
     return MAX_DRAM_INSTRS * DRAM_INSTR_BYTES;
   }
 
-  void push_instruction_ocm(BISMOInstruction ins) {
+  void if_fetch(BISMOInstruction ins) {
     // use regs to directly push into OCM instruction queue
-    m_accel->set_op_bits0(ins.raw[3]);
-    m_accel->set_op_bits1(ins.raw[2]);
-    m_accel->set_op_bits2(ins.raw[1]);
-    m_accel->set_op_bits3(ins.raw[0]);
+    m_accel->set_if_fetch_bits0(ins.raw[3]);
+    m_accel->set_if_fetch_bits1(ins.raw[2]);
+    m_accel->set_if_fetch_bits2(ins.raw[1]);
+    m_accel->set_if_fetch_bits3(ins.raw[0]);
     // push into fetch op FIFO when available
-    while(op_full());
-    m_accel->set_op_valid(1);
-    m_accel->set_op_valid(0);
+    while(!m_accel->get_if_fetch_ready());
+    m_accel->set_if_fetch_valid(1);
+    m_accel->set_if_fetch_valid(0);
+  }
+
+  void if_exec(BISMOInstruction ins) {
+    // use regs to directly push into OCM instruction queue
+    m_accel->set_if_exec_bits0(ins.raw[3]);
+    m_accel->set_if_exec_bits1(ins.raw[2]);
+    m_accel->set_if_exec_bits2(ins.raw[1]);
+    m_accel->set_if_exec_bits3(ins.raw[0]);
+    // push into exec op FIFO when available
+    while(!m_accel->get_if_exec_ready());
+    m_accel->set_if_exec_valid(1);
+    m_accel->set_if_exec_valid(0);
+  }
+
+  void if_result(BISMOInstruction ins) {
+    // use regs to directly push into OCM instruction queue
+    m_accel->set_if_result_bits0(ins.raw[3]);
+    m_accel->set_if_result_bits1(ins.raw[2]);
+    m_accel->set_if_result_bits2(ins.raw[1]);
+    m_accel->set_if_result_bits3(ins.raw[0]);
+    // push into result op FIFO when available
+    while(!m_accel->get_if_result_ready());
+    m_accel->set_if_result_valid(1);
+    m_accel->set_if_result_valid(0);
   }
 
   void push_instruction_dram(BISMOInstruction ins) {
-    assert(m_dramInstrCount < MAX_DRAM_INSTRS);
-    if(m_dramInstrCount % INSTR_FETCH_GRANULARITY == 0) {
-      // add a fetch to load the new segment with instructions
-      BISMOInstruction fetch_next_seg = makeInstructionFetch(m_dramInstrCount+1, INSTR_FETCH_GRANULARITY);
-      m_hostSideInstrBuf[m_dramInstrCount] = fetch_next_seg;
-      m_dramInstrCount++;
-    }
-    // add the actual instruction
-    m_hostSideInstrBuf[m_dramInstrCount] = ins;
-    m_dramInstrCount++;
-  }
-
-  bool isInstructionFetch(BISMOInstruction ins) {
-    return  (ins.fetch.targetStage == stgFetch) &&
-            (ins.fetch.isRunCfg == 1) &&
-            (ins.fetch.bram_id_start == 0);
-  }
-
-  void sanitize_instruction_fetches() {
-    // by default we create instruction fetches that grab a certain number of
-    // instructions all at once (INSTR_FETCH_GRANULARITY). however, we may
-    // have fewer instructions in the final segment, so go fix this.
-    size_t final_segment_instrcount = (m_dramInstrCount - 1) % INSTR_FETCH_GRANULARITY;
-    for(size_t i = m_dramInstrCount - 1; i >= 0; i--) {
-      // find the final instruction fetch
-      if(isInstructionFetch(m_hostSideInstrBuf[i])) {
-        cout << "segment count " << ((m_dramInstrCount - final_segment_instrcount) / INSTR_FETCH_GRANULARITY) + 1 << endl;
-        cout << "found final instr at " << i << endl;
-        cout << "settings final seg instrs to " << final_segment_instrcount << endl;
-        cout << "total DRAM instrs is " << m_dramInstrCount << endl;
-        m_hostSideInstrBuf[i].fetch.dram_block_size_bytes = final_segment_instrcount * DRAM_INSTR_BYTES;
+    assert(m_icnt_fetch < MAX_DRAM_INSTRS);
+    assert(m_icnt_exec < MAX_DRAM_INSTRS);
+    assert(m_icnt_result < MAX_DRAM_INSTRS);
+    switch(ins.fetch.targetStage) {
+      case stgFetch:
+        m_host_ibuf_fetch[m_icnt_fetch++] = ins;
         break;
-      }
+      case stgExec:
+        m_host_ibuf_exec[m_icnt_exec++] = ins;
+        break;
+      case stgResult:
+        m_host_ibuf_result[m_icnt_result++] = ins;
+        break;
+      default:
+        cerr << "Unrecognized instruction target stage" << endl;
+        assert(0);
     }
   }
 
@@ -581,9 +596,9 @@ protected:
   WrapperRegDriver * m_platform;
   HardwareCfg m_cfg;
   float m_fclk;
-  void * m_accelSideInstrBuf;
-  BISMOInstruction * m_hostSideInstrBuf;
-  size_t m_dramInstrCount;
+  BISMOInstruction * m_host_ibuf_fetch, * m_host_ibuf_exec, * m_host_ibuf_result;
+  void * m_acc_ibuf_fetch, * m_acc_ibuf_exec, * m_acc_ibuf_result;
+  size_t m_icnt_fetch, m_icnt_exec, m_icnt_result;
 
   // get the instantiated hardware config from accelerator
   void update_hw_cfg() {
