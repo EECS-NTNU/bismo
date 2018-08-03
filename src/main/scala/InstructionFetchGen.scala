@@ -47,7 +47,7 @@ class InstructionFetchGen extends Module {
   val io = new Bundle {
     val start = Bool(INPUT)
     // fetch instructions
-    val in = Decoupled(new BufDesc()).flip
+    val in = Decoupled(UInt(width = 128)).flip
     // total number of instructions (finish condition)
     val total = UInt(INPUT, width = 32)
     // current number of instructions in stage queue
@@ -63,15 +63,8 @@ class InstructionFetchGen extends Module {
   val regReceivedInstrs = Reg(init = UInt(0, width = 32))
   val regBytesLeftNextSeg = Reg(init = UInt(0, width = 32))
   val runcfg = new FetchStageCtrlIO()
-  io.out.bits.isRunCfg := Bool(true)  // always runcfg
-  io.out.bits.targetStage := UInt(0)  // always target fetch stage
-  runcfg.tiles_per_row := UInt(0)
-  runcfg.dram_block_count := UInt(1)
-  runcfg.dram_block_offset_bytes := UInt(0)
-  runcfg.dram_block_size_bytes := io.in.bits.bytes
-  runcfg.dram_base := io.in.bits.ptr
-  io.out.bits.runcfg := runcfg
 
+  io.out.bits := io.out.bits.fromBits(io.in.bits)
   io.out.valid := Bool(false)
   io.in.ready := Bool(false)
 
@@ -103,7 +96,7 @@ class InstructionFetchGen extends Module {
       io.in.ready := io.out.ready
       when(io.out.fire()) {
         regState := sCountResponses
-        regBytesLeftNextSeg := UInt(io.in.bits.bytes)
+        regBytesLeftNextSeg := UInt(io.out.bits.runcfg.dram_block_size_bytes)
       }
     }
 

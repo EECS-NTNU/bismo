@@ -228,7 +228,15 @@ class BitSerialMatMulAccel(
     // all instructions finished
     val prog_finished = Bool(OUTPUT)
     // instructions
-    val op = Decoupled(UInt(width = BISMOLimits.instrBits)).flip
+    val if_fetch = Decoupled(UInt(width = BISMOLimits.instrBits)).flip
+    val if_exec = Decoupled(UInt(width = BISMOLimits.instrBits)).flip
+    val if_result = Decoupled(UInt(width = BISMOLimits.instrBits)).flip
+    // fetch threshold
+    val if_threshold = UInt(INPUT, 32)
+    // total instruction counts
+    val total_instr_fetch = UInt(INPUT, 32)
+    val total_instr_exec = UInt(INPUT, 32)
+    val total_instr_result = UInt(INPUT, 32)
     // command counts in each queue
     val fetch_op_count = UInt(OUTPUT, width = 32)
     val exec_op_count = UInt(OUTPUT, width = 32)
@@ -294,9 +302,42 @@ class BitSerialMatMulAccel(
     vld.ready := enq.ready
   }
 
-  // fill ocmInstrQ with instructions pushed via the CSRs
-  val ocmInstrQ = Module(new FPGAQueue(io.op.bits, 2)).io
-  enqPulseGenFromValid(ocmInstrQ.enq, io.op)
+
+  // OCM queues for storing instruction fetch instructions for each stage
+  val ifq_fetch = Module(new FPGAQueue(io.if_fetch.bits, 64)).io
+  val ifq_exec = Module(new FPGAQueue(io.if_exec.bits, 64)).io
+  val ifq_result = Module(new FPGAQueue(io.if_result.bits, 64)).io
+  enqPulseGenFromValid(ifq_fetch.enq, io.if_fetch)
+  enqPulseGenFromValid(ifq_exec.enq, io.if_exec)
+  enqPulseGenFromValid(ifq_result.enq, io.if_result)
+
+  // instruction fetch generators for each stage
+  val ifg_fetch = Module(new InstructionFetchGen()).io
+  val ifg_exec = Module(new InstructionFetchGen()).io
+  val ifg_result = Module(new InstructionFetchGen()).io
+
+  // wire up instruction fetch generators
+  // fetch
+  ifg_fetch.start := io.fetch_enable
+  ifg_fetch.in <> ifq_fetch.deq
+  ifg_fetch.total := io.total_instr_fetch
+  ifg_fetch.queue_count := fetchOpQ.count
+  ifg_fetch.queue_threshold := io.if_threshold
+  ifg_fetch.new_instr_pulse := fetchOpQ.enq.fire()
+  // exec
+  ifg_exec.start := io.exec_enable
+  ifg_exec.in <> ifq_exec.deq
+  ifg_exec.total := io.total_instr_exec
+  ifg_exec.queue_count := execOpQ.count
+  ifg_exec.queue_threshold := io.if_threshold
+  ifg_exec.new_instr_pulse := execOpQ.enq.fire()
+  // result
+  ifg_result.start := io.result_enable
+  ifg_result.in <> ifq_result.deq
+  ifg_result.total := io.total_instr_result
+  ifg_result.queue_count := resultOpQ.count
+  ifg_result.queue_threshold := io.if_threshold
+  ifg_result.new_instr_pulse := resultOpQ.enq.fire()
 
   // Fetch stage exposes instructions fetched from DRAM
   // StreamResizer to match instr q output width
@@ -304,20 +345,23 @@ class BitSerialMatMulAccel(
     inWidth = myP.mrp.dataWidth, outWidth = BISMOLimits.instrBits
   )).io
   FPGAQueue(fetchStage.instrs, 2) <> instrResize.in
-
-  // create mix of instructions from OCM and DRAM
-  val instrMixer = Module(new StreamInterleaver(
-    numSources = 2, gen = UInt(width = BISMOLimits.instrBits)
-  )).io
-  ocmInstrQ.deq <> instrMixer.in(0)
-  //FPGAQueue(fetchStage.instrs, 2) <> instrMixer.in(1)
-  FPGAQueue(instrResize.out, 2) <> instrMixer.in(1)
-
   // route incoming instructions according to target stage
-  FPGAQueue(instrMixer.out, 2) <> opSwitch.in
+  FPGAQueue(instrResize.out, 2) <> opSwitch.in
   opSwitch.out_fetch <> fetchOpQ.enq
   opSwitch.out_exec <> execOpQ.enq
   opSwitch.out_result <> resultOpQ.enq
+
+  // ifg_fetch.out  |
+  // ifg_exec.out   |-> (arbiter) -> fetch controller
+  // ifg_result.out |
+  // fetchOpQ.deq   |
+
+  // higher priority assigned to lower slots
+  val fetchInstrMix = Module(new Arbiter(new BISMOFetchRunInstruction(), n=4)).io
+  ifg_fetch.out <> fetchInstrMix.in(0)
+  ifg_exec.out <> fetchInstrMix.in(1)
+  ifg_result.out <> fetchInstrMix.in(2)
+  fetchOpQ.deq <> fetchInstrMix.in(3)
 
   /*
   when(opSwitch.in.fire()) {
@@ -339,7 +383,8 @@ class BitSerialMatMulAccel(
   // wire-up: command queues and pulse generators for fetch stage
   fetchCtrl.enable := io.fetch_enable
   io.fetch_op_count := fetchOpQ.count
-  fetchOpQ.deq <> fetchCtrl.op
+  //fetchOpQ.deq <> fetchCtrl.op
+  FPGAQueue(fetchInstrMix.out, 2) <> fetchCtrl.op
 
   // wire-up: command queues and pulse generators for exec stage
   execCtrl.enable := io.exec_enable
