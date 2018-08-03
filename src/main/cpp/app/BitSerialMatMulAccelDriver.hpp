@@ -135,7 +135,7 @@ public:
     m_acc_ibuf_exec = m_platform->allocAccelBuffer(maxDRAMInstrBytes());
     m_acc_ibuf_result = m_platform->allocAccelBuffer(maxDRAMInstrBytes());
     // set up instruction fetch threshold
-    m_accel->set_if_threshold(INSTR_FETCH_GRANULARITY);
+    m_accel->set_if_threshold(m_cfg.cmdQueueEntries-INSTR_FETCH_GRANULARITY);
 
     clearInstrBuf();
     update_hw_cfg();
@@ -186,7 +186,7 @@ public:
       case stgResult:
         n_instrs = m_icnt_result;
         hostInstrs = m_host_ibuf_result;
-        stgBufferBase = m_acc_ibuf_exec;
+        stgBufferBase = m_acc_ibuf_result;
         break;
       default:
         cerr << "Unrecognized state in makeInstructionFetch" << endl;
@@ -196,14 +196,14 @@ public:
     // round-up integer division to compute number of segments
     const size_t n_segments = (n_instrs + INSTR_FETCH_GRANULARITY - 1) / INSTR_FETCH_GRANULARITY;
     std::vector<BISMOInstruction> fetch_instrs;
-    cout << "num segments for stage " << stg << " is " << n_segments << endl;
+    //cout << "num segments for stage " << stg << " is " << n_segments << endl;
     // for each segment of instructions, create an instruction fetch
     size_t n_instrs_left = n_instrs;
     for(size_t seg = 0; seg < n_segments; seg++) {
       size_t start_ind = INSTR_FETCH_GRANULARITY * seg;
       size_t count = n_instrs_left < INSTR_FETCH_GRANULARITY ? n_instrs_left : INSTR_FETCH_GRANULARITY;
       BISMOInstruction ins = makeInstructionFetch(stgBufferBase, start_ind, count);
-      cout << "segment " << seg << ": start = " << start_ind << " " << " count " << count << endl;
+      //cout << "segment " << seg << ": start = " << start_ind << " " << " count " << count << endl;
       fetch_instrs.push_back(ins);
       n_instrs_left -= count;
     }
@@ -217,15 +217,15 @@ public:
       switch (stg) {
         case stgFetch:
           if_fetch(fi);
-          m_accel->set_total_instr_fetch(n_instrs);
+          //m_accel->set_total_instr_fetch(n_instrs);
           break;
         case stgExec:
           if_exec(fi);
-          m_accel->set_total_instr_exec(n_instrs);
+          //m_accel->set_total_instr_exec(n_instrs);
           break;
         case stgResult:
           if_result(fi);
-          m_accel->set_total_instr_result(n_instrs);
+          //m_accel->set_total_instr_result(n_instrs);
           break;
         default:
           cerr << "Unrecognized state in makeInstructionFetch" << endl;
