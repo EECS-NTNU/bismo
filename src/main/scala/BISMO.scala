@@ -233,10 +233,6 @@ class BitSerialMatMulAccel(
     val if_result = Decoupled(UInt(width = BISMOLimits.instrBits)).flip
     // fetch threshold
     val if_threshold = UInt(INPUT, 32)
-    // total instruction counts
-    val total_instr_fetch = UInt(INPUT, 32)
-    val total_instr_exec = UInt(INPUT, 32)
-    val total_instr_result = UInt(INPUT, 32)
     // command counts in each queue
     val fetch_op_count = UInt(OUTPUT, width = 32)
     val exec_op_count = UInt(OUTPUT, width = 32)
@@ -302,7 +298,6 @@ class BitSerialMatMulAccel(
     vld.ready := enq.ready
   }
 
-
   // OCM queues for storing instruction fetch instructions for each stage
   val ifq_fetch = Module(new FPGAQueue(io.if_fetch.bits, 64)).io
   val ifq_exec = Module(new FPGAQueue(io.if_exec.bits, 64)).io
@@ -312,29 +307,29 @@ class BitSerialMatMulAccel(
   enqPulseGenFromValid(ifq_result.enq, io.if_result)
 
   // instruction fetch generators for each stage
-  val ifg_fetch = Module(new InstructionFetchGen()).io
-  val ifg_exec = Module(new InstructionFetchGen()).io
-  val ifg_result = Module(new InstructionFetchGen()).io
+  val ifg_fetch = Module(new InstructionFetchGen("fetch")).io
+  val ifg_exec = Module(new InstructionFetchGen("exec")).io
+  val ifg_result = Module(new InstructionFetchGen("result")).io
 
   // wire up instruction fetch generators
   // fetch
-  ifg_fetch.start := io.fetch_enable
+  ifg_fetch.enable := io.fetch_enable
   ifg_fetch.in <> ifq_fetch.deq
-  ifg_fetch.total := io.total_instr_fetch
+  ifg_fetch.in.bits := ifg_fetch.in.bits.fromBits(ifq_fetch.deq.bits)
   ifg_fetch.queue_count := fetchOpQ.count
   ifg_fetch.queue_threshold := io.if_threshold
   ifg_fetch.new_instr_pulse := fetchOpQ.enq.fire()
   // exec
-  ifg_exec.start := io.exec_enable
+  ifg_exec.enable := io.exec_enable
   ifg_exec.in <> ifq_exec.deq
-  ifg_exec.total := io.total_instr_exec
+  ifg_exec.in.bits := ifg_exec.in.bits.fromBits(ifq_exec.deq.bits)
   ifg_exec.queue_count := execOpQ.count
   ifg_exec.queue_threshold := io.if_threshold
   ifg_exec.new_instr_pulse := execOpQ.enq.fire()
   // result
-  ifg_result.start := io.result_enable
+  ifg_result.enable := io.result_enable
   ifg_result.in <> ifq_result.deq
-  ifg_result.total := io.total_instr_result
+  ifg_result.in.bits := ifg_result.in.bits.fromBits(ifq_result.deq.bits)
   ifg_result.queue_count := resultOpQ.count
   ifg_result.queue_threshold := io.if_threshold
   ifg_result.new_instr_pulse := resultOpQ.enq.fire()

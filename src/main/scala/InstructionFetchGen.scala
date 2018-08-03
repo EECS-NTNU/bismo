@@ -43,81 +43,47 @@ class BufDesc extends Bundle {
     new BufDesc().asInstanceOf[this.type]
 }
 
-class InstructionFetchGen extends Module {
+class InstructionFetchGen(ifgName: String = "") extends Module {
   val io = new Bundle {
-    val start = Bool(INPUT)
-    // fetch instructions
-    val in = Decoupled(UInt(width = 128)).flip
-    // total number of instructions (finish condition)
-    val total = UInt(INPUT, width = 32)
+    val enable = Bool(INPUT)
+    // input instruction fetch instructions
+    val in = Decoupled(new BISMOFetchRunInstruction()).flip
     // current number of instructions in stage queue
     val queue_count = UInt(INPUT, width = 16)
     // when a new fetch will be triggered
     val queue_threshold = UInt(INPUT, width = 16)
     // monitor incoming instructions to limit request rate
-    // connect this to .fire() for the stage instr queue (non-instr-fetch)
     val new_instr_pulse = Bool(INPUT)
-    // generated fetch instructions
+    // output instructon fetch instructions
     val out = Decoupled(new BISMOFetchRunInstruction())
   }
-  val regReceivedInstrs = Reg(init = UInt(0, width = 32))
-  val regBytesLeftNextSeg = Reg(init = UInt(0, width = 32))
-  val runcfg = new FetchStageCtrlIO()
-
-  io.out.bits := io.out.bits.fromBits(io.in.bits)
-  io.out.valid := Bool(false)
-  io.in.ready := Bool(false)
-
-  val sIdle :: sMonitorLevels :: sDoFetch :: sCountResponses :: sFinished :: Nil = Enum(UInt(), 5)
-  val regState = Reg(init = UInt(sIdle))
-  switch(regState) {
-    is(sIdle) {
-      when(io.start) {
-        regReceivedInstrs := UInt(0)
-        regState := sMonitorLevels
-      }
-    }
-
-    is(sMonitorLevels) {
-      when(regReceivedInstrs === io.total) {
-        regState := sFinished
-      } .otherwise {
-        // monitor instruction levels in FIFO. if it goes below threshold,
-        // issue an instruction fetch.
-        when(io.queue_count < io.queue_threshold) {
-          regState := sDoFetch
-        }
-      }
-    }
-
-    is(sDoFetch) {
-      // allow one instruction fetch to go through
-      io.out.valid := io.in.valid
-      io.in.ready := io.out.ready
-      when(io.out.fire()) {
-        regState := sCountResponses
-        regBytesLeftNextSeg := UInt(io.out.bits.runcfg.dram_block_size_bytes)
-      }
-    }
-
-    is(sCountResponses) {
-      // wait for issued request to be fully responded to
-      // when we have finished all instructions, finish
-      when(io.new_instr_pulse) {
-        regBytesLeftNextSeg := regBytesLeftNextSeg - UInt(BISMOLimits.instrBits/8)
-        regReceivedInstrs := regReceivedInstrs + UInt(1)
-        when(regBytesLeftNextSeg === UInt(BISMOLimits.instrBits/8)) {
-          regState := sMonitorLevels
-        }
-      }
-    }
-
-    is(sFinished) {
-      //io.finished := Bool(true)
-      when(!io.start) {
-        regState := sIdle
+  // count number of outstanding instruction fetches
+  val regOutstandingInstrsToFetch = Reg(init = UInt(0, width = 16))
+  when(io.out.fire()) {
+    val samt = log2Up(BISMOLimits.instrBits / 8)
+    regOutstandingInstrsToFetch := io.in.bits.runcfg.dram_block_size_bytes >> samt
+  } .otherwise {
+    when(io.new_instr_pulse) {
+      regOutstandingInstrsToFetch := regOutstandingInstrsToFetch - UInt(1)
+      when(regOutstandingInstrsToFetch === UInt(0)) {
+        printf(s"ERROR: InstructionFetchGen $ifgName underflow!\n")
       }
     }
   }
-
+  // only issue a new instruction fetch when:
+  // - there is enough room in the instruction queue
+  // - there are no current instruction fetches outstanding
+  val under_threshold = io.queue_count < io.queue_threshold
+  val can_issue = (regOutstandingInstrsToFetch === UInt(0))
+  val allow = (under_threshold & can_issue & io.enable)
+  StreamThrottle(io.in, !allow) <> io.out
+  // uncomment to debug
+  /*val prevOutstanding = Reg(next=regOutstandingInstrsToFetch)
+  when(prevOutstanding != regOutstandingInstrsToFetch) {
+    printf(s"$ifgName outstanding=%d->%d\n", prevOutstanding, regOutstandingInstrsToFetch)
+  }*/
+  /*val couldIssue = Reg(next=can_issue)
+  when(couldIssue != can_issue) {
+    printf(s"$ifgName can issue %d->%d\n", couldIssue, can_issue)
+  }*/
 }
