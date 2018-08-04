@@ -73,9 +73,10 @@ class InstructionFetchGen(ifgName: String = "") extends Module {
   // only issue a new instruction fetch when:
   // - there is enough room in the instruction queue
   // - there are no current instruction fetches outstanding
-  val under_threshold = io.queue_count < io.queue_threshold
+  val under_threshold = Reg(next = io.queue_count < io.queue_threshold)
   val can_issue = (regOutstandingInstrsToFetch === UInt(0))
-  val allow = (under_threshold & can_issue & io.enable)
+  val regEnable = Reg(next = io.enable)
+  val allow = (under_threshold & can_issue & regEnable)
   StreamThrottle(io.in, !allow) <> io.out
   // uncomment to debug
   /*val prevOutstanding = Reg(next=regOutstandingInstrsToFetch)
