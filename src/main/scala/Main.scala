@@ -47,22 +47,11 @@ object Settings {
   type AccelInstFxn = PlatformWrapperParams => GenericAccelerator
   type AccelMap = Map[String, AccelInstFxn]
 
-  val myInstParams = new BitSerialMatMulParams(
-    dpaDimLHS = 8, dpaDimRHS = 8, dpaDimCommon = 256,
-    lhsEntriesPerMem = 64 * 32 * 1024 / (8 * 256),
-    rhsEntriesPerMem = 64 * 32 * 1024 / (8 * 256),
-    mrp = PYNQZ1Params.toMemReqParams(),
-    cmdQueueEntries = 256
-  )
-  val myInstFxn: AccelInstFxn = {
-    (p: PlatformWrapperParams) => new BitSerialMatMulAccel(myInstParams, p)
-  }
-
   def makeInstFxn(myP: BitSerialMatMulParams): AccelInstFxn = {
     return {(p: PlatformWrapperParams) => new BitSerialMatMulAccel(myP, p)}
   }
 
-  // instantiate smaller accelerator for emu for faster testing
+  // smaller accelerator config for emu for faster testing
   val emuInstParams = new BitSerialMatMulParams(
     dpaDimLHS = 2, dpaDimRHS = 2, dpaDimCommon = 128, lhsEntriesPerMem = 128,
     rhsEntriesPerMem = 128, mrp = PYNQZ1Params.toMemReqParams(),
@@ -95,9 +84,8 @@ object ChiselMain {
     val accInst = Settings.makeInstFxn(
       new BitSerialMatMulParams(
         dpaDimLHS = dpaDimLHS, dpaDimRHS = dpaDimRHS, dpaDimCommon = dpaDimCommon,
-        lhsEntriesPerMem = 64 * 32 * 1024 / (dpaDimLHS * dpaDimCommon),
-        rhsEntriesPerMem = 64 * 32 * 1024 / (dpaDimRHS * dpaDimCommon),
-        mrp = PYNQZ1Params.toMemReqParams()
+        lhsEntriesPerMem = 1024, rhsEntriesPerMem = 1024,
+        cmdQueueEntries = 512, mrp = PYNQZ1Params.toMemReqParams()
       )
     )
     val platformInst = TidbitsMakeUtils.platformMap(platformName)
@@ -283,7 +271,8 @@ object DriverMain {
     val targetDir: String = args(1)
     val drvSrcDir:  String = args(2)
     // instantiate the wrapper accelerator
-    val accInst = Settings.myInstFxn
+    // the driver is config-independent, so we just use the emu params here
+    val accInst = Settings.makeInstFxn(Settings.emuInstParams)
     val platformInst = TidbitsMakeUtils.platformMap(platformName)
     val myModule = Module(platformInst(accInst))
     // generate the register driver
