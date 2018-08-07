@@ -600,43 +600,25 @@ public:
   // initialize the tokens in FIFOs representing shared resources
   // this also serves as a sanity check for basic functionality in the hardware
   void init_resource_pools() {
-    //cout << "init_resource_pools: starting" << endl;
-    // note: fetch stage must be enabled to fetch instructions that initialize
-    // the token pools
-    // fetch-exec token
+    // emit tokens from exec stage into the exec-fetch token queue
     for(int i = 0; i < FETCHEXEC_TOKENS; i++) {
       push_exec_op(make_op(opSendToken, 0), dummyExecRunCfg);
     }
     create_instr_stream(stgExec);
-    // issue instr fetches for exec
-    set_stage_enables(0, 1, 0);
-    // run instr fetches for exec
-    set_stage_enables(1, 0, 0);
-    while(m_accel->get_exec_op_count() != FETCHEXEC_TOKENS);
-    //cout << "init_resource_pools: fetch-exec token instrs OK" << endl;
-    // run exec stage to complete token init
-    set_stage_enables(0, 1, 0);
-    while(m_accel->get_exec_op_count() != 0);
-    //cout << "init_resource_pools: fetch-exec tokens OK" << endl;
-
+    // run instr fetches for exec + exec for the actual token init
+    set_stage_enables(1, 1, 0);
+    while(m_accel->get_tc_ef() != FETCHEXEC_TOKENS);
+    set_stage_enables(0, 0, 0);
+    // emit tokens from result stage into the result-exec token queue
     for(int i = 0; i < EXECRES_TOKENS; i++) {
       push_result_op(make_op(opSendToken, 0), dummyResultRunCfg);
     }
     create_instr_stream(stgResult);
-    // issue instr fetches for res
-    set_stage_enables(0, 0, 1);
-    // run instr fetches for res
-    set_stage_enables(1, 0, 0);
-    while(m_accel->get_result_op_count() != EXECRES_TOKENS);
-    //cout << "init_resource_pools: exec-res token instrs OK" << endl;
-    // run result stage to complete token init
-    set_stage_enables(0, 0, 1);
-    while(m_accel->get_result_op_count() != 0);
-    //cout << "init_resource_pools: exec-res tokens OK" << endl;
+    // issue instr fetches for res + run res for token init
+    set_stage_enables(1, 0, 1);
+    while(m_accel->get_tc_re() != EXECRES_TOKENS);
     set_stage_enables(0, 0, 0);
-
     clearInstrBuf();
-    //cout << "init_resource_pools: completed" << endl;
   }
 
   // get the instantiated hardware config

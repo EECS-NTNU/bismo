@@ -241,6 +241,12 @@ class BitSerialMatMulAccel(
     val hw = new BitSerialMatMulHWCfg(32).asOutput
     // performance counter I/O
     val perf = new BitSerialMatMulPerf(myP)
+    // token counts
+    val tc_fe = UInt(OUTPUT, 32)
+    val tc_ef = UInt(OUTPUT, 32)
+    val tc_re = UInt(OUTPUT, 32)
+    val tc_er = UInt(OUTPUT, 32)
+
   }
   io.hw := myP.asHWCfgBundle(32)
   val opSwitch = Module(new BISMOInstructionRouter()).io
@@ -291,6 +297,11 @@ class BitSerialMatMulAccel(
   val syncExecResult_free = Module(new FPGAQueue(Bool(), 8)).io
   val syncExecResult_filled = Module(new FPGAQueue(Bool(), 8)).io
 
+  io.tc_fe := syncFetchExec_filled.count
+  io.tc_ef := syncFetchExec_free.count
+  io.tc_er := syncExecResult_filled.count
+  io.tc_re := syncExecResult_free.count
+
   // helper function to wire-up DecoupledIO to DecoupledIO with pulse generator
   def enqPulseGenFromValid[T <: Data](enq: DecoupledIO[T], vld: DecoupledIO[T]) = {
     enq.valid := vld.valid & !Reg(next=vld.valid)
@@ -313,21 +324,24 @@ class BitSerialMatMulAccel(
 
   // wire up instruction fetch generators
   // fetch
-  ifg_fetch.enable := io.fetch_enable
+  //ifg_fetch.enable := io.fetch_enable
+  ifg_fetch.enable := Bool(true)
   ifg_fetch.in <> ifq_fetch.deq
   ifg_fetch.in.bits := ifg_fetch.in.bits.fromBits(ifq_fetch.deq.bits)
   ifg_fetch.queue_count := fetchOpQ.count
   ifg_fetch.queue_threshold := io.if_threshold
   ifg_fetch.new_instr_pulse := fetchOpQ.enq.fire()
   // exec
-  ifg_exec.enable := io.exec_enable
+  //ifg_exec.enable := io.exec_enable
+  ifg_exec.enable := Bool(true)
   ifg_exec.in <> ifq_exec.deq
   ifg_exec.in.bits := ifg_exec.in.bits.fromBits(ifq_exec.deq.bits)
   ifg_exec.queue_count := execOpQ.count
   ifg_exec.queue_threshold := io.if_threshold
   ifg_exec.new_instr_pulse := execOpQ.enq.fire()
   // result
-  ifg_result.enable := io.result_enable
+  //ifg_result.enable := io.result_enable
+  ifg_result.enable := Bool(true)
   ifg_result.in <> ifq_result.deq
   ifg_result.in.bits := ifg_result.in.bits.fromBits(ifq_result.deq.bits)
   ifg_result.queue_count := resultOpQ.count
