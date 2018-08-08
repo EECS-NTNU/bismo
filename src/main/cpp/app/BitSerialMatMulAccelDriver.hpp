@@ -133,12 +133,10 @@ public:
     update_hw_cfg();
     measure_fclk();
     // buffer allocation for instruction buffers in DRAM
-    m_host_ibuf_fetch = new BISMOInstruction[MAX_DRAM_INSTRS];
-    m_host_ibuf_exec = new BISMOInstruction[MAX_DRAM_INSTRS];
-    m_host_ibuf_result = new BISMOInstruction[MAX_DRAM_INSTRS];
-    m_acc_ibuf_fetch = m_platform->allocAccelBuffer(maxDRAMInstrBytes());
-    m_acc_ibuf_exec = m_platform->allocAccelBuffer(maxDRAMInstrBytes());
-    m_acc_ibuf_result = m_platform->allocAccelBuffer(maxDRAMInstrBytes());
+    for(size_t i = 0; i < N_STAGES; i++) {
+      m_host_ibuf[i] = new BISMOInstruction[MAX_DRAM_INSTRS];
+      m_acc_ibuf[i] = m_platform->allocAccelBuffer(maxDRAMInstrBytes());
+    }
     // set up instruction fetch threshold
     m_accel->set_if_threshold(m_cfg.cmdQueueEntries-INSTR_FETCH_GRANULARITY);
 
@@ -146,13 +144,10 @@ public:
   }
 
   ~BitSerialMatMulAccelDriver() {
-    m_platform->deallocAccelBuffer(m_acc_ibuf_fetch);
-    m_platform->deallocAccelBuffer(m_acc_ibuf_exec);
-    m_platform->deallocAccelBuffer(m_acc_ibuf_result);
-
-    delete [] m_host_ibuf_fetch;
-    delete [] m_host_ibuf_exec;
-    delete [] m_host_ibuf_result;
+    for(size_t i = 0; i < N_STAGES; i++) {
+      m_platform->deallocAccelBuffer(m_acc_ibuf[i]);
+      delete [] m_host_ibuf[i];
+    }
   }
 
   // clear the DRAM instruction buffer
@@ -164,34 +159,17 @@ public:
 
   void create_instr_stream() {
     for(size_t i = 0; i < N_STAGES; i++) {
-      create_instr_stream(i);
+      create_instr_stream((BISMOTargetStage) i);
     }
   }
 
   // for the given stage, create instruction fetches to pull out instrs from
   // DRAM, and ensure that instr buffer is copied to accel DRAM
   void create_instr_stream(BISMOTargetStage stg) {
+    assert(stg < N_STAGES);
     size_t n_instrs = m_icnt[stg];
-    void * stgBufferBase = 0;
-    BISMOInstruction * hostInstrs = 0;
-
-    switch (stg) {
-      case stgFetch:
-        hostInstrs = m_host_ibuf_fetch;
-        stgBufferBase = m_acc_ibuf_fetch;
-        break;
-      case stgExec:
-        hostInstrs = m_host_ibuf_exec;
-        stgBufferBase = m_acc_ibuf_exec;
-        break;
-      case stgResult:
-        hostInstrs = m_host_ibuf_result;
-        stgBufferBase = m_acc_ibuf_result;
-        break;
-      default:
-        cerr << "Unrecognized state in makeInstructionFetch" << endl;
-        assert(0);
-    }
+    void * stgBufferBase = m_acc_ibuf[stg];
+    BISMOInstruction * hostInstrs = m_host_ibuf[stg];
 
     // round-up integer division to compute number of segments
     const size_t n_segments = (n_instrs + INSTR_FETCH_GRANULARITY - 1) / INSTR_FETCH_GRANULARITY;
@@ -292,23 +270,12 @@ public:
   }
 
   void push_instruction_dram(BISMOInstruction ins) {
-    assert(m_icnt[ins] < MAX_DRAM_INSTRS);
+    BISMOTargetStage stg = (BISMOTargetStage) ins.fetch.targetStage;
+    assert(stg < N_STAGES);
+    assert(m_icnt[stg] < MAX_DRAM_INSTRS);
 
-    switch(ins.fetch.targetStage) {
-      case stgFetch:
-        m_host_ibuf_fetch[m_icnt[ins]] = ins;
-        break;
-      case stgExec:
-        m_host_ibuf_exec[m_icnt[ins]] = ins;
-        break;
-      case stgResult:
-        m_host_ibuf_result[m_icnt[ins]] = ins;
-        break;
-      default:
-        cerr << "Unrecognized instruction target stage" << endl;
-        assert(0);
-    }
-    m_icnt[ins]++;
+    m_host_ibuf[stg][m_icnt[stg]] = ins;
+    m_icnt[stg]++;
   }
 
   void measure_fclk() {
@@ -711,8 +678,8 @@ protected:
   HardwareCfg m_cfg;
   float m_fclk;
   // instruction buffers
-  BISMOInstruction * m_host_ibuf_fetch, * m_host_ibuf_exec, * m_host_ibuf_result;
-  void * m_acc_ibuf_fetch, * m_acc_ibuf_exec, * m_acc_ibuf_result;
+  BISMOInstruction * m_host_ibuf[N_STAGES];
+  void * m_acc_ibuf[N_STAGES];
   size_t m_icnt[N_STAGES];
   // performance counter variables
   uint32_t m_fetch_cstate_cycles[N_CTRL_STATES];
