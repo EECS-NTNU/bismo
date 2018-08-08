@@ -163,6 +163,10 @@ public:
     }
   }
 
+  size_t get_completed_writes() {
+    return (size_t) m_accel->get_completed_writes();
+  }
+
   // for the given stage, create instruction fetches to pull out instrs from
   // DRAM, and ensure that instr buffer is copied to accel DRAM
   void create_instr_stream(BISMOTargetStage stg) {
@@ -454,11 +458,9 @@ public:
   // do a sanity check on a ResultRunCfg in terms of alignment and
   // out-of-bounds values
   void verifyResultRunCfg(ResultRunCfg r) {
-    ASSERT_BITS(r.waitComplete, 1);
     ASSERT_BITS(r.resmem_addr, BISMO_LIMIT_RESADDR_BITS);
     ASSERT_BITS(r.dram_base, BISMO_LIMIT_DRAMADDR_BITS);
     ASSERT_BITS(r.dram_skip, BISMO_LIMIT_DRAM_BSIZE_BITS);
-    ASSERT_BITS(r.waitCompleteBytes, BISMO_LIMIT_DRAM_BSIZE_BITS);
     // ensure all DRAM accesses are aligned to 8 bytes
     assert(((uint64_t) r.dram_base) % 8 == 0);
     assert(r.dram_skip % 8 == 0);
@@ -678,10 +680,6 @@ public:
     cout << "readChanWidth = " << m_cfg.readChanWidth << endl;
     cout << "rhsEntriesPerMem = " << m_cfg.rhsEntriesPerMem << endl;
     cout << "writeChanWidth = " << m_cfg.writeChanWidth << endl;
-  }
-
-  bool prog_finished() {
-    return m_accel->get_prog_finished() == 1;
   }
 
 protected:

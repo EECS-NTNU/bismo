@@ -145,7 +145,7 @@ public:
       fill_exec_op();
       fill_result_op();
     }*/
-    // wait until the result stage has no instructions std::left (= all finished)
+    // wait until all the results are written
     while(!allFinished());
     // disable all stages
     m_acc->set_stage_enables(0, 0, 0);
@@ -395,7 +395,9 @@ protected:
 
   // whether all instruction execution has finished
   bool allFinished() {
-    return m_acc->prog_finished();
+    // TODO: >= because we seem to be writing too many bytes sometimes
+    // find out why + fix
+    return (m_acc->get_completed_writes() >= resBytes());
   }
 
   // whether all instructions have been pushed to the queues
@@ -680,8 +682,6 @@ protected:
                 size_t rhs_tile = rhs_l1_per_l2 * rhs_l2 + rhs_l1;
                 rrc.dram_base = get_result_tile_ptr(lhs_tile, rhs_tile);
                 rrc.dram_skip = lhs_eff_rows() * sizeof(ResultType);
-                rrc.waitComplete = 0;
-                rrc.waitCompleteBytes = 0;
                 makeinstr_result_run(rrc);
                 makeinstr_result_sync_putexecbuffer();
                 // use next resmem region for next time
@@ -696,15 +696,6 @@ protected:
         }
       }
     }
-    // wait until all result writes are complete
-    ResultRunCfg rrc;
-    rrc.waitComplete = true;
-    rrc.waitCompleteBytes = resBytes();
-    // these params are ignored when waitComplete = true
-    rrc.resmem_addr = 0;
-    rrc.dram_base = 0;
-    rrc.dram_skip = 0;
-    makeinstr_result_run(rrc);
 
     // display instruction sequence for debug
     /*printFetchQueue();

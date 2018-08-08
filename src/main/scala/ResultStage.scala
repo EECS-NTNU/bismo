@@ -120,7 +120,7 @@ class ResultStage(val myP: ResultStageParams) extends Module {
     val done = Bool(OUTPUT)                   // high when done until start=0
     val csr = new ResultStageCtrlIO().asInput
     val dram = new ResultStageDRAMIO(myP)
-    val prog_finished = Bool(OUTPUT)
+    val completed_writes = UInt(OUTPUT, 32)
     // interface towards result memory
     val resmem_req = Vec.fill(myP.dpa_lhs) { Vec.fill(myP.dpa_rhs) {
       new OCMRequest(myP.accWidth, log2Up(myP.resEntriesPerMem)).asOutput
@@ -178,31 +178,25 @@ class ResultStage(val myP: ResultStageParams) extends Module {
   when(io.dram.wr_rsp.valid) {
     regCompletedWrBytes := regCompletedWrBytes + UInt(bytesPerBeat)
   }
-  val allComplete = (regCompletedWrBytes === io.csr.waitCompleteBytes)
+  io.completed_writes := regCompletedWrBytes
 
   // FSM logic for control
-  val sIdle :: sWaitDS :: sWaitRG :: sWaitComplete :: sFinished :: Nil = Enum(UInt(), 5)
+  val sIdle :: sWaitDS :: sWaitRG :: sFinished :: Nil = Enum(UInt(), 4)
   val regState = Reg(init = UInt(sIdle))
 
   io.done := Bool(false)
-  val regProgFinished = Reg(init = Bool(false))
-  io.prog_finished := regProgFinished
 
   switch(regState) {
       is(sIdle) {
         when(io.start) {
-          when(io.csr.waitComplete) {
-            regState := sWaitComplete
-          } .otherwise {
-            ds.in.valid := Bool(true)
-            rg.in.valid := Bool(true)
-            when(ds.in.ready & !rg.in.ready) {
-              regState := sWaitRG
-            } .elsewhen (!ds.in.ready & rg.in.ready) {
-              regState := sWaitDS
-            } .elsewhen (ds.in.ready & rg.in.ready) {
-              regState := sFinished
-            }
+          ds.in.valid := Bool(true)
+          rg.in.valid := Bool(true)
+          when(ds.in.ready & !rg.in.ready) {
+            regState := sWaitRG
+          } .elsewhen (!ds.in.ready & rg.in.ready) {
+            regState := sWaitDS
+          } .elsewhen (ds.in.ready & rg.in.ready) {
+            regState := sFinished
           }
         }
       }
@@ -217,13 +211,6 @@ class ResultStage(val myP: ResultStageParams) extends Module {
         // downsizer is done but request generator busy
         rg.in.valid := Bool(true)
         when(rg.in.ready) { regState := sFinished }
-      }
-
-      is(sWaitComplete) {
-        when(allComplete) {
-          regState := sFinished
-          regProgFinished := Bool(true)
-        }
       }
 
       is(sFinished) {

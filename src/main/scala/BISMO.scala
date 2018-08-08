@@ -225,8 +225,6 @@ class BitSerialMatMulAccel(
     val fetch_enable = Bool(INPUT)
     val exec_enable = Bool(INPUT)
     val result_enable = Bool(INPUT)
-    // all instructions finished
-    val prog_finished = Bool(OUTPUT)
     // instructions
     val if_fetch = Decoupled(UInt(width = BISMOLimits.instrBits)).flip
     val if_exec = Decoupled(UInt(width = BISMOLimits.instrBits)).flip
@@ -246,6 +244,8 @@ class BitSerialMatMulAccel(
     val tc_ef = UInt(OUTPUT, 32)
     val tc_re = UInt(OUTPUT, 32)
     val tc_er = UInt(OUTPUT, 32)
+    // written bytes
+    val completed_writes = UInt(OUTPUT, 32)
 
   }
   io.hw := myP.asHWCfgBundle(32)
@@ -254,7 +254,6 @@ class BitSerialMatMulAccel(
   val fetchStage = Module(new FetchStage(myP.fetchStageParams)).io
   val execStage = Module(new ExecStage(myP.execStageParams)).io
   val resultStage = Module(new ResultStage(myP.resultStageParams)).io
-  io.prog_finished := resultStage.prog_finished
   // instantiate the controllers for each stage
   val fetchCtrl = Module(new FetchController()).io
   val execCtrl = Module(new ExecController()).io
@@ -480,6 +479,8 @@ class BitSerialMatMulAccel(
   io.perf.prf_fetch <> fetchCtrl.perf
   io.perf.prf_exec <> execCtrl.perf
   io.perf.prf_res <> resultCtrl.perf
+
+  io.completed_writes := resultStage.completed_writes
 
   /* TODO expose the useful ports from the monitors below:
   StreamMonitor(syncFetchExec_free.enq, io.perf.cc_enable)
