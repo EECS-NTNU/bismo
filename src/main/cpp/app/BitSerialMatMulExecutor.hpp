@@ -277,19 +277,24 @@ public:
     m_acc->printStateBreakdown();
 
     std::cout << "Memory System ==========================================" << std::endl;
-    std::cout << "DRAM reads: " << m_bytes_to_fetch << " bytes" << std::endl;
-    float rd_bw = (float)m_bytes_to_fetch / getLastRuntimeCycles();
+    size_t rd_total = (m_bytes_to_fetch + m_acc->totalInstrBytes());
+    float rd_bw = (float) rd_total / getLastRuntimeCycles();
     float rd_fetchact_bw = (float) m_bytes_to_fetch / m_acc->getStateBreakdown(stgFetch, csRun);
-    std::cout << "HW peak rd bandwidth: " << getHWReadBW() << " bytes/cycle" << std::endl;
-    std::cout << "Effective rd bandwidth: " << rd_bw << " bytes/cycle (";
+    std::cout << "Total DRAM reads: " << rd_total << " bytes" << std::endl;
+    std::cout << "Instruction DRAM reads: " << m_acc->totalInstrBytes() << " bytes (";
+    std::cout << 100*((float)(m_acc->totalInstrBytes())/rd_total) << "% of total)" << std::endl;
+    std::cout << "Matrix DRAM reads: " << m_bytes_to_fetch << " bytes (";
+    std::cout << 100*((float)(m_bytes_to_fetch)/rd_total) << "% of total)" << std::endl;
+    std::cout << "HW theoretical peak read bandwidth: " << getHWReadBW() << " bytes/cycle" << std::endl;
+    std::cout << "Average DRAM read bandwidth: " << rd_bw << " bytes/cycle (";
     std::cout << 100*rd_bw/getHWReadBW() << "%)" << std::endl;
-    std::cout << "Fetch rd bandwidth: " << rd_fetchact_bw << " bytes/cycle (";
+    std::cout << "Fetch efficiency: " << rd_fetchact_bw << " bytes/cycle (";
     std::cout << 100*rd_fetchact_bw/getHWReadBW() << "%)" << std::endl;
 
     std::cout << "DRAM writes: " << m_bytes_to_write << " bytes" << std::endl;
     float wr_bw = (float)m_bytes_to_write / getLastRuntimeCycles();
     float wr_resact_bw = (float) m_bytes_to_write / m_acc->getStateBreakdown(stgResult, csRun);
-    std::cout << "HW peak wr bandwidth: " << getHWWriteBW() << " bytes/cycle" << std::endl;
+    std::cout << "HW theoretical peak wr bandwidth: " << getHWWriteBW() << " bytes/cycle" << std::endl;
     std::cout << "Effective wr bandwidth: " << wr_bw << " bytes/cycle (";
     std::cout << 100*wr_bw/getHWWriteBW() << "%)" << std::endl;
     std::cout << "Result wr bandwidth: " << wr_resact_bw << " bytes/cycle (";

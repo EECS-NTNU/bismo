@@ -233,6 +233,18 @@ public:
     return MAX_DRAM_INSTRS * DRAM_INSTR_BYTES;
   }
 
+  const size_t stageInstrBytes(BISMOTargetStage stg) const {
+    return m_icnt[stg] * DRAM_INSTR_BYTES;
+  }
+
+  const size_t totalInstrBytes() const {
+    size_t ret = 0;
+    for(size_t i = 0; i < N_STAGES; i++) {
+      ret += stageInstrBytes((BISMOTargetStage) i);
+    }
+    return ret;
+  }
+
   void if_fetch(BISMOInstruction ins) {
     // use regs to directly push into OCM instruction queue
     m_accel->set_if_fetch_bits0(ins.raw[3]);
