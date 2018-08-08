@@ -48,6 +48,7 @@
 #define FETCHEXEC_TOKENS          2
 #define EXECRES_TOKENS            2
 #define N_CTRL_STATES             4
+#define N_STAGES                  3
 #define FETCH_ADDRALIGN           64
 #define FETCH_SIZEALIGN           8
 
@@ -156,37 +157,34 @@ public:
 
   // clear the DRAM instruction buffer
   void clearInstrBuf() {
-    m_icnt_fetch = 0;
-    m_icnt_exec = 0;
-    m_icnt_result = 0;
+    for(size_t i = 0; i < N_STAGES; i++) {
+      m_icnt[i] = 0;
+    }
   }
 
   void create_instr_stream() {
-    create_instr_stream(stgFetch);
-    create_instr_stream(stgExec);
-    create_instr_stream(stgResult);
+    for(size_t i = 0; i < N_STAGES; i++) {
+      create_instr_stream(i);
+    }
   }
 
   // for the given stage, create instruction fetches to pull out instrs from
   // DRAM, and ensure that instr buffer is copied to accel DRAM
   void create_instr_stream(BISMOTargetStage stg) {
-    size_t n_instrs = 0;
+    size_t n_instrs = m_icnt[stg];
     void * stgBufferBase = 0;
     BISMOInstruction * hostInstrs = 0;
 
     switch (stg) {
       case stgFetch:
-        n_instrs = m_icnt_fetch;
         hostInstrs = m_host_ibuf_fetch;
         stgBufferBase = m_acc_ibuf_fetch;
         break;
       case stgExec:
-        n_instrs = m_icnt_exec;
         hostInstrs = m_host_ibuf_exec;
         stgBufferBase = m_acc_ibuf_exec;
         break;
       case stgResult:
-        n_instrs = m_icnt_result;
         hostInstrs = m_host_ibuf_result;
         stgBufferBase = m_acc_ibuf_result;
         break;
@@ -294,23 +292,23 @@ public:
   }
 
   void push_instruction_dram(BISMOInstruction ins) {
-    assert(m_icnt_fetch < MAX_DRAM_INSTRS);
-    assert(m_icnt_exec < MAX_DRAM_INSTRS);
-    assert(m_icnt_result < MAX_DRAM_INSTRS);
+    assert(m_icnt[ins] < MAX_DRAM_INSTRS);
+
     switch(ins.fetch.targetStage) {
       case stgFetch:
-        m_host_ibuf_fetch[m_icnt_fetch++] = ins;
+        m_host_ibuf_fetch[m_icnt[ins]] = ins;
         break;
       case stgExec:
-        m_host_ibuf_exec[m_icnt_exec++] = ins;
+        m_host_ibuf_exec[m_icnt[ins]] = ins;
         break;
       case stgResult:
-        m_host_ibuf_result[m_icnt_result++] = ins;
+        m_host_ibuf_result[m_icnt[ins]] = ins;
         break;
       default:
         cerr << "Unrecognized instruction target stage" << endl;
         assert(0);
     }
+    m_icnt[ins]++;
   }
 
   void measure_fclk() {
@@ -715,7 +713,7 @@ protected:
   // instruction buffers
   BISMOInstruction * m_host_ibuf_fetch, * m_host_ibuf_exec, * m_host_ibuf_result;
   void * m_acc_ibuf_fetch, * m_acc_ibuf_exec, * m_acc_ibuf_result;
-  size_t m_icnt_fetch, m_icnt_exec, m_icnt_result;
+  size_t m_icnt[N_STAGES];
   // performance counter variables
   uint32_t m_fetch_cstate_cycles[N_CTRL_STATES];
   uint32_t m_exec_cstate_cycles[N_CTRL_STATES];
