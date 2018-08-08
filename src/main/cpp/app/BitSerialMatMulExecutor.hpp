@@ -363,11 +363,14 @@ protected:
 
   void makeinstr_fetch_run(FetchRunCfg r) {
     if(r.dram_block_size_bytes == r.dram_block_offset_bytes) {
-      // merge consecutive blocks to speed up fetch:
-      // one big block instead of several smaller ones
-      r.dram_block_size_bytes *= r.dram_block_count;
-      r.dram_block_offset_bytes *= r.dram_block_count;
-      r.dram_block_count = 1;
+      while(((r.dram_block_size_bytes * 2) < FETCH_BLOCK_MAX)
+            && r.dram_block_count % 2 == 0) {
+        // merge consecutive blocks to speed up fetch:
+        // one big block instead of several smaller ones
+        r.dram_block_size_bytes *= 2;
+        r.dram_block_offset_bytes *= 2;
+        r.dram_block_count /= 2;
+      }
     }
     // count requested fetch bytes for statistics
     uint32_t fetchPerGroup = r.dram_block_size_bytes * r.dram_block_count;

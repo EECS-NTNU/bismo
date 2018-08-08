@@ -51,7 +51,7 @@
 #define N_STAGES                  3
 #define FETCH_ADDRALIGN           64
 #define FETCH_SIZEALIGN           8
-
+#define FETCH_BLOCK_MAX           (1 << BISMO_LIMIT_DRAM_BSIZE_BITS)
 #define MAX_INSTR_SEGS            64
 #define MAX_DRAM_INSTRS           (MAX_INSTR_SEGS*m_cfg.cmdQueueEntries)
 #define DRAM_INSTR_BYTES          16
