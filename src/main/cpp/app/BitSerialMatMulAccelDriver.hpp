@@ -626,6 +626,69 @@ public:
     return m_cfg;
   }
 
+  // update the per-stage state breakdown
+  // note that the cycle counter must be enabled for this to work, e.g.
+  // perf_set_cc_enable(true)
+  void updateStateBreakdown() {
+    // fetch the number of cycles spent in different states for each stage
+    for(int i = 0; i < N_CTRL_STATES; i++) {
+      m_fetch_cstate_cycles[i] = perf_fetch_stats((ControllerState) i);
+    }
+    for(int i = 0; i < N_CTRL_STATES; i++) {
+      m_exec_cstate_cycles[i] = perf_exec_stats((ControllerState) i);
+    }
+    for(int i = 0; i < N_CTRL_STATES; i++) {
+      m_result_cstate_cycles[i] = perf_result_stats((ControllerState) i);
+    }
+  }
+
+  uint32_t getStateBreakdown(BISMOTargetStage stg, int state) {
+    switch (stg) {
+      case stgFetch:
+        return m_fetch_cstate_cycles[state];
+        break;
+      case stgExec:
+        return m_exec_cstate_cycles[state];
+        break;
+      case stgResult:
+        return m_result_cstate_cycles[state];
+        break;
+      default:
+        cerr << "getStateBreakdown: unrecognized state!" << endl;
+        assert(0);
+    }
+  }
+
+
+  // print how the stage controllers spent their time
+  void printStateBreakdown() const {
+    int colwidth = 11;
+    std::cout << "Cycles Spent in ControllerState ========================" << std::endl;
+    std::cout << std::left << std::setw(colwidth) << "Stage";
+    std::cout << std::left << std::setw(colwidth) << "csGetCmd";
+    std::cout << std::left << std::setw(colwidth) << "csRun";
+    std::cout << std::left << std::setw(colwidth) << "csSend";
+    std::cout << std::left << std::setw(colwidth) << "csReceive" << std::endl;
+    // print fetch stage state cycles breakdown
+    std::cout << std::left << std::setw(colwidth) << "Fetch";
+    for(int i = 0; i < N_CTRL_STATES; i++) {
+      std::cout << std::left << std::setw(colwidth) << m_fetch_cstate_cycles[i];
+    }
+    std::cout << std::endl;
+    // print exec stage state cycles breakdown
+    std::cout << std::left << std::setw(colwidth) << "Execute";
+    for(int i = 0; i < N_CTRL_STATES; i++) {
+      std::cout << std::left << std::setw(colwidth) << m_exec_cstate_cycles[i];
+    }
+    std::cout << std::endl;
+    // print result stage state cycles breakdown
+    std::cout << std::left << std::setw(colwidth) << "Result";
+    for(int i = 0; i < N_CTRL_STATES; i++) {
+      std::cout << std::left << std::setw(colwidth) << m_result_cstate_cycles[i];
+    }
+    std::cout << std::endl;
+  }
+
   // print a summary of the hardware config
   void print_hwcfg_summary() const {
     cout << "accWidth = " << m_cfg.accWidth << endl;
@@ -649,9 +712,14 @@ protected:
   WrapperRegDriver * m_platform;
   HardwareCfg m_cfg;
   float m_fclk;
+  // instruction buffers
   BISMOInstruction * m_host_ibuf_fetch, * m_host_ibuf_exec, * m_host_ibuf_result;
   void * m_acc_ibuf_fetch, * m_acc_ibuf_exec, * m_acc_ibuf_result;
   size_t m_icnt_fetch, m_icnt_exec, m_icnt_result;
+  // performance counter variables
+  uint32_t m_fetch_cstate_cycles[N_CTRL_STATES];
+  uint32_t m_exec_cstate_cycles[N_CTRL_STATES];
+  uint32_t m_result_cstate_cycles[N_CTRL_STATES];
 
   // get the instantiated hardware config from accelerator
   void update_hw_cfg() {

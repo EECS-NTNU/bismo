@@ -152,10 +152,7 @@ public:
     // stop the cycle counter
     m_acc->perf_set_cc_enable(false);
     m_cycles = m_acc->perf_get_cc();
-    // fetch the number of cycles spent in different states for each stage
-    updateFetchStateCounters();
-    updateExecStateCounters();
-    updateResultStateCounters();
+    m_acc->updateStateBreakdown();
   }
 
   size_t lhsBytes() const {
@@ -277,35 +274,12 @@ public:
 
   void printPerfDetails() {
     int colwidth = 11;
-    std::cout << "Cycles Spent in ControllerState ========================" << std::endl;
-    std::cout << std::left << std::setw(colwidth) << "Stage";
-    std::cout << std::left << std::setw(colwidth) << "csGetCmd";
-    std::cout << std::left << std::setw(colwidth) << "csRun";
-    std::cout << std::left << std::setw(colwidth) << "csSend";
-    std::cout << std::left << std::setw(colwidth) << "csReceive" << std::endl;
-    // print fetch stage state cycles breakdown
-    std::cout << std::left << std::setw(colwidth) << "Fetch";
-    for(int i = 0; i < N_CTRL_STATES; i++) {
-      std::cout << std::left << std::setw(colwidth) << m_fetch_cstate_cycles[i];
-    }
-    std::cout << std::endl;
-    // print exec stage state cycles breakdown
-    std::cout << std::left << std::setw(colwidth) << "Execute";
-    for(int i = 0; i < N_CTRL_STATES; i++) {
-      std::cout << std::left << std::setw(colwidth) << m_exec_cstate_cycles[i];
-    }
-    std::cout << std::endl;
-    // print result stage state cycles breakdown
-    std::cout << std::left << std::setw(colwidth) << "Result";
-    for(int i = 0; i < N_CTRL_STATES; i++) {
-      std::cout << std::left << std::setw(colwidth) << m_result_cstate_cycles[i];
-    }
-    std::cout << std::endl;
+    m_acc->printStateBreakdown();
 
     std::cout << "Memory System ==========================================" << std::endl;
     std::cout << "DRAM reads: " << m_bytes_to_fetch << " bytes" << std::endl;
     float rd_bw = (float)m_bytes_to_fetch / getLastRuntimeCycles();
-    float rd_fetchact_bw = (float) m_bytes_to_fetch / m_fetch_cstate_cycles[csRun];
+    float rd_fetchact_bw = (float) m_bytes_to_fetch / m_acc->getStateBreakdown(stgFetch, csRun);
     std::cout << "HW peak rd bandwidth: " << getHWReadBW() << " bytes/cycle" << std::endl;
     std::cout << "Effective rd bandwidth: " << rd_bw << " bytes/cycle (";
     std::cout << 100*rd_bw/getHWReadBW() << "%)" << std::endl;
@@ -314,23 +288,20 @@ public:
 
     std::cout << "DRAM writes: " << m_bytes_to_write << " bytes" << std::endl;
     float wr_bw = (float)m_bytes_to_write / getLastRuntimeCycles();
-    float wr_resact_bw = (float) m_bytes_to_write / m_result_cstate_cycles[csRun];
+    float wr_resact_bw = (float) m_bytes_to_write / m_acc->getStateBreakdown(stgResult, csRun);
     std::cout << "HW peak wr bandwidth: " << getHWWriteBW() << " bytes/cycle" << std::endl;
     std::cout << "Effective wr bandwidth: " << wr_bw << " bytes/cycle (";
     std::cout << 100*wr_bw/getHWWriteBW() << "%)" << std::endl;
     std::cout << "Result wr bandwidth: " << wr_resact_bw << " bytes/cycle (";
     std::cout << 100*wr_resact_bw/getHWWriteBW() << "%)" << std::endl;
 
-    float exec_eff = getWorkloadBinaryOpCount(true) / ((m_exec_cstate_cycles[csRun] * getHWPeakBinaryOpsPerCycle()));
+    float exec_eff = getWorkloadBinaryOpCount(true) / ((m_acc->getStateBreakdown(stgExec, csRun) * getHWPeakBinaryOpsPerCycle()));
     std::cout << "Execute stage efficiency: " << 100*exec_eff << "%" << std::endl;
     std::cout << "========================================================" << std::endl;
   }
 
 protected:
   uint32_t m_cycles;
-  uint32_t m_fetch_cstate_cycles[N_CTRL_STATES];
-  uint32_t m_exec_cstate_cycles[N_CTRL_STATES];
-  uint32_t m_result_cstate_cycles[N_CTRL_STATES];
   uint32_t m_bytes_to_fetch, m_bytes_to_write;
 
   gemmbitserial::GEMMContext m_shape;
@@ -490,24 +461,6 @@ protected:
   void makeinstr_result_sync_putexecbuffer() {
     m_result_op.push_back(m_acc->make_op(opSendToken, 0));
     m_result_runcfg.push_back( dummyResultRunCfg);
-  }
-
-  void updateFetchStateCounters() {
-    for(int i = 0; i < N_CTRL_STATES; i++) {
-      m_fetch_cstate_cycles[i] = m_acc->perf_fetch_stats((ControllerState) i);
-    }
-  }
-
-  void updateExecStateCounters() {
-    for(int i = 0; i < N_CTRL_STATES; i++) {
-      m_exec_cstate_cycles[i] = m_acc->perf_exec_stats((ControllerState) i);
-    }
-  }
-
-  void updateResultStateCounters() {
-    for(int i = 0; i < N_CTRL_STATES; i++) {
-      m_result_cstate_cycles[i] = m_acc->perf_result_stats((ControllerState) i);
-    }
   }
 
   // get the pointer to the start of given result tile
