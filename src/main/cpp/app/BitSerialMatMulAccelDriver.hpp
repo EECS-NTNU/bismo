@@ -490,6 +490,17 @@ public:
     m_accel->set_result_enable(result);
   }
 
+  BISMOInstruction make_sync_instr(BISMOTargetStage stg, bool isSend, uint32_t syncChannel) {
+    BISMOInstruction ins;
+    ins.sync.targetStage = stg;
+    ins.sync.isRunCfg = 0;
+    ins.sync.isSendToken = isSend ? 1 : 0;
+    ins.sync.chanID = syncChannel;
+    ins.sync.unused0 = 0;
+    ins.sync.unused1 = 0;
+    return ins;
+  }
+
   Op make_op(OpCode opcode, uint32_t syncChannel) {
     Op ret;
     ret.opcode = opcode;
@@ -581,7 +592,7 @@ public:
   void init_resource_pools() {
     // emit tokens from exec stage into the exec-fetch token queue
     for(int i = 0; i < FETCHEXEC_TOKENS; i++) {
-      push_exec_op(make_op(opSendToken, 0), dummyExecRunCfg);
+      push_instruction_dram(make_sync_instr(stgExec, true, 0));
     }
     create_instr_stream(stgExec);
     // run instr fetches for exec + exec for the actual token init
@@ -590,7 +601,7 @@ public:
     set_stage_enables(0, 0, 0);
     // emit tokens from result stage into the result-exec token queue
     for(int i = 0; i < EXECRES_TOKENS; i++) {
-      push_result_op(make_op(opSendToken, 0), dummyResultRunCfg);
+      push_instruction_dram(make_sync_instr(stgResult, true, 0));
     }
     create_instr_stream(stgResult);
     // issue instr fetches for res + run res for token init
