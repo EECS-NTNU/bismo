@@ -69,17 +69,16 @@ public:
       m_cached_lhs.push_back(INVALID_CACHE_ENTRY);
       m_cached_rhs.push_back(INVALID_CACHE_ENTRY);
     }
-    // build schedule for each stage based on shape
-    build_schedule_trivial();
-    // uncomment to see the generated instructions
-    //printFetchQueue();
-    //printExecQueue();
-    clear_all_queue_pointers();
     // prepare the accelerator for operation
     m_acc->reset();
     m_acc->clearInstrBuf();
     m_acc->init_resource_pools();
     m_acc->set_stage_enables(1, 1, 1);
+    // build schedule for each stage based on shape
+    build_schedule_trivial();
+    // uncomment to see the generated instructions
+    //printFetchQueue();
+    //printExecQueue();
   }
 
   ~BitSerialMatMulExecutor() {
@@ -128,23 +127,12 @@ public:
   }
 
   void run() {
-    clear_all_queue_pointers();
     m_acc->set_stage_enables(0, 0, 0);
-    fill_fetch_op();
-    fill_exec_op();
-    fill_result_op();
     m_acc->create_instr_stream();
     // start the cycle counter
     m_acc->perf_set_cc_enable(true);
     // enable all stages
     m_acc->set_stage_enables(1, 1, 1);
-    // run the generated schedule -- keep pushing operands until all generated
-    // instructions have been pushed
-    /*while(!allPushed()) {
-      fill_fetch_op();
-      fill_exec_op();
-      fill_result_op();
-    }*/
     // wait until all the results are written
     while(!allFinished());
     // disable all stages
@@ -255,9 +243,9 @@ public:
     std::cout << "(" << 100*getWorkloadBinaryOpCount(false)/getWorkloadBinaryOpCount(true) << "%)" << std::endl;
     std::cout << "Input matrix bytes: LHS " << lhsBytes() << " RHS " << rhsBytes() << std::endl;
     std::cout << "Result matrix bytes: " << resBytes() << std::endl;
-    std::cout << "Instructions: " << m_fetch_op.size() << " fetch ";
-    std::cout << m_exec_op.size() << " execute ";
-    std::cout << m_result_op.size() << " result" << std::endl;
+    std::cout << "Instructions: " << m_acc->stageInstrCount(stgFetch) << " fetch ";
+    std::cout << m_acc->stageInstrCount(stgExec) << " execute ";
+    std::cout << m_acc->stageInstrCount(stgResult) << " result" << std::endl;
     std::cout << "HW input matrix buffer bytes: " << getHWBufSize() << std::endl;
     std::cout << "HW peak perf: " << getHWPeakBinaryGOPS() << " binary GOPS" << std::endl;
     std::cout << "HW fclk: " << m_acc->fclk_MHz() << " MHz" << std::endl;
@@ -318,50 +306,10 @@ protected:
   void * m_accelRHS;
   void * m_accelRes;
 
-  std::vector<Op> m_fetch_op, m_exec_op, m_result_op;
-  std::vector<FetchRunCfg> m_fetch_runcfg;
-  std::vector<ExecRunCfg> m_exec_runcfg;
-  std::vector<ResultRunCfg> m_result_runcfg;
-  size_t m_fetch_op_ptr, m_result_op_ptr, m_exec_op_ptr;
-
   // keep track of what we have in the on-chip memory to avoid re-fetching
   std::vector<uint64_t> m_cached_lhs, m_cached_rhs;
 
-  void printExecQueue() {
-    std::vector<string> opName {"run", "send", "receive"};
-    for(int i = 0; i < m_exec_op.size(); i++) {
-      std::cout << "Exec op " << i << " type " << opName[m_exec_op[i].opcode];
-      std::cout << " channel " << m_exec_op[i].syncChannel << std::endl;
-      if(m_exec_op[i].opcode == opRun) {
-        m_acc->printExecRunCfg(m_exec_runcfg[i]);
-      }
-    }
-  }
-
-  void printFetchQueue() {
-    std::vector<string> opName {"run", "send", "receive"};
-    for(int i = 0; i < m_fetch_op.size(); i++) {
-      std::cout << "Fetch op " << i << " type " << opName[m_fetch_op[i].opcode];
-      std::cout << " channel " << m_fetch_op[i].syncChannel << std::endl;
-      if(m_fetch_op[i].opcode == opRun) {
-        m_acc->printFetchRunCfg(m_fetch_runcfg[i]);
-      }
-    }
-  }
-
-  void printResultQueue() {
-    std::vector<string> opName {"run", "send", "receive"};
-    for(int i = 0; i < m_result_op.size(); i++) {
-      std::cout << "Result op " << i << " type " << opName[m_result_op[i].opcode];
-      std::cout << " channel " << m_fetch_op[i].syncChannel << std::endl;
-      if(m_result_op[i].opcode == opRun) {
-        m_acc->printResultRunCfg(m_result_runcfg[i]);
-      }
-    }
-  }
-
-
-  void makeinstr_fetch_run(FetchRunCfg r) {
+  void makeinstr_fetch_run(BISMOFetchRunInstruction r) {
     if(r.dram_block_size_bytes == r.dram_block_offset_bytes) {
       while(((r.dram_block_size_bytes * 2) < FETCH_BLOCK_MAX)
             && r.dram_block_count % 2 == 0) {
@@ -375,26 +323,35 @@ protected:
     // count requested fetch bytes for statistics
     uint32_t fetchPerGroup = r.dram_block_size_bytes * r.dram_block_count;
     m_bytes_to_fetch += fetchPerGroup;
-    m_fetch_op.push_back(m_acc->make_op(opRun, 0));
-    m_fetch_runcfg.push_back(r);
+    BISMOInstruction ins;
+    ins.fetch = r;
+    ins.fetch.targetStage = stgFetch;
+    ins.fetch.isRunCfg = 1;
+    ins.fetch.unused0 = 0;
+    m_acc->push_instruction_dram(ins);
   }
 
-  void makeinstr_exec_run(ExecRunCfg r) {
-    m_exec_op.push_back(m_acc->make_op(opRun, 0));
-    m_exec_runcfg.push_back(r);
+  void makeinstr_exec_run(BISMOExecRunInstruction r) {
+    BISMOInstruction ins;
+    ins.exec = r;
+    ins.exec.targetStage = stgExec;
+    ins.exec.isRunCfg = 1;
+    ins.exec.unused0 = 0;
+    ins.exec.unused1 = 0;
+    m_acc->push_instruction_dram(ins);
   }
 
-  void makeinstr_result_run(ResultRunCfg rrc) {
+  void makeinstr_result_run(BISMOResultRunInstruction rrc) {
+    BISMOInstruction ins;
+    ins.res = rrc;
+    ins.res.targetStage = stgResult;
+    ins.res.isRunCfg = 1;
+    ins.res.unused0 = 0;
+    m_acc->push_instruction_dram(ins);
     // count result bytes for statistics
     m_bytes_to_write += m_hwcfg.dpaDimLHS * m_hwcfg.dpaDimRHS * sizeof(ResultType);
-    m_result_op.push_back(m_acc->make_op(opRun, 0));
-    m_result_runcfg.push_back(rrc);
   }
 
-  void clear_all_queue_pointers() {
-    // set queue pointers to zero
-    m_fetch_op_ptr = m_result_op_ptr = m_exec_op_ptr = 0;
-  }
 
   // whether all instruction execution has finished
   bool allFinished() {
@@ -403,74 +360,45 @@ protected:
     return (m_acc->get_completed_writes() >= resBytes());
   }
 
-  // whether all instructions have been pushed to the queues
-  bool allPushed() {
-    return
-      m_fetch_op_ptr == m_fetch_op.size() &&
-      m_exec_op_ptr == m_exec_op.size() &&
-      m_result_op_ptr == m_result_op.size();
-  }
-
-  void fill_fetch_op() {
-    while(/*!m_acc->op_full() && */m_fetch_op_ptr < m_fetch_op.size()) {
-      m_acc->push_fetch_op(m_fetch_op[m_fetch_op_ptr], m_fetch_runcfg[m_fetch_op_ptr]);
-      m_fetch_op_ptr++;
-    }
-  }
-
-  void fill_exec_op() {
-    while(/*!m_acc->op_full() && */m_exec_op_ptr < m_exec_op.size()) {
-      m_acc->push_exec_op(m_exec_op[m_exec_op_ptr], m_exec_runcfg[m_exec_op_ptr]);
-      m_exec_op_ptr++;
-    }
-  }
-
-  void fill_result_op() {
-    while(/*!m_acc->op_full() && */m_result_op_ptr < m_result_op.size()) {
-      m_acc->push_result_op(m_result_op[m_result_op_ptr], m_result_runcfg[m_result_op_ptr]);
-      m_result_op_ptr++;
-    }
-  }
-
   // helper functions for generating sync instructions
   void makeinstr_fetch_sync_getexecbuffer() {
-    m_fetch_op.push_back(m_acc->make_op(opReceiveToken, 0));
-    m_fetch_runcfg.push_back( dummyFetchRunCfg);
+    BISMOInstruction ins = m_acc->make_sync_instr(stgFetch, false, 0);
+    m_acc->push_instruction_dram(ins);
   }
 
   void makeinstr_fetch_sync_putexecbuffer() {
-    m_fetch_op.push_back(m_acc->make_op(opSendToken, 0));
-    m_fetch_runcfg.push_back( dummyFetchRunCfg);
+    BISMOInstruction ins = m_acc->make_sync_instr(stgFetch, true, 0);
+    m_acc->push_instruction_dram(ins);
   }
 
   void makeinstr_exec_sync_getfetchbuffer() {
-    m_exec_op.push_back(m_acc->make_op(opReceiveToken, 0));
-    m_exec_runcfg.push_back( dummyExecRunCfg);
+    BISMOInstruction ins = m_acc->make_sync_instr(stgExec, false, 0);
+    m_acc->push_instruction_dram(ins);
   }
 
   void makeinstr_exec_sync_putfetchbuffer() {
-    m_exec_op.push_back(m_acc->make_op(opSendToken, 0));
-    m_exec_runcfg.push_back( dummyExecRunCfg);
+    BISMOInstruction ins = m_acc->make_sync_instr(stgExec, true, 0);
+    m_acc->push_instruction_dram(ins);
   }
 
   void makeinstr_exec_sync_getresultbuffer() {
-    m_exec_op.push_back(m_acc->make_op(opReceiveToken, 1));
-    m_exec_runcfg.push_back( dummyExecRunCfg);
+    BISMOInstruction ins = m_acc->make_sync_instr(stgExec, false, 1);
+    m_acc->push_instruction_dram(ins);
   }
 
   void makeinstr_exec_sync_putresultbuffer() {
-    m_exec_op.push_back(m_acc->make_op(opSendToken, 1));
-    m_exec_runcfg.push_back( dummyExecRunCfg);
+    BISMOInstruction ins = m_acc->make_sync_instr(stgExec, true, 1);
+    m_acc->push_instruction_dram(ins);
   }
 
   void makeinstr_result_sync_getexecbuffer() {
-    m_result_op.push_back(m_acc->make_op(opReceiveToken, 0));
-    m_result_runcfg.push_back( dummyResultRunCfg);
+    BISMOInstruction ins = m_acc->make_sync_instr(stgResult, false, 0);
+    m_acc->push_instruction_dram(ins);
   }
 
   void makeinstr_result_sync_putexecbuffer() {
-    m_result_op.push_back(m_acc->make_op(opSendToken, 0));
-    m_result_runcfg.push_back( dummyResultRunCfg);
+    BISMOInstruction ins = m_acc->make_sync_instr(stgResult, true, 0);
+    m_acc->push_instruction_dram(ins);
   }
 
   // get the pointer to the start of given result tile
@@ -591,7 +519,7 @@ protected:
         for(int z_l2 = 0; z_l2 < z_l2_per_matrix; z_l2++) {
           // acquire fetch buffers to fill
           makeinstr_fetch_sync_getexecbuffer();
-          FetchRunCfg frc;
+          BISMOFetchRunInstruction frc;
           // TODO avoid redundant fetches here
           // fetch lhs l2 tile
           frc.bram_addr_base = current_bram_region * lhs_l0_per_bram * exec_to_fetch_width_ratio;
@@ -657,7 +585,7 @@ protected:
                 // exec stage acquires new result buffer
                 makeinstr_exec_sync_getresultbuffer();
               }
-              ExecRunCfg erc;
+              BISMOExecRunInstruction erc;
               erc.numTiles = lhs_l0_per_l1;
               erc.lhsOffset = current_bram_region * lhs_l0_per_bram + lhs_l1 * erc.numTiles;
               erc.lhsOffset *= exec_to_fetch_width_ratio;
@@ -678,7 +606,7 @@ protected:
                 // result stage: acquire result buffer
                 makeinstr_result_sync_getexecbuffer();
                 // generate result
-                ResultRunCfg rrc;
+                BISMOResultRunInstruction rrc;
                 rrc.resmem_addr = current_resmem_region;
                 // find the inds of which L1 tile we are currently working on
                 size_t lhs_tile = lhs_l1_per_l2 * lhs_l2 + lhs_l1;
@@ -699,12 +627,5 @@ protected:
         }
       }
     }
-
-    // display instruction sequence for debug
-    /*printFetchQueue();
-    cout << endl << endl;
-    printExecQueue();
-    cout << endl << endl;
-    printResultQueue();*/
   }
 };

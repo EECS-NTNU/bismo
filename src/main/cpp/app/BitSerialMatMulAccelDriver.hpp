@@ -178,14 +178,14 @@ public:
     // round-up integer division to compute number of segments
     const size_t n_segments = (n_instrs + INSTR_FETCH_GRANULARITY - 1) / INSTR_FETCH_GRANULARITY;
     std::vector<BISMOInstruction> fetch_instrs;
-    //cout << "num segments for stage " << stg << " is " << n_segments << endl;
+    //cout << "create_instr_stream: num segments for stage " << stg << " is " << n_segments << endl;
     // for each segment of instructions, create an instruction fetch
     size_t n_instrs_left = n_instrs;
     for(size_t seg = 0; seg < n_segments; seg++) {
       size_t start_ind = INSTR_FETCH_GRANULARITY * seg;
       size_t count = n_instrs_left < INSTR_FETCH_GRANULARITY ? n_instrs_left : INSTR_FETCH_GRANULARITY;
       BISMOInstruction ins = makeInstructionFetch(stgBufferBase, start_ind, count);
-      //cout << "segment " << seg << ": start = " << start_ind << " " << " count " << count << endl;
+      //cout << "create_instr_stream: segment " << seg << ": start = " << start_ind << " " << " count " << count << endl;
       fetch_instrs.push_back(ins);
       n_instrs_left -= count;
     }
@@ -235,6 +235,10 @@ public:
 
   const size_t maxDRAMInstrBytes() const {
     return MAX_DRAM_INSTRS * DRAM_INSTR_BYTES;
+  }
+
+  const size_t stageInstrCount(BISMOTargetStage stg) const {
+    return m_icnt[stg];
   }
 
   const size_t stageInstrBytes(BISMOTargetStage stg) const {
