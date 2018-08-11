@@ -286,12 +286,26 @@ public:
   }
 
   void push_instruction_dram(BISMOInstruction ins) {
+    verifyInstr(ins);
     BISMOTargetStage stg = (BISMOTargetStage) ins.fetch.targetStage;
-    assert(stg < N_STAGES);
     assert(m_icnt[stg] < MAX_DRAM_INSTRS);
 
     m_host_ibuf[stg][m_icnt[stg]] = ins;
     m_icnt[stg]++;
+  }
+
+  void verifyInstr(BISMOInstruction ins) {
+    BISMOTargetStage stg = (BISMOTargetStage) ins.fetch.targetStage;
+    if(stg == stgFetch) {
+      verifyFetchInstr(ins);
+    } else if(stg == stgExec) {
+      verifyExecInstr(ins);
+    } else if(stg == stgResult) {
+      verifyResultInstr(ins);
+    } else {
+      cerr << "Unrecognized target stage for instruction!" << endl;
+      assert(0);
+    }
   }
 
   void measure_fclk() {
@@ -416,54 +430,82 @@ public:
 
   // do a sanity check on a FetchRunCfg in terms of alignment and
   // out-of-bounds values
-  void verifyFetchRunCfg(FetchRunCfg f) {
-    // ensure all fields are within limits
-    ASSERT_BITS(f.bram_id_start, BISMO_LIMIT_FETCHID_BITS);
-    ASSERT_BITS(f.bram_id_range, BISMO_LIMIT_FETCHID_BITS);
-    ASSERT_BITS(f.bram_addr_base, BISMO_LIMIT_INBUFADDR_BITS);
-    ASSERT_BITS(f.dram_base, BISMO_LIMIT_DRAMADDR_BITS);
-    ASSERT_BITS(f.dram_block_size_bytes, BISMO_LIMIT_DRAM_BSIZE_BITS);
-    ASSERT_BITS(f.dram_block_offset_bytes, BISMO_LIMIT_DRAM_BSIZE_BITS);
-    ASSERT_BITS(f.dram_block_count, BISMO_LIMIT_DRAM_BCNT_BITS);
-    ASSERT_BITS(f.tiles_per_row, BISMO_LIMIT_INBUFADDR_BITS);
+  void verifyFetchInstr(BISMOInstruction ins) {
+    BISMOSyncInstruction s = ins.sync;
+    assert(s.targetStage == stgFetch);
+    if(s.isRunCfg) {
+      BISMOFetchRunInstruction f = ins.fetch;
+      // ensure all fields are within limits
+      ASSERT_BITS(f.bram_id_start, BISMO_LIMIT_FETCHID_BITS);
+      ASSERT_BITS(f.bram_id_range, BISMO_LIMIT_FETCHID_BITS);
+      ASSERT_BITS(f.bram_addr_base, BISMO_LIMIT_INBUFADDR_BITS);
+      ASSERT_BITS(f.dram_base, BISMO_LIMIT_DRAMADDR_BITS);
+      ASSERT_BITS(f.dram_block_size_bytes, BISMO_LIMIT_DRAM_BSIZE_BITS);
+      ASSERT_BITS(f.dram_block_offset_bytes, BISMO_LIMIT_DRAM_BSIZE_BITS);
+      ASSERT_BITS(f.dram_block_count, BISMO_LIMIT_DRAM_BCNT_BITS);
+      ASSERT_BITS(f.tiles_per_row, BISMO_LIMIT_INBUFADDR_BITS);
 
-    const size_t exec_to_fetch_width_ratio = m_cfg.dpaDimCommon / m_cfg.readChanWidth;
-    // ensure all DRAM accesses are aligned
-    assert(((uint64_t) f.dram_base) % FETCH_ADDRALIGN == 0);
-    assert(f.dram_block_offset_bytes % FETCH_ADDRALIGN == 0);
-    assert(f.dram_block_size_bytes % FETCH_SIZEALIGN == 0);
-    // ensure that BRAM accesses are within existing range
-    assert(f.bram_id_start < get_num_fetch_nodes());
-    assert(f.bram_id_start + f.bram_id_range < get_num_fetch_nodes());
-    if(f.bram_id_start < get_fetch_first_rhs_id()) {
-      assert(f.bram_addr_base < m_cfg.lhsEntriesPerMem * exec_to_fetch_width_ratio);
+      const size_t exec_to_fetch_width_ratio = m_cfg.dpaDimCommon / m_cfg.readChanWidth;
+      // ensure all DRAM accesses are aligned
+      assert(((uint64_t) f.dram_base) % FETCH_ADDRALIGN == 0);
+      assert(f.dram_block_offset_bytes % FETCH_ADDRALIGN == 0);
+      assert(f.dram_block_size_bytes % FETCH_SIZEALIGN == 0);
+      // ensure that BRAM accesses are within existing range
+      assert(f.bram_id_start < get_num_fetch_nodes());
+      assert(f.bram_id_start + f.bram_id_range < get_num_fetch_nodes());
+      if(f.bram_id_start < get_fetch_first_rhs_id()) {
+        assert(f.bram_addr_base < m_cfg.lhsEntriesPerMem * exec_to_fetch_width_ratio);
+      } else {
+        assert(f.bram_addr_base < m_cfg.rhsEntriesPerMem * exec_to_fetch_width_ratio);
+      }
     } else {
-      assert(f.bram_addr_base < m_cfg.rhsEntriesPerMem * exec_to_fetch_width_ratio);
+      assert(s.chanID == 0);
+      assert(s.unused0 == 0);
+      assert(s.unused1 == 0);
     }
   }
 
   // do a sanity check on a ExecRunCfg in terms of out-of-bounds values
-  void verifyExecRunCfg(ExecRunCfg f) {
-    // ensure all fields are within limits
-    ASSERT_BITS(f.lhsOffset, BISMO_LIMIT_INBUFADDR_BITS);
-    ASSERT_BITS(f.rhsOffset, BISMO_LIMIT_INBUFADDR_BITS);
-    ASSERT_BITS(f.numTiles, BISMO_LIMIT_INBUFADDR_BITS);
-    ASSERT_BITS(f.shiftAmount, BISMO_LIMIT_MAXSHIFT_BITS);
-    ASSERT_BITS(f.negate, 1);
-    ASSERT_BITS(f.clear_before_first_accumulation, 1);
-    ASSERT_BITS(f.writeEn, 1);
-    ASSERT_BITS(f.writeAddr, BISMO_LIMIT_RESADDR_BITS);
+  void verifyExecInstr(BISMOInstruction ins) {
+    BISMOSyncInstruction s = ins.sync;
+    assert(s.targetStage == stgExec);
+    if(s.isRunCfg) {
+      BISMOExecRunInstruction f = ins.exec;
+      // ensure all fields are within limits
+      ASSERT_BITS(f.lhsOffset, BISMO_LIMIT_INBUFADDR_BITS);
+      ASSERT_BITS(f.rhsOffset, BISMO_LIMIT_INBUFADDR_BITS);
+      ASSERT_BITS(f.numTiles, BISMO_LIMIT_INBUFADDR_BITS);
+      ASSERT_BITS(f.shiftAmount, BISMO_LIMIT_MAXSHIFT_BITS);
+      ASSERT_BITS(f.negate, 1);
+      ASSERT_BITS(f.clear_before_first_accumulation, 1);
+      ASSERT_BITS(f.writeEn, 1);
+      ASSERT_BITS(f.writeAddr, BISMO_LIMIT_RESADDR_BITS);
+    } else {
+      assert(s.chanID == 0 || s.chanID == 1);
+      assert(s.unused0 == 0);
+      assert(s.unused1 == 0);
+    }
   }
 
   // do a sanity check on a ResultRunCfg in terms of alignment and
   // out-of-bounds values
-  void verifyResultRunCfg(ResultRunCfg r) {
-    ASSERT_BITS(r.resmem_addr, BISMO_LIMIT_RESADDR_BITS);
-    ASSERT_BITS(r.dram_base, BISMO_LIMIT_DRAMADDR_BITS);
-    ASSERT_BITS(r.dram_skip, BISMO_LIMIT_DRAM_BSIZE_BITS);
-    // ensure all DRAM accesses are aligned to 8 bytes
-    assert(((uint64_t) r.dram_base) % 8 == 0);
-    assert(r.dram_skip % 8 == 0);
+  void verifyResultInstr(BISMOInstruction ins) {
+    BISMOSyncInstruction s = ins.sync;
+    assert(s.targetStage == stgResult);
+    if(s.isRunCfg) {
+      BISMOResultRunInstruction r = ins.res;
+      // ensure all fields are within limits
+      ASSERT_BITS(r.resmem_addr, BISMO_LIMIT_RESADDR_BITS);
+      ASSERT_BITS(r.dram_base, BISMO_LIMIT_DRAMADDR_BITS);
+      ASSERT_BITS(r.dram_skip, BISMO_LIMIT_DRAM_BSIZE_BITS);
+      // ensure all DRAM accesses are aligned to 8 bytes
+      assert(((uint64_t) r.dram_base) % 8 == 0);
+      assert(r.dram_skip % 8 == 0);
+    } else {
+      assert(s.chanID == 0);
+      assert(s.unused0 == 0);
+      assert(s.unused1 == 0);
+    }
   }
 
   // get command counts in FIFOs
@@ -512,7 +554,6 @@ public:
   void push_fetch_op(Op op, FetchRunCfg cfg) {
     BISMOInstruction ins;
     if(op.opcode == opRun) {
-      verifyFetchRunCfg(cfg);
       ins.fetch.targetStage = stgFetch;
       ins.fetch.isRunCfg = 1;
       ins.fetch.unused0 = 0;
@@ -539,7 +580,6 @@ public:
   void push_exec_op(Op op, ExecRunCfg cfg) {
     BISMOInstruction ins;
     if(op.opcode == opRun) {
-      verifyExecRunCfg(cfg);
       ins.exec.targetStage = stgExec;
       ins.exec.isRunCfg = 1;
       ins.exec.unused0 = 0;
@@ -567,7 +607,6 @@ public:
   void push_result_op(Op op, ResultRunCfg cfg) {
     BISMOInstruction ins;
     if(op.opcode == opRun) {
-      verifyResultRunCfg(cfg);
       ins.res.targetStage = stgResult;
       ins.res.isRunCfg = 1;
       ins.res.unused0 = 0;
