@@ -62,47 +62,8 @@
 #define FETCH_ALIGN       max(FETCH_ADDRALIGN, FETCH_SIZEALIGN)
 
 typedef enum {
-  opRun = 0, opSendToken, opReceiveToken
-} OpCode;
-
-typedef enum {
   csGetCmd = 0, csRun, csSend, csReceive
 } ControllerState;
-
-typedef struct {
-  OpCode opcode;
-  uint32_t syncChannel;
-} Op;
-
-typedef struct {
-  uint64_t bram_addr_base;
-  uint64_t bram_id_start;
-  uint64_t bram_id_range;
-  uint64_t dram_base;
-  uint64_t dram_block_offset_bytes;
-  uint64_t dram_block_size_bytes;
-  uint64_t dram_block_count;
-  uint64_t tiles_per_row;
-} FetchRunCfg;
-
-typedef struct {
-  uint64_t lhsOffset;
-  uint64_t rhsOffset;
-  uint64_t negate;
-  uint64_t numTiles;
-  uint64_t shiftAmount;
-  uint64_t clear_before_first_accumulation;
-  uint64_t writeEn;
-  uint64_t writeAddr;
-} ExecRunCfg;
-
-typedef struct {
-  uint64_t dram_base;
-  uint64_t dram_skip;
-  uint64_t resmem_addr;
-  uint64_t waitComplete;
-  uint64_t waitCompleteBytes;
-} ResultRunCfg;
 
 typedef struct {
   uint64_t accWidth;
@@ -119,10 +80,6 @@ typedef struct {
 
 typedef uint64_t PackedBitGroupType;
 typedef int32_t ResultType;
-
-static const FetchRunCfg dummyFetchRunCfg = {0};
-static const ExecRunCfg dummyExecRunCfg = {0};
-static const ResultRunCfg dummyResultRunCfg = {0};
 
 class BitSerialMatMulAccelDriver {
 public:
@@ -376,42 +333,6 @@ public:
     return m_accel->get_perf_prf_res_count();
   }
 
-  static void printFetchRunCfg(FetchRunCfg r) {
-    cout << "FetchRunCfg ============================" << endl;
-    cout << "bram_addr_base: " << r.bram_addr_base << endl;
-    cout << "bram_id_start: " << r.bram_id_start << endl;
-    cout << "bram_id_range: " << r.bram_id_range << endl;
-    cout << "tiles_per_row: " << r.tiles_per_row << endl;
-    cout << "dram_base: " << (uint64_t) r.dram_base << endl;
-    cout << "dram_block_offset_bytes: " << r.dram_block_offset_bytes << endl;
-    cout << "dram_block_size_bytes: " << r.dram_block_size_bytes << endl;
-    cout << "dram_block_count: " << r.dram_block_count << endl;
-    cout << "========================================" << endl;
-  }
-
-  static void printExecRunCfg(ExecRunCfg r) {
-    cout << "ExecRunCfg ============================" << endl;
-    cout << "lhsOffset: " << r.lhsOffset << endl;
-    cout << "rhsOffset: " << r.rhsOffset << endl;
-    cout << "negate: " << r.negate << endl;
-    cout << "numTiles: " << r.numTiles << endl;
-    cout << "shiftAmount: " << r.shiftAmount << endl;
-    cout << "clear_before_first_accumulation: " << r.clear_before_first_accumulation << endl;
-    cout << "writeEn: " << r.writeEn << endl;
-    cout << "writeAddr: " << r.writeAddr << endl;
-    cout << "========================================" << endl;
-  }
-
-  static void printResultRunCfg(ResultRunCfg r) {
-    cout << "ResultRunCfg ============================" << endl;
-    cout << "dram_base: " << r.dram_base << endl;
-    cout << "dram_skip: " << r.dram_skip << endl;
-    cout << "resmem_addr: " << r.resmem_addr << endl;
-    cout << "waitComplete: " << r.waitComplete << endl;
-    cout << "waitCompleteBytes: " << r.waitCompleteBytes << endl;
-    cout << "========================================" << endl;
-  }
-
   const size_t get_lhs_total_BRAM_bytes() {
     return m_cfg.dpaDimLHS * m_cfg.lhsEntriesPerMem * m_cfg.dpaDimCommon / 8;
   }
@@ -432,7 +353,7 @@ public:
     return 1 + m_cfg.dpaDimLHS;
   }
 
-  // do a sanity check on a FetchRunCfg in terms of alignment and
+  // do a sanity check on an instruction to fetch stage in terms of alignment and
   // out-of-bounds values
   void verifyFetchInstr(BISMOInstruction ins) {
     BISMOSyncInstruction s = ins.sync;
@@ -469,7 +390,7 @@ public:
     }
   }
 
-  // do a sanity check on a ExecRunCfg in terms of out-of-bounds values
+  // do a sanity check on an instruction for exec stage in terms of out-of-bounds values
   void verifyExecInstr(BISMOInstruction ins) {
     BISMOSyncInstruction s = ins.sync;
     assert(s.targetStage == stgExec);
@@ -491,7 +412,7 @@ public:
     }
   }
 
-  // do a sanity check on a ResultRunCfg in terms of alignment and
+  // do a sanity check on an instr for result stage in terms of alignment and
   // out-of-bounds values
   void verifyResultInstr(BISMOInstruction ins) {
     BISMOSyncInstruction s = ins.sync;
@@ -545,89 +466,6 @@ public:
     ins.sync.unused0 = 0;
     ins.sync.unused1 = 0;
     return ins;
-  }
-
-  Op make_op(OpCode opcode, uint32_t syncChannel) {
-    Op ret;
-    ret.opcode = opcode;
-    ret.syncChannel = syncChannel;
-    return ret;
-  }
-
-  // push a command to the Fetch op queue
-  void push_fetch_op(Op op, FetchRunCfg cfg) {
-    BISMOInstruction ins;
-    if(op.opcode == opRun) {
-      ins.fetch.targetStage = stgFetch;
-      ins.fetch.isRunCfg = 1;
-      ins.fetch.unused0 = 0;
-      ins.fetch.bram_id_start = cfg.bram_id_start;
-      ins.fetch.bram_id_range = cfg.bram_id_range;
-      ins.fetch.bram_addr_base = cfg.bram_addr_base;
-      ins.fetch.dram_base = cfg.dram_base;
-      ins.fetch.dram_block_size_bytes = cfg.dram_block_size_bytes;
-      ins.fetch.dram_block_offset_bytes = cfg.dram_block_offset_bytes;
-      ins.fetch.dram_block_count = cfg.dram_block_count;
-      ins.fetch.tiles_per_row = cfg.tiles_per_row;
-    } else {
-      ins.sync.targetStage = stgFetch;
-      ins.sync.isRunCfg = 0;
-      ins.sync.isSendToken = op.opcode == opSendToken ? 1 : 0;
-      ins.sync.chanID = op.syncChannel;
-      ins.sync.unused0 = 0;
-      ins.sync.unused1 = 0;
-    }
-    push_instruction_dram(ins);
-  }
-
-  // push a command to the Exec op queue
-  void push_exec_op(Op op, ExecRunCfg cfg) {
-    BISMOInstruction ins;
-    if(op.opcode == opRun) {
-      ins.exec.targetStage = stgExec;
-      ins.exec.isRunCfg = 1;
-      ins.exec.unused0 = 0;
-      ins.exec.unused1 = 0;
-      ins.exec.lhsOffset = cfg.lhsOffset;
-      ins.exec.rhsOffset = cfg.rhsOffset;
-      ins.exec.numTiles = cfg.numTiles;
-      ins.exec.shiftAmount = cfg.shiftAmount;
-      ins.exec.negate = cfg.negate;
-      ins.exec.clear_before_first_accumulation = cfg.clear_before_first_accumulation;
-      ins.exec.writeEn = cfg.writeEn;
-      ins.exec.writeAddr = cfg.writeAddr;
-    } else {
-      ins.sync.targetStage = stgExec;
-      ins.sync.isRunCfg = 0;
-      ins.sync.isSendToken = op.opcode == opSendToken ? 1 : 0;
-      ins.sync.chanID = op.syncChannel;
-      ins.sync.unused0 = 0;
-      ins.sync.unused1 = 0;
-    }
-    push_instruction_dram(ins);
-  }
-
-  // push a command to the Result op queue
-  void push_result_op(Op op, ResultRunCfg cfg) {
-    BISMOInstruction ins;
-    if(op.opcode == opRun) {
-      ins.res.targetStage = stgResult;
-      ins.res.isRunCfg = 1;
-      ins.res.unused0 = 0;
-      ins.res.waitComplete = cfg.waitComplete;
-      ins.res.resmem_addr = cfg.resmem_addr;
-      ins.res.dram_base = cfg.dram_base;
-      ins.res.dram_skip = cfg.dram_skip;
-      ins.res.waitCompleteBytes = cfg.waitCompleteBytes;
-    } else {
-      ins.sync.targetStage = stgResult;
-      ins.sync.isRunCfg = 0;
-      ins.sync.isSendToken = op.opcode == opSendToken ? 1 : 0;
-      ins.sync.chanID = op.syncChannel;
-      ins.sync.unused0 = 0;
-      ins.sync.unused1 = 0;
-    }
-    push_instruction_dram(ins);
   }
 
   // initialize the tokens in FIFOs representing shared resources

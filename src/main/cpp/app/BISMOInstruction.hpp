@@ -1,6 +1,8 @@
 #include <stdint.h>
+#include <iomanip>
 
-// defines the data layout and fields for BISMO instructions
+// defines the data layout and fields for BISMO instructions, and routines to
+// print them in human-readable representations
 
 enum BISMOTargetStage {
   stgFetch, stgExec, stgResult
@@ -32,16 +34,6 @@ struct BISMOSyncInstruction {
   uint64_t unused1 : 64;
 };
 
-ostream& operator<<(ostream& os, const BISMOSyncInstruction& dt)
-{
-    os << "sync: ";
-    os << "stage="<< dt.targetStage << " ";
-    os << "isRunCfg="<< dt.isRunCfg << " ";
-    os << "isSend="<< dt.isSendToken << " ";
-    os << "chanID="<< dt.chanID << std::endl;
-    return os;
-}
-
 struct BISMOFetchRunInstruction {
   uint64_t targetStage : 2;
   uint64_t isRunCfg : 1;
@@ -55,16 +47,6 @@ struct BISMOFetchRunInstruction {
   uint64_t dram_block_count : 16;
   uint64_t tiles_per_row : 16;
 };
-
-ostream& operator<<(ostream& os, const BISMOFetchRunInstruction& dt)
-{
-    os << "fetch run: ";
-    os << "stage="<< dt.targetStage << " ";
-    os << "isRunCfg="<< dt.isRunCfg << " ";
-    os << "bram id="<< dt.bram_id_start << "+" << dt.bram_id_range << " ";
-    os << "dram base=" << dt.dram_base << " bytes " << dt.dram_block_size_bytes;
-    return os;
-}
 
 struct BISMOExecRunInstruction {
   uint64_t targetStage : 2;
@@ -81,16 +63,6 @@ struct BISMOExecRunInstruction {
   uint64_t writeAddr : 1;
 };
 
-ostream& operator<<(ostream& os, const BISMOExecRunInstruction& dt)
-{
-    os << "exec run: ";
-    os << "stage="<< dt.targetStage << " ";
-    os << "isRunCfg="<< dt.isRunCfg << " ";
-    os << "offset lhs rhs " << dt.lhsOffset << " " << dt.rhsOffset;
-    os << "ntiles " << dt.numTiles;
-    return os;
-}
-
 struct BISMOResultRunInstruction {
   uint64_t targetStage : 2;
   uint64_t isRunCfg : 1;
@@ -101,15 +73,6 @@ struct BISMOResultRunInstruction {
   uint64_t dram_skip : 16;
   uint64_t waitCompleteBytes : 16; // deprecated, do not use
 };
-
-ostream& operator<<(ostream& os, const BISMOResultRunInstruction& dt)
-{
-    os << "result run: ";
-    os << "stage="<< dt.targetStage << " ";
-    os << "isRunCfg="<< dt.isRunCfg << " ";
-    os << "dram_base=" << dt.dram_base;
-    return os;
-}
 
 // union to store and decode all instruction types
 // all instructions are currently 128 bits
@@ -122,7 +85,53 @@ union BISMOInstruction {
   BISMOResultRunInstruction res;
 };
 
-#include <iomanip>
+ostream& operator<<(ostream& os, const BISMOSyncInstruction& dt)
+{
+    os << "sync " << (dt.isSendToken ? "send" : "receive");
+    os << " chanID="<< dt.chanID << std::endl;
+    return os;
+}
+
+ostream& operator<<(ostream& os, const BISMOFetchRunInstruction& r)
+{
+  os << "Fetch config ============================" << endl;
+  os << "bram_addr_base: " << r.bram_addr_base << endl;
+  os << "bram_id_start: " << r.bram_id_start << endl;
+  os << "bram_id_range: " << r.bram_id_range << endl;
+  os << "tiles_per_row: " << r.tiles_per_row << endl;
+  os << "dram_base: " << (uint64_t) r.dram_base << endl;
+  os << "dram_block_offset_bytes: " << r.dram_block_offset_bytes << endl;
+  os << "dram_block_size_bytes: " << r.dram_block_size_bytes << endl;
+  os << "dram_block_count: " << r.dram_block_count << endl;
+  os << "========================================" << endl;
+  return os;
+}
+
+ostream& operator<<(ostream& os, const BISMOExecRunInstruction& r)
+{
+  os << "Exec config ============================" << endl;
+  os << "lhsOffset: " << r.lhsOffset << endl;
+  os << "rhsOffset: " << r.rhsOffset << endl;
+  os << "negate: " << r.negate << endl;
+  os << "numTiles: " << r.numTiles << endl;
+  os << "shiftAmount: " << r.shiftAmount << endl;
+  os << "clear_before_first_accumulation: " << r.clear_before_first_accumulation << endl;
+  os << "writeEn: " << r.writeEn << endl;
+  os << "writeAddr: " << r.writeAddr << endl;
+  os << "========================================" << endl;
+}
+
+ostream& operator<<(ostream& os, const BISMOResultRunInstruction& r)
+{
+  os << "Result config ============================" << endl;
+  os << "dram_base: " << r.dram_base << endl;
+  os << "dram_skip: " << r.dram_skip << endl;
+  os << "resmem_addr: " << r.resmem_addr << endl;
+  os << "waitComplete: " << r.waitComplete << endl;
+  os << "waitCompleteBytes: " << r.waitCompleteBytes << endl;
+  os << "========================================" << endl;
+}
+
 
 ostream& operator<<(ostream& os, const BISMOInstruction& dt)
 {
@@ -130,6 +139,7 @@ ostream& operator<<(ostream& os, const BISMOInstruction& dt)
     os << "raw " << std::hex << setw(8) << dt.raw[0] << setw(8) << dt.raw[1] << setw(8) << dt.raw[2] << setw(8) << dt.raw[3];
     os << std::dec << std::endl;
     os.fill(' ');
+    os << "targetStage " << dt.sync.targetStage << " runcfg? " << dt.sync.isRunCfg << std::endl;
     if(dt.sync.isRunCfg == 0) {
       os << dt.sync;
     } else {
