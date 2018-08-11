@@ -361,43 +361,8 @@ protected:
   }
 
   // helper functions for generating sync instructions
-  void makeinstr_fetch_sync_getexecbuffer() {
-    BISMOInstruction ins = m_acc->make_sync_instr(stgFetch, false, 0);
-    m_acc->push_instruction_dram(ins);
-  }
-
-  void makeinstr_fetch_sync_putexecbuffer() {
-    BISMOInstruction ins = m_acc->make_sync_instr(stgFetch, true, 0);
-    m_acc->push_instruction_dram(ins);
-  }
-
-  void makeinstr_exec_sync_getfetchbuffer() {
-    BISMOInstruction ins = m_acc->make_sync_instr(stgExec, false, 0);
-    m_acc->push_instruction_dram(ins);
-  }
-
-  void makeinstr_exec_sync_putfetchbuffer() {
-    BISMOInstruction ins = m_acc->make_sync_instr(stgExec, true, 0);
-    m_acc->push_instruction_dram(ins);
-  }
-
-  void makeinstr_exec_sync_getresultbuffer() {
-    BISMOInstruction ins = m_acc->make_sync_instr(stgExec, false, 1);
-    m_acc->push_instruction_dram(ins);
-  }
-
-  void makeinstr_exec_sync_putresultbuffer() {
-    BISMOInstruction ins = m_acc->make_sync_instr(stgExec, true, 1);
-    m_acc->push_instruction_dram(ins);
-  }
-
-  void makeinstr_result_sync_getexecbuffer() {
-    BISMOInstruction ins = m_acc->make_sync_instr(stgResult, false, 0);
-    m_acc->push_instruction_dram(ins);
-  }
-
-  void makeinstr_result_sync_putexecbuffer() {
-    BISMOInstruction ins = m_acc->make_sync_instr(stgResult, true, 0);
+  void makeinstr_sync(BISMOTargetStage stg, bool isSend, uint32_t chanID) {
+    BISMOInstruction ins = m_acc->make_sync_instr(stg, isSend, chanID);
     m_acc->push_instruction_dram(ins);
   }
 
@@ -518,7 +483,7 @@ protected:
       for(int rhs_l2 = 0; rhs_l2 < rhs_l2_per_matrix; rhs_l2++) {
         for(int z_l2 = 0; z_l2 < z_l2_per_matrix; z_l2++) {
           // acquire fetch buffers to fill
-          makeinstr_fetch_sync_getexecbuffer();
+          makeinstr_sync(stgFetch, false, 0);
           BISMOFetchRunInstruction frc;
           // TODO avoid redundant fetches here
           // fetch lhs l2 tile
@@ -572,18 +537,18 @@ protected:
           }
 
           // send the prepared buffers to exec
-          makeinstr_fetch_sync_putexecbuffer();
+          makeinstr_sync(stgFetch, true, 0);
 
           // process the fetched L2 tile
           // exec stage acquires input matrix buffers
-          makeinstr_exec_sync_getfetchbuffer();
+          makeinstr_sync(stgExec, false, 0);
           // process combinations of L1 tiles within the L2 tile
           for(int lhs_l1 = 0; lhs_l1 < lhs_l1_per_l2; lhs_l1++) {
             for(int rhs_l1 = 0; rhs_l1 < rhs_l1_per_l2; rhs_l1++) {
               if(z_l2 == z_l2_per_matrix - 1) {
                 // about to finish a new stripe
                 // exec stage acquires new result buffer
-                makeinstr_exec_sync_getresultbuffer();
+                makeinstr_sync(stgExec, false, 1);
               }
               BISMOExecRunInstruction erc;
               erc.numTiles = lhs_l0_per_l1;
@@ -602,9 +567,9 @@ protected:
 
               if(z_l2 == z_l2_per_matrix - 1) {
                 // finishing a stripe: release result buffer from exec
-                makeinstr_exec_sync_putresultbuffer();
+                makeinstr_sync(stgExec, true, 1);
                 // result stage: acquire result buffer
-                makeinstr_result_sync_getexecbuffer();
+                makeinstr_sync(stgResult, false, 0);
                 // generate result
                 BISMOResultRunInstruction rrc;
                 rrc.resmem_addr = current_resmem_region;
@@ -614,7 +579,7 @@ protected:
                 rrc.dram_base = get_result_tile_ptr(lhs_tile, rhs_tile);
                 rrc.dram_skip = lhs_eff_rows() * sizeof(ResultType);
                 makeinstr_result_run(rrc);
-                makeinstr_result_sync_putexecbuffer();
+                makeinstr_sync(stgResult, true, 0);
                 // use next resmem region for next time
                 current_resmem_region = current_resmem_region < resmem_regions-1 ? current_resmem_region + 1 : 0;
               }
@@ -622,7 +587,7 @@ protected:
           }
           // finished processing L2 tile
           // exec releases input matrix buffers
-          makeinstr_exec_sync_putfetchbuffer();
+          makeinstr_sync(stgExec, true, 0);
           current_bram_region = current_bram_region < bram_regions-1 ? current_bram_region + 1 : 0;
         }
       }
