@@ -457,6 +457,7 @@ public:
     m_accel->set_result_enable(result);
   }
 
+  // create and return a synchronization (token queue read/write) instruction
   BISMOInstruction make_sync_instr(BISMOTargetStage stg, bool isSend, uint32_t syncChannel) {
     BISMOInstruction ins;
     ins.sync.targetStage = stg;
@@ -465,6 +466,16 @@ public:
     ins.sync.chanID = syncChannel;
     ins.sync.unused0 = 0;
     ins.sync.unused1 = 0;
+    return ins;
+  }
+
+  // create and return a no-operation (busy wait) instruction
+  BISMOInstruction make_nop_instr(BISMOTargetStage stg) {
+    BISMOInstruction ins;
+    // all fields initialized to zero, including the key repetition count fields
+    // just need to set target stage and isRunCfg
+    ins.sync.targetStage = stg;
+    ins.sync.isRunCfg = 1;
     return ins;
   }
 
