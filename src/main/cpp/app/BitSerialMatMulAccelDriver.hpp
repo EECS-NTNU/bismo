@@ -50,11 +50,11 @@
 #define N_CTRL_STATES             4
 #define N_STAGES                  3
 #define FETCH_ADDRALIGN           64
-#define FETCH_SIZEALIGN           8
+#define FETCH_SIZEALIGN           64
 #define FETCH_BLOCK_MAX           (1 << BISMO_LIMIT_DRAM_BSIZE_BITS)
 #define MAX_INSTR_SEGS            64
 #define MAX_DRAM_INSTRS           (MAX_INSTR_SEGS*m_cfg.cmdQueueEntries)
-#define DRAM_INSTR_BYTES          16
+#define BYTES_PER_INSTR           16
 #define INSTR_FETCH_GRANULARITY   (m_cfg.cmdQueueEntries/2)
 //#define INSTR_FETCH_GRANULARITY   64
 
@@ -124,15 +124,30 @@ public:
     return (size_t) m_accel->get_completed_writes();
   }
 
+  void add_nop_padding(BISMOTargetStage stg, size_t alignToBytes) {
+    // determine how much padding is needed
+    const size_t current = stageInstrBytes(stg);
+    const size_t rem = current % alignToBytes;
+    if(rem == 0) return;
+    const size_t pad_bytes = alignToBytes - rem;
+    const size_t pad_instrs = pad_bytes / BYTES_PER_INSTR;
+    // create and push padding instructions (NOPs)
+    for(size_t i = 0; i < pad_instrs; i++) {
+      push_instruction_dram(make_nop_instr(stg));
+    }
+  }
+
   // for the given stage, create instruction fetches to pull out instrs from
   // DRAM, and ensure that instr buffer is copied to accel DRAM
   void create_instr_stream(BISMOTargetStage stg) {
+    assert((INSTR_FETCH_GRANULARITY * BYTES_PER_INSTR) % FETCH_SIZEALIGN == 0);
     assert(stg < N_STAGES);
+    add_nop_padding(stg, FETCH_SIZEALIGN);
     size_t n_instrs = m_icnt[stg];
     void * stgBufferBase = m_acc_ibuf[stg];
     BISMOInstruction * hostInstrs = m_host_ibuf[stg];
 
-    // round-up integer division to compute number of segments
+    // compute number of segments
     const size_t n_segments = (n_instrs + INSTR_FETCH_GRANULARITY - 1) / INSTR_FETCH_GRANULARITY;
     std::vector<BISMOInstruction> fetch_instrs;
     //cout << "create_instr_stream: num segments for stage " << stg << " is " << n_segments << endl;
@@ -148,7 +163,7 @@ public:
     }
 
     // copy the actual instructions to DRAM
-    const size_t instr_bytes = DRAM_INSTR_BYTES * n_instrs;
+    const size_t instr_bytes = BYTES_PER_INSTR * n_instrs;
     m_platform->copyBufferHostToAccel(hostInstrs, stgBufferBase, instr_bytes);
 
     // put the fetch instructions in OCM
@@ -182,8 +197,8 @@ public:
     ins.fetch.bram_id_start = 0;
     ins.fetch.bram_id_range = 0;
     ins.fetch.bram_addr_base = 0;
-    ins.fetch.dram_base = (uint64_t) base + (start_ind * DRAM_INSTR_BYTES);
-    ins.fetch.dram_block_size_bytes = DRAM_INSTR_BYTES * n_instrs;
+    ins.fetch.dram_base = (uint64_t) base + (start_ind * BYTES_PER_INSTR);
+    ins.fetch.dram_block_size_bytes = BYTES_PER_INSTR * n_instrs;
     ins.fetch.dram_block_offset_bytes = 0;
     ins.fetch.dram_block_count = 1;
     ins.fetch.tiles_per_row = 0;
@@ -191,7 +206,7 @@ public:
   }
 
   const size_t maxDRAMInstrBytes() const {
-    return MAX_DRAM_INSTRS * DRAM_INSTR_BYTES;
+    return MAX_DRAM_INSTRS * BYTES_PER_INSTR;
   }
 
   const size_t stageInstrCount(BISMOTargetStage stg) const {
@@ -199,7 +214,7 @@ public:
   }
 
   const size_t stageInstrBytes(BISMOTargetStage stg) const {
-    return m_icnt[stg] * DRAM_INSTR_BYTES;
+    return m_icnt[stg] * BYTES_PER_INSTR;
   }
 
   const size_t totalInstrBytes() const {
