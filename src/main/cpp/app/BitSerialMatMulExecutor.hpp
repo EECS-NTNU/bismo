@@ -346,6 +346,7 @@ protected:
     ins.res = rrc;
     ins.res.targetStage = stgResult;
     ins.res.isRunCfg = 1;
+    ins.res.nop = 0;
     ins.res.unused0 = 0;
     m_acc->push_instruction_dram(ins);
     // count result bytes for statistics

@@ -476,6 +476,11 @@ public:
     // just need to set target stage and isRunCfg
     ins.sync.targetStage = stg;
     ins.sync.isRunCfg = 1;
+    if(stg == stgResult) {
+      // the exception to this is the result stage, which has an explicit nop
+      // field
+      ins.res.nop = 1;
+    }
     return ins;
   }
 

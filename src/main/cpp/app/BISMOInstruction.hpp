@@ -67,7 +67,7 @@ struct BISMOResultRunInstruction {
   uint64_t targetStage : 2;
   uint64_t isRunCfg : 1;
   uint64_t unused0 : 59;
-  uint64_t waitComplete : 1;       // deprecated, do not use
+  uint64_t nop : 1;
   uint64_t resmem_addr : 1;
   uint64_t dram_base : 32;
   uint64_t dram_skip : 16;
@@ -127,7 +127,7 @@ ostream& operator<<(ostream& os, const BISMOResultRunInstruction& r)
   os << "dram_base: " << r.dram_base << endl;
   os << "dram_skip: " << r.dram_skip << endl;
   os << "resmem_addr: " << r.resmem_addr << endl;
-  os << "waitComplete: " << r.waitComplete << endl;
+  os << "nop: " << r.nop << endl;
   os << "waitCompleteBytes: " << r.waitCompleteBytes << endl;
   os << "========================================" << endl;
 }

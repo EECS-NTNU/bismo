@@ -96,8 +96,8 @@ class ResultStageCtrlIO() extends Bundle {
   val dram_base = UInt(width = BISMOLimits.dramAddrBits)
   // result memory to read from
   val resmem_addr = UInt(width = BISMOLimits.resAddrBits)
-  // wait for completion of all writes (no new DRAM wr generated)
-  val waitComplete = Bool()
+  // ignore instruction if set
+  val nop = Bool()
 
   override def cloneType: this.type =
     new ResultStageCtrlIO().asInstanceOf[this.type]
@@ -189,14 +189,18 @@ class ResultStage(val myP: ResultStageParams) extends Module {
   switch(regState) {
       is(sIdle) {
         when(io.start) {
-          ds.in.valid := Bool(true)
-          rg.in.valid := Bool(true)
-          when(ds.in.ready & !rg.in.ready) {
-            regState := sWaitRG
-          } .elsewhen (!ds.in.ready & rg.in.ready) {
-            regState := sWaitDS
-          } .elsewhen (ds.in.ready & rg.in.ready) {
+          when(io.csr.nop) {
             regState := sFinished
+          } .otherwise {
+            ds.in.valid := Bool(true)
+            rg.in.valid := Bool(true)
+            when(ds.in.ready & !rg.in.ready) {
+              regState := sWaitRG
+            } .elsewhen (!ds.in.ready & rg.in.ready) {
+              regState := sWaitDS
+            } .elsewhen (ds.in.ready & rg.in.ready) {
+              regState := sFinished
+            }
           }
         }
       }
