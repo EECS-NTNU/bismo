@@ -36,6 +36,7 @@ import Chisel._
 
 object BISMOLimits {
   val fetchIDBits = 5
+  val fetchBurstBeats = 8
   val inpBufAddrBits = 16
   val dramAddrBits = 32
   val dramBlockSizeBits = 16

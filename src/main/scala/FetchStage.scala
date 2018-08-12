@@ -291,8 +291,8 @@ class FetchStage(val myP: FetchStageParams) extends Module {
   // number of blocks
   reader.in.bits.block_count := Reg(next = io.csr.dram_block_count)
   // inner loop
-  // bytes for beat for each block: currently 1-beat bursts, can try 8
-  val bytesPerBeat = myP.mrp.dataWidth/8
+  // bytes for beat for each block
+  val bytesPerBeat = BISMOLimits.fetchBurstBeats * (myP.mrp.dataWidth/8)
   Predef.assert(isPow2(bytesPerBeat))
   val bytesToBeatsRightShift = log2Up(bytesPerBeat)
   reader.block_intra_step := UInt(bytesPerBeat)
