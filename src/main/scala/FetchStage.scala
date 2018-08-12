@@ -292,12 +292,13 @@ class FetchStage(val myP: FetchStageParams) extends Module {
   reader.in.bits.block_count := Reg(next = io.csr.dram_block_count)
   // inner loop
   // bytes for beat for each block
-  val bytesPerBeat = BISMOLimits.fetchBurstBeats * (myP.mrp.dataWidth/8)
-  Predef.assert(isPow2(bytesPerBeat))
-  val bytesToBeatsRightShift = log2Up(bytesPerBeat)
-  reader.block_intra_step := UInt(bytesPerBeat)
+  val bytesPerBeat = myP.mrp.dataWidth/8
+  val bytesPerBurst = BISMOLimits.fetchBurstBeats * bytesPerBeat
+  Predef.assert(isPow2(bytesPerBurst))
+  val bytesToBurstsRightShift = log2Up(bytesPerBurst)
+  reader.block_intra_step := UInt(bytesPerBurst)
   // #beats for each block
-  reader.block_intra_count := Reg(next = io.csr.dram_block_size_bytes >> bytesToBeatsRightShift)
+  reader.block_intra_count := Reg(next = io.csr.dram_block_size_bytes >> bytesToBurstsRightShift)
 
   // supply read requests to DRAM from BlockStridedRqGen
   reader.out <> io.dram.rd_req
