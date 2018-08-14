@@ -55,7 +55,7 @@ class DotProductUnitParams(
   val useVhdlPopcount: Boolean = true
 ) extends PrintableParam {
   // internal pipeline registers inside DPU
-  val myLatency = if(useVhdlPopcount){6 + extraPipelineRegs} else {5 + extraPipelineRegs}
+  val myLatency = if(useVhdlPopcount){5 + extraPipelineRegs} else {6 + extraPipelineRegs}
   // latency of instantiated PopCountUnit
   val popcountLatency: Int = pcParams.getLatency()
   // return total latency
@@ -160,18 +160,19 @@ class DotProductUnit(val p: DotProductUnitParams) extends Module {
   
   //Chose between a VHDL implementation for the AND-Popcount, otherwise the Chisel one
   val stage2 = (new DotProductStage2(p)).asDirectionless
+  // intermediate values to abstract the level: if using vhdl based popcount no latency, otherwise variable latency
   val intermediate_valid = Bool()
-  val stage2_pc_v = ShiftRegister(intermediate_valid, p.popcountLatency)
-  
+  val stage2_pc_v = ShiftRegister(intermediate_valid, 0)
+
   if (p.useVhdlPopcount) {
     val popcount = Module ( new BlackBoxCompressor(new BlackBoxCompressorParams(N = p.pcParams.numInputBits)))
     popcount.io.c := regStage0_b.a
     popcount.io.d := regStage0_b.b
     stage2.popcountResult :=  popcount.io.r
     // need extra delays on pass-through parts due to pipelined popcount
-    stage2.shiftAmount := ShiftRegister(regStage0_b.shiftAmount, p.popcountLatency)
-    stage2.negate := ShiftRegister(regStage0_b.negate, p.popcountLatency)
-    stage2.clear_acc := ShiftRegister(regStage0_b.clear_acc, p.popcountLatency)
+    stage2.shiftAmount := ShiftRegister(regStage0_b.shiftAmount, 0)
+    stage2.negate := ShiftRegister(regStage0_b.negate, 0)
+    stage2.clear_acc := ShiftRegister(regStage0_b.clear_acc, 0)
     intermediate_valid := regStage0_v
   } else{
     // pipeline stage 1: AND the bit vector inputs
@@ -192,7 +193,9 @@ class DotProductUnit(val p: DotProductUnitParams) extends Module {
     stage2.shiftAmount := ShiftRegister(regStage1_b.shiftAmount, p.popcountLatency)
     stage2.negate := ShiftRegister(regStage1_b.negate, p.popcountLatency)
     stage2.clear_acc := ShiftRegister(regStage1_b.clear_acc, p.popcountLatency)
-    intermediate_valid := regStage1_v
+    val stage2_intermdiate_pc_v = ShiftRegister(regStage1_v, p.popcountLatency)
+    intermediate_valid := stage2_intermdiate_pc_v
+
   }
   val regStage2_v = Reg(init = Bool(false), next = stage2_pc_v)
   val regStage2_b = Reg(next = stage2)
