@@ -225,10 +225,14 @@ class BitSerialMatMulAccel(
     val fetch_enable = Bool(INPUT)
     val exec_enable = Bool(INPUT)
     val result_enable = Bool(INPUT)
-    // instructions
-    val if_fetch = Decoupled(UInt(width = BISMOLimits.instrBits)).flip
-    val if_exec = Decoupled(UInt(width = BISMOLimits.instrBits)).flip
-    val if_result = Decoupled(UInt(width = BISMOLimits.instrBits)).flip
+    // descriptors for instruction fetch generation
+    val if_fetch = Decoupled(new BlockSequenceDescriptor(BISMOLimits.ifgBits)).flip
+    val if_exec = Decoupled(new BlockSequenceDescriptor(BISMOLimits.ifgBits)).flip
+    val if_result = Decoupled(new BlockSequenceDescriptor(BISMOLimits.ifgBits)).flip
+    // instruction buffer pointers in DRAM
+    val ibuf_ptr_fetch = UInt(INPUT, 32)
+    val ibuf_ptr_exec = UInt(INPUT, 32)
+    val ibuf_ptr_result = UInt(INPUT, 32)
     // fetch threshold
     val if_threshold = UInt(INPUT, 32)
     // command counts in each queue
@@ -309,9 +313,9 @@ class BitSerialMatMulAccel(
   }
 
   // OCM queues for storing instruction fetch instructions for each stage
-  val ifq_fetch = Module(new FPGAQueue(io.if_fetch.bits, BISMOLimits.maxInstrSegments)).io
-  val ifq_exec = Module(new FPGAQueue(io.if_exec.bits, BISMOLimits.maxInstrSegments)).io
-  val ifq_result = Module(new FPGAQueue(io.if_result.bits, BISMOLimits.maxInstrSegments)).io
+  val ifq_fetch = Module(new FPGAQueue(io.if_fetch.bits, 2)).io
+  val ifq_exec = Module(new FPGAQueue(io.if_exec.bits, 2)).io
+  val ifq_result = Module(new FPGAQueue(io.if_result.bits, 2)).io
   enqPulseGenFromValid(ifq_fetch.enq, io.if_fetch)
   enqPulseGenFromValid(ifq_exec.enq, io.if_exec)
   enqPulseGenFromValid(ifq_result.enq, io.if_result)
@@ -325,24 +329,24 @@ class BitSerialMatMulAccel(
   // fetch
   //ifg_fetch.enable := io.fetch_enable
   ifg_fetch.enable := Bool(true)
-  ifg_fetch.in <> ifq_fetch.deq
-  ifg_fetch.in.bits := ifg_fetch.in.bits.fromBits(ifq_fetch.deq.bits)
+  ifq_fetch.deq <> ifg_fetch.cmd
+  ifg_fetch.ibuf_ptr := Reg(next=io.ibuf_ptr_fetch)
   ifg_fetch.queue_count := fetchOpQ.count
   ifg_fetch.queue_threshold := io.if_threshold
   ifg_fetch.new_instr_pulse := fetchOpQ.enq.fire()
   // exec
   //ifg_exec.enable := io.exec_enable
   ifg_exec.enable := Bool(true)
-  ifg_exec.in <> ifq_exec.deq
-  ifg_exec.in.bits := ifg_exec.in.bits.fromBits(ifq_exec.deq.bits)
+  ifq_exec.deq <> ifg_exec.cmd
+  ifg_exec.ibuf_ptr := Reg(next=io.ibuf_ptr_exec)
   ifg_exec.queue_count := execOpQ.count
   ifg_exec.queue_threshold := io.if_threshold
   ifg_exec.new_instr_pulse := execOpQ.enq.fire()
   // result
   //ifg_result.enable := io.result_enable
   ifg_result.enable := Bool(true)
-  ifg_result.in <> ifq_result.deq
-  ifg_result.in.bits := ifg_result.in.bits.fromBits(ifq_result.deq.bits)
+  ifq_result.deq <> ifg_result.cmd
+  ifg_result.ibuf_ptr := Reg(next=io.ibuf_ptr_result)
   ifg_result.queue_count := resultOpQ.count
   ifg_result.queue_threshold := io.if_threshold
   ifg_result.new_instr_pulse := resultOpQ.enq.fire()

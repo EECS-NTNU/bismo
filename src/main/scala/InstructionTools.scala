@@ -39,7 +39,7 @@ class InstructionFetchGen(ifgName: String = "") extends Module {
   val io = new Bundle {
     val enable = Bool(INPUT)
     // input descriptors
-    val cmd = Decoupled(new BlockSequenceDescriptor(10)).flip
+    val cmd = Decoupled(new BlockSequenceDescriptor(BISMOLimits.ifgBits)).flip
     // pointer to the start of the instruction buffer
     val ibuf_ptr = UInt(INPUT, width = BISMOLimits.dramAddrBits)
     // current number of instructions in stage queue
@@ -51,13 +51,12 @@ class InstructionFetchGen(ifgName: String = "") extends Module {
     // output instructon fetch instructions
     val out = Decoupled(new BISMOFetchRunInstruction())
   }
-  val regIBufPtr = Reg(next = io.ibuf_ptr)
   // convert descriptors to a sequence of blocks
-  val bsg = Module(new BlockSequenceGenerator(10)).io
+  val bsg = Module(new BlockSequenceGenerator(BISMOLimits.ifgBits)).io
   io.cmd <> bsg.cmd
   // shift amount to convert # of instructions to # of bytes
   val shiftInstrToBytes = log2Up(BISMOLimits.instrBits / 8)
-  // function to  blocks to instruction fetch
+  // function to convert blocks to instruction fetch
   def blockToFetchInstr(b: BlockSequenceOutput): BISMOFetchRunInstruction = {
     val ret = new BISMOFetchRunInstruction()
     ret.isRunCfg := Bool(true)
@@ -69,12 +68,15 @@ class InstructionFetchGen(ifgName: String = "") extends Module {
     ret.runcfg.bram_id_range := UInt(0) // single ID target
     ret.runcfg.bram_addr_base := UInt(0) // don't care
     ret.runcfg.dram_block_size_bytes := b.count << shiftInstrToBytes
-    ret.runcfg.dram_base := regIBufPtr + (b.start << shiftInstrToBytes)
+    ret.runcfg.dram_base := b.start << shiftInstrToBytes
     return ret
   }
   // small queue to store generated fetch instructions
   val fiq = Module(new FPGAQueue(io.out.bits, 2)).io
-  StreamFilter(bsg.out, io.out.bits, blockToFetchInstr) <> fiq.enq
+  val pre_ins = StreamFilter(bsg.out, io.out.bits, blockToFetchInstr)
+  pre_ins <> fiq.enq
+  // override DRAM address to add the base offset
+  fiq.enq.bits.runcfg.dram_base := io.ibuf_ptr + pre_ins.bits.runcfg.dram_base
   val ins = fiq.deq
 
   // count number of outstanding instruction fetches

@@ -52,7 +52,7 @@
 #define FETCH_ADDRALIGN           64
 #define FETCH_SIZEALIGN           64
 #define FETCH_BLOCK_MAX           (1 << BISMO_LIMIT_DRAM_BSIZE_BITS)
-#define MAX_INSTR_SEGS            64
+#define MAX_INSTR_SEGS            1024
 #define MAX_DRAM_INSTRS           (MAX_INSTR_SEGS*m_cfg.cmdQueueEntries)
 #define BYTES_PER_INSTR           16
 #define INSTR_FETCH_GRANULARITY   (m_cfg.cmdQueueEntries/2)
@@ -144,65 +144,46 @@ public:
     assert(stg < N_STAGES);
     add_nop_padding(stg, FETCH_SIZEALIGN);
     size_t n_instrs = m_icnt[stg];
-    void * stgBufferBase = m_acc_ibuf[stg];
+    AccelReg stgBufferBase = (AccelReg)(AccelDblReg) m_acc_ibuf[stg];
     BISMOInstruction * hostInstrs = m_host_ibuf[stg];
-
-    // compute number of segments
-    const size_t n_segments = (n_instrs + INSTR_FETCH_GRANULARITY - 1) / INSTR_FETCH_GRANULARITY;
-    std::vector<BISMOInstruction> fetch_instrs;
-    //cout << "create_instr_stream: num segments for stage " << stg << " is " << n_segments << endl;
-    // for each segment of instructions, create an instruction fetch
-    size_t n_instrs_left = n_instrs;
-    for(size_t seg = 0; seg < n_segments; seg++) {
-      size_t start_ind = INSTR_FETCH_GRANULARITY * seg;
-      size_t count = n_instrs_left < INSTR_FETCH_GRANULARITY ? n_instrs_left : INSTR_FETCH_GRANULARITY;
-      BISMOInstruction ins = makeInstructionFetch(stgBufferBase, start_ind, count);
-      //cout << "create_instr_stream: segment " << seg << ": start = " << start_ind << " " << " count " << count << endl;
-      fetch_instrs.push_back(ins);
-      n_instrs_left -= count;
-    }
+    size_t instr_per_block = FETCH_SIZEALIGN / BYTES_PER_INSTR;
 
     // copy the actual instructions to DRAM
     const size_t instr_bytes = BYTES_PER_INSTR * n_instrs;
-    m_platform->copyBufferHostToAccel(hostInstrs, stgBufferBase, instr_bytes);
-
-    // put the fetch instructions in OCM
-    for(auto &fi : fetch_instrs) {
-      switch (stg) {
-        case stgFetch:
-          if_fetch(fi);
-          //m_accel->set_total_instr_fetch(n_instrs);
-          break;
-        case stgExec:
-          if_exec(fi);
-          //m_accel->set_total_instr_exec(n_instrs);
-          break;
-        case stgResult:
-          if_result(fi);
-          //m_accel->set_total_instr_result(n_instrs);
-          break;
-        default:
-          cerr << "Unrecognized state in makeInstructionFetch" << endl;
-          assert(0);
-      }
+    m_platform->copyBufferHostToAccel(hostInstrs, (void*) stgBufferBase, instr_bytes);
+    // put in the descriptor for the corresponding stage
+    switch (stg) {
+      case stgFetch:
+        m_accel->set_ibuf_ptr_fetch(stgBufferBase);
+        m_accel->set_if_fetch_bits_start(0);
+        m_accel->set_if_fetch_bits_count(n_instrs);
+        m_accel->set_if_fetch_bits_blockSize(instr_per_block);
+        while(!m_accel->get_if_fetch_ready());
+        m_accel->set_if_fetch_valid(1);
+        m_accel->set_if_fetch_valid(0);
+        break;
+      case stgExec:
+        m_accel->set_ibuf_ptr_exec(stgBufferBase);
+        m_accel->set_if_exec_bits_start(0);
+        m_accel->set_if_exec_bits_count(n_instrs);
+        m_accel->set_if_exec_bits_blockSize(instr_per_block);
+        while(!m_accel->get_if_exec_ready());
+        m_accel->set_if_exec_valid(1);
+        m_accel->set_if_exec_valid(0);
+        break;
+      case stgResult:
+        m_accel->set_ibuf_ptr_result(stgBufferBase);
+        m_accel->set_if_result_bits_start(0);
+        m_accel->set_if_result_bits_count(n_instrs);
+        m_accel->set_if_result_bits_blockSize(instr_per_block);
+        while(!m_accel->get_if_result_ready());
+        m_accel->set_if_result_valid(1);
+        m_accel->set_if_result_valid(0);
+        break;
+      default:
+        cerr << "Unrecognized state in makeInstructionFetch" << endl;
+        assert(0);
     }
-  }
-
-  // create a fetch instruction to fetch more instructions
-  BISMOInstruction makeInstructionFetch(void * base, size_t start_ind, size_t n_instrs) {
-    BISMOInstruction ins;
-    ins.fetch.targetStage = stgFetch;
-    ins.fetch.isRunCfg = 1;
-    ins.fetch.unused0 = 0;
-    ins.fetch.bram_id_start = 0;
-    ins.fetch.bram_id_range = 0;
-    ins.fetch.bram_addr_base = 0;
-    ins.fetch.dram_base = (uint64_t) base + (start_ind * BYTES_PER_INSTR);
-    ins.fetch.dram_block_size_bytes = BYTES_PER_INSTR * n_instrs;
-    ins.fetch.dram_block_offset_bytes = 0;
-    ins.fetch.dram_block_count = 1;
-    ins.fetch.tiles_per_row = 0;
-    return ins;
   }
 
   const size_t maxDRAMInstrBytes() const {
@@ -223,42 +204,6 @@ public:
       ret += stageInstrBytes((BISMOTargetStage) i);
     }
     return ret;
-  }
-
-  void if_fetch(BISMOInstruction ins) {
-    // use regs to directly push into OCM instruction queue
-    m_accel->set_if_fetch_bits0(ins.raw[3]);
-    m_accel->set_if_fetch_bits1(ins.raw[2]);
-    m_accel->set_if_fetch_bits2(ins.raw[1]);
-    m_accel->set_if_fetch_bits3(ins.raw[0]);
-    // push into fetch op FIFO when available
-    while(!m_accel->get_if_fetch_ready());
-    m_accel->set_if_fetch_valid(1);
-    m_accel->set_if_fetch_valid(0);
-  }
-
-  void if_exec(BISMOInstruction ins) {
-    // use regs to directly push into OCM instruction queue
-    m_accel->set_if_exec_bits0(ins.raw[3]);
-    m_accel->set_if_exec_bits1(ins.raw[2]);
-    m_accel->set_if_exec_bits2(ins.raw[1]);
-    m_accel->set_if_exec_bits3(ins.raw[0]);
-    // push into exec op FIFO when available
-    while(!m_accel->get_if_exec_ready());
-    m_accel->set_if_exec_valid(1);
-    m_accel->set_if_exec_valid(0);
-  }
-
-  void if_result(BISMOInstruction ins) {
-    // use regs to directly push into OCM instruction queue
-    m_accel->set_if_result_bits0(ins.raw[3]);
-    m_accel->set_if_result_bits1(ins.raw[2]);
-    m_accel->set_if_result_bits2(ins.raw[1]);
-    m_accel->set_if_result_bits3(ins.raw[0]);
-    // push into result op FIFO when available
-    while(!m_accel->get_if_result_ready());
-    m_accel->set_if_result_valid(1);
-    m_accel->set_if_result_valid(0);
   }
 
   void push_instruction_dram(BISMOInstruction ins) {
