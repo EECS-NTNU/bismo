@@ -102,6 +102,7 @@ object ChiselMain {
 
     val chiselArgs = Array("--backend", "v", "--targetDir", targetDir)
     chiselMain(chiselArgs, () => Module(platformInst(accInst)))
+
   }
 }
 
@@ -217,6 +218,15 @@ object CharacterizeMain {
   }
   val instFxn_FetchStage = {p: FetchStageParams => Module(new FetchStage(p))}
 
+  def makeParamSpace_BlackBoxCompressor(): Seq[BlackBoxCompressorParams] = {
+    return for {
+      n <- for(i <- 5 to 8) yield 1 << i
+    } yield new BlackBoxCompressorParams(
+      N = n
+    )
+  }
+  val instFxn_BlackBoxCompressor = {p: BlackBoxCompressorParams => Module(new BlackBoxCompressor(p))}
+
   def main(args: Array[String]): Unit = {
     val chName: String = args(0)
     val chPath: String = args(1)
@@ -238,7 +248,9 @@ object CharacterizeMain {
       VivadoSynth.characterizeSpace(makeParamSpace_ResultBuf(), instFxn_ResultBuf, chPath, chLog, fpgaPart)
     } else if(chName == "CharacterizeFetchStage") {
       VivadoSynth.characterizeSpace(makeParamSpace_FetchStage(), instFxn_FetchStage, chPath, chLog, fpgaPart)
-    } else {
+    } else if (chName == "CharacterizeBlackBoxCompressor"){
+      VivadoSynth.characterizeSpace(makeParamSpace_BlackBoxCompressor(), instFxn_BlackBoxCompressor, chPath, chLog, fpgaPart)
+    }else {
       println("Unrecognized target for characterization")
     }
   }
