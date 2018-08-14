@@ -35,19 +35,13 @@ import Chisel._
 import fpgatidbits.ocm._
 import fpgatidbits.streams._
 
-class BufDesc extends Bundle {
-  val ptr = UInt(width = 32)
-  val bytes = UInt(width = 32)
-
-  override def cloneType: this.type =
-    new BufDesc().asInstanceOf[this.type]
-}
-
 class InstructionFetchGen(ifgName: String = "") extends Module {
   val io = new Bundle {
     val enable = Bool(INPUT)
-    // input instruction fetch instructions
-    val in = Decoupled(new BISMOFetchRunInstruction()).flip
+    // input descriptors
+    val cmd = Decoupled(new BlockSequenceDescriptor(10)).flip
+    // pointer to the start of the instruction buffer
+    val ibuf_ptr = UInt(INPUT, width = BISMOLimits.dramAddrBits)
     // current number of instructions in stage queue
     val queue_count = UInt(INPUT, width = 16)
     // when a new fetch will be triggered
@@ -57,11 +51,37 @@ class InstructionFetchGen(ifgName: String = "") extends Module {
     // output instructon fetch instructions
     val out = Decoupled(new BISMOFetchRunInstruction())
   }
+  val regIBufPtr = Reg(next = io.ibuf_ptr)
+  // convert descriptors to a sequence of blocks
+  val bsg = Module(new BlockSequenceGenerator(10)).io
+  io.cmd <> bsg.cmd
+  // shift amount to convert # of instructions to # of bytes
+  val shiftInstrToBytes = log2Up(BISMOLimits.instrBits / 8)
+  // function to  blocks to instruction fetch
+  def blockToFetchInstr(b: BlockSequenceOutput): BISMOFetchRunInstruction = {
+    val ret = new BISMOFetchRunInstruction()
+    ret.isRunCfg := Bool(true)
+    ret.targetStage := UInt(0)
+    ret.runcfg.tiles_per_row := UInt(0) // don't care
+    ret.runcfg.dram_block_count := UInt(1)  // fetch a single block
+    ret.runcfg.dram_block_offset_bytes := UInt(0) // don't care
+    ret.runcfg.bram_id_start := UInt(0) // always target instr.q.
+    ret.runcfg.bram_id_range := UInt(0) // single ID target
+    ret.runcfg.bram_addr_base := UInt(0) // don't care
+    ret.runcfg.dram_block_size_bytes := b.count << shiftInstrToBytes
+    ret.runcfg.dram_base := regIBufPtr + (b.start << shiftInstrToBytes)
+    return ret
+  }
+  // small queue to store generated fetch instructions
+  val fiq = Module(new FPGAQueue(io.out.bits, 2)).io
+  StreamFilter(bsg.out, io.out.bits, blockToFetchInstr) <> fiq.enq
+  val ins = fiq.deq
+
   // count number of outstanding instruction fetches
   val regOutstandingInstrsToFetch = Reg(init = UInt(0, width = 16))
   when(io.out.fire()) {
     val samt = log2Up(BISMOLimits.instrBits / 8)
-    regOutstandingInstrsToFetch := io.in.bits.runcfg.dram_block_size_bytes >> samt
+    regOutstandingInstrsToFetch := ins.bits.runcfg.dram_block_size_bytes >> samt
   } .otherwise {
     when(io.new_instr_pulse) {
       regOutstandingInstrsToFetch := regOutstandingInstrsToFetch - UInt(1)
@@ -77,7 +97,7 @@ class InstructionFetchGen(ifgName: String = "") extends Module {
   val can_issue = (regOutstandingInstrsToFetch === UInt(0))
   val regEnable = Reg(next = io.enable)
   val allow = (under_threshold & can_issue & regEnable)
-  StreamThrottle(io.in, !allow) <> io.out
+  StreamThrottle(ins, !allow) <> io.out
   // uncomment to debug
   /*val prevOutstanding = Reg(next=regOutstandingInstrsToFetch)
   when(prevOutstanding != regOutstandingInstrsToFetch) {
