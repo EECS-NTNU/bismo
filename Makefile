@@ -73,18 +73,19 @@ VIVADO_IN_PATH := $(shell command -v vivado 2> /dev/null)
 ZSH_IN_PATH := $(shell command -v zsh 2> /dev/null)
 CPPTEST_SRC_DIR := $(TOP)/src/test/cosim
 
+# BISMO is run in emulation mode by default if no target is provided
+.DEFAULT_GOAL := emu
+
 # note that all targets are phony targets, no proper dependency tracking
 .PHONY: hw_verilog emulib hw_driver hw_vivadoproj bitfile hw sw all rsync test characterize check_vivado
 
-check_vivado:
-ifndef VIVADO_IN_PATH
-    $(error "vivado not found in path")
-endif
-
-check_zsh:
+#check_zsh:
 ifndef ZSH_IN_PATH
     $(error "zsh not in path; needed by oh-my-xilinx for characterization")
 endif
+
+check_vivado:
+	$(if $(VIVADO_IN_PATH),$(echo "Found vivado"),$(error "vivado not found in path"))
 
 # run Scala/Chisel tests
 Test%:
@@ -121,11 +122,11 @@ $(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp:
 # create a new Vivado project
 hw_vivadoproj: $(BITFILE_PRJDIR)/bitfile_synth.xpr
 
-$(BITFILE_PRJDIR)/bitfile_synth.xpr: $(HW_VERILOG)
+$(BITFILE_PRJDIR)/bitfile_synth.xpr: check_vivado $(HW_VERILOG)
 	vivado -mode $(VIVADO_MODE) -source $(VIVADO_PROJ_SCRIPT) -tclargs $(TOP) $(HW_VERILOG) $(BITFILE_PRJNAME) $(BITFILE_PRJDIR) $(FREQ_MHZ)
 
 # launch Vivado in GUI mode with created project
-launch_vivado_gui: $(BITFILE_PRJDIR)/bitfile_synth.xpr
+launch_vivado_gui: check_vivado $(BITFILE_PRJDIR)/bitfile_synth.xpr
 	vivado -mode gui $(BITFILE_PRJDIR)/$(BITFILE_PRJNAME).xpr
 
 # run bitfile synthesis for the Vivado project
