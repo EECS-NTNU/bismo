@@ -142,13 +142,7 @@ class DotProductUnit(val p: DotProductUnitParams) extends Module {
     val in = Valid(new DotProductStage0(p)).asInput
     val out = UInt(OUTPUT, width = p.accWidth)
   }
-  // instantiate the popcount unit
-  val modPopCount = Module(new PopCountUnit(p.pcParams))
-  //when(io.in.valid) { printf("DPU operands are %x and %x\n", io.in.bits.a, io.in.bits.b) }
-  // core AND-popcount-shift part of datapath
-  // note that the valid bit and the actual pipeline contents are
-  // treated differently to save FPGA resources: valid pipeline regs
-  // are initialized to 0, whereas actual data regs aren't initialized
+
 
   // extra pipeline regs at the input
   val regInput = ShiftRegister(io.in, p.extraPipelineRegs)
@@ -175,6 +169,13 @@ class DotProductUnit(val p: DotProductUnitParams) extends Module {
     stage2.clear_acc := ShiftRegister(regStage0_b.clear_acc, 0)
     intermediate_valid := regStage0_v
   } else{
+    // instantiate the popcount unit
+    val modPopCount = Module(new PopCountUnit(p.pcParams))
+    //when(io.in.valid) { printf("DPU operands are %x and %x\n", io.in.bits.a, io.in.bits.b) }
+    // core AND-popcount-shift part of datapath
+    // note that the valid bit and the actual pipeline contents are
+    // treated differently to save FPGA resources: valid pipeline regs
+    // are initialized to 0, whereas actual data regs aren't initialized
     // pipeline stage 1: AND the bit vector inputs
     val stage1 = (new DotProductStage1(p)).asDirectionless
     stage1.andResult := regStage0_b.a & regStage0_b.b
