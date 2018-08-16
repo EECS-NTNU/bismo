@@ -51,11 +51,11 @@ class DotProductUnitParams(
   val noNegate: Boolean = false,
   // extra regs for retiming
   val extraPipelineRegs: Int = 0,
-  // popcount vhdl module choice
-  val useVhdlPopcount: Boolean = true
+  // compressor vhdl module choice
+  val useVhdlCompressor: Boolean = true
 ) extends PrintableParam {
   // internal pipeline registers inside DPU
-  val myLatency = if(useVhdlPopcount){5 + extraPipelineRegs} else {6 + extraPipelineRegs}
+  val myLatency = if(useVhdlCompressor){5 + extraPipelineRegs} else {6 + extraPipelineRegs}
   // latency of instantiated PopCountUnit
   val popcountLatency: Int = pcParams.getLatency()
   // return total latency
@@ -158,7 +158,7 @@ class DotProductUnit(val p: DotProductUnitParams) extends Module {
   val intermediate_valid = Bool()
   val stage2_pc_v = ShiftRegister(intermediate_valid, 0)
 
-  if (p.useVhdlPopcount) {
+  if (p.useVhdlCompressor) {
     val popcount = Module ( new BlackBoxCompressor(new BlackBoxCompressorParams(N = p.pcParams.numInputBits)))
     popcount.io.c := regStage0_b.a
     popcount.io.d := regStage0_b.b

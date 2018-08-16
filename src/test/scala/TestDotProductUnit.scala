@@ -201,7 +201,7 @@ class TestDotProductUnit extends JUnitSuite {
     } {
       // function that instantiates the Module to be tested
       val pcp = new PopCountUnitParams(popc_width, extraPipelineRegs = popc_extra_regs)
-      val p = new DotProductUnitParams(pcp, 32, 16, useVhdlPopcount = true)
+      val p = new DotProductUnitParams(pcp, 32, 16, useVhdlCompressor = true)
       def testModuleInstFxn = () => { Module(new DotProductUnit(p)) }
       // function that instantiates the Tester to test the Module
       def testTesterInstFxn = (c: DotProductUnit) => new DotProductUnitTester(c)
