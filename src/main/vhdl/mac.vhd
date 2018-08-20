@@ -5,7 +5,7 @@
 --  Author: Thomas B. Preusser <thomas.preusser@utexas.edu>
 --          Marie-Curie Fellow, Xilinx Ireland, Grant Agreement No. 751339
 -- Modifications : Davide Conficconi <davidec@xilinx.com>
---  Removed unused rst port
+--  Removed unused rst port, retiming on output and on mr signal
 --
 --  This project has received funding from the European Union's Framework
 --  Programme for Research and Innovation Horizon 2020 (2014-2020) under
@@ -24,7 +24,6 @@ entity mac is
   );
   port (
     clk : in std_logic;
-
     a : in  std_logic_vector(WA-1 downto 0);
     c : in  std_logic_vector(N*WC-1 downto 0);
     d : in  std_logic_vector(N*WD-1 downto 0);
@@ -213,8 +212,11 @@ architecture rtl of mac is
   constant PRECOMPRESSION : integer_vector := SCHEDULE_PRECOMPRESSION;
   
   -- The Reduction Input
-  signal ma, mb : std_logic_vector(N*WC*WD-1 downto 0);
-  signal mr     : std_logic_vector(sum(PRECOMPRESSION(PRECOMPRESSION(0) downto 1))-1 downto 0);
+  signal ma, mb                 : std_logic_vector(N*WC*WD-1 downto 0);
+  signal mr                     : std_logic_vector(sum(PRECOMPRESSION(PRECOMPRESSION(0) downto 1))-1 downto 0);
+  signal r_intermediate_1       : std_logic_vector(WA-1 downto 0);
+  signal mr_pipeline            : std_logic_vector(sum(PRECOMPRESSION(PRECOMPRESSION(0) downto 1))-1 downto 0);
+
 
 begin
 
@@ -233,6 +235,14 @@ begin
         genAssign: if COL < WA generate
           constant TRGT : natural := N*sum(PRODUCT_HEIGHTS(COL-1 downto 0)) + i*PRODUCT_HEIGHTS(COL) + cx - MAXIMUM(0, 1+COL-WD);
         begin
+          GENPRODUCT_REG : process( clk )
+          begin
+            if rising_edge(clk) then
+              ma <= ma;
+              mb <= mb;
+            end if ;
+            
+          end process ; -- GENPRODUCT_REG
           ma(TRGT) <= cc(cx) and dd(dx);
           mb(TRGT) <= cc(cx) and dd(dx);
         end generate genAssign;
@@ -253,14 +263,23 @@ begin
     --  x2 <= ma(PRECOMPRESSION(i+3)) and mb(PRECOMPRESSION(i+3));
     --  mr(PRECOMPRESSION(i+4)) <= x0 xor x1 xor x2;
     --  mr(PRECOMPRESSION(i+5)) <= (x0 and x1) or (x0 and x2) or (x1 and x2);
-
+     TAG2P_REG    : entity work.reg
+      generic map(
+        DataWidth     => sum(PRECOMPRESSION(PRECOMPRESSION(0) downto 1))
+        )
+      port map(
+        clk         => clk,
+        rst         => '1',
+        data_in       => mr_pipeline,
+        data_out      => mr
+        );
       lut: LUT6_2
         generic map (
           INIT => x"EA80_8080" & x"956A_6A6A"
         )
         port map (
-          O6 => mr(PRECOMPRESSION(i+5)),
-          O5 => mr(PRECOMPRESSION(i+4)),
+          O6 => mr_pipeline(PRECOMPRESSION(i+5)),
+          O5 => mr_pipeline(PRECOMPRESSION(i+4)),
           I5 => '1',
           I4 => mb(PRECOMPRESSION(i+3)),
           I3 => ma(PRECOMPRESSION(i+3)),
@@ -272,19 +291,58 @@ begin
     genComp3: if TAG = TAG3 generate
       signal x0, x1, x2 : std_logic;
     begin
+      TAG3_REG    : entity work.reg
+        generic map(
+          DataWidth     => sum(PRECOMPRESSION(PRECOMPRESSION(0) downto 1))
+          )
+        port map(
+          clk         => clk,
+          rst         => '1',
+          data_in       => mr_pipeline,
+          data_out      => mr
+          );
+      pipeline_tag3 : process( clk )
+      begin
+        if rising_edge(clk) then
+          x0 <= x0;
+          x1 <= x1;
+          x2 <= x2;
+        end if ;
+        
+      end process ; -- pipeline_tag3
       -- TODO?: TWO LUT6?
       x0 <= ma(PRECOMPRESSION(i+1)) and mb(PRECOMPRESSION(i+1));
       x1 <= ma(PRECOMPRESSION(i+2)) and mb(PRECOMPRESSION(i+2));
       x2 <= ma(PRECOMPRESSION(i+3)) and mb(PRECOMPRESSION(i+3));
-      mr(PRECOMPRESSION(i+4)) <= x0 xor x1 xor x2;
-      mr(PRECOMPRESSION(i+5)) <= (x0 and x1) or (x0 and x2) or (x1 and x2);
+      mr_pipeline(PRECOMPRESSION(i+4)) <= x0 xor x1 xor x2;
+      mr_pipeline(PRECOMPRESSION(i+5)) <= (x0 and x1) or (x0 and x2) or (x1 and x2);
     end generate;
     genAnd: if TAG = TAG_AND generate
       -- TODO?: MERGE TWO for LUT6_2?
-      mr(PRECOMPRESSION(i+2)) <= ma(PRECOMPRESSION(i+1)) and mb(PRECOMPRESSION(i+1));
+        TAG_AND_REG    : entity work.reg
+        generic map(
+          DataWidth     => sum(PRECOMPRESSION(PRECOMPRESSION(0) downto 1))
+          )
+        port map(
+          clk         => clk,
+          rst         => '1',
+          data_in       => mr_pipeline,
+          data_out      => mr
+          );
+      mr_pipeline(PRECOMPRESSION(i+2)) <= ma(PRECOMPRESSION(i+1)) and mb(PRECOMPRESSION(i+1));
     end generate;
     genCopy: if TAG = TAG_COPY generate
-      mr(PRECOMPRESSION(i+2)) <= A(PRECOMPRESSION(i+1));
+      TAG_COPY_REG    : entity work.reg
+        generic map(
+          DataWidth     => sum(PRECOMPRESSION(PRECOMPRESSION(0) downto 1))
+          )
+        port map(
+          clk         => clk,
+          rst         => '1',
+          data_in       => mr_pipeline,
+          data_out      => mr
+          );
+      mr_pipeline(PRECOMPRESSION(i+2)) <= A(PRECOMPRESSION(i+1));
     end generate;
   end generate genPre;
 
@@ -297,14 +355,26 @@ begin
         INPUT_LAYOUT => LAYOUT
       )
       port map (
+       clk => clk,
         x => mr,
         y => y
       );
 
+  OUTPUT_REG_1    : entity work.reg
+    generic map(
+      DataWidth     => WA
+      )
+    port map(
+      clk         => clk,
+      rst         => '1',
+      data_in       => r_intermediate_1,
+      data_out      => r
+      );
+
     process(y)
     begin
-      r <= (others => '0');
-      r(MINIMUM(y'left, r'left) downto 0) <= y(MINIMUM(y'left, r'left) downto 0);
+      r_intermediate_1 <= (others => '0');
+      r_intermediate_1(MINIMUM(y'left, r'left) downto 0) <= y(MINIMUM(y'left, r'left) downto 0);
     end process;
 
   end block blkCompress;

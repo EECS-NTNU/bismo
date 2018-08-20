@@ -4,6 +4,8 @@
 --
 --  Author: Thomas B. Preusser <thomas.preusser@utexas.edu>
 --          Marie-Curie Fellow, Xilinx Ireland, Grant Agreement No. 751339
+-- Modifications : Davide Conficconi <davidec@xilinx.com>
+--  add clk port and a register for retiming
 --
 --  This project has received funding from the European Union's Framework
 --  Programme for Research and Innovation Horizon 2020 (2014-2020) under
@@ -19,6 +21,7 @@ entity compress is
     INPUT_LAYOUT : natural_vector
   );
   port (
+    clk : in std_logic;
     x : in  std_logic_vector(sum(INPUT_LAYOUT)-1 downto 0);
     y : out std_logic_vector(clog2_maxweight(INPUT_LAYOUT)-1 downto 0)
   );
@@ -35,11 +38,11 @@ architecture xil of compress is
   -- Compression Schedule
   constant S : integer_vector := schedule(INPUT_LAYOUT);
   signal nn  : std_logic_vector(MAXIMUM(S) downto 0);  -- used bit signals
-
+  signal nn_int  : std_logic_vector(MAXIMUM(S) downto 0);  -- used bit signals
 begin
 
   -- Feed Inputs
-  nn(x'length downto 0) <= x & '0';
+  nn_int(x'length downto 0) <= x & '0';
   
   -- Implement Schedule
   genSchedule : for i in S'range generate
@@ -62,7 +65,7 @@ begin
 
         -- Map Outputs
         genMapOut: for j in bits_out'range generate
-          nn(S(i+INPUT_BITS+OUTPUT_BITS-j)) <= bits_out(j);
+          nn_int(S(i+INPUT_BITS+OUTPUT_BITS-j)) <= bits_out(j);
         end generate genMapOut;
 
         -- Generate Counters that utilize a CARRY4 primitive
@@ -220,14 +223,14 @@ begin
       begin
         fa : entity work.fa_cc
           port map (
-            a    => nn(S(i+1)),
-            b    => nn(S(i+2)),
-            cin  => nn(S(i+3)),
+            a    => nn_int(S(i+1)),
+            b    => nn_int(S(i+2)),
+            cin  => nn_int(S(i+3)),
             s    => y(S(i-1)),
             cout => cout
           );
         genCout : if S(i+4) /= 0 generate
-          nn(S(i+4)) <= cout;
+          nn_int(S(i+4)) <= cout;
         end generate;
       end generate genSumFA;
 
@@ -236,22 +239,30 @@ begin
       begin
         a42 : entity work.add42_cc
           port map (
-            a    => nn(S(i+1)),
-            b    => nn(S(i+2)),
-            c    => nn(S(i+3)),
-            gin  => nn(S(i+4)),
-            cin  => nn(S(i+5)),
+            a    => nn_int(S(i+1)),
+            b    => nn_int(S(i+2)),
+            c    => nn_int(S(i+3)),
+            gin  => nn_int(S(i+4)),
+            cin  => nn_int(S(i+5)),
             s    => y(S(i-1)),
             gout => gout,
             cout => cout
           );
         genGout : if S(i+6) /= 0 generate
-          nn(S(i+6)) <= gout;
+          nn_int(S(i+6)) <= gout;
         end generate;
         genCout : if S(i+7) /= 0 generate
-          nn(S(i+7)) <= cout;
+          nn_int(S(i+7)) <= cout;
         end generate;
       end generate genSum42;
+
+      tree_pipelining : process( clk )
+      begin
+          if rising_edge(clk) then
+              nn <= nn_int;
+          end if ;
+        
+      end process ; -- tree_pipelining
 
     end generate genTag;
   end generate genSchedule;
