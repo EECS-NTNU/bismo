@@ -217,6 +217,18 @@ object CharacterizeMain {
   }
   val instFxn_FetchStage = {p: FetchStageParams => Module(new FetchStage(p))}
 
+  def makeParamSpace_THU(): Seq[ThresholdingUnitParams] = {
+    return for {
+      c <- 1 to 1
+      n <- for(i <- 1 to 1) yield c*i
+    } yield new ThresholdingUnitParams(
+      inputBitPrecision = 32, maxOutputBitPrecision = 4, matrixRows = 8,
+      matrixColumns = 8, thresholdMemDepth = 8, thresholdMemWidth = maxOutputBitPrecision * matrixColumns,
+      unrollingFactor = 0
+    )
+  }
+  val instFxn_THU = {p: ThresholdingUnitParams => Module(new ThresholdingUnit(p))}
+
   def main(args: Array[String]): Unit = {
     val chName: String = args(0)
     val chPath: String = args(1)
@@ -238,7 +250,9 @@ object CharacterizeMain {
       VivadoSynth.characterizeSpace(makeParamSpace_ResultBuf(), instFxn_ResultBuf, chPath, chLog, fpgaPart)
     } else if(chName == "CharacterizeFetchStage") {
       VivadoSynth.characterizeSpace(makeParamSpace_FetchStage(), instFxn_FetchStage, chPath, chLog, fpgaPart)
-    } else {
+    } else if(chName == "CharacterizeTHU") {
+      VivadoSynth.characterizeSpace(makeParamSpace_THU(), instFxn_THU, chPath, chLog, fpgaPart)
+    }else {
       println("Unrecognized target for characterization")
     }
   }
