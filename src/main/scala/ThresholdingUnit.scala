@@ -44,6 +44,7 @@ class ThresholdingUnitParams(
   }
 }
 
+//MY WORRIES: Handle DecoupledIO?
 class ThresholdingInputMatrixIO (val p: ThresholdingUnitParams) extends Bundle{
   val i = Vec.fill(p.matrixRows){Vec.fill(p.matrixColumns){Bits(INPUT, width = p.inputBitPrecision)}}
   val iValid = Bool(INPUT)
@@ -69,11 +70,11 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
     val thresholdsInterf = new ThresholdingInputThresholdIO(p)  
   }
   //A register for temporary matrix storage and valid signal 
-  val inRegData = Vec.fill(p.matrixRows){Vec.fill(p.matrixColumns){Reg(outType = p.inputBitPrecision)}}
+  val inRegData = Vec.fill(p.matrixRows){Vec.fill(p.matrixColumns){Reg(outType = UInt(width =  p.inputBitPrecision))}}
   val inRegValid = Reg(init = Bool(false), next = io.inputMatrix.iValid)
-  // NEED TO BIND THE REGISTER WITH THIS WIRE OR WRITE BETTER THE ABOVE REGISTER
-  for(int i = 0; i<p.matrixRows;i++)
-    for(int j =0; j<p.matrixColumns; j++)
+  
+  for(i <- 0 to p.matrixRows - 1)
+    for(j <- 0 to p.matrixColumns - 1 )
       inRegData(i)(j) := io.inputMatrix.i(i)(j)
 
 
@@ -83,39 +84,42 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
 
   //threshold management
   val thRegData = Vec.fill(p.matrixColumns){Reg(outType = UInt(width = p.maxOutputBitPrecision))}
-  val thAddressWire = UInt(width = log2Up(p.thresholdMemDepth))
+  //val thAddressWire = UInt(0, width = log2Up(p.thresholdMemDepth))
 
   //fill the vector of thresholds with the input thresholds
-  for (int i = 0; i<p.matrixColumns; i++)
-    thRegData(i):= io.thresholdsInterf.thresholdVector(((i+1)*p.maxOutputBitPrecision)-1,i*p.maxOutputBitPrecision)
+  for (i <- 0 to p.matrixColumns - 1)
+    thRegData(i):= io.thresholdsInterf.thresholdVector.readData(((i+1)*p.maxOutputBitPrecision)-1,i*p.maxOutputBitPrecision)
 
-  val addrThReg = Reg(init = UInt(0, width = log2Up(p.thresholdMemDepth)), next = thAddressWire)
+  val addrThReg = Reg(init = UInt(0, width = log2Up(p.thresholdMemDepth)))
 
   //Dm/rows clock cycle required for complete a matrix quantization.
   val busyUnit = Reg(init = Bool(false))
   val rowCounter = Reg(init = UInt(width = log2Up(p.matrixRows) + 1))
 
-  
+  //setting the address request for the Threshold memory
+  io.thresholdsInterf.thresholdRequest.addr := addrThReg
+  io.thresholdsInterf.thresholdRequest.writeEn := Bool(false)
 
   //valid input matrix and not currently busy unit
   when(inRegValid && !(busyUnit)){
     busyUnit := Bool(true)
     rowCounter := UInt(0)
-    thAddressWire := UInt(0)
+    addrThReg := UInt(0)
   }
 
   val comparisonRes = Vec.fill(p.matrixColumns){UInt(width=p.maxOutputBitPrecision)}
 
 
 
-  for (int i = 0; i<p.matrixColumns; i++)
-  comparisonRes := inRegData >= thRegData(i) 
-  when(busyUnit && (rowCounter <= p.matrixRows)){
-    rowCounter := rowCounter + 1
-    thAddressWire := thAddressWire + 1
-    for (int j = 0; j < p.matrixColumns; j++)
+  for (i <- 0 to p.matrixColumns - 1)
+    comparisonRes(i) := (inRegData(rowCounter)(i) >= thRegData(i))
+
+  when(busyUnit && (rowCounter <= UInt(p.matrixRows)) ){
+    rowCounter := rowCounter + UInt(1)
+    addrThReg := addrThReg + UInt(1)
+    for (j <- 0 to p.matrixColumns - 1)
       outRegData(rowCounter)(j):= PopCount(comparisonRes(j))
-  }.elsewhen(busyUnit && (rowCounter === p.matrixRows)){
+  }.elsewhen(busyUnit && (rowCounter === UInt(p.matrixRows)) ){
     busyUnit := Bool(false)
   }
 

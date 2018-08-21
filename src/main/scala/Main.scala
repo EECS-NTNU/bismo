@@ -219,11 +219,13 @@ object CharacterizeMain {
 
   def makeParamSpace_THU(): Seq[ThresholdingUnitParams] = {
     return for {
+      m <- 4 to 4
+      k <- 8 to 8
       c <- 1 to 1
       n <- for(i <- 1 to 1) yield c*i
     } yield new ThresholdingUnitParams(
-      inputBitPrecision = 32, maxOutputBitPrecision = 4, matrixRows = 8,
-      matrixColumns = 8, thresholdMemDepth = 8, thresholdMemWidth = maxOutputBitPrecision * matrixColumns,
+      inputBitPrecision = 32, maxOutputBitPrecision = m, matrixRows = 8,
+      matrixColumns = k, thresholdMemDepth = 8, thresholdMemWidth = m * k,
       unrollingFactor = 0
     )
   }
