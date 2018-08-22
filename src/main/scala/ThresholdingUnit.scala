@@ -67,10 +67,10 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
   val io = new Bundle {
     val inputMatrix = new ThresholdingInputMatrixIO(p)
     val outputMatrix = new ThresholdingOutputMatrixIO(p)
-    val thresholdsInterf = new ThresholdingInputThresholdIO(p)  
+    val thInterf = new ThresholdingInputThresholdIO(p)  
   }
   //A register for temporary matrix storage and valid signal 
-  val inRegData = Vec.fill(p.matrixRows){Vec.fill(p.matrixColumns){Reg(outType = UInt(width =  p.inputBitPrecision))}}
+  val inRegData = Vec.fill(p.matrixRows){Vec.fill(p.matrixColumns){Reg(outType = UInt(width =  p.inputBitPrecision))} }
   val inRegValid = Reg(init = Bool(false), next = io.inputMatrix.iValid)
   
   for(i <- 0 to p.matrixRows - 1)
@@ -78,7 +78,7 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
       inRegData(i)(j) := io.inputMatrix.i(i)(j)
 
 
-  val outRegData = Vec.fill(p.matrixRows){Vec.fill(p.matrixColumns){Reg(outType = UInt(width = p.maxOutputBitPrecision))}}
+  val outRegData = Vec.fill(p.matrixRows){Vec.fill(p.matrixColumns){Reg(outType = UInt(width = p.maxOutputBitPrecision))} }
 
 
 
@@ -88,7 +88,7 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
 
   //fill the vector of thresholds with the input thresholds
   for (i <- 0 to p.matrixColumns - 1)
-    thRegData(i):= io.thresholdsInterf.thresholdVector.readData(((i+1)*p.maxOutputBitPrecision)-1,i*p.maxOutputBitPrecision)
+    thRegData(i):= io.thInterf.thresholdVector.readData(((i+1)*p.maxOutputBitPrecision)-1,i*p.maxOutputBitPrecision)
 
   val addrThReg = Reg(init = UInt(0, width = log2Up(p.thresholdMemDepth)))
 
@@ -97,14 +97,15 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
   val rowCounter = Reg(init = UInt(width = log2Up(p.matrixRows) + 1))
 
   //setting the address request for the Threshold memory
-  io.thresholdsInterf.thresholdRequest.addr := addrThReg
-  io.thresholdsInterf.thresholdRequest.writeEn := Bool(false)
+  io.thInterf.thresholdRequest.addr := addrThReg
+  io.thInterf.thresholdRequest.writeEn := Bool(false)
 
   //valid input matrix and not currently busy unit
   when(inRegValid && !(busyUnit)){
     busyUnit := Bool(true)
     rowCounter := UInt(0)
     addrThReg := UInt(0)
+    io.outputMatrix.oValid := Bool(false)
   }
 
   val comparisonRes = Vec.fill(p.matrixColumns){UInt(width=p.maxOutputBitPrecision)}
@@ -117,10 +118,12 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
   when(busyUnit && (rowCounter <= UInt(p.matrixRows)) ){
     rowCounter := rowCounter + UInt(1)
     addrThReg := addrThReg + UInt(1)
+    io.outputMatrix.oValid := Bool(false)
     for (j <- 0 to p.matrixColumns - 1)
-      outRegData(rowCounter)(j):= PopCount(comparisonRes(j))
+      outRegData(rowCounter)(j):= PopCount(comparisonRes(j))  
   }.elsewhen(busyUnit && (rowCounter === UInt(p.matrixRows)) ){
     busyUnit := Bool(false)
+    io.outputMatrix.oValid := Bool(true)
   }
 
   io.outputMatrix.o := outRegData

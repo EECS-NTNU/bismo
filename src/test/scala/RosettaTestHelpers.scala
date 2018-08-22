@@ -28,6 +28,9 @@
 // CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Modifications: Davide Conficconi
+// Add quantization helpers
+
 
 // useful definitions for testing Chisel modules inside Rosetta
 object RosettaTestHelpers {
@@ -91,7 +94,7 @@ object RosettaTestHelpers {
     assert(a(0).size == b(0).size)
     // pairwise dot products
     val ret = for(i <- 0 to a.size-1) yield
-      for(j <- 0 to b.size-1) yield
+      for(j <- 0 to b.size-1) yield       
         dotProduct(a(i), b(j))
     return ret
   }
@@ -100,4 +103,22 @@ object RosettaTestHelpers {
   def randomIntMatrix(row: Int, col: Int, nBits: Int, allowNeg: Boolean): Seq[Seq[Int]] = {
     return vectorToMatrix(randomIntVector(row*col, nBits, allowNeg), row, col)
   }
+
+  def quantizeMatrix(a: Seq[Seq[Int]], b: Seq[Seq[Int]]): Seq[Seq[Int]] = {
+    val ret = for(i <- 0 to a.size-1) yield
+        for(j <- 0 to a.size-1) yield
+          {
+            quantizeNumber(a(i)(j),b(i))
+          }
+    return ret
+  }
+
+
+  def quantizeNumber(a: Int, b : Seq[Int]) : Int ={  
+    var ret = 0 
+    for(i <- 0 to b.size-1) 
+      if (a >= b(i)) ret = ret + 1 else ()                                                                                  
+    return ret
+  }
 }
+
