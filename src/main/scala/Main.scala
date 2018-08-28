@@ -217,6 +217,36 @@ object CharacterizeMain {
   }
   val instFxn_FetchStage = {p: FetchStageParams => Module(new FetchStage(p))}
 
+  def makeParamSpace_THU(): Seq[ThresholdingUnitParams] = {
+    return for {
+      inP <- 32 to 32
+      mOutP <- 4 to 4
+      rows <- 8 to 8
+      cols <- 8 to 8
+      unrollBB <- 16 to 16
+      unRows <- 8 to 8
+      unCols <- 8 to 8
+    } yield new ThresholdingUnitParams(
+      inputBitPrecision = inP, maxOutputBitPrecision = mOutP, matrixRows = rows,
+      matrixColumns = cols, thresholdMemDepth = rows,  unrollingFactorOutputPrecision = unrollBB, 
+      unrollingFactorRows = unRows, unrollingFactorColumns = unCols
+    )
+  }
+
+  val instFxn_THU = {p: ThresholdingUnitParams => Module(new ThresholdingUnit(p))}
+
+
+  def makeParamSpace_TBB(): Seq[ThresholdingBuildingBlockParams] = {
+    return for {
+      m <- 32 to 32
+      k <- 1 to 1
+      n <- 1 to 1
+    } yield new ThresholdingBuildingBlockParams(
+      inPrecision = m, popcountUnroll = k, outPrecision = n
+    )
+  }
+  val instFxn_TBB = {p: ThresholdingBuildingBlockParams => Module(new ThresholdingBuildingBlock(p))}  
+
   def main(args: Array[String]): Unit = {
     val chName: String = args(0)
     val chPath: String = args(1)
@@ -238,7 +268,11 @@ object CharacterizeMain {
       VivadoSynth.characterizeSpace(makeParamSpace_ResultBuf(), instFxn_ResultBuf, chPath, chLog, fpgaPart)
     } else if(chName == "CharacterizeFetchStage") {
       VivadoSynth.characterizeSpace(makeParamSpace_FetchStage(), instFxn_FetchStage, chPath, chLog, fpgaPart)
-    } else {
+    } else if(chName == "CharacterizeTHU") {
+      VivadoSynth.characterizeSpace(makeParamSpace_THU(), instFxn_THU, chPath, chLog, fpgaPart)
+    } else if(chName == "CharacterizeTBB"){
+      VivadoSynth.characterizeSpace(makeParamSpace_TBB(), instFxn_TBB, chPath, chLog, fpgaPart)
+    }else {
       println("Unrecognized target for characterization")
     }
   }
