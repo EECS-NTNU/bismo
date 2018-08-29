@@ -38,11 +38,10 @@ architecture xil of compress is
   -- Compression Schedule
   constant S : integer_vector := schedule(INPUT_LAYOUT);
   signal nn  : std_logic_vector(MAXIMUM(S) downto 0);  -- used bit signals
-  signal nn_int  : std_logic_vector(MAXIMUM(S) downto 0);  -- used bit signals
 begin
 
   -- Feed Inputs
-  nn_int(x'length downto 0) <= x & '0';
+  nn(x'length downto 0) <= x & '0';
   
   -- Implement Schedule
   genSchedule : for i in S'range generate
@@ -65,7 +64,7 @@ begin
 
         -- Map Outputs
         genMapOut: for j in bits_out'range generate
-          nn_int(S(i+INPUT_BITS+OUTPUT_BITS-j)) <= bits_out(j);
+          nn(S(i+INPUT_BITS+OUTPUT_BITS-j)) <= bits_out(j);
         end generate genMapOut;
 
         -- Generate Counters that utilize a CARRY4 primitive
@@ -223,14 +222,14 @@ begin
       begin
         fa : entity work.fa_cc
           port map (
-            a    => nn_int(S(i+1)),
-            b    => nn_int(S(i+2)),
-            cin  => nn_int(S(i+3)),
+            a    => nn(S(i+1)),
+            b    => nn(S(i+2)),
+            cin  => nn(S(i+3)),
             s    => y(S(i-1)),
             cout => cout
           );
         genCout : if S(i+4) /= 0 generate
-          nn_int(S(i+4)) <= cout;
+          nn(S(i+4)) <= cout;
         end generate;
       end generate genSumFA;
 
@@ -239,30 +238,38 @@ begin
       begin
         a42 : entity work.add42_cc
           port map (
-            a    => nn_int(S(i+1)),
-            b    => nn_int(S(i+2)),
-            c    => nn_int(S(i+3)),
-            gin  => nn_int(S(i+4)),
-            cin  => nn_int(S(i+5)),
+            a    => nn(S(i+1)),
+            b    => nn(S(i+2)),
+            c    => nn(S(i+3)),
+            gin  => nn(S(i+4)),
+            cin  => nn(S(i+5)),
             s    => y(S(i-1)),
             gout => gout,
             cout => cout
           );
         genGout : if S(i+6) /= 0 generate
-          nn_int(S(i+6)) <= gout;
+          nn(S(i+6)) <= gout;
         end generate;
         genCout : if S(i+7) /= 0 generate
-          nn_int(S(i+7)) <= cout;
+          nn(S(i+7)) <= cout;
         end generate;
-      end generate genSum42;
+      end generate genSum42
 
-      tree_pipelining : process( clk )
-      begin
-          if rising_edge(clk) then
-              nn <= nn_int;
-          end if ;
-        
-      end process ; -- tree_pipelining
+      genCount : if TAG = STAGE_BUF generate
+        begin 
+          OUTPUT_REG_1    : entity work.reg
+          generic map(
+            DataWidth     => WA
+            )
+          port map(
+            clk         => clk,
+            rst         => '1',
+            data_in       => nn(S(i+1)),
+            data_out      => nn(S(i+1))
+            );
+                
+              end;
+      end generate genCount;
 
     end generate genTag;
   end generate genSchedule;

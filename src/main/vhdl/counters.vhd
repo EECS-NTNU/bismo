@@ -76,6 +76,7 @@ package counters is
   constant RESULT_CP : positive := COUNTERS'length + 0;
   constant RESULT_FA : positive := COUNTERS'length + 1;
   constant RESULT_42 : positive := COUNTERS'length + 2;
+  constant STAGE_BUF : positive := COUNTERS'length + 3;
 
   -----------------------------------------------------------------------------
   -- Schedule Computation
@@ -125,23 +126,23 @@ package body counters is
     case ORDER is
     when EFFICIENCY_STRENGTH =>
       if le /= re then
-	return  le > re;
+  return  le > re;
       end if;
       if ls /= rs then
-	return  ls > rs;
+  return  ls > rs;
       end if;
 
     when STRENGTH_EFFICIENCY =>
       if ls /= rs then
-	return  ls > rs;
+  return  ls > rs;
       end if;
       if le /= re then
-	return  le > re;
+  return  le > re;
       end if;
 
     when others =>
       if le*ls /= re*rs then
-	return  le*ls > re*rs;
+  return  le*ls > re*rs;
       end if;
 
     end case;
@@ -369,6 +370,17 @@ package body counters is
       height_cur := height_cur + height_nxt;
       height_nxt := (others => 0);
       levels     := levels + 1;
+    
+      res_add(-STAGE_BUF- 1);
+      tn := sum(height_cur);
+      res_add(tn);
+      for i in height_cur'range loop
+        for j in 1 to height_cur(i) loop
+          res_add(pop(i));
+          res_add(push(i));
+        end loop;
+      end loop;
+
      end loop;
 
     write(l, string'("Schedule:"));
