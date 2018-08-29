@@ -22,9 +22,9 @@ Its key features are:
 * **Software-programmable.** BISMO is programmable with a simple instruction set to
   cater for different matrix sizes, precisions.
 
-## Paper
+## Paper and Presentation
 More details on the hardware design and instruction set can be found in the
-[BISMO paper](https://arxiv.org/abs/1806.08862).
+[BISMO paper](https://arxiv.org/abs/1806.08862) or the [presentation](https://docs.google.com/presentation/d/1cMCzzgi8VESY2O9AJpcU78XG0YmY4yuFbQngI3-Fm10/edit?usp=sharing).
 If you find BISMO useful, please use the following citation:
 ```
 @inproceedings{bismo,
