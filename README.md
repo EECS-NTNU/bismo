@@ -68,6 +68,11 @@ on a host PC, or on the actual FPGA platform as follows:
 1. `cd bismo`
 2. `make emu` to run BISMO tests in hardware-software cosimulation.
 
+#### Max OS X Support
+1. 'cd bismo'
+2. 'make install-tools-mac' installs necessary tools using [Homebrew][https://brew.sh]
+3. 'make emu'
+
 ### Run Tests on PYNQ-Z1
 On the host computer:
 1. `cd bismo`
