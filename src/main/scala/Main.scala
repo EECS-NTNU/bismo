@@ -270,11 +270,8 @@ object CharacterizeMain {
       VivadoSynth.characterizeSpace(makeParamSpace_FetchStage(), instFxn_FetchStage, chPath, chLog, fpgaPart)
     } else if(chName == "CharacterizeTHU") {
       VivadoSynth.characterizeSpace(makeParamSpace_THU(), instFxn_THU, chPath, chLog, fpgaPart)
-<<<<<<< HEAD
     } else if(chName == "CharacterizeTBB"){
       VivadoSynth.characterizeSpace(makeParamSpace_TBB(), instFxn_TBB, chPath, chLog, fpgaPart)
-=======
->>>>>>> 9601fbac5f693cd32266e9433eec7cd80e490a20
     }else {
       println("Unrecognized target for characterization")
     }

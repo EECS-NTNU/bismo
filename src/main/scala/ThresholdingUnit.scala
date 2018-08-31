@@ -37,7 +37,13 @@ class ThresholdingUnitParams(
 
     // threshold memory width (how many output bits)
   // MY WORRIES: Should it be matrixColumns-1 * maxOutputBitPrecision?
-  val thresholdMemWidth : Int = inputBitPrecision * matrixRows //unrollingFactor
+  val thresholdMemWidth : Int = inputBitPrecision * (scala.math.pow(2,maxOutputBitPrecision)toInt)
+
+  val thersholdLatency : Int = (scala.math.pow(2,maxOutputBitPrecision)toInt) / unrollingFactorOutputPrecision
+
+  val rowLatency : Int = matrixRows / unrollingFactorRows
+
+  val colsLatency : Int = matrixColumns / unrollingFactorColumns
   // internal pipeline registers inside DPU
   //val myLatency = if(useVhdlCompressor){5 + extraPipelineRegs} else {6 + extraPipelineRegs}
   // latency of instantiated PopCountUnit
@@ -122,7 +128,7 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
   val busy = Reg(init = Bool(false), next = !(ready))
 
   io.inputMatrix.ready := ready
-  when(ready && io.inputMatrix.ready){
+  when(ready && io.inputMatrix.valid){
     ready := Bool(false)
   }
 

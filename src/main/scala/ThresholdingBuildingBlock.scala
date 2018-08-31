@@ -30,6 +30,7 @@ class ThresholdingBuildingBlock(val p: ThresholdingBuildingBlockParams) extends 
   	val inVector = Vec.fill(p.popcountUnroll){Bits(INPUT, width = p.inPrecision)}
   	val thVector = Vec.fill(p.popcountUnroll){Bits(INPUT, width = p.inPrecision)}
   	val outValue = Bits(OUTPUT, width = p.outPrecision)
+		val clearAcc = Bool(INPUT)
   	}
 
   	val compareVector = Vec.fill(p.popcountUnroll){Bool()}
@@ -40,7 +41,11 @@ class ThresholdingBuildingBlock(val p: ThresholdingBuildingBlockParams) extends 
   	//MY WORRIES: should it be  reinitialized for every input? Should we handle this at the upper level
 		val next_value = UInt()
 	  val outReg = Reg(init = UInt(0, width = p.outPrecision), next = next_value)
-		next_value := popcountVector + outReg
+    when(io.clearAcc){
+      next_value := UInt(0)
+    }.otherwise{
+      next_value := popcountVector + outReg
+    }
   	io.outValue := outReg
 
 

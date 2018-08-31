@@ -42,7 +42,7 @@ class TestDotProductUnit extends JUnitSuite {
     class DotProductUnitTester(c: DotProductUnit) extends Tester(c) {
       val r = scala.util.Random
       // number of re-runs for each test
-      val num_seqs = 100
+      val num_seqs = 1
       // number of bits in each operand
       val pc_len = c.p.pcParams.numInputBits
       // max shift steps for random input
@@ -89,6 +89,8 @@ class TestDotProductUnit extends JUnitSuite {
         clearAcc()
         // produce random binary test vectors and golden result
         val seqA = RosettaTestHelpers.randomIntVector(pc_len, 1, false)
+        for (i<- 0 to seqA.size-1)
+          print(seqA(i))
         val seqB = RosettaTestHelpers.randomIntVector(pc_len, 1, false)
         val golden = RosettaTestHelpers.dotProduct(seqA, seqB)
         poke(c.io.in.bits.a, scala.math.BigInt.apply(seqA.mkString, 2))
