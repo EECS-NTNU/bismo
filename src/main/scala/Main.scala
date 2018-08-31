@@ -220,9 +220,10 @@ object CharacterizeMain {
 
   def makeParamSpace_BlackBoxCompressor(): Seq[BlackBoxCompressorParams] = {
     return for {
-      n <- for(i <- 5 to 8) yield 1 << i
+      n <- for(i <- 8 to 8) yield 1 << i
+      d <- 5 to 5
     } yield new BlackBoxCompressorParams(
-      N = n
+      N = n, D = d
     )
   }
   val instFxn_BlackBoxCompressor = {p: BlackBoxCompressorParams => Module(new BlackBoxCompressor(p))}
@@ -248,7 +249,7 @@ object CharacterizeMain {
       VivadoSynth.characterizeSpace(makeParamSpace_ResultBuf(), instFxn_ResultBuf, chPath, chLog, fpgaPart)
     } else if(chName == "CharacterizeFetchStage") {
       VivadoSynth.characterizeSpace(makeParamSpace_FetchStage(), instFxn_FetchStage, chPath, chLog, fpgaPart)
-    } else if (chName == "CharacterizeBlackBoxCompressor"){
+    } else if (chName == "CharacterizeBBCompressor"){
       VivadoSynth.characterizeSpace(makeParamSpace_BlackBoxCompressor(), instFxn_BlackBoxCompressor, chPath, chLog, fpgaPart)
     }else {
       println("Unrecognized target for characterization")

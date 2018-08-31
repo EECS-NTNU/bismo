@@ -4,8 +4,6 @@
 --
 --  Author: Thomas B. Preusser <thomas.preusser@utexas.edu>
 --          Marie-Curie Fellow, Xilinx Ireland, Grant Agreement No. 751339
--- Modifications : Davide Conficconi <davidec@xilinx.com>
---  add clk port and a register for retiming
 --
 --  This project has received funding from the European Union's Framework
 --  Programme for Research and Innovation Horizon 2020 (2014-2020) under
@@ -15,13 +13,16 @@ library IEEE;
 use IEEE.std_logic_1164.all;
 
 use work.utils.all;
+use std.textio.all;
 
 entity compress is
   generic (
-    INPUT_LAYOUT : natural_vector
+    INPUT_LAYOUT : natural_vector;
+    DEPTH : natural := 0
   );
   port (
     clk : in std_logic;
+    rst : in std_logic;
     x : in  std_logic_vector(sum(INPUT_LAYOUT)-1 downto 0);
     y : out std_logic_vector(clog2_maxweight(INPUT_LAYOUT)-1 downto 0)
   );
@@ -37,8 +38,14 @@ architecture xil of compress is
 
   -- Compression Schedule
   constant S : integer_vector := schedule(INPUT_LAYOUT);
+  constant D : positive := count(S, -STAGE_BUF-1);
   signal nn  : std_logic_vector(MAXIMUM(S) downto 0);  -- used bit signals
+
 begin
+
+  assert DEPTH <= D
+    report "DEPTH larger than number of compression levels not yet supported."
+    severity failure;
 
   -- Feed Inputs
   nn(x'length downto 0) <= x & '0';
@@ -253,23 +260,31 @@ begin
         genCout : if S(i+7) /= 0 generate
           nn(S(i+7)) <= cout;
         end generate;
-      end generate genSum42
+      end generate genSum42;
 
-      genCount : if TAG = STAGE_BUF generate
-        begin 
-          OUTPUT_REG_1    : entity work.reg
-          generic map(
-            DataWidth     => WA
-            )
-          port map(
-            clk         => clk,
-            rst         => '1',
-            data_in       => nn(S(i+1)),
-            data_out      => nn(S(i+1))
-            );
-                
-              end;
-      end generate genCount;
+      genBuf : if TAG = STAGE_BUF generate
+        constant L : positive := count(S(0 to i), -STAGE_BUF-1);
+        constant N : positive := S(i+1); 
+      begin
+          genStage: for j in 1 to N generate
+            genReg: if (L*DEPTH/D) > ((L-1)*DEPTH/D) generate
+              process(clk)
+              begin
+                if rising_edge(clk) then
+                    if rst = '1' then
+                        nn(S(i+2*j + 1 )) <= '0';
+                     else
+                        nn(S(i+2*j + 1 )) <= nn(S(i+2*j));
+                     end if ;
+                end if;
+              end process;
+            end generate genReg;
+            genComb: if (L*DEPTH/D) = ((L-1)*DEPTH/D) generate 
+              nn(S(i+2*j + 1 )) <= nn(S(i+2*j));
+            end generate genComb;
+               
+          end generate genStage;
+      end generate genBuf;
 
     end generate genTag;
   end generate genSchedule;

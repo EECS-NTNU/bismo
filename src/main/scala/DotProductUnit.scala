@@ -159,7 +159,7 @@ class DotProductUnit(val p: DotProductUnitParams) extends Module {
   val stage2_pc_v = ShiftRegister(intermediate_valid, 0)
 
   if (p.useVhdlCompressor) {
-    val popcount = Module ( new BlackBoxCompressor(new BlackBoxCompressorParams(N = p.pcParams.numInputBits)))
+    val popcount = Module ( new BlackBoxCompressor(new BlackBoxCompressorParams(N = p.pcParams.numInputBits, D = p.extraPipelineRegs)))
     popcount.io.c := regStage0_b.a
     popcount.io.d := regStage0_b.b
     stage2.popcountResult :=  popcount.io.r
