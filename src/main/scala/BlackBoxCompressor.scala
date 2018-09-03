@@ -2,36 +2,54 @@ package bismo
 
 import Chisel._
 
+// wraps the FPGA-optimized VHDL compressor generator originally developed by
+// Thomas Preusser. although the generator supports multi-bit operands, we only
+// use it for regular binary operands here.
 
 class BlackBoxCompressorParams(
-  val N: Int,
-  val D: Int
+  val N: Int, // bitwidth of compressor inputs
+  val D: Int  // number of pipeline registers, subject to
+              // compressor tree depth
 ) extends PrintableParam {
   def headersAsList(): List[String] = {
-    return List("Dk","Depth of the pipeline")
+    return List("Dk", "BBCompressorLatency")
   }
 
   def contentAsList(): List[String] = {
     return List(N,D).map(_.toString)
   }
-}
-class BlackBoxCompressor(P : BlackBoxCompressorParams) extends Module {
-	def outputbits = log2Up(P.N) + 1
-	val io = new Bundle{
-		val c = Bits(INPUT, width = P.N)
-		val d = Bits(INPUT, width = P.N)
-		val r = Bits(OUTPUT, width = outputbits)
-	}
-	val inst = Module(new mac(BB_WA = outputbits, BB_N = P.N, BB_WD = 1, BB_WC = 1, BB_D = P.D)).io
-	inst.a := UInt(0)
-	inst <> io 
+  // TODO allow specifying D = -1 to pick a known-good pipelining depth for
+  // the given N, and return the latency with .getLatency function
 }
 
-class mac (BB_WA : Int, BB_N: Int, BB_WD : Int, BB_WC : Int, BB_D : Int) extends BlackBox {
+// Chisel Module wrapper around generated compressor
+class BlackBoxCompressor(p : BlackBoxCompressorParams) extends Module {
+	def outputbits = log2Up(p.N) + 1
+	val io = new Bundle{
+		val c = Bits(INPUT, width = p.N)
+		val d = Bits(INPUT, width = p.N)
+		val r = Bits(OUTPUT, width = outputbits)
+	}
+	val inst = Module(new mac(BB_WA = outputbits, BB_N = p.N, BB_WD = 1, BB_WC = 1, BB_D = p.D)).io
+	inst.a := UInt(0)
+	inst <> io
+}
+
+// actual BlackBox that instantiates the VHDL unit
+class mac (
+  BB_WA : Int,  // result precision
+  BB_N: Int,    // number of elements in dot product
+  BB_WD : Int,  // input operand 1 precision
+  BB_WC : Int,  // input operand 2 precision
+  BB_D : Int    // optional pipeline regs to add
+) extends BlackBox {
 	val io = new  Bundle {
+    // accumulator input is unused
 		val a = Bits(INPUT, width=BB_WA)
+    // c and d are the inputs to the binary dot product
 		val c = Bits(INPUT, width=BB_N*BB_WC)
 		val d = Bits(INPUT, width=BB_N*BB_WD)
+    // r contains the result after D cycles
 		val r = Bits(OUTPUT, width=BB_WA)
 		a.setName("a")
 		c.setName("c")
@@ -46,10 +64,11 @@ class mac (BB_WA : Int, BB_N: Int, BB_WD : Int, BB_WC : Int, BB_D : Int) extends
 		val DEPTH :Int = BB_D
 	})
 
+  // clock needs to be added manually to BlackBox
 	addClock(Driver.implicitClock)
 
-	//Behavioral model
+	// Behavioral model for compressor: delayed AND-popcount
 	if (BB_WD == 1 && BB_WC == 1) {
-		io.r := PopCount(io.c & io.d)
+		io.r := ShiftRegister(PopCount(io.c & io.d), BB_D)
 	}
 }
