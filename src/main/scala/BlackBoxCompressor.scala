@@ -49,7 +49,7 @@ class mac (BB_WA : Int, BB_N: Int, BB_WD : Int, BB_WC : Int, BB_D : Int) extends
 		val WC    :Int = BB_WC
 		val DEPTH :Int = BB_D
 	})
-	addResetPin(io.rst)
+	//addResetPin(io.rst)
 	addClock(Driver.implicitClock)
 
 	//Behavioral model
