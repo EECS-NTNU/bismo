@@ -37,11 +37,18 @@ year = {2018}
 ```
 
 ## Requirements
+
+### Full Setup on Linux 
 1. A working [`sbt`](https://www.scala-sbt.org/1.0/docs/Installing-sbt-on-Linux.html) setup for Chisel2
 2. `zsh` e.g. `sudo apt install zsh` on Ubuntu
 3. [Vivado 2017.4](https://www.xilinx.com/support/download.html) (make sure `vivado` is in `PATH`)
 4. `gcc` 4.8 or later
 4. A [Xilinx PYNQ-Z1 board](http://www.pynq.io/board.html) board with the v1.4 image or later, with network access
+
+### Hardware Emulation Setup on Mac
+brew tap caskroom/versions
+brew cask install java8
+brew install sbt@1
 
 ## Installation
 1. `git clone --recurse-submodules https://github.com/EECS-NTNU/bismo.git`

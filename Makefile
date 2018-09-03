@@ -52,7 +52,7 @@ TOP ?= $(shell dirname $(realpath $(filter %Makefile, $(MAKEFILE_LIST))))
 TIDBITS_ROOT ?= $(TOP)/fpga-tidbits
 TIDBITS_REGDRV_ROOT ?= $(TIDBITS_ROOT)/src/main/resources/cpp/platform-wrapper-regdriver
 export OHMYXILINX := $(TOP)/oh-my-xilinx
-export PATH := $(TOP)/bin:$(PATH):$(OHMYXILINX)
+export PATH := $(PATH):$(OHMYXILINX)
 BUILD_DIR ?= $(TOP)/build/$(OVERLAY_CFG)
 BUILD_DIR_CHARACTERIZE := $(BUILD_DIR)/characterize
 BUILD_DIR_DEPLOY := $(BUILD_DIR)/deploy
@@ -157,18 +157,3 @@ rsync:
 # remove everything that is built
 clean:
 	rm -rf $(BUILD_DIR)
-
-# install necessary tools for OS X using homebrew
-.PHONY: install-tools-mac
-install-tools-mac:
-	# Install Java 8
-	brew tap caskroom/versions
-	brew cask install java8
-	# Install sbt
-	brew install sbt@1
-	# Install gnu readlink
-	brew install coreutils
-	# Make greadlink pose as readlink by creating 
-	# a symlink that appears first in the PATH
-	mkdir -p $(TOP)/bin
-	ln -s $(shell which greadlink) $(TOP)/bin/readlink
