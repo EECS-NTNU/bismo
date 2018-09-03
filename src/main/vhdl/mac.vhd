@@ -89,7 +89,7 @@ architecture rtl of mac is
             write(l, sig(i+4));
             write(l, ',');
             write(l, sig(i+5));
-            
+
           when TAG2P =>
             write(l, 'A');
             write(l, sig(i+1));
@@ -106,13 +106,13 @@ architecture rtl of mac is
             write(l, sig(i+1));
             write(l, string'(" -> "));
             write(l, sig(i+2));
-            
+
           when TAG_COPY =>
             write(l, 'A');
             write(l, sig(i+1));
             write(l, string'(" -> "));
             write(l, sig(i+2));
-            
+
           when others =>
             report "Unknown Tag." severity error;
         end case;
@@ -121,7 +121,7 @@ architecture rtl of mac is
     end loop;
     writeline(output, ll);
   end procedure print_precompression;
-  
+
   function SCHEDULE_PRECOMPRESSION return integer_vector is
 
     constant INPUT_HEIGHTS : natural_vector(MAXIMUM(PRODUCT_HEIGHTS'length, WA)-1 downto 0)
@@ -211,7 +211,7 @@ architecture rtl of mac is
     return  res(res_ptr-1 downto 0);
   end SCHEDULE_PRECOMPRESSION;
   constant PRECOMPRESSION : integer_vector := SCHEDULE_PRECOMPRESSION;
-  
+
   -- The Reduction Input
   signal ma, mb : std_logic_vector(N*WC*WD-1 downto 0);
   signal mr     : std_logic_vector(sum(PRECOMPRESSION(PRECOMPRESSION(0) downto 1))-1 downto 0);
@@ -299,7 +299,7 @@ begin
       )
       port map (
         clk => clk,
-        rst => '1',--rst,
+        rst => '0',--rst,
         x => mr,
         y => y
       );
