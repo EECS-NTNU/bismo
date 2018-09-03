@@ -37,11 +37,18 @@ year = {2018}
 ```
 
 ## Requirements
+
+### Full Setup on Linux 
 1. A working [`sbt`](https://www.scala-sbt.org/1.0/docs/Installing-sbt-on-Linux.html) setup for Chisel2
 2. `zsh` e.g. `sudo apt install zsh` on Ubuntu
 3. [Vivado 2017.4](https://www.xilinx.com/support/download.html) (make sure `vivado` is in `PATH`)
 4. `gcc` 4.8 or later
 4. A [Xilinx PYNQ-Z1 board](http://www.pynq.io/board.html) board with the v1.4 image or later, with network access
+
+### Hardware Emulation Setup on Mac
+brew tap caskroom/versions
+brew cask install java8
+brew install sbt@1
 
 ## Installation
 1. `git clone --recurse-submodules https://github.com/EECS-NTNU/bismo.git`
@@ -67,6 +74,11 @@ on a host PC, or on the actual FPGA platform as follows:
 ### Running HW-SW Cosimulation
 1. `cd bismo`
 2. `make emu` to run BISMO tests in hardware-software cosimulation.
+
+#### Max OS X Support
+1. 'cd bismo'
+2. 'make install-tools-mac' installs necessary tools using [Homebrew][https://brew.sh]
+3. 'make emu'
 
 ### Run Tests on PYNQ-Z1
 On the host computer:

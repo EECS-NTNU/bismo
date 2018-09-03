@@ -48,7 +48,7 @@ OVERLAY_CFG = $(M)x$(K)x$(N)
 SBT ?= sbt
 SBT_FLAGS ?= -Dsbt.log.noformat=true
 # internal build dirs and names for the Makefile
-TOP ?= $(shell readlink -f .)
+TOP ?= $(shell dirname $(realpath $(filter %Makefile, $(MAKEFILE_LIST))))
 TIDBITS_ROOT ?= $(TOP)/fpga-tidbits
 TIDBITS_REGDRV_ROOT ?= $(TIDBITS_ROOT)/src/main/resources/cpp/platform-wrapper-regdriver
 export OHMYXILINX := $(TOP)/oh-my-xilinx
