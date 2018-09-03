@@ -16,10 +16,14 @@ class BlackBoxCompressorParams(
   }
 
   def contentAsList(): List[String] = {
-    return List(N,D).map(_.toString)
+    return List(N, getLatency()).map(_.toString)
   }
-  // TODO allow specifying D = -1 to pick a known-good pipelining depth for
-  // the given N, and return the latency with .getLatency function
+
+  def getLatency(): Int = {
+    // TODO allow specifying D = -1 to pick a known-good pipelining depth for
+    // the given N, and return the latency with .getLatency function
+    return D
+  }
 }
 
 // Chisel Module wrapper around generated compressor

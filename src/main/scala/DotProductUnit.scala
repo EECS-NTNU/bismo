@@ -49,18 +49,33 @@ class DotProductUnitParams(
   val noShifter: Boolean = false,
   // do not instantiate the negate stage
   val noNegate: Boolean = false,
-  // extra regs for retiming
+  // extra pipeline regs for retiming
   val extraPipelineRegs: Int = 0,
-  // compressor vhdl module choice
-  val useVhdlCompressor: Boolean = true
+  // use an optimized VHDL compressor generator
+  val useVhdlCompressor: Boolean = true,
+  // number of regs for the VHDL compressor (if used)
+  // TODO set this to -1 once supported to use default value
+  val vhdlCompressorRegs: Int = 0
 ) extends PrintableParam {
+  // parameters for BlackBoxCompressor (if any)
+  val bbCompParams = new BlackBoxCompressorParams(
+    N = pcParams.numInputBits, D = vhdlCompressorRegs
+  )
   // internal pipeline registers inside DPU
-  val myLatency = if(useVhdlCompressor){5 + extraPipelineRegs} else {6 + extraPipelineRegs}
+  val myLatency = if(useVhdlCompressor){
+    5 + bbCompParams.getLatency() + extraPipelineRegs
+  } else {
+    6 + extraPipelineRegs
+  }
   // latency of instantiated PopCountUnit
-  val popcountLatency: Int = pcParams.getLatency()
+  val popcountLatency: Int = if(useVhdlCompressor){0} else {pcParams.getLatency()}
   // return total latency
   def getLatency(): Int = {
-    return myLatency + popcountLatency
+    if(useVhdlCompressor) {
+      return myLatency
+    } else {
+      return myLatency + popcountLatency
+    }
   }
   def headersAsList(): List[String] = {
     return pcParams.headersAsList() ++ List("AccWidth", "NoShift", "NoNeg", "DPULatency")
@@ -142,16 +157,14 @@ class DotProductUnit(val p: DotProductUnitParams) extends Module {
     val in = Valid(new DotProductStage0(p)).asInput
     val out = UInt(OUTPUT, width = p.accWidth)
   }
-
-
-  // extra pipeline regs at the input
+  // extra pipeline regs at the input for retiming
   val regInput = ShiftRegister(io.in, p.extraPipelineRegs)
 
   // pipeline stage 0: register the input
   val regStage0_v = Reg(init = Bool(false), next = regInput.valid)
   val regStage0_b = Reg(next = regInput.bits)
   //when(regStage0_v) { printf("Stage0: a %x b %x shift %d neg %d clear %d\n", regStage0_b.a, regStage0_b.b, regStage0_b.shiftAmount, regStage0_b.negate, regStage0_b.clear_acc)}
-  
+
   //Chose between a VHDL implementation for the AND-Popcount, otherwise the Chisel one
   val stage2 = (new DotProductStage2(p)).asDirectionless
   // intermediate values to abstract the level: if using vhdl based popcount no latency, otherwise variable latency
@@ -159,15 +172,16 @@ class DotProductUnit(val p: DotProductUnitParams) extends Module {
   val stage2_pc_v = ShiftRegister(intermediate_valid, 0)
 
   if (p.useVhdlCompressor) {
-    val popcount = Module ( new BlackBoxCompressor(new BlackBoxCompressorParams(N = p.pcParams.numInputBits, D = p.extraPipelineRegs)))
-    popcount.io.c := regStage0_b.a
-    popcount.io.d := regStage0_b.b
-    stage2.popcountResult :=  popcount.io.r
-    // need extra delays on pass-through parts due to pipelined popcount
-    stage2.shiftAmount := ShiftRegister(regStage0_b.shiftAmount, 0)
-    stage2.negate := ShiftRegister(regStage0_b.negate, 0)
-    stage2.clear_acc := ShiftRegister(regStage0_b.clear_acc, 0)
-    intermediate_valid := regStage0_v
+    val compressor = Module(new BlackBoxCompressor(p.bbCompParams))
+    val compLatency = p.bbCompParams.getLatency()
+    compressor.io.c := regStage0_b.a
+    compressor.io.d := regStage0_b.b
+    stage2.popcountResult :=  compressor.io.r
+    // need extra delays on pass-through parts due to pipelined compressor
+    stage2.shiftAmount := ShiftRegister(regStage0_b.shiftAmount, compLatency)
+    stage2.negate := ShiftRegister(regStage0_b.negate, compLatency)
+    stage2.clear_acc := ShiftRegister(regStage0_b.clear_acc, compLatency)
+    intermediate_valid := ShiftRegister(regStage0_v, compLatency)
   } else{
     // instantiate the popcount unit
     val modPopCount = Module(new PopCountUnit(p.pcParams))
