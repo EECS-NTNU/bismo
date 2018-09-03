@@ -9,7 +9,7 @@ import Chisel._
 class BlackBoxCompressorParams(
   val N: Int, // bitwidth of compressor inputs
   val D: Int  // number of pipeline registers, subject to
-              // compressor tree depth
+              // compressor tree depth. set to -1 for maximum.
 ) extends PrintableParam {
   def headersAsList(): List[String] = {
     return List("Dk", "BBCompressorLatency")
@@ -19,10 +19,20 @@ class BlackBoxCompressorParams(
     return List(N, getLatency()).map(_.toString)
   }
 
+  // current compressor tree depth generated for a few values of N.
+  val depthMap = Map(32 -> 2, 64 -> 3, 128 -> 3, 256 -> 4, 512 -> 5)
+
   def getLatency(): Int = {
-    // TODO allow specifying D = -1 to pick a known-good pipelining depth for
-    // the given N, and return the latency with .getLatency function
-    return D
+    if(D == -1) {
+      if(depthMap.contains(N)) {
+        return depthMap(N)
+      } else {
+        println(s"WARNING BlackBoxCompressor: Depth for N=$N not precomputed, defaulting to 0")
+        return 0
+      }
+    } else {
+      return D
+    }
   }
 }
 
@@ -34,7 +44,9 @@ class BlackBoxCompressor(p : BlackBoxCompressorParams) extends Module {
 		val d = Bits(INPUT, width = p.N)
 		val r = Bits(OUTPUT, width = outputbits)
 	}
-	val inst = Module(new mac(BB_WA = outputbits, BB_N = p.N, BB_WD = 1, BB_WC = 1, BB_D = p.D)).io
+	val inst = Module(new mac(
+    BB_WA = outputbits, BB_N = p.N, BB_WD = 1, BB_WC = 1, BB_D = p.getLatency()
+  )).io
 	inst.a := UInt(0)
 	inst <> io
 }

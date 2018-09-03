@@ -54,8 +54,8 @@ class DotProductUnitParams(
   // use an optimized VHDL compressor generator
   val useVhdlCompressor: Boolean = true,
   // number of regs for the VHDL compressor (if used)
-  // TODO set this to -1 once supported to use default value
-  val vhdlCompressorRegs: Int = 0
+  // -1 gives maximum pipelining (= compressor tree depth)
+  val vhdlCompressorRegs: Int = -1
 ) extends PrintableParam {
   // parameters for BlackBoxCompressor (if any)
   val bbCompParams = new BlackBoxCompressorParams(
