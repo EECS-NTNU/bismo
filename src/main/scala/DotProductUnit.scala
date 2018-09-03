@@ -78,11 +78,11 @@ class DotProductUnitParams(
     }
   }
   def headersAsList(): List[String] = {
-    return pcParams.headersAsList() ++ List("AccWidth", "NoShift", "NoNeg", "DPULatency")
+    return pcParams.headersAsList() ++ List("AccWidth", "NoShift", "NoNeg", "DPULatency", "useVhdlCompressor")
   }
 
   def contentAsList(): List[String] = {
-    return pcParams.contentAsList() ++ List(accWidth, noShifter, noNegate, getLatency()).map(_.toString)
+    return pcParams.contentAsList() ++ List(accWidth, noShifter, noNegate, getLatency(), useVhdlCompressor).map(_.toString)
   }
 }
 
