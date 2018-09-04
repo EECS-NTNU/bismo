@@ -23,8 +23,6 @@ entity mac is
   );
   port (
     clk : in std_logic;
-    --rst : in std_logic;
-
     a : in  std_logic_vector(WA-1 downto 0);
     c : in  std_logic_vector(N*WC-1 downto 0);
     d : in  std_logic_vector(N*WD-1 downto 0);
@@ -215,6 +213,7 @@ architecture rtl of mac is
   -- The Reduction Input
   signal ma, mb : std_logic_vector(N*WC*WD-1 downto 0);
   signal mr     : std_logic_vector(sum(PRECOMPRESSION(PRECOMPRESSION(0) downto 1))-1 downto 0);
+  signal r_intermediate       : std_logic_vector(WA-1 downto 0);
 
 begin
 
@@ -299,15 +298,26 @@ begin
       )
       port map (
         clk => clk,
-        rst => '0',--rst,
+        rst => '0',
         x => mr,
         y => y
       );
 
+  OUTPUT_REG    : entity work.reg
+    generic map(
+      DataWidth     => WA
+      )
+    port map(
+      clk         => clk,
+      rst         => '0',
+      data_in       => r_intermediate,
+      data_out      => r
+      );
+
     process(y)
     begin
-      r <= (others => '0');
-      r(MINIMUM(y'left, r'left) downto 0) <= y(MINIMUM(y'left, r'left) downto 0);
+      r_intermediate <= (others => '0');
+      r_intermediate(MINIMUM(y'left, r'left) downto 0) <= y(MINIMUM(y'left, r'left) downto 0);
     end process;
 
   end block blkCompress;
