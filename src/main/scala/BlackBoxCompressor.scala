@@ -23,15 +23,16 @@ class BlackBoxCompressorParams(
   val depthMap = Map(32 -> 2, 64 -> 3, 128 -> 3, 256 -> 4, 512 -> 5)
 
   def getLatency(): Int = {
+    // note: latency +1 here are due to the output register in the mac
     if(D == -1) {
       if(depthMap.contains(N)) {
-        return depthMap(N)
+        return depthMap(N) + 1
       } else {
-        println(s"WARNING BlackBoxCompressor: Depth for N=$N not precomputed, defaulting to 0")
-        return 0
+        println(s"WARNING BlackBoxCompressor: Depth for N=$N not precomputed, defaulting to 1")
+        return 1
       }
     } else {
-      return D
+      return D + 1
     }
   }
 }
