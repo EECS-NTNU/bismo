@@ -2,21 +2,21 @@
 -- Company: Politecnico di Milano
 -- Student: Alessandro Comodi
 -- Student: Davide Conficconi
--- 
+--
 -- Create Date: 03/21/2017 03:56:02 PM
 -- Module Name: Reg - behav
 -- Project Name:
--- Target Devices: 
+-- Target Devices:
 -- Tool Versions:
 -- Description: This is a register that stores data for one clock cycle.
 --				If the reset signal is low the output will be zero.
--- 
--- Dependencies: 
--- 
+--
+-- Dependencies:
+--
 -- Revision:
 -- Revision 0.01 - File Created
 -- Additional Comments:
--- 
+--
 ----------------------------------------------------------------------------------
 
 library ieee;
@@ -39,10 +39,10 @@ architecture behav of reg is
 begin
 	process (clk, rst)
 	begin
-		if rst = '0' then
+		if rst = '1' then
 			data_out <= (others => '0');
 		elsif rising_edge(clk) then
 			data_out <= data_in;
-		end if; 
+		end if;
 	end process;
 end behav;
