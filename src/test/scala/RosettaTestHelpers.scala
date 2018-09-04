@@ -103,38 +103,18 @@ object RosettaTestHelpers {
   def randomIntMatrix(row: Int, col: Int, nBits: Int, allowNeg: Boolean): Seq[Seq[Int]] = {
     return vectorToMatrix(randomIntVector(row*col, nBits, allowNeg), row, col)
   }
-
+  //helper funtction to quantize a given matrix with a given matrix of thresholds
   def quantizeMatrix(a: Seq[Seq[Int]], b: Seq[Seq[Int]]): Seq[Seq[Int]] = {
     val ret = for(i <- 0 to a.size-1) yield
       for(j <- 0 to a(i).size-1) yield
         {
-          //quantizeNumber(a(i)(j),b(i))
           b(i).map((x:Int)=> if (a(i)(j)>x) 1 else 0 ).reduce(_+_)
-          //quantizeTwo(a(i)(j),b(i))
+
         }
     return ret
   }
 
-  def bool2int(b:Boolean) : Int = if (b) 1 else 0
-
-  def quantizeTwo(a: Int, b : Seq[Int]) : Int ={
-    return b.map((x:Int) => bool2int(a > x)).reduce(_+_)
-  }
-
-  def quantizeNumber(a: Int, b : Seq[Int]) : Int ={
-    var ret : Int = 0
-    for(i <- 0 to b.size-1){
-      if (a > b(i)) ret += 1 else ()
-      print(a)
-      println(b)
-    }
-    //   if (ret > 0) {
-    //     return ret - 1
-    //   } else
-    return ret
-
-  }
-
+//Printer helper function
   def printMatrix(a: Seq[Seq[Int]]) = {
     for(i <- 0 to a.size-1){
       for(j <- 0 to a(i).size-1){
