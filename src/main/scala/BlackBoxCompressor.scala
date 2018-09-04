@@ -23,16 +23,15 @@ class BlackBoxCompressorParams(
   val depthMap = Map(32 -> 2, 64 -> 3, 128 -> 3, 256 -> 4, 512 -> 5)
 
   def getLatency(): Int = {
-    // note: latency +1 here are due to the output register in the mac
     if(D == -1) {
       if(depthMap.contains(N)) {
-        return depthMap(N) + 1
+        return depthMap(N)
       } else {
-        println(s"WARNING BlackBoxCompressor: Depth for N=$N not precomputed, defaulting to 1")
-        return 1
+        println(s"WARNING BlackBoxCompressor: Depth for N=$N not precomputed, defaulting to 0")
+        return 0
       }
     } else {
-      return D + 1
+      return D
     }
   }
 }
@@ -47,7 +46,7 @@ class BlackBoxCompressor(p : BlackBoxCompressorParams) extends Module {
 	}
 	val inst = Module(new mac(
     BB_WA = outputbits, BB_N = p.N, BB_WD = 1, BB_WC = 1,
-    BB_D = p.getLatency() - 1 // -1 due to built-in output register
+    BB_D = p.getLatency()
   )).io
 	inst.a := UInt(0)
 	inst <> io

@@ -300,26 +300,8 @@ begin
         clk => clk,
         rst => '0',
         x => mr,
-        y => y
+        y => r
       );
-
-  OUTPUT_REG    : entity work.reg
-    generic map(
-      DataWidth     => WA
-      )
-    port map(
-      clk         => clk,
-      rst         => '0',
-      data_in       => r_intermediate,
-      data_out      => r
-      );
-
-    process(y)
-    begin
-      r_intermediate <= (others => '0');
-      r_intermediate(MINIMUM(y'left, r'left) downto 0) <= y(MINIMUM(y'left, r'left) downto 0);
-    end process;
-
   end block blkCompress;
 
 end rtl;
