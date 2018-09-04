@@ -46,7 +46,8 @@ class BlackBoxCompressor(p : BlackBoxCompressorParams) extends Module {
 		val r = Bits(OUTPUT, width = outputbits)
 	}
 	val inst = Module(new mac(
-    BB_WA = outputbits, BB_N = p.N, BB_WD = 1, BB_WC = 1, BB_D = p.getLatency()
+    BB_WA = outputbits, BB_N = p.N, BB_WD = 1, BB_WC = 1,
+    BB_D = p.getLatency() - 1 // -1 due to built-in output register
   )).io
 	inst.a := UInt(0)
 	inst <> io
