@@ -14,7 +14,7 @@ class TestThresholdingUnit extends JUnitSuite {
     class ThresholdingUnitTester(dut: ThresholdingUnit) extends Tester(dut) {
       val r = scala.util.Random
       // number of re-runs for each test
-      val num_seqs = 3
+      val num_seqs = 1
       //Input a single random matrix and then quantize
       // as thresholding unit with random thresholds is enough
 
@@ -22,6 +22,7 @@ class TestThresholdingUnit extends JUnitSuite {
       val in_len = dut.p.inputBitPrecision
       //  number of bits for the output matrix
       val out_len = dut.p.maxOutputBitPrecision
+      val thNumber = dut.p.thresholdNumber
       // spatial dimensions of the array
       val m = dut.p.matrixRows
       val n = dut.p.matrixColumns
@@ -29,52 +30,48 @@ class TestThresholdingUnit extends JUnitSuite {
       val unroll_factor = dut.p.unrollingFactorOutputPrecision
       val unroll_cols = dut.p.unrollingFactorColumns
       val mem_depth = dut.p.thresholdMemDepth
+      val negVal = false
+      val negTh = false
 
-
-      // helper fuctions for more concise tests
-      /*// wait up to <latency> cycles with valid=0 to create pipeline bubbles
-      def randomNoValidWait(max: Int = latency) = {
-        val numNoValidCycles = r.nextInt(max+1)
-        poke(dut.io.valid, 0)
-        step(numNoValidCycles)
-      }*/
-      def printMatrix(a: Seq[Seq[Int]]) = {
-          for(i <- 0 to a.size-1){
-          for(j <- 0 to a(i).size-1){
-            print(a(i)(j))
-            print(" ")   
-          }
-          println(" ")     
-        }
-      }
 
       for(i <- 1 to num_seqs) {
 
-        val a = RosettaTestHelpers.randomIntMatrix(1, n, in_len, false)
+        val a = RosettaTestHelpers.randomIntMatrix(m, n, in_len, negVal)
         println("Matrix a")
         printMatrix(a)
-        val th = RosettaTestHelpers.randomIntMatrix(1, (scala.math.pow(2,out_len)toInt), in_len, false)
+        val th = RosettaTestHelpers.randomIntMatrix(m, thNumber, in_len, negTh)
         println("matrrix th")
         printMatrix(th)
         val golden = RosettaTestHelpers.quantizeMatrix(a, th)
         println("Matrix GOld")
+
+
+
         printMatrix(golden)
-        for(i<-0 to a.head.size-1) {
-          poke(dut.io.inputMatrix.bits.i(0)(i), scala.math.BigInt.apply(a(0)(i)) )
-        }
+        //TODO generalize in the clock cycle to wait
+        for(i<-0 until m)
+          for(j <- 0 until n)
+            poke(dut.io.inputMatrix.bits.i(i)(j), scala.math.BigInt.apply(a(i)(j)) )
         poke(dut.io.inputMatrix.valid, true)
+        for(i<- 0 until m)
+          for(j<- 0 until thNumber)
+            poke(dut.io.thInterf.thresholdData(i)(j), scala.math.BigInt.apply(th(i)(j)))
         step(1)
+        peek(dut.io.outputMatrix.valid)
         step(1)
-        for(i<-0 to a(0).size-1){
-          expect(dut.io.outputMatrix.bits.o(0)(i), scala.math.BigInt.apply(golden(0)(i)) )
-
-        }
         poke(dut.io.inputMatrix.valid, false)
+        peek(dut.io.outputMatrix.valid)
         step(1)
-        poke(dut.io.inputMatrix.bits.i(0)(i), scala.math.BigInt.apply(0) )
         step(1)
+        step(dut.p.thresholdLatency)
+        for(i<-0 until m)
+          for(j<- 0 until n)
+          expect(dut.io.outputMatrix.bits.o(i)(j), scala.math.BigInt.apply(golden(i)(j)) )
+        //expect(dut.io.outputMatrix.valid, true)
+        step(1)
+        expect(dut.io.outputMatrix.valid, true)
 
-        }
+      }
       
     }
 
@@ -82,17 +79,18 @@ class TestThresholdingUnit extends JUnitSuite {
     def testArgs = RosettaTestHelpers.stdArgs
 
     for{
-      inPrecision <- 4 to 4
+      inPrecision <- 16 to 16
       maxOutPrecision <- 2 to 2
-      rowsDM <- 1 to 1
+      rowsDM <- 8 to 8
       columnsDN <- 8 to 8
       thDepth <- 8 to 8 // MY WORRIES: should it be equal to the row of the matrix?
-      unrollingBB <- 4 to 4
-      unrollingRows <- 1 to 1
+      unrollingBB <- 3 to 3
+      unrollingRows <- 8 to 8
       unrollingCols <- 8 to 8
     } {
+      val thBBParams = new ThresholdingBuildingBlockParams(	inPrecision = inPrecision, popcountUnroll = unrollingBB,  outPrecision = maxOutPrecision)
       // function that instantiates the Module to be tested
-      val p = new ThresholdingUnitParams(inPrecision, maxOutPrecision, rowsDM , columnsDN, thDepth, unrollingBB, unrollingRows, unrollingCols)
+      val p = new ThresholdingUnitParams(thBBParams, inPrecision, maxOutPrecision, rowsDM , columnsDN, thDepth, unrollingBB, unrollingRows, unrollingCols)
       def testModuleInstFxn = () => { Module(new ThresholdingUnit(p)) }
       // function that instantiates the Tester to test the Module
       def testTesterInstFxn = (dut: ThresholdingUnit) => new ThresholdingUnitTester(dut)

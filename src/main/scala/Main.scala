@@ -219,14 +219,15 @@ object CharacterizeMain {
 
   def makeParamSpace_THU(): Seq[ThresholdingUnitParams] = {
     return for {
-      inP <- 32 to 32
-      mOutP <- 4 to 4
-      rows <- 8 to 8
-      cols <- 8 to 8
-      unrollBB <- 16 to 16
-      unRows <- 8 to 8
-      unCols <- 8 to 8
+      inP <- 4 to 4
+      mOutP <- 1 to 1
+      rows <- 2 to 2
+      cols <- 2 to 2
+      unrollBB <- 1 to 1
+      unRows <- 2 to 2
+      unCols <- 2 to 2
     } yield new ThresholdingUnitParams(
+      thBBParams = new ThresholdingBuildingBlockParams(	inPrecision = inP, popcountUnroll = unrollBB,  outPrecision = mOutP),
       inputBitPrecision = inP, maxOutputBitPrecision = mOutP, matrixRows = rows,
       matrixColumns = cols, thresholdMemDepth = rows,  unrollingFactorOutputPrecision = unrollBB, 
       unrollingFactorRows = unRows, unrollingFactorColumns = unCols

@@ -2,14 +2,18 @@
 // Date: 20/08/2018
 // Revision: 0
 package bismo
-import Chisel._
+import Chisel.{Bool, _}
 import fpgatidbits.ocm._
 
 // The Thresholding Unit quantizes an input matrix,
 // with a rolling factor or a complete unrolled version
 // structurally, it is a compare-popcount datapath.
+//TODO: Asssumption: the threshold matrix has one row of threshold per a whole row of input matrix
+//TODO Should we handle a quantization vector per element fo the matrix, thus a MxNxT matrix?
 
 class ThresholdingUnitParams(
+   // building block params
+   val thBBParams : ThresholdingBuildingBlockParams,
   // input bit precision
   val inputBitPrecision : Int = 32,
   // maximum output bit precision
@@ -33,31 +37,33 @@ class ThresholdingUnitParams(
   //check parameters consistency
   Predef.assert(unrollingFactorRows == matrixRows)
   Predef.assert(unrollingFactorColumns == matrixColumns)
-  Predef.assert(unrollingFactorOutputPrecision == (scala.math.pow(2,maxOutputBitPrecision)toInt))
-
+  //Predef.assert(unrollingFactorOutputPrecision == (scala.math.pow(2,maxOutputBitPrecision).toInt - 1))
+  //how many threshold
+  val thresholdNumber : Int = scala.math.pow(2,maxOutputBitPrecision).toInt - 1
     // threshold memory width (how many output bits)
   // MY WORRIES: Should it be matrixColumns-1 * maxOutputBitPrecision?
-  val thresholdMemWidth : Int = inputBitPrecision * (scala.math.pow(2,maxOutputBitPrecision)toInt)
+  val thresholdMemWidth : Int = inputBitPrecision * thresholdNumber
 
-  val thersholdLatency : Int = (scala.math.pow(2,maxOutputBitPrecision)toInt) / unrollingFactorOutputPrecision
+  val thresholdLatency : Int = thresholdNumber - unrollingFactorOutputPrecision
 
-  val rowLatency : Int = matrixRows / unrollingFactorRows
+  val rowLatency : Int = matrixRows - unrollingFactorRows
 
-  val colsLatency : Int = matrixColumns / unrollingFactorColumns
-  // internal pipeline registers inside DPU
-  //val myLatency = if(useVhdlCompressor){5 + extraPipelineRegs} else {6 + extraPipelineRegs}
-  // latency of instantiated PopCountUnit
-  //val popcountLatency: Int = pcParams.getLatency()
-  // return total latency
-  //def getLatency(): Int = {
-  //  return myLatency + popcountLatency
-  //}
+  val colsLatency : Int = matrixColumns - unrollingFactorColumns
+  // TODO the TBB has a latency of 1 + the rolling factors
+  val totLatency: Int = thresholdLatency + rowLatency + colsLatency + 1
+
+  def getLatency() : Int = {
+    return totLatency
+  }
+  def getMemWidth() : Int  ={
+    return thresholdMemWidth
+  }
   def headersAsList(): List[String] = {
-    return List("inputBitPrecision", "maxOutputBitPrecision", "matrixRows", "matrixColumns", "thresholdMemDepth", "thresholdMemWidth", "unrollingOutPrecision", "UnrollingRows", "UnrollingColumns")
+    return List("inputBitPrecision", "maxOutputBitPrecision", "matrixRows", "matrixColumns", "thresholdMemDepth", "thresholdMemWidth", "Unit Latency" ,"unrollingOutPrecision", "UnrollingRows", "UnrollingColumns")
   }
 
   def contentAsList(): List[String] = {
-    return List(inputBitPrecision, maxOutputBitPrecision, matrixRows, matrixColumns,thresholdMemDepth, thresholdMemWidth, unrollingFactorOutputPrecision, unrollingFactorRows, unrollingFactorColumns).map(_.toString)
+    return List(inputBitPrecision, maxOutputBitPrecision, matrixRows, matrixColumns,thresholdMemDepth, getMemWidth(), getLatency() ,unrollingFactorOutputPrecision, unrollingFactorRows, unrollingFactorColumns).map(_.toString)
   }
 }
 
@@ -83,7 +89,7 @@ class ThresholdingInputThresholdIO (val p: ThresholdingUnitParams) extends Bundl
   //val thresholdVector = new OCMResponse(p.thresholdMemWidth).asInput
   //val thresholdRequest = new OCMRequest(p.thresholdMemWidth,log2Up(p.thresholdMemDepth)).asOutput 
   val thresholdAddr = UInt(OUTPUT, width = log2Up(p.thresholdMemDepth))
-  val thresholdData = Bits(INPUT, width = p.thresholdMemWidth)//Vec.fill(p.matrixRows){Bits(INPUT, width = p.inputBitPrecision)}
+  val thresholdData = Vec.fill(p.matrixRows){Vec.fill(p.thresholdNumber){Bits(INPUT, width = p.inputBitPrecision)}}
 
   override def cloneType: this.type =
     new ThresholdingInputThresholdIO(p).asInstanceOf[this.type]
@@ -96,68 +102,90 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
     val thInterf = new ThresholdingInputThresholdIO(p)  
 
   }
-  //A register for temporary matrix storage and valid signal 
+  //A register for temporary matrix storage and valid signal
+  //TODO : should become a BRAM storage
   val inRegData = Vec.fill(p.matrixRows){Vec.fill(p.matrixColumns){Reg(outType = UInt(width =  p.inputBitPrecision))} }
   val inRegValid = Reg(init = Bool(false), next = io.inputMatrix.valid)
-  
-  for(i <- 0 to p.matrixRows - 1)
-    for(j <- 0 to p.matrixColumns - 1 )
-      inRegData(i)(j) := io.inputMatrix.bits.i(i)(j)
-
 
   val outRegData = Vec.fill(p.matrixRows){Vec.fill(p.matrixColumns){Reg(outType = UInt(width = p.maxOutputBitPrecision))} }
 
-  //threshold management
-  //MY WORRIES: change with input precision
-  val thRegData = Vec.fill(p.unrollingFactorOutputPrecision){Reg(outType = UInt(width = p.inputBitPrecision))}
+  val thRegData = Vec.fill(p.matrixRows){Vec.fill(p.thresholdNumber){Reg(outType = UInt(width = p.inputBitPrecision))}}
+
+  val thuBB = Vec.fill(p.unrollingFactorRows){Vec.fill(p.unrollingFactorColumns){Module(new ThresholdingBuildingBlock(p.thBBParams)).io}}
+  
+  for(i <- 0 until p.matrixRows )
+    for(j <- 0 until p.matrixColumns )
+      inRegData(i)(j) := io.inputMatrix.bits.i(i)(j)
 
   //fill the vector of thresholds with the input thresholds
-  for (i <- 0 to p.unrollingFactorOutputPrecision - 1)
-    thRegData(i):= io.thInterf.thresholdData(((i+1)*p.maxOutputBitPrecision)-1,i*p.maxOutputBitPrecision)
+  for (i <- 0 until p.matrixRows)
+    for(j <- 0 until p.thresholdNumber)
+      thRegData(i)(j) := io.thInterf.thresholdData(i)(j)
+
+  for (i <- 0 until p.matrixRows)
+    for (j <- 0 until p.matrixColumns)
+      outRegData(i)(j) := thuBB(i)(j).outValue
 
   val addrThReg = Reg(init = UInt(0, width = log2Up(p.thresholdMemDepth)))
 
 
-  val d = new ThresholdingBuildingBlockParams(p.inputBitPrecision , p.unrollingFactorOutputPrecision, p.maxOutputBitPrecision)
+  //count the clock cycle the unit needs to compute the quantization
+  val thCounter = Reg(init = UInt(0, width = log2Up(p.thresholdLatency) + 1 ))
+  val end = Reg(init = Bool(false))
 
-  val thuBB = Vec.fill(p.unrollingFactorRows){Vec.fill(p.unrollingFactorColumns){Module(new ThresholdingBuildingBlock(d)).io}}
-
-  //TODO : handle partial unroll for rows columns and threshold
-
-  val ready = Reg(init = Bool(true))
-  val busy = Reg(init = Bool(false), next = !(ready))
-
-  io.inputMatrix.ready := ready
-  when(ready && io.inputMatrix.valid){
-    ready := Bool(false)
-  }
-
-  val counter = Reg(init = UInt(0))
-
-  when(busy && Bool(counter == UInt(0))){
-    for(i <- 0 to p.matrixRows - 1)
-      for(j <- 0 to p.matrixColumns - 1)
-        for(k <- 0 to p.unrollingFactorOutputPrecision - 1){
-          thuBB(i)(j).inVector(k) := inRegData(i)(j)
-          thuBB(i)(j).thVector(k) := thRegData(k)
-        }
-    counter := counter + UInt(1)
-
-  }.otherwise{
-    for(i <- 0 to p.matrixRows - 1)
-      for(j <- 0 to p.matrixColumns - 1)
-        for(k <- 0 to p.unrollingFactorOutputPrecision - 1){
+  val iterationFactor = thCounter*UInt(p.unrollingFactorOutputPrecision)
+  val sInit::sThRoll::sEnd::Nil = Enum(UInt(),3)
+  val unitState = Reg(init = sInit)
+  when(unitState === sInit){
+    for (i <- 0 until p.matrixRows)
+      for (j <- 0 until p.matrixColumns)
+        for(k <- 0 until p.unrollingFactorOutputPrecision )
+        {
           thuBB(i)(j).inVector(k) := UInt(0)
           thuBB(i)(j).thVector(k) := UInt(0)
+          thuBB(i)(j).clearAcc := Bool(false)
         }
-    counter := UInt(0)
-    ready := Bool(true)
+    io.outputMatrix.valid := Bool(false)
+    when(inRegValid){
+      unitState := sThRoll
+    }
+
+  }.elsewhen(unitState === sThRoll){
+    //ASSUMPTION: fully unrolled matrix rolling in the thresholds
+    io.outputMatrix.valid := Bool(false)
+    end := Bool(false)
+    for (i <- 0 until p.matrixRows)
+      for (j <- 0 until p.matrixColumns)
+        for (k <- 0 until p.unrollingFactorOutputPrecision) {
+          thuBB(i)(j).inVector(k) := inRegData(i)(j)
+          thuBB(i)(j).thVector(k) := thRegData(i)(iterationFactor+UInt(k))
+        }
+    thCounter := thCounter + UInt(1)
+    when(thCounter === UInt(p.thresholdLatency) ){
+      unitState := sEnd
+    }
+
+  }.elsewhen(unitState === sEnd){
+    io.outputMatrix.valid := Bool(true)
+    thCounter := UInt(0)
+        for (i <- 0 until p.matrixRows)
+          for (j <- 0 until p.matrixColumns)
+            thuBB(i)(j).clearAcc := Bool(true)
+
+    //TODO reinitialize state machine
+  }.otherwise{
+    //Default value for graceful dead
+    for (i <- 0 until p.matrixRows)
+      for (j <- 0 until p.matrixColumns)
+        for(k <- 0 until p.unrollingFactorOutputPrecision )
+        {
+          thuBB(i)(j).inVector(k) := UInt(0)
+          thuBB(i)(j).thVector(k) := UInt(0)
+          thuBB(i)(j).clearAcc := Bool(false)
+        }
+    io.outputMatrix.valid := Bool(false)
   }
 
- for(i <- 0 to p.matrixRows - 1)
-    for(j <- 0 to p.matrixColumns - 1)
-      outRegData(i)(j) := thuBB(i)(j).outValue
-  
-  io.thInterf.thresholdAddr := addrThReg
+
   io.outputMatrix.bits.o := outRegData
 }

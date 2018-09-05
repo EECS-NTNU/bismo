@@ -7,14 +7,14 @@ import Chisel._
 class ThresholdingBuildingBlockParams(
 	//input precision, how many bits
 	val inPrecision : Int = 32,
-	// how many input- threshold the unit should perform in paralle
+	// how many input- threshold the unit should perform in parallel
 	val popcountUnroll : Int = 1,
 	//output bit precision
 	val outPrecision : Int = 1
 ) extends PrintableParam {
 
   //check parameters consistency
-  Predef.assert(popcountUnroll == (scala.math.pow(2,outPrecision).toInt - 1) )
+  //Predef.assert(popcountUnroll == (scala.math.pow(2,outPrecision).toInt - 1) )
 
   def headersAsList(): List[String] = {
     return List("InputBitPrecision", "OutputBitPrecision", "PopcountUnrollingFactor")
@@ -55,9 +55,9 @@ class ThresholdingBuildingBlock(val p: ThresholdingBuildingBlockParams) extends 
 
 	//intermediate wire combinationally filled with the comparison against input and threshold
   	val compareVector = Vec.fill(p.popcountUnroll){Bool()}
-  for(i <- 0 to p.popcountUnroll - 1 ){
-    compareVector(i) := io.inVector(i) > io.thVector(i)//compare2c2(io.inVector(i),io.thVector(i))
-
+  for(i <- 0 to p.popcountUnroll - 1 ) {
+    compareVector(i) := io.inVector(i) > io.thVector(i) //compare2c2(io.inVector(i),io.thVector(i))
+  }
 
 	//popcount for the quantization
   	val popcountVector = UInt()
