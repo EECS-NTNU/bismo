@@ -37,6 +37,7 @@ if {$argc != 5} {
 # pull cmdline variables to use during setup
 set config_rosetta_root  [lindex $argv 0]
 set config_rosetta_verilog "$config_rosetta_root/src/main/verilog"
+set config_rosetta_vhdl "$config_rosetta_root/src/main/vhdl"
 set config_accel_verilog [lindex $argv 1]
 set config_proj_name [lindex $argv 2]
 set config_proj_dir [lindex $argv 3]
@@ -54,6 +55,8 @@ update_ip_catalog
 add_files -norecurse $config_accel_verilog
 # add misc verilog files used by fpga-rosetta
 add_files -norecurse $config_rosetta_verilog/Q_srl.v $config_rosetta_verilog/DualPortBRAM.v
+# add vhdl files used by fpga-rosetta
+add_files -norecurse $config_rosetta_vhdl/
 
 # create block design
 create_bd_design "procsys"
@@ -115,3 +118,6 @@ set_property STEPS.OPT_DESIGN.ARGS.DIRECTIVE Explore [get_runs impl_1]
 set_property STEPS.POST_ROUTE_PHYS_OPT_DESIGN.ARGS.DIRECTIVE AggressiveExplore [get_runs impl_1]
 set_property STEPS.PHYS_OPT_DESIGN.ARGS.DIRECTIVE AggressiveExplore [get_runs impl_1]
 set_property STEPS.POST_ROUTE_PHYS_OPT_DESIGN.IS_ENABLED true [get_runs impl_1]
+
+# do not ignore failure-level VHDL assertions
+set_param synth.elaboration.rodinMoreOptions {rt::set_parameter ignoreVhdlAssertStmts false}
