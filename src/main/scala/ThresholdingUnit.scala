@@ -49,8 +49,8 @@ class ThresholdingUnitParams(
   val rowLatency : Int = matrixRows - unrollingFactorRows
 
   val colsLatency : Int = matrixColumns - unrollingFactorColumns
-  // TODO the TBB has a latency of 1 + the rolling factors
-  val totLatency: Int = thresholdLatency + rowLatency + colsLatency + 1
+  // TODO the TBB has a latency of 1 + 2 for registers in the pipeline + the rolling factors
+  val totLatency: Int = thresholdLatency + rowLatency + colsLatency + 3
 
   def getLatency() : Int = {
     return totLatency
@@ -67,7 +67,6 @@ class ThresholdingUnitParams(
   }
 }
 
-//MY WORRIES: Handle DecoupledIO?
 class ThresholdingInputMatrixIO (val p: ThresholdingUnitParams) extends Bundle{
   val i = Vec.fill(p.matrixRows){Vec.fill(p.matrixColumns){Bits(INPUT, width = p.inputBitPrecision)}}
 
@@ -83,9 +82,6 @@ class ThresholdingOutputMatrixIO (val p: ThresholdingUnitParams) extends Bundle{
 }
 
 class ThresholdingInputThresholdIO (val p: ThresholdingUnitParams) extends Bundle{
-  //MY WORRIES: should we handle at IO level the unrolling or internal management?
-  // In case of IO we should change this interface
-  //memory interfacing
   //val thresholdVector = new OCMResponse(p.thresholdMemWidth).asInput
   //val thresholdRequest = new OCMRequest(p.thresholdMemWidth,log2Up(p.thresholdMemDepth)).asOutput 
   val thresholdAddr = UInt(OUTPUT, width = log2Up(p.thresholdMemDepth))
@@ -108,6 +104,7 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
   val inRegValid = Reg(init = Bool(false), next = io.inputMatrix.valid)
 
   val outRegData = Vec.fill(p.matrixRows){Vec.fill(p.matrixColumns){Reg(outType = UInt(width = p.maxOutputBitPrecision))} }
+  val outRegValid = Reg(init = Bool(false))
 
   val thRegData = Vec.fill(p.matrixRows){Vec.fill(p.thresholdNumber){Reg(outType = UInt(width = p.inputBitPrecision))}}
 
@@ -131,7 +128,6 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
 
   //count the clock cycle the unit needs to compute the quantization
   val thCounter = Reg(init = UInt(0, width = log2Up(p.thresholdLatency) + 1 ))
-  val end = Reg(init = Bool(false))
 
   val iterationFactor = thCounter*UInt(p.unrollingFactorOutputPrecision)
   val sInit::sThRoll::sEnd::Nil = Enum(UInt(),3)
@@ -145,15 +141,14 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
           thuBB(i)(j).thVector(k) := UInt(0)
           thuBB(i)(j).clearAcc := Bool(false)
         }
-    io.outputMatrix.valid := Bool(false)
+    outRegValid := Bool(false)
     when(inRegValid){
       unitState := sThRoll
     }
 
   }.elsewhen(unitState === sThRoll){
     //ASSUMPTION: fully unrolled matrix rolling in the thresholds
-    io.outputMatrix.valid := Bool(false)
-    end := Bool(false)
+    outRegValid := Bool(false)
     for (i <- 0 until p.matrixRows)
       for (j <- 0 until p.matrixColumns)
         for (k <- 0 until p.unrollingFactorOutputPrecision) {
@@ -166,13 +161,14 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
     }
 
   }.elsewhen(unitState === sEnd){
-    io.outputMatrix.valid := Bool(true)
+    outRegValid := Bool(true)
     thCounter := UInt(0)
         for (i <- 0 until p.matrixRows)
           for (j <- 0 until p.matrixColumns)
             thuBB(i)(j).clearAcc := Bool(true)
 
     //TODO reinitialize state machine
+    unitState := sInit
   }.otherwise{
     //Default value for graceful dead
     for (i <- 0 until p.matrixRows)
@@ -183,9 +179,9 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
           thuBB(i)(j).thVector(k) := UInt(0)
           thuBB(i)(j).clearAcc := Bool(false)
         }
-    io.outputMatrix.valid := Bool(false)
+    outRegValid := Bool(false)
   }
 
-
+  io.outputMatrix.valid := outRegValid
   io.outputMatrix.bits.o := outRegData
 }

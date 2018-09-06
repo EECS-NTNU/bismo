@@ -14,7 +14,7 @@ class TestThresholdingUnit extends JUnitSuite {
     class ThresholdingUnitTester(dut: ThresholdingUnit) extends Tester(dut) {
       val r = scala.util.Random
       // number of re-runs for each test
-      val num_seqs = 1
+      val num_seqs = 3
       //Input a single random matrix and then quantize
       // as thresholding unit with random thresholds is enough
 
@@ -57,19 +57,18 @@ class TestThresholdingUnit extends JUnitSuite {
           for(j<- 0 until thNumber)
             poke(dut.io.thInterf.thresholdData(i)(j), scala.math.BigInt.apply(th(i)(j)))
         step(1)
-        peek(dut.io.outputMatrix.valid)
-        step(1)
         poke(dut.io.inputMatrix.valid, false)
-        peek(dut.io.outputMatrix.valid)
-        step(1)
-        step(1)
-        step(dut.p.thresholdLatency)
+        step(dut.p.totLatency)
+        //step(1)
+        //step(dut.p.thresholdLatency)
+        //step(1)
+        //step(1)
         for(i<-0 until m)
           for(j<- 0 until n)
           expect(dut.io.outputMatrix.bits.o(i)(j), scala.math.BigInt.apply(golden(i)(j)) )
-        //expect(dut.io.outputMatrix.valid, true)
-        step(1)
+        //expect(dut.io.outputMatrix.valid, true
         expect(dut.io.outputMatrix.valid, true)
+        step(1)
 
       }
       
@@ -84,8 +83,8 @@ class TestThresholdingUnit extends JUnitSuite {
       rowsDM <- 8 to 8
       columnsDN <- 8 to 8
       thDepth <- 8 to 8 // MY WORRIES: should it be equal to the row of the matrix?
-      unrollingBB <- 3 to 3
-      unrollingRows <- 8 to 8
+      unrollingBB <- 1 to 1
+      unrollingRows <- 1 to 1
       unrollingCols <- 8 to 8
     } {
       val thBBParams = new ThresholdingBuildingBlockParams(	inPrecision = inPrecision, popcountUnroll = unrollingBB,  outPrecision = maxOutPrecision)
