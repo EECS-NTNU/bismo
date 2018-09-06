@@ -300,8 +300,13 @@ begin
         clk => clk,
         rst => '0',
         x => mr,
-        y => r
+        y => y
       );
+      process(y)
+      begin
+        r <= (others => '0');
+        r(MINIMUM(y'left, r'left) downto 0) <= y(MINIMUM(y'left, r'left) downto 0);
+      end process;
   end block blkCompress;
 
 end rtl;
