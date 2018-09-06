@@ -63,19 +63,18 @@ BUILD_DIR_EMULIB_CPP := $(BUILD_DIR)/hw/cpp_emulib
 VERILOG_SRC_DIR := $(TOP)/src/main/verilog
 VHDL_SRC_DIR := $(TOP)/src/main/vhdl
 APP_SRC_DIR := $(TOP)/src/main/cpp/app
-VIVADO_PROJ_SCRIPT := $(TOP)/src/main/script/$(PLATFORM)/host/make-vivado-project.tcl
-VIVADO_SYNTH_SCRIPT := $(TOP)/src/main/script/$(PLATFORM)/host/synth-vivado-project.tcl
-PLATFORM_SCRIPT_DIR := $(TOP)/src/main/script/$(PLATFORM)/target
-HW_VERILOG := $(BUILD_DIR_VERILOG)/$(PLATFORM)Wrapper.v
-BITFILE_PRJNAME := bitfile_synth
-BITFILE_PRJDIR := $(BUILD_DIR)/bitfile_synth
-GEN_BITFILE_PATH := $(BITFILE_PRJDIR)/$(BITFILE_PRJNAME).runs/impl_1/procsys_wrapper.bit
 VIVADO_IN_PATH := $(shell command -v vivado 2> /dev/null)
 ZSH_IN_PATH := $(shell command -v zsh 2> /dev/null)
 CPPTEST_SRC_DIR := $(TOP)/src/test/cosim
+HW_VERILOG := $(BUILD_DIR_VERILOG)/$(PLATFORM)Wrapper.v
+PLATFORM_SCRIPT_DIR := $(TOP)/src/main/script/$(PLATFORM)/target
+
+# platform-specific Makefile include for bitfile synthesis
+include platforms/$(PLATFORM).mk
 
 # note that all targets are phony targets, no proper dependency tracking
-.PHONY: hw_verilog emulib hw_driver hw_vivadoproj bitfile hw sw all rsync test characterize check_vivado
+.PHONY: hw_verilog emulib hw_driver hw_vivadoproj bitfile hw sw all rsync test
+.PHONY: resmodel characterize check_vivado
 
 check_vivado:
 ifndef VIVADO_IN_PATH
@@ -107,47 +106,26 @@ emu: $(BUILD_DIR_EMU)/driver.a
 Characterize%:
 	mkdir -p $(BUILD_DIR)/$@; cp $(VERILOG_SRC_DIR)/*.v $(BUILD_DIR)/$@; cp $(VHDL_SRC_DIR)/*.vhd $(BUILD_DIR)/$@;$(SBT) $(SBT_FLAGS) "runMain bismo.CharacterizeMain $@ $(BUILD_DIR)/$@ $(PLATFORM)"
 
-# generate Verilog for the Chisel accelerator
-hw_verilog: $(HW_VERILOG)
-
-$(HW_VERILOG):
-	$(SBT) $(SBT_FLAGS) "runMain bismo.ChiselMain $(PLATFORM) $(BUILD_DIR_VERILOG) $M $K $N"
-
 # generate register driver for the Chisel accelerator
 hw_driver: $(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp
 
 $(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp:
 	mkdir -p "$(BUILD_DIR_HWDRV)"; $(SBT) $(SBT_FLAGS) "runMain bismo.DriverMain $(PLATFORM) $(BUILD_DIR_HWDRV) $(TIDBITS_REGDRV_ROOT)"
 
-# create a new Vivado project
-hw_vivadoproj: $(BITFILE_PRJDIR)/bitfile_synth.xpr
+# generate Verilog for the Chisel accelerator
+hw_verilog: $(HW_VERILOG)
 
-$(BITFILE_PRJDIR)/bitfile_synth.xpr: $(HW_VERILOG)
-	vivado -mode $(VIVADO_MODE) -source $(VIVADO_PROJ_SCRIPT) -tclargs $(TOP) $(HW_VERILOG) $(BITFILE_PRJNAME) $(BITFILE_PRJDIR) $(FREQ_MHZ)
+$(HW_VERILOG):
+	$(SBT) $(SBT_FLAGS) "runMain bismo.ChiselMain $(PLATFORM) $(BUILD_DIR_VERILOG) $M $K $N"
 
-# launch Vivado in GUI mode with created project
-launch_vivado_gui: $(BITFILE_PRJDIR)/bitfile_synth.xpr
-	vivado -mode gui $(BITFILE_PRJDIR)/$(BITFILE_PRJNAME).xpr
-
-# run bitfile synthesis for the Vivado project
-bitfile: $(GEN_BITFILE_PATH)
-
-$(GEN_BITFILE_PATH): $(BITFILE_PRJDIR)/bitfile_synth.xpr
-	vivado -mode $(VIVADO_MODE) -source $(VIVADO_SYNTH_SCRIPT) -tclargs $(BITFILE_PRJDIR)/$(BITFILE_PRJNAME).xpr
-
-# copy bitfile to the deployment folder, make an empty tcl script for bitfile loader
-hw: $(GEN_BITFILE_PATH)
-	mkdir -p $(BUILD_DIR_DEPLOY); cp $(GEN_BITFILE_PATH) $(BUILD_DIR_DEPLOY)/bismo.bit; touch $(BUILD_DIR_DEPLOY)/bismo.tcl
-
-# copy all user sources and driver sources to the deployment folder
-sw: $(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp
-	mkdir -p $(BUILD_DIR_DEPLOY); cp $(BUILD_DIR_HWDRV)/* $(BUILD_DIR_DEPLOY)/; cp -r $(APP_SRC_DIR)/* $(BUILD_DIR_DEPLOY)/
+resmodel:
+	$(SBT) $(SBT_FLAGS) "runMain bismo.ResModelMain $(PLATFORM) $(BUILD_DIR_VERILOG) $M $K $N"
 
 # copy scripts to the deployment folder
 script:
 	cp $(PLATFORM_SCRIPT_DIR)/* $(BUILD_DIR_DEPLOY)/
 
-# get everything ready to copy onto the platform
+# get everything ready to copy onto the platform and create a deployment folder
 all: hw sw script
 
 # use rsync to synchronize contents of the deployment folder onto the platform

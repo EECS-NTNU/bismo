@@ -81,6 +81,20 @@ class BitSerialMatMulParams(
   // do not instantiate the negate stage
   val noNegate: Boolean = false
 ) extends PrintableParam {
+  def estimateResources() = {
+    import Math.ceil
+    val a_dpu = 2.04
+    val b_dpu = 109.41
+    val lut_per_res = 120.1
+    val lut_per_dpu = a_dpu * dpaDimCommon + b_dpu
+    val lut_array = dpaDimLHS * dpaDimRHS * (lut_per_dpu + lut_per_res)
+    val bram_array = ceil(dpaDimCommon / 32) * (dpaDimLHS * ceil(lhsEntriesPerMem / 1024) + dpaDimRHS * ceil(rhsEntriesPerMem / 1024))
+     println("Resource predictions from cost model")
+     println("=====================================")
+     println(s"DPA LUT: $lut_array")
+     println(s"DPA BRAM: $bram_array")
+  }
+
   def headersAsList(): List[String] = {
     return List(
       "dpaLHS", "dpaRHS", "dpaCommon", "lhsMem", "rhsMem", "DRAM_rd", "DRAM_wr",

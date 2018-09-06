@@ -106,6 +106,23 @@ object ChiselMain {
   }
 }
 
+object ResModelMain {
+  def main(args: Array[String]): Unit = {
+    val platformName: String = args(0)
+    val targetDir: String = args(1)
+    val dpaDimLHS: Int = args(2).toInt
+    val dpaDimCommon: Int = args(3).toInt
+    val dpaDimRHS: Int = args(4).toInt
+    val params = new BitSerialMatMulParams(
+      dpaDimLHS = dpaDimLHS, dpaDimRHS = dpaDimRHS, dpaDimCommon = dpaDimCommon,
+      lhsEntriesPerMem = 64 * 32 * 1024 / (dpaDimLHS * dpaDimCommon),
+      rhsEntriesPerMem = 64 * 32 * 1024 / (dpaDimRHS * dpaDimCommon),
+      mrp = PYNQZ1Params.toMemReqParams()
+    )
+    params.estimateResources()
+  }
+}
+
 // call this object's main method to generate a C++ static library containing
 // the cycle-accurate emulation model for the chosen accelerator. the interface
 // of the model is compatible with  the fpgatidbits.PlatformWrapper hw/sw
