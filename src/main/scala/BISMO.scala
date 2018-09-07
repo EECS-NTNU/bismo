@@ -89,10 +89,13 @@ class BitSerialMatMulParams(
     val lut_per_dpu = a_dpu * dpaDimCommon + b_dpu
     val lut_array = dpaDimLHS * dpaDimRHS * (lut_per_dpu + lut_per_res)
     val bram_array = ceil(dpaDimCommon / 32) * (dpaDimLHS * ceil(lhsEntriesPerMem / 1024) + dpaDimRHS * ceil(rhsEntriesPerMem / 1024))
+    val binops_per_cycle = 2 * dpaDimLHS * dpaDimRHS * dpaDimCommon
+    val tops_per_sec_200MHz = (binops_per_cycle * 200) / 1000000.0
      println("Resource predictions from cost model")
      println("=====================================")
      println(s"DPA LUT: $lut_array")
      println(s"DPA BRAM: $bram_array")
+     println(s"TOPS at 200 MHz: $tops_per_sec_200MHz")
   }
 
   def headersAsList(): List[String] = {

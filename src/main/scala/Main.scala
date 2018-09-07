@@ -92,6 +92,7 @@ object ChiselMain {
 
     val chiselArgs = Array("--backend", "v", "--targetDir", targetDir)
     chiselMain(chiselArgs, () => Module(platformInst(accInst)))
+
   }
 }
 
@@ -104,8 +105,8 @@ object ResModelMain {
     val dpaDimRHS: Int = args(4).toInt
     val params = new BitSerialMatMulParams(
       dpaDimLHS = dpaDimLHS, dpaDimRHS = dpaDimRHS, dpaDimCommon = dpaDimCommon,
-      lhsEntriesPerMem = 64 * 32 * 1024 / (dpaDimLHS * dpaDimCommon),
-      rhsEntriesPerMem = 64 * 32 * 1024 / (dpaDimRHS * dpaDimCommon),
+      lhsEntriesPerMem = 1024,
+      rhsEntriesPerMem = 1024,
       mrp = PYNQZ1Params.toMemReqParams()
     )
     params.estimateResources()
@@ -224,6 +225,16 @@ object CharacterizeMain {
   }
   val instFxn_FetchStage = {p: FetchStageParams => Module(new FetchStage(p))}
 
+  def makeParamSpace_BlackBoxCompressor(): Seq[BlackBoxCompressorParams] = {
+    return for {
+      n <- for(i <- 8 to 8) yield 1 << i
+      d <- 5 to 5
+    } yield new BlackBoxCompressorParams(
+      N = n, D = d
+    )
+  }
+  val instFxn_BlackBoxCompressor = {p: BlackBoxCompressorParams => Module(new BlackBoxCompressor(p))}
+
   def main(args: Array[String]): Unit = {
     val chName: String = args(0)
     val chPath: String = args(1)
@@ -245,7 +256,9 @@ object CharacterizeMain {
       VivadoSynth.characterizeSpace(makeParamSpace_ResultBuf(), instFxn_ResultBuf, chPath, chLog, fpgaPart)
     } else if(chName == "CharacterizeFetchStage") {
       VivadoSynth.characterizeSpace(makeParamSpace_FetchStage(), instFxn_FetchStage, chPath, chLog, fpgaPart)
-    } else {
+    } else if (chName == "CharacterizeBBCompressor"){
+      VivadoSynth.characterizeSpace(makeParamSpace_BlackBoxCompressor(), instFxn_BlackBoxCompressor, chPath, chLog, fpgaPart)
+    }else {
       println("Unrecognized target for characterization")
     }
   }
