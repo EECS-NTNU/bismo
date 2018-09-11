@@ -62,8 +62,8 @@ object Settings {
     return {(p: PlatformWrapperParams) => new BitSerialMatMulAccel(myP, p)}
   }
 
-  // instantiate smaller accelerator for emu for faster testing
-  val emuInstParams = new BitSerialMatMulParams(
+  // accelerator emu settings
+  var emuConfigParams =  new BitSerialMatMulParams(
     dpaDimLHS = 2, dpaDimRHS = 2, dpaDimCommon = 128, lhsEntriesPerMem = 128,
     rhsEntriesPerMem = 128, mrp = PYNQZ1Params.toMemReqParams()
   )
@@ -72,7 +72,7 @@ object Settings {
   val emuP = TesterWrapperParams
   val emuMap: AccelMap = Map(
     // "main" is the emulator for the default target
-    "main" -> {p => new BitSerialMatMulAccel(emuInstParams, emuP)},
+    "main" -> {p => new BitSerialMatMulAccel(emuConfigParams, emuP)},
     // HW-SW cosimulation tests
     // for these tests (EmuTest*) the same name is assumed to be the cpp file
     // that defines the software part of the test under test/cosim
@@ -113,6 +113,16 @@ object EmuLibMain {
   def main(args: Array[String]): Unit = {
     val emuName: String = args(0)
     val emuDir: String = args(1)
+    if (args.size > 2) {
+        val dpaDimLHS: Int = args(2).toInt
+        val dpaDimCommon: Int = args(3).toInt
+        val dpaDimRHS: Int = args(4).toInt
+
+        Settings.emuConfigParams = new BitSerialMatMulParams(
+           dpaDimLHS = dpaDimLHS, dpaDimRHS = dpaDimRHS, dpaDimCommon = dpaDimCommon,
+           lhsEntriesPerMem = 128, rhsEntriesPerMem = 128, mrp = PYNQZ1Params.toMemReqParams()
+        )
+    }
     val accInst: Settings.AccelInstFxn = Settings.emuMap(emuName)
     TidbitsMakeUtils.makeEmulatorLibrary(accInst, emuDir, Seq("--std=c++11"))
   }

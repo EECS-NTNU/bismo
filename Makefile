@@ -77,7 +77,7 @@ CPPTEST_SRC_DIR := $(TOP)/src/test/cosim
 .DEFAULT_GOAL := emu
 
 # note that all targets are phony targets, no proper dependency tracking
-.PHONY: hw_verilog emulib hw_driver hw_vivadoproj bitfile hw sw all rsync test characterize check_vivado
+.PHONY: hw_verilog emulib hw_driver hw_vivadoproj bitfile hw sw all rsync test characterize check_vivado emu emu_cfg
 
 #check_zsh:
 ifndef ZSH_IN_PATH
@@ -93,19 +93,35 @@ Test%:
 
 # run hardware-software cosimulation tests
 EmuTest%:
-	mkdir -p $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@"; cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; cd $(BUILD_DIR)/$@; g++ -std=c++11 *.cpp driver.a -o $@; ./$@
+	mkdir -p $(BUILD_DIR)/$@
+	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@"
+	cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@
+	cd $(BUILD_DIR)/$@; g++ -std=c++11 *.cpp driver.a -o $@; ./$@
+
+# generate cycle-accurate C++ emulator driver lib
+$(TOP)/build/smallEmu/driver.a:
+	mkdir -p $(TOP)/build/smallEmu
+	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain main $(TOP)/build/smallEmu 2 128 2"
 
 # generate cycle-accurate C++ emulator driver lib
 $(BUILD_DIR_EMU)/driver.a:
-	mkdir -p $(BUILD_DIR_EMU); $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain main $(BUILD_DIR_EMU)"
+	mkdir -p $(BUILD_DIR_EMU)
+	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain main $(BUILD_DIR_EMU) $M $K $N"
 
 # generate emulator executable including software sources
-emu: $(BUILD_DIR_EMU)/driver.a
-	cp -r $(APP_SRC_DIR)/* $(BUILD_DIR_EMU)/; cd $(BUILD_DIR_EMU); g++ -std=c++11 *.cpp driver.a -o emu; ./emu
+emu: $(TOP)/build/smallEmu/driver.a
+	cp -r $(APP_SRC_DIR)/* $(TOP)/build/smallEmu/
+	cd $(TOP)/build/smallEmu; g++ -std=c++11 *.cpp driver.a -o emu; ./emu
+
+emu_cfg: $(BUILD_DIR_EMU)/driver.a
+	cp -r $(APP_SRC_DIR)/* $(BUILD_DIR_EMU)/;
+	cd $(BUILD_DIR_EMU); g++ -std=c++11 *.cpp driver.a -o emu; ./emu
 
 # run resource/Fmax characterization
 Characterize%:
-	mkdir -p $(BUILD_DIR)/$@; cp $(VERILOG_SRC_DIR)/*.v $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.CharacterizeMain $@ $(BUILD_DIR)/$@ $(PLATFORM)"
+	mkdir -p $(BUILD_DIR)/$@
+	cp $(VERILOG_SRC_DIR)/*.v $(BUILD_DIR)/$@
+	$(SBT) $(SBT_FLAGS) "runMain bismo.CharacterizeMain $@ $(BUILD_DIR)/$@ $(PLATFORM)"
 
 # generate Verilog for the Chisel accelerator
 hw_verilog: $(HW_VERILOG)
@@ -117,7 +133,8 @@ $(HW_VERILOG):
 hw_driver: $(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp
 
 $(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp:
-	mkdir -p "$(BUILD_DIR_HWDRV)"; $(SBT) $(SBT_FLAGS) "runMain bismo.DriverMain $(PLATFORM) $(BUILD_DIR_HWDRV) $(TIDBITS_REGDRV_ROOT)"
+	mkdir -p "$(BUILD_DIR_HWDRV)"
+	$(SBT) $(SBT_FLAGS) "runMain bismo.DriverMain $(PLATFORM) $(BUILD_DIR_HWDRV) $(TIDBITS_REGDRV_ROOT)"
 
 # create a new Vivado project
 hw_vivadoproj: $(BITFILE_PRJDIR)/bitfile_synth.xpr
@@ -137,11 +154,15 @@ $(GEN_BITFILE_PATH): $(BITFILE_PRJDIR)/bitfile_synth.xpr
 
 # copy bitfile to the deployment folder, make an empty tcl script for bitfile loader
 hw: $(GEN_BITFILE_PATH)
-	mkdir -p $(BUILD_DIR_DEPLOY); cp $(GEN_BITFILE_PATH) $(BUILD_DIR_DEPLOY)/bismo.bit; touch $(BUILD_DIR_DEPLOY)/bismo.tcl
+	mkdir -p $(BUILD_DIR_DEPLOY)
+	cp $(GEN_BITFILE_PATH) $(BUILD_DIR_DEPLOY)/bismo.bit
+	touch $(BUILD_DIR_DEPLOY)/bismo.tcl
 
 # copy all user sources and driver sources to the deployment folder
 sw: $(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp
-	mkdir -p $(BUILD_DIR_DEPLOY); cp $(BUILD_DIR_HWDRV)/* $(BUILD_DIR_DEPLOY)/; cp -r $(APP_SRC_DIR)/* $(BUILD_DIR_DEPLOY)/
+	mkdir -p $(BUILD_DIR_DEPLOY)
+	cp $(BUILD_DIR_HWDRV)/* $(BUILD_DIR_DEPLOY)/
+	cp -r $(APP_SRC_DIR)/* $(BUILD_DIR_DEPLOY)/
 
 # copy scripts to the deployment folder
 script:
