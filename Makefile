@@ -178,3 +178,8 @@ rsync:
 # remove everything that is built
 clean:
 	rm -rf $(BUILD_DIR)
+
+# remove everything that is built
+clean_all:
+	rm -rf $(TOP)/build
+
