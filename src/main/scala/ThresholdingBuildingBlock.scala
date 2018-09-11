@@ -13,7 +13,7 @@ class ThresholdingBuildingBlockParams(
 	val outPrecision : Int = 1
 ) extends PrintableParam {
 
-  //check parameters consistency
+  //check parameters consistency for full unroll
   //Predef.assert(popcountUnroll == (scala.math.pow(2,outPrecision).toInt - 1) )
 
   def headersAsList(): List[String] = {
@@ -72,6 +72,5 @@ class ThresholdingBuildingBlock(val p: ThresholdingBuildingBlockParams) extends 
       next_value := popcountVector + outReg
     }
   	io.outValue := outReg
-
 
 }

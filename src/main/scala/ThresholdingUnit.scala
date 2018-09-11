@@ -25,8 +25,7 @@ class ThresholdingUnitParams(
   // threshold memory depth (how many entries, address space)
   val thresholdMemDepth : Int,
   // unrolling factor
-  // MY WORRIES: Should we guarantee the consistency of this parameter somehow?
-  //unrolling in the dimension of the popcount
+  //unrolling in the dimension of the popcount thus the parallel thresholds
   val unrollingFactorOutputPrecision : Int = 16,
   //unrolling factor for the input matrix rows
   val unrollingFactorRows : Int = 1,
@@ -35,13 +34,12 @@ class ThresholdingUnitParams(
 ) extends PrintableParam {
 
   //check parameters consistency
+  //TODO support to Row Roll
   Predef.assert(unrollingFactorRows == matrixRows)
   Predef.assert(unrollingFactorColumns == matrixColumns)
-  //Predef.assert(unrollingFactorOutputPrecision == (scala.math.pow(2,maxOutputBitPrecision).toInt - 1))
   //how many threshold
   val thresholdNumber : Int = scala.math.pow(2,maxOutputBitPrecision).toInt - 1
     // threshold memory width (how many output bits)
-  // MY WORRIES: Should it be matrixColumns-1 * maxOutputBitPrecision?
   val thresholdMemWidth : Int = inputBitPrecision * thresholdNumber
 
   val thresholdLatency : Int = thresholdNumber - unrollingFactorOutputPrecision
@@ -82,8 +80,6 @@ class ThresholdingOutputMatrixIO (val p: ThresholdingUnitParams) extends Bundle{
 }
 
 class ThresholdingInputThresholdIO (val p: ThresholdingUnitParams) extends Bundle{
-  //val thresholdVector = new OCMResponse(p.thresholdMemWidth).asInput
-  //val thresholdRequest = new OCMRequest(p.thresholdMemWidth,log2Up(p.thresholdMemDepth)).asOutput 
   val thresholdAddr = UInt(OUTPUT, width = log2Up(p.thresholdMemDepth))
   val thresholdData = Vec.fill(p.matrixRows){Vec.fill(p.thresholdNumber){Bits(INPUT, width = p.inputBitPrecision)}}
 
@@ -167,7 +163,6 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
           for (j <- 0 until p.matrixColumns)
             thuBB(i)(j).clearAcc := Bool(true)
 
-    //TODO reinitialize state machine
     unitState := sInit
   }.otherwise{
     //Default value for graceful dead

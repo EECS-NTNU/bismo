@@ -246,7 +246,32 @@ object CharacterizeMain {
       inPrecision = m, popcountUnroll = k, outPrecision = n
     )
   }
-  val instFxn_TBB = {p: ThresholdingBuildingBlockParams => Module(new ThresholdingBuildingBlock(p))}  
+  val instFxn_TBB = {p: ThresholdingBuildingBlockParams => Module(new ThresholdingBuildingBlock(p))}
+
+  def makeParamSpace_thrStage(): Seq[ThrStageParams] = {
+    return for {
+      inP <- 32 to 32
+      mOutP <- 1 to 1
+      rows <- 8 to 8
+      cols <- 8 to 8
+      unrollBB <- 1 to 1
+      unRows <- 8 to 8
+      unCols <- 8 to 8
+      resAddr <- 8 to 8
+      inAddr <- 8  to 8
+      thAddr <- 8 to 8
+    } yield new ThrStageParams(
+     thresholdMemDepth = thAddr, inputMemAddr = inAddr, resMemAddr = resAddr,
+      thuParams = new ThresholdingUnitParams(
+        thBBParams = new ThresholdingBuildingBlockParams(	inPrecision = inP, popcountUnroll = unrollBB,  outPrecision = mOutP),
+        inputBitPrecision = inP, maxOutputBitPrecision = mOutP, matrixRows = rows,
+        matrixColumns = cols, thresholdMemDepth = rows,  unrollingFactorOutputPrecision = unrollBB,
+        unrollingFactorRows = unRows, unrollingFactorColumns = unCols
+      )
+    )
+  }
+
+  val instFxn_thrStage = {p: ThrStageParams => Module(new ThrStage(p))}
 
   def main(args: Array[String]): Unit = {
     val chName: String = args(0)
@@ -271,8 +296,10 @@ object CharacterizeMain {
       VivadoSynth.characterizeSpace(makeParamSpace_FetchStage(), instFxn_FetchStage, chPath, chLog, fpgaPart)
     } else if(chName == "CharacterizeTHU") {
       VivadoSynth.characterizeSpace(makeParamSpace_THU(), instFxn_THU, chPath, chLog, fpgaPart)
-    } else if(chName == "CharacterizeTBB"){
+    } else if(chName == "CharacterizeTBB") {
       VivadoSynth.characterizeSpace(makeParamSpace_TBB(), instFxn_TBB, chPath, chLog, fpgaPart)
+    }else if(chName == "CharacterizeThrStage"){
+      VivadoSynth.characterizeSpace(makeParamSpace_thrStage(), instFxn_thrStage, chPath, chLog, fpgaPart)
     }else {
       println("Unrecognized target for characterization")
     }

@@ -79,12 +79,12 @@ class TestThresholdingUnit extends JUnitSuite {
 
     for{
       inPrecision <- 16 to 16
-      maxOutPrecision <- 2 to 2
+      maxOutPrecision <- 3 to 3
       rowsDM <- 8 to 8
       columnsDN <- 8 to 8
       thDepth <- 8 to 8 // MY WORRIES: should it be equal to the row of the matrix?
       unrollingBB <- 1 to 1
-      unrollingRows <- 1 to 1
+      unrollingRows <- 8 to 8
       unrollingCols <- 8 to 8
     } {
       val thBBParams = new ThresholdingBuildingBlockParams(	inPrecision = inPrecision, popcountUnroll = unrollingBB,  outPrecision = maxOutPrecision)
