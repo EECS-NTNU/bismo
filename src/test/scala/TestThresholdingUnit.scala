@@ -14,7 +14,7 @@ class TestThresholdingUnit extends JUnitSuite {
     class ThresholdingUnitTester(dut: ThresholdingUnit) extends Tester(dut) {
       val r = scala.util.Random
       // number of re-runs for each test
-      val num_seqs = 3
+      val num_seqs = 5
       //Input a single random matrix and then quantize
       // as thresholding unit with random thresholds is enough
 
@@ -32,6 +32,7 @@ class TestThresholdingUnit extends JUnitSuite {
       val mem_depth = dut.p.thresholdMemDepth
       val negVal = false
       val negTh = false
+      var iterFactor = 0
 
 
       for(i <- 1 to num_seqs) {
@@ -53,12 +54,17 @@ class TestThresholdingUnit extends JUnitSuite {
           for(j <- 0 until n)
             poke(dut.io.inputMatrix.bits.i(i)(j), scala.math.BigInt.apply(a(i)(j)) )
         poke(dut.io.inputMatrix.valid, true)
-        for(i<- 0 until m)
-          for(j<- 0 until thNumber)
-            poke(dut.io.thInterf.thresholdData(i)(j), scala.math.BigInt.apply(th(i)(j)))
         step(1)
         poke(dut.io.inputMatrix.valid, false)
-        step(dut.p.totLatency)
+        for(steps <- 0 until dut.p.totLatency){
+          for(i<- 0 until m)
+            for(j<- 0 until unroll_factor) {
+              poke(dut.io.thInterf.thresholdData(i)(j), scala.math.BigInt.apply(th(i)( (iterFactor + j) )))
+            }
+          step(1)
+          println(iterFactor)
+          iterFactor = iterFactor + 1
+        }
         //step(1)
         //step(dut.p.thresholdLatency)
         //step(1)
@@ -68,7 +74,10 @@ class TestThresholdingUnit extends JUnitSuite {
           expect(dut.io.outputMatrix.bits.o(i)(j), scala.math.BigInt.apply(golden(i)(j)) )
         //expect(dut.io.outputMatrix.valid, true
         expect(dut.io.outputMatrix.valid, true)
+        poke(dut.io.outputMatrix.ready, true)
         step(1)
+        poke(dut.io.outputMatrix.ready, false)
+        iterFactor = 0
 
       }
       
@@ -79,7 +88,7 @@ class TestThresholdingUnit extends JUnitSuite {
 
     for{
       inPrecision <- 16 to 16
-      maxOutPrecision <- 3 to 3
+      maxOutPrecision <- 2 to 2
       rowsDM <- 8 to 8
       columnsDN <- 8 to 8
       thDepth <- 8 to 8 // MY WORRIES: should it be equal to the row of the matrix?
@@ -89,7 +98,7 @@ class TestThresholdingUnit extends JUnitSuite {
     } {
       val thBBParams = new ThresholdingBuildingBlockParams(	inPrecision = inPrecision, popcountUnroll = unrollingBB,  outPrecision = maxOutPrecision)
       // function that instantiates the Module to be tested
-      val p = new ThresholdingUnitParams(thBBParams, inPrecision, maxOutPrecision, rowsDM , columnsDN, thDepth, unrollingBB, unrollingRows, unrollingCols)
+      val p = new ThresholdingUnitParams(thBBParams, inputBitPrecision = inPrecision, maxOutPrecision, rowsDM , columnsDN, thDepth, unrollingBB, unrollingRows, unrollingCols)
       def testModuleInstFxn = () => { Module(new ThresholdingUnit(p)) }
       // function that instantiates the Tester to test the Module
       def testTesterInstFxn = (dut: ThresholdingUnit) => new ThresholdingUnitTester(dut)
