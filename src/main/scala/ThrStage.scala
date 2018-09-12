@@ -13,7 +13,8 @@ class ThrStageParams(
   // threshold memory depth (how many entries, address space)
   val thresholdMemDepth : Int,
   val inputMemAddr : Int ,
-  val resMemAddr : Int
+  val resMemAddr : Int,
+  val activationMemoryLatency : Int = 1
   ) extends PrintableParam {
 
   //how many threshold
@@ -47,6 +48,9 @@ class ThrStageParams(
   def getResBitWidth() : Int = {
     return thuParams.maxOutputBitPrecision
   }
+  def getThUnroll() : Int = {
+    return  thuParams.unrollingFactorOutputPrecision
+  }
   def headersAsList(): List[String] = {
     return thuParams.headersAsList() ++  List("thresholdMemDepth", "thresholdMemWidth")
   }
@@ -69,6 +73,8 @@ class ThrStageCfgIO() extends Bundle {
 class ThrStageCtrlIO(myP: ThrStageParams) extends PrintableBundle {
 
   //TODO
+  val actOffset = UInt(width = 32) // start offset for activation memory
+  val thrOffset = UInt(width = 32) // start offset for threshold memory
   // write to result memory at the end of current execution
   val writeEn = Bool()
   // result memory address to use for writing
@@ -87,16 +93,16 @@ class ThrStageCtrlIO(myP: ThrStageParams) extends PrintableBundle {
 // interface towards tile memories (LHS(Thresholds)/RHS(Activation) BRAMs)
 class ThrTileMemIO(myP: ThrStageParams) extends Bundle {
   val thr_req = Vec.fill(myP.getUnrollRows()) {
-    new OCMRequest(myP.getInBits(), log2Up(myP.thresholdMemDepth)).asOutput
+    new OCMRequest(myP.getInBits() * myP.getThUnroll() , log2Up(myP.thresholdMemDepth)).asOutput
   }
   val thr_rsp = Vec.fill(myP.getUnrollRows()) {
-    new OCMResponse(myP.getInBits() * myP.thresholdNumber).asInput
+    new OCMResponse(myP.getInBits() *  myP.getThUnroll() ).asInput
   }
   val act_req = Vec.fill(myP.getUnrollRows()) {
-    new OCMRequest(myP.getInBits(), log2Up(myP.inputMemAddr)).asOutput
+    new OCMRequest(myP.getInBits() * myP.getUnrollCols(), log2Up(myP.inputMemAddr)).asOutput
   }
   val act_rsp = Vec.fill(myP.getUnrollRows()) {
-    new OCMResponse(myP.getInBits() * myP.getCols()).asInput
+    new OCMResponse(myP.getInBits() * myP.getUnrollCols()).asInput
   }
 
   override def cloneType: this.type =
@@ -126,15 +132,14 @@ class ThrStage(val myP: ThrStageParams) extends Module{
     val inMemory = new ThrTileMemIO(myP)
   }
 
-    //TODO: ASSUMPTION: fetch from the bram the whole matrix and then start
 
   val thu = Module(new ThresholdingUnit(myP.thuParams)).io
   //ASSUMING THIS PARAM
-  val seqgen = Module(new SequenceGenerator(myP.resMemAddr)).io
+  val seqgen = Module(new SequenceGenerator(log2Up(myP.thresholdMemDepth) + 1)).io
 
   seqgen.init := UInt(0)
-  seqgen.count := UInt(myP.getUnrollRows())//io.csr.numTiles
-  seqgen.step := UInt(1)//UInt(myP.tileMemAddrUnit)
+  seqgen.count := UInt(myP.thresholdNumber)//io.csr.numTiles
+  seqgen.step := UInt(1, width = myP.thresholdNumber)//UInt(myP.tileMemAddrUnit)
   seqgen.start := io.start
   seqgen.seq.ready := Bool(true)
 
@@ -142,22 +147,23 @@ class ThrStage(val myP: ThrStageParams) extends Module{
   for(i <- 0 until myP.getUnrollRows()){
     io.inMemory.act_req(i).writeEn := Bool(false)
     io.inMemory.act_req(i).writeData := UInt(0)
-    io.inMemory.act_req(i).addr := UInt(i)
+    io.inMemory.act_req(i).addr := UInt(i) + io.ctrl.actOffset
     io.inMemory.thr_req(i).writeEn := Bool(false)
     io.inMemory.thr_req(i).writeData := UInt(0)
-    io.inMemory.thr_req(i).addr := UInt(i)
+    io.inMemory.thr_req(i).addr := seqgen.seq.bits + io.ctrl.thrOffset
   }
 
   //ASSUMING that my data are available as long as I need
-  //Not convinced at all
   for(i <- 0 until myP.getUnrollRows()) {
     for (j <- 0 until myP.getUnrollCols()) {
       thu.inputMatrix.bits.i(i)(j) := io.inMemory.act_rsp(i).readData(myP.getInBits() * (1 + j) - 1, myP.getInBits() * j)
     }
-    for(j <- 0 until myP.thresholdNumber)
+    for(j <- 0 until myP.getThUnroll())
     thu.thInterf.thresholdData(i)(j) := io.inMemory.thr_rsp(i).readData( myP.getInBits()*(1+j) - 1, myP.getInBits()*j)
   }
 
+  //TODO: this is time to respond for the Data BRAM
+  thu.inputMatrix.valid := ShiftRegister(io.start, myP.activationMemoryLatency)
 
 
 
@@ -165,7 +171,7 @@ class ThrStage(val myP: ThrStageParams) extends Module{
   val time_to_write = myP.thuParams.getLatency() + myP.getUnrollRows()
   val end = ShiftRegister(thu.outputMatrix.valid, time_to_write)
   io.done := end
-
+  thu.outputMatrix.ready := end
   for(i <- 0 until myP.getRows())
     for(j <- 0 until myP.getCols()){
       io.res.req(i).writeEn := thu.outputMatrix.valid

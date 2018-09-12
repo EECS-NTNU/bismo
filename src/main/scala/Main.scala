@@ -250,11 +250,11 @@ object CharacterizeMain {
 
   def makeParamSpace_thrStage(): Seq[ThrStageParams] = {
     return for {
-      inP <- 32 to 32
-      mOutP <- 1 to 1
+      inP <- 4 to 32
+      mOutP <- 1 to 8
       rows <- 8 to 8
       cols <- 8 to 8
-      unrollBB <- 1 to 1
+      unrollBB <- List(1)//List(1,scala.math.pow(2,mOutP).toInt - 1)
       unRows <- 8 to 8
       unCols <- 8 to 8
       resAddr <- 8 to 8
