@@ -14,7 +14,11 @@ class ThrStageParams(
   val thresholdMemDepth : Int,
   val inputMemAddr : Int ,
   val resMemAddr : Int,
-  val activationMemoryLatency : Int = 1
+  val activationMemoryLatency : Int = 1,
+  // levels of registers before (on address input) and after (on data output)
+  // of each tile memory BRAM
+  val bramInRegs: Int = 1,
+  val bramOutRegs: Int = 1
   ) extends PrintableParam {
 
   //how many threshold
