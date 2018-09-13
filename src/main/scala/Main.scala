@@ -69,7 +69,8 @@ object Settings {
     "EmuTestExecStage" -> {p => new EmuTestExecStage(emuP)},
     "EmuTestFetchStage" -> {p => new EmuTestFetchStage(2, 2, emuP)},
     "EmuTestResultStage" -> {p => new EmuTestResultStage(2, emuP)},
-    "EmuTestInstrEncoding" -> {p => new EmuTestInstrEncoding(emuP)}
+    "EmuTestInstrEncoding" -> {p => new EmuTestInstrEncoding(emuP)},
+    "EmuTestExecInstrGenSingleMM" -> {p => new EmuTestExecInstrGenSingleMM(emuP)}
   )
 }
 
