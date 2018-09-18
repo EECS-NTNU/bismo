@@ -93,6 +93,15 @@ typedef struct {
   uint32_t waitCompleteBytes;
 } ResultRunCfg;
 
+// Software configurable Configuration for the Thresholding stage
+typedef struct{
+  uint32_t actOffset;
+  uint32_t thrOffset;
+  bool writeEn;
+  uint32_t writeAddr;
+} ThrRunCfg;
+
+//TODO Add parameter for the Thresholding stage
 typedef struct {
   uint32_t accWidth;
   uint32_t cmdQueueEntries;
@@ -185,6 +194,12 @@ public:
     return m_accel->get_perf_prf_res_count();
   }
 
+  uint32_t perf_thr_stats(ControllerState s) {
+    m_accel->set_perf_prf_thr_sel((uint32_t) s);
+    return m_accel->get_perf_prf_thr_count();
+  }
+
+
   static void printFetchRunCfg(FetchRunCfg r) {
     cout << "FetchRunCfg ============================" << endl;
     cout << "bram_addr_base: " << r.bram_addr_base << endl;
@@ -206,6 +221,15 @@ public:
     cout << "numTiles: " << r.numTiles << endl;
     cout << "shiftAmount: " << r.shiftAmount << endl;
     cout << "doClear: " << r.doClear << endl;
+    cout << "writeEn: " << r.writeEn << endl;
+    cout << "writeAddr: " << r.writeAddr << endl;
+    cout << "========================================" << endl;
+  }
+
+  static void printThrRunCfg(ThrRunCfg r) {
+    cout << "ThrRunCfg ============================" << endl;
+    cout << "actOffset: " << r.actOffset << endl;
+    cout << "thrOffset: " << thrOffset << endl;
     cout << "writeEn: " << r.writeEn << endl;
     cout << "writeAddr: " << r.writeAddr << endl;
     cout << "========================================" << endl;

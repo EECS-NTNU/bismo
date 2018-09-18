@@ -79,7 +79,7 @@ object Settings {
     "EmuTestExecStage" -> {p => new EmuTestExecStage(emuP)},
     "EmuTestFetchStage" -> {p => new EmuTestFetchStage(2, 2, emuP)},
     "EmuTestResultStage" -> {p => new EmuTestResultStage(2, emuP)},
-    "EmuTestThrStage" -> {p => new EmuTestThrStage(emuP)}
+    "EmuTestThrStage" -> {p => new EmuTestThrStage(2,3, 32, 1, 1, emuP)}
   )
 }
 
@@ -253,9 +253,9 @@ object CharacterizeMain {
     return for {
       inP <- 4 to 32
       mOutP <- 1 to 8
-      rows <- 8 to 8
-      cols <- 8 to 8
-      unrollBB <- List(1)//List(1,scala.math.pow(2,mOutP).toInt - 1)
+      rows <- 1 to 8
+      cols <- 1 to 8
+      unrollBB <- Seq(1,scala.math.pow(2,mOutP).toInt - 1)
       unRows <- 8 to 8
       unCols <- 8 to 8
       resAddr <- 8 to 8
@@ -267,7 +267,7 @@ object CharacterizeMain {
         thBBParams = new ThresholdingBuildingBlockParams(	inPrecision = inP, popcountUnroll = unrollBB,  outPrecision = mOutP),
         inputBitPrecision = inP, maxOutputBitPrecision = mOutP, matrixRows = rows,
         matrixColumns = cols, thresholdMemDepth = rows,  unrollingFactorOutputPrecision = unrollBB,
-        unrollingFactorRows = unRows, unrollingFactorColumns = unCols
+        unrollingFactorRows = rows, unrollingFactorColumns = cols
       )
     )
   }

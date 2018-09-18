@@ -35,11 +35,11 @@ class ThresholdingUnitParams(
 
   //check parameters consistency
   //TODO support to Row Roll and different threshold rolling factor
+  val thresholdNumber : Int = scala.math.pow(2,maxOutputBitPrecision).toInt - 1
   Predef.assert((unrollingFactorOutputPrecision == 1) || (unrollingFactorOutputPrecision == thresholdNumber))
   Predef.assert(unrollingFactorRows == matrixRows)
   Predef.assert(unrollingFactorColumns == matrixColumns)
   //how many threshold
-  val thresholdNumber : Int = scala.math.pow(2,maxOutputBitPrecision).toInt - 1
     // threshold memory width (how many output bits)
   val thresholdMemWidth : Int = inputBitPrecision * thresholdNumber
 
@@ -96,26 +96,26 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
 
   }
   //TODO ASSUMPTION: fully unrolled matrix as input while rolled threshold matrix
-  val inData = Vec.fill(p.matrixRows){Vec.fill(p.matrixColumns){UInt()} }
+  val inData = Vec.fill(p.unrollingFactorRows){Vec.fill(p.unrollingFactorColumns){UInt()} }
 
-  val outData = Vec.fill(p.matrixRows){Vec.fill(p.matrixColumns){UInt()} }
+  val outData = Vec.fill(p.unrollingFactorRows){Vec.fill(p.unrollingFactorColumns){UInt()} }
   val outValid = Bool()
 
-  val thData = Vec.fill(p.matrixRows){Vec.fill(p.unrollingFactorOutputPrecision){UInt()}}
+  val thData = Vec.fill(p.unrollingFactorRows){Vec.fill(p.unrollingFactorOutputPrecision){UInt()}}
 
   val thuBB = Vec.fill(p.unrollingFactorRows){Vec.fill(p.unrollingFactorColumns){Module(new ThresholdingBuildingBlock(p.thBBParams)).io}}
 
-  for(i <- 0 until p.matrixRows )
-    for(j <- 0 until p.matrixColumns )
+  for(i <- 0 until p.unrollingFactorRows )
+    for(j <- 0 until p.unrollingFactorColumns )
       inData(i)(j) := io.inputMatrix.bits.i(i)(j)
 
   //fill the vector of thresholds with the input thresholds
-  for (i <- 0 until p.matrixRows)
+  for (i <- 0 until p.unrollingFactorRows)
     for(j <- 0 until p.unrollingFactorOutputPrecision)
       thData(i)(j) := io.thInterf.thresholdData(i)(j)
 
-  for (i <- 0 until p.matrixRows)
-    for (j <- 0 until p.matrixColumns)
+  for (i <- 0 until p.unrollingFactorRows)
+    for (j <- 0 until p.unrollingFactorColumns)
       outData(i)(j) := thuBB(i)(j).outValue
 
   //count the clock cycle the unit needs to compute the quantization
@@ -124,9 +124,10 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
   val iterationFactor = thCounter*UInt(p.unrollingFactorOutputPrecision)
   val sInit::sThRoll::sEnd::Nil = Enum(UInt(),3)
   val unitState = Reg(init = sInit)
+  //TODO FSM coherent with the rolling factor in the matrix dimensions
   when(unitState === sInit){
-    for (i <- 0 until p.matrixRows)
-      for (j <- 0 until p.matrixColumns)
+    for (i <- 0 until p.unrollingFactorRows)
+      for (j <- 0 until p.unrollingFactorColumns)
         for(k <- 0 until p.unrollingFactorOutputPrecision )
         {
           thuBB(i)(j).inVector(k) := UInt(0)
@@ -141,11 +142,13 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
   }.elsewhen(unitState === sThRoll){
     //ASSUMPTION: fully unrolled matrix rolling in the thresholds
     outValid := Bool(false)
-    for (i <- 0 until p.matrixRows)
-      for (j <- 0 until p.matrixColumns )
+    for (i <- 0 until p.unrollingFactorRows)
+      for (j <- 0 until p.unrollingFactorColumns )
         for (k <- 0 until p.unrollingFactorOutputPrecision) {
           thuBB(i)(j).inVector(k) := inData(i)(j)
           thuBB(i)(j).thVector(k) := thData(i)(k)
+          /*printf("[HW] InData value %d, %d: %d\n", UInt(i), UInt(j),inData(i)(j) )
+          printf("[HW] ThData value %d, %d: %d\n", UInt(i), UInt(k),thData(i)(k) )*/
         }
     thCounter := thCounter + UInt(1)
     when(thCounter === UInt(p.thresholdLatency - 1) ){
@@ -155,16 +158,20 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
   }.elsewhen(unitState === sEnd){
     outValid := Bool(true)
     when(io.outputMatrix.ready){
+      /*for (i <- 0 until p.unrollingFactorRows)
+        for (j <- 0 until p.unrollingFactorColumns)
+          printf("[HW] Out Data value %d, %d: %d\n", UInt(i), UInt(j),outData(i)(j) )*/
       thCounter := UInt(0)
-      for (i <- 0 until p.matrixRows)
-        for (j <- 0 until p.matrixColumns)
+      for (i <- 0 until p.unrollingFactorRows)
+        for (j <- 0 until p.unrollingFactorColumns)
           thuBB(i)(j).clearAcc := Bool(true)
       unitState := sInit
+      outValid := Bool(false)
     }
   }.otherwise{
     //Default value for graceful dead
-    for (i <- 0 until p.matrixRows)
-      for (j <- 0 until p.matrixColumns)
+    for (i <- 0 until p.unrollingFactorRows)
+      for (j <- 0 until p.unrollingFactorColumns)
         for(k <- 0 until p.unrollingFactorOutputPrecision )
         {
           thuBB(i)(j).inVector(k) := UInt(0)

@@ -87,14 +87,14 @@ class TestThresholdingUnit extends JUnitSuite {
     def testArgs = RosettaTestHelpers.stdArgs
 
     for{
-      inPrecision <- 16 to 16
-      maxOutPrecision <- 2 to 2
-      rowsDM <- 8 to 8
-      columnsDN <- 8 to 8
+      inPrecision <- 4 to 4
+      maxOutPrecision <- 1 to 1
+      rowsDM <- 2 to 2
+      columnsDN <- 2 to 2
       thDepth <- 8 to 8 // MY WORRIES: should it be equal to the row of the matrix?
       unrollingBB <- 1 to 1
-      unrollingRows <- 8 to 8
-      unrollingCols <- 8 to 8
+      unrollingRows <- 2 to 2
+      unrollingCols <- 2 to 2
     } {
       val thBBParams = new ThresholdingBuildingBlockParams(	inPrecision = inPrecision, popcountUnroll = unrollingBB,  outPrecision = maxOutPrecision)
       // function that instantiates the Module to be tested
