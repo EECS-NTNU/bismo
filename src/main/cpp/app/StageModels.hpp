@@ -2,6 +2,8 @@
 #include "BISMOInstruction.hpp"
 #include <vector>
 
+//#define DEBUG_EXEC_MODEL
+
 namespace StageModels {
 typedef uint64_t BitVector;
 typedef int32_t Accumulator;
@@ -39,10 +41,22 @@ template <
           const Accumulator contr = __builtin_popcountll(opA & opB);
           const Accumulator wcontr = (contr << ins.shiftAmount);
           const Accumulator wscontr = ins.negate ? -wcontr : contr;
+#ifdef DEBUG_EXEC_MODEL
+          cout << "Exec Op: m n k = " << m << " " << n << " " << k << " ";
+          cout << "opA = " << hex << opA << dec << " ";
+          cout << "opB = " << hex << opB << dec << " ";
+          cout << "contr = " << contr;
+          cout << endl;
+#endif
           acc(m, n) +=  wscontr;
         }
         if(ins.writeEn) {
           res(m, n, ins.writeAddr) = acc(m, n);
+#ifdef DEBUG_EXEC_MODEL
+          cout << "Exec ResWrite: m n addr = " << m << " " << n << " " << ins.writeAddr << " ";
+          cout << " <= " << acc(m, n) << endl;
+          cout << "ind: " <<  (m * N * resmem_size + n * resmem_size + ins.writeAddr) << endl;
+#endif
         }
       }
     }
@@ -65,7 +79,9 @@ template <
 ) {
   // simply call exec on each instruction
   for(auto & i : instrs) {
-    ExecSingleInstr(i, lmem, rmem, acc_ptr, res_ptr);
+    ExecSingleInstr<M, N, lmem_size, rmem_size, resmem_size>(
+      i, lmem, rmem, acc_ptr, res_ptr
+    );
   }
 }
 
