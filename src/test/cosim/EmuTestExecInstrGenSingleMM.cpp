@@ -32,6 +32,7 @@
 #include <iostream>
 #include <vector>
 #include <cassert>
+#include <time.h>
 #include "platform.h"
 #include "EmuTestExecInstrGenSingleMM.hpp"
 #include "BISMOInstruction.hpp"
@@ -48,11 +49,11 @@ EmuTestExecInstrGenSingleMM * t;
 // generate BISMO matrix memory buffers from a bit serial matrix
 // note that this is dependent on the size of the instantiated hardware
 void matrix2mem(
-  gemmbitserial::BitSerialMatrix matrix,  // bit serial matrix to pack
-  size_t peCount,                         // number of PEs
-  size_t peMemBasePtr,                    // PE memory packing start address
-  size_t peMemSize,                       // number of entries in each PE mem
-  StageModels::BitVector * mem            // pointer to PE memories: mem[peCount][peMemSize]
+  gemmbitserial::BitSerialMatrix & matrix, // bit serial matrix to pack
+  size_t peCount,                          // number of PEs
+  size_t peMemBasePtr,                     // PE memory packing start address
+  size_t peMemSize,                        // number of entries in each PE mem
+  StageModels::BitVector * mem             // pointer to PE memories: mem[peCount][peMemSize]
 ) {
   // ensure workload is aligned
   assert(matrix.nrows_a % peCount == 0);
@@ -68,9 +69,9 @@ void matrix2mem(
         size_t targetPE = r % peCount;  // interleave rows between PEs
         size_t flat_ind = targetPE * peMemSize + pe_mem_ptr[targetPE];
         mem[flat_ind] = matrix.word(b, r, c);
-        pe_mem_ptr[targetPE]++;
         // make sure we are still within bounds of the PE memory
         assert(pe_mem_ptr[targetPE] < peMemSize);
+        pe_mem_ptr[targetPE]++;
       }
     }
   }
@@ -153,10 +154,11 @@ int main(int argc, char const *argv[]) {
   try {
     cout << "EmuTestExecInstrGenSingleMM running" << endl;
 
-    // hardware dims for test
-    const size_t Dm = 2, Dk = 8, Dn = 2;
+    srand(time(NULL));
 
-    // create instruction sequence for bit serial MM
+    // hardware dims for test
+    const size_t Dm = 2, Dk = 4, Dn = 2;
+    // define dimensions for the workload
     const size_t tiles_m = 1;
     const size_t tiles_k = 1;
     const size_t tiles_n = 1;
@@ -166,18 +168,11 @@ int main(int argc, char const *argv[]) {
     const size_t base_r = 0;
     const size_t base_res = 0;
     const size_t nbufs_res = tiles_m * tiles_n;
-    vector<BISMOInstruction> ret;
-    ExecInstrGenSingleMM(
-      tiles_m, tiles_k, tiles_n, bits_l, bits_r, base_l,
-      base_r, base_res, nbufs_res, ret
-    );
-
     const size_t nrows_lhs = Dm * tiles_m;
     const size_t nrows_rhs = Dn * tiles_n;
     const size_t ncols = Dk * tiles_k;
     const size_t mem_m = tiles_m * tiles_k * bits_l;
     const size_t mem_n = tiles_n * tiles_k * bits_r;
-
     const bool sgn_lhs = false;
     const bool sgn_rhs = false;
 
@@ -200,11 +195,33 @@ int main(int argc, char const *argv[]) {
     cout << endl;
     gemmbitserial::printmatrix(ctx.res, nrows_lhs, nrows_rhs);
 
+    // create instruction sequence for bit serial MM
+    vector<BISMOInstruction> instrs;
+    ExecInstrGenSingleMM(
+      tiles_m, tiles_k, tiles_n, bits_l, bits_r, base_l,
+      base_r, base_res, nbufs_res, instrs
+    );
+
     // test generated instructions in software model
-    /*StageModels::Accumulator acc[tiles_m][tiles_n];
-    StageModels::Accumulator res[tiles_m][tiles_n];
-    StageModels::BitVector lhs[Dm][mem_m];
-    StageModels::BitVector rhs[Dn][mem_n];*/
+    StageModels::Accumulator * hw_acc = new StageModels::Accumulator[tiles_m*tiles_n];
+    StageModels::Accumulator * hw_res = new StageModels::Accumulator[tiles_m*tiles_n*nbufs_res];
+    StageModels::BitVector hw_lhs[Dm][mem_m] = {0};
+    StageModels::BitVector hw_rhs[Dn][mem_n] = {0};
+    const size_t hw_baseptr = 0;
+
+    // fill memories and call the functional model with generated instructions
+    matrix2mem(ctx.lhs, Dm, hw_baseptr, mem_m, (StageModels::BitVector *)hw_lhs);
+    matrix2mem(ctx.rhs, Dn, hw_baseptr, mem_n, (StageModels::BitVector *)hw_rhs);
+    StageModels::ExecMultiInstr<Dm, Dn, mem_m, mem_n, nbufs_res>(
+      instrs, hw_lhs, hw_rhs, hw_acc, hw_res
+    );
+
+    // TODO add comparison function to compare hw_res and ctx.res
+
+    gemmbitserial::printmatrix(hw_res, nrows_lhs, nrows_rhs);
+
+    delete [] hw_acc;
+    delete [] hw_res;
 
     p = initPlatform();
     t = new EmuTestExecInstrGenSingleMM(p);
