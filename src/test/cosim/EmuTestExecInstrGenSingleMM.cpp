@@ -31,9 +31,13 @@
 
 #include <iostream>
 #include <vector>
+#include <cassert>
 #include "platform.h"
 #include "EmuTestExecInstrGenSingleMM.hpp"
 #include "BISMOInstruction.hpp"
+#include "StageModels.hpp"
+#include "gemmbitserial/test/testhelpers.hpp"
+#include "gemmbitserial/gemmbitserial.hpp"
 
 using namespace std;
 
@@ -116,6 +120,54 @@ int main(int argc, char const *argv[]) {
   bool t_okay = true;
   try {
     cout << "EmuTestExecInstrGenSingleMM running" << endl;
+
+    // hardware dims for test
+    const size_t Dm = 2, Dk = 8, Dn = 2;
+
+    // create instruction sequence for bit serial MM
+    const size_t tiles_m = 1;
+    const size_t tiles_k = 1;
+    const size_t tiles_n = 1;
+    const size_t bits_l = 1;
+    const size_t bits_r = 1;
+    const size_t base_l = 0;
+    const size_t base_r = 0;
+    const size_t base_res = 0;
+    const size_t nbufs_res = tiles_m * tiles_n;
+    vector<BISMOInstruction> ret;
+    ExecInstrGenSingleMM(
+      tiles_m, tiles_k, tiles_n, bits_l, bits_r, base_l,
+      base_r, base_res, nbufs_res, ret
+    );
+
+    const size_t nrows_lhs = Dm * tiles_m;
+    const size_t nrows_rhs = Dn * tiles_n;
+    const size_t ncols = Dk * tiles_k;
+    const size_t mem_m = tiles_m * tiles_k * bits_l;
+    const size_t mem_n = tiles_n * tiles_k * bits_r;
+
+    const bool sgn_lhs = false;
+    const bool sgn_rhs = false;
+
+    // create a small random workload
+    uint8_t * lhs = new uint8_t[nrows_lhs * ncols];
+    uint8_t * rhs = new uint8_t[nrows_rhs * ncols];
+    gemmbitserial::generateRandomVector(bits_l, nrows_lhs*ncols, lhs, sgn_lhs);
+    gemmbitserial::generateRandomVector(bits_r, nrows_rhs*ncols, rhs, sgn_rhs);
+    gemmbitserial::GEMMContext ctx = gemmbitserial::allocGEMMContext_base(
+      nrows_lhs, ncols, nrows_rhs, bits_l, bits_r, sgn_lhs, sgn_rhs,
+      Dm, 1, Dn, 1
+    );
+    ctx.lhs.importRegular(lhs);
+    ctx.rhs.importRegular(rhs);
+    // compute the golden result
+    gemmbitserial::gemmBitSerial_generic_naive(ctx);
+    gemmbitserial::printmatrix(lhs, nrows_lhs, ncols);
+    cout << endl;
+    gemmbitserial::printmatrix(rhs, nrows_rhs, ncols);
+    cout << endl;
+    gemmbitserial::printmatrix(ctx.res, nrows_lhs, nrows_rhs);
+
     p = initPlatform();
     t = new EmuTestExecInstrGenSingleMM(p);
     delete t;
