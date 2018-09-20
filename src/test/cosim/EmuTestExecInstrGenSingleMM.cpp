@@ -44,6 +44,38 @@ using namespace std;
 WrapperRegDriver * p;
 EmuTestExecInstrGenSingleMM * t;
 
+
+// generate BISMO matrix memory buffers from a bit serial matrix
+// note that this is dependent on the size of the instantiated hardware
+void matrix2mem(
+  gemmbitserial::BitSerialMatrix matrix,  // bit serial matrix to pack
+  size_t peCount,                         // number of PEs
+  size_t peMemBasePtr,                    // PE memory packing start address
+  size_t peMemSize,                       // number of entries in each PE mem
+  StageModels::BitVector * mem            // pointer to PE memories: mem[peCount][peMemSize]
+) {
+  // ensure workload is aligned
+  assert(matrix.nrows_a % peCount == 0);
+  // ensure workload and model Dk match
+  assert(sizeof(matrix.data[0]) == sizeof(StageModels::BitVector));
+  // keep track of which position we are writing to for each PE memory
+  vector<size_t> pe_mem_ptr(peCount, peMemBasePtr);
+  // place each vector of bits into appropriate PE, interleaving rows between
+  // PEs
+  for(size_t b = 0; b < matrix.nbits; b++) {
+    for(size_t r = 0; r < matrix.nrows_a; r++) {
+      for(size_t c = 0; c < matrix.wordsPerRow(); c++) {
+        size_t targetPE = r % peCount;  // interleave rows between PEs
+        size_t flat_ind = targetPE * peMemSize + pe_mem_ptr[targetPE];
+        mem[flat_ind] = matrix.word(b, r, c);
+        pe_mem_ptr[targetPE]++;
+        // make sure we are still within bounds of the PE memory
+        assert(pe_mem_ptr[targetPE] < peMemSize);
+      }
+    }
+  }
+}
+
 // create the Execute stage instruction stream for a single bit-serial MM
 void ExecInstrGenSingleMM(
   // number of tiles in a single binary matrix
@@ -167,6 +199,12 @@ int main(int argc, char const *argv[]) {
     gemmbitserial::printmatrix(rhs, nrows_rhs, ncols);
     cout << endl;
     gemmbitserial::printmatrix(ctx.res, nrows_lhs, nrows_rhs);
+
+    // test generated instructions in software model
+    /*StageModels::Accumulator acc[tiles_m][tiles_n];
+    StageModels::Accumulator res[tiles_m][tiles_n];
+    StageModels::BitVector lhs[Dm][mem_m];
+    StageModels::BitVector rhs[Dn][mem_n];*/
 
     p = initPlatform();
     t = new EmuTestExecInstrGenSingleMM(p);
