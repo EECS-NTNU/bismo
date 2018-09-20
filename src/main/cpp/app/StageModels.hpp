@@ -28,6 +28,7 @@ template <
   if(ins.isRunCfg == 0) {
     // sync instructions are simply ignored (assumed to resolve)
     // immediately
+    // note: result matrix is produced transposed
     return;
   } else {
     for(size_t m = 0; m < M; m++) {
@@ -48,14 +49,14 @@ template <
           cout << "contr = " << contr;
           cout << endl;
 #endif
-          acc(m, n) +=  wscontr;
+          acc(n, m) +=  wscontr;
         }
         if(ins.writeEn) {
-          res(m, n, ins.writeAddr) = acc(m, n);
+          res(n, m, ins.writeAddr) = acc(n, m);
 #ifdef DEBUG_EXEC_MODEL
           cout << "Exec ResWrite: m n addr = " << m << " " << n << " " << ins.writeAddr << " ";
-          cout << " <= " << acc(m, n) << endl;
-          cout << "ind: " <<  (m * N * resmem_size + n * resmem_size + ins.writeAddr) << endl;
+          cout << " <= " << acc(n, m) << endl;
+          cout << "ind: " <<  (n * N * resmem_size + m * resmem_size + ins.writeAddr) << endl;
 #endif
         }
       }
