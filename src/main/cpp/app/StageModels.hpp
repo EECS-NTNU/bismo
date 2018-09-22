@@ -31,6 +31,9 @@ template <
     // note: result matrix is produced transposed
     return;
   } else {
+#ifdef DEBUG_EXEC_MODEL
+    cout << ins << endl;
+#endif
     for(size_t m = 0; m < M; m++) {
       for(size_t n = 0; n < N; n++) {
         if(ins.clear_before_first_accumulation == 1) {
@@ -41,23 +44,21 @@ template <
           const BitVector opB = rmem[n][ins.rhsOffset + k];
           const Accumulator contr = __builtin_popcountll(opA & opB);
           const Accumulator wcontr = (contr << ins.shiftAmount);
-          const Accumulator wscontr = ins.negate ? -wcontr : contr;
+          const Accumulator wscontr = ins.negate ? -wcontr : wcontr;
 #ifdef DEBUG_EXEC_MODEL
           cout << "Exec Op: m n k = " << m << " " << n << " " << k << " ";
           cout << "opA = " << hex << opA << dec << " ";
           cout << "opB = " << hex << opB << dec << " ";
-          cout << "contr = " << contr;
+          cout << "contr = " << contr << " shift: " << ins.shiftAmount << " ";
+          cout << "wcontr = " << wcontr << " ";
+          cout << "acc_prev = " << acc(m, n);
           cout << endl;
 #endif
-          acc(n, m) +=  wscontr;
+          acc(m, n) +=  wscontr;
         }
         if(ins.writeEn) {
-          res(n, m, ins.writeAddr) = acc(n, m);
-#ifdef DEBUG_EXEC_MODEL
-          cout << "Exec ResWrite: m n addr = " << m << " " << n << " " << ins.writeAddr << " ";
-          cout << " <= " << acc(n, m) << endl;
-          cout << "ind: " <<  (n * N * resmem_size + m * resmem_size + ins.writeAddr) << endl;
-#endif
+          res(m, n, ins.writeAddr) = acc(m, n);
+          cout << "acc " << m << " " << n << " = " << acc(m,n) << endl;
         }
       }
     }
