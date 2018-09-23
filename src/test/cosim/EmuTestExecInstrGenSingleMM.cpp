@@ -243,12 +243,20 @@ int main(int argc, char const *argv[]) {
       instrs, hw_lhs, hw_rhs, hw_acc, hw_res
     );
 
-    // TODO add comparison function to compare hw_res and ctx.res
+    StageModels::Accumulator * hw_res_full = new StageModels::Accumulator[nrows_rhs * ncols];
+    // copy from accelerator result memory into full result matrix
+    // TODO loop over multiple result tiles here
+    resmemcpy2d(hw_res, hw_res_full, Dm, Dn, nrows_lhs, 0, 0, true);
+    const size_t res_bytes = nrows_lhs * nrows_rhs * sizeof(StageModels::Accumulator);
+    t_okay = (memcmp(hw_res_full, ctx.res, res_bytes) == 0);
 
+    // TODO add comparison function to compare hw_res and ctx.res
     gemmbitserial::printmatrix(hw_res, nrows_lhs, nrows_rhs);
+    gemmbitserial::printmatrix(hw_res_full, nrows_lhs, nrows_rhs);
 
     delete [] hw_acc;
     delete [] hw_res;
+    delete [] hw_res_full;
 
     p = initPlatform();
     t = new EmuTestExecInstrGenSingleMM(p);
@@ -257,6 +265,8 @@ int main(int argc, char const *argv[]) {
   } catch(const char * e) {
     cout << "Exception: " << e << endl;
   }
+
+  cout << "Test passed: " << (t_okay ? "yes" : "no") << endl;
 
   return t_okay ? 0 : -1;
 }
