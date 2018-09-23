@@ -77,6 +77,33 @@ void matrix2mem(
   }
 }
 
+// copy a matrix tile into the given coordinate of a larger matrix buffer,
+// optionally transposing it in the process
+template <typename Dtype>
+void resmemcpy2d(
+  // source and destination buffers
+  const Dtype * src, Dtype * dst,
+  // size of source buffer, layout src[m][n]
+  size_t src_m, size_t src_n,
+  // size of destination buffer and start coords
+  size_t dst_cols, size_t dst_row_start, size_t dst_col_start,
+  bool do_transpose
+) {
+  size_t src_rows = do_transpose ? src_n : src_m;
+  size_t src_cols = do_transpose ?  src_m : src_n;
+  for(size_t src_row = 0; src_row < src_rows; src_row++) {
+    for(size_t src_col = 0; src_col < src_cols; src_col++) {
+      const size_t src_ind_rm = src_row * src_n + src_col;
+      const size_t src_ind_cm = src_col * src_n + src_row;
+      const size_t src_ind = do_transpose ? src_ind_cm : src_ind_rm;
+      const size_t dst_row = dst_row_start + src_row;
+      const size_t dst_col = dst_col_start + src_col;
+      const size_t dst_ind = dst_row * dst_cols + dst_col;
+      dst[dst_ind] = src[src_ind];
+    }
+  }
+}
+
 // create the Execute stage instruction stream for a single bit-serial MM
 void ExecInstrGenSingleMM(
   // number of tiles in a single binary matrix
