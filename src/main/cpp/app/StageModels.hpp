@@ -58,7 +58,6 @@ template <
         }
         if(ins.writeEn) {
           res(m, n, ins.writeAddr) = acc(m, n);
-          cout << "acc " << m << " " << n << " = " << acc(m,n) << endl;
         }
       }
     }
