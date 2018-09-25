@@ -15,13 +15,20 @@ class TestSerializerUnit extends JUnitSuite {
       val r = scala.util.Random
       // number of re-runs for each test
       val num_seqs = 5
-      val rows = dut.p.mRows
-      val cols = dut.p.mCols
+      val rows = dut.p.matrixRows
+      val cols = dut.p.matrixCols
 
       // number of bits for the input data
       val in_len = dut.p.inPrecision
 
       for(i <- 1 to num_seqs) {
+
+        if(!dut.p.staticCounter){
+          poke(dut.io.counterValue, scala.math.BigInt.apply(in_len))
+        }else{
+          poke(dut.io.counterValue, scala.math.BigInt.apply(0))
+        }
+
         val neg = r.nextBoolean()
         val a = RosettaTestHelpers.randomIntMatrix(rows,cols,in_len, neg)
         println("Matrix a")
@@ -51,10 +58,13 @@ class TestSerializerUnit extends JUnitSuite {
       inPrecision <- 16 to 16
       rows <- 8 to 8
       cols <- 8 to 8
+      static <- List(false)
+      countWidth <- 4 to 4
 
     } {
       // function that instantiates the Module to be tested
-      val p = new SerializerUnitParams(inPrecision = inPrecision, mRows = rows, mCols = cols)
+      val p = new SerializerUnitParams(
+        inPrecision = inPrecision, matrixRows = rows, matrixCols = cols, staticCounter = static, maxCounterPrec = countWidth)
       def testModuleInstFxn = () => { Module(new SerializerUnit(p)) }
       // function that instantiates the Tester to test the Module
       def testTesterInstFxn = (dut: SerializerUnit) => new SerializerUnitTester(dut)
