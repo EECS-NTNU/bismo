@@ -274,6 +274,43 @@ object CharacterizeMain {
 
   val instFxn_thrStage = {p: ThrStageParams => Module(new ThrStage(p))}
 
+  def makeParamSpace_SU(): Seq[SerializerUnitParams] = {
+    return for {
+
+      inBW <- Seq(4, 8, 16, 32)
+      maxCounterBW <- Seq(inBW, 32)
+      rows <- 8 to 8
+      cols <- 8 to 8
+      static <- Seq(true,false)
+
+    } yield new SerializerUnitParams(
+    inPrecision = inBW, matrixRows = rows, matrixCols = cols, staticCounter = static, maxCounterPrec = maxCounterBW
+    )
+  }
+
+  val instFxn_SU = {p: SerializerUnitParams => Module(new SerializerUnit(p))}
+
+  def makeParamSpace_P2BSStage(): Seq[Parallel2BSStageParams] = {
+    return for {
+      inBW <- Seq(4, 8, 16, 32)
+      maxCounterBW <- Seq(inBW, 32)
+      rows <- 8 to 8
+      cols <- 8 to 8
+      static <- Seq(true)//true,false)
+      memDepth <- 8 to 8
+      memAddr <- 0 to 0
+      regLatency <- 1 to 1
+
+
+    } yield new Parallel2BSStageParams(
+      suParams = new SerializerUnitParams ( inPrecision = inBW, matrixRows = rows, matrixCols = cols, staticCounter = static, maxCounterPrec = maxCounterBW),
+      thMemDepth  = memDepth, bsMemDepth = memDepth, inputMemAddr = memAddr, resMemAddr = memAddr,
+      thMemLatency = regLatency, bramInRegs= regLatency, bramOutRegs = regLatency
+    )
+  }
+
+  val instFxn_P2BSStage = {p: Parallel2BSStageParams => Module(new Parallel2BSStage(p))}
+
   def main(args: Array[String]): Unit = {
     val chName: String = args(0)
     val chPath: String = args(1)
@@ -301,7 +338,11 @@ object CharacterizeMain {
       VivadoSynth.characterizeSpace(makeParamSpace_TBB(), instFxn_TBB, chPath, chLog, fpgaPart)
     }else if(chName == "CharacterizeThrStage"){
       VivadoSynth.characterizeSpace(makeParamSpace_thrStage(), instFxn_thrStage, chPath, chLog, fpgaPart)
-    }else {
+    }else if(chName == "CharacterizeSU"){
+      VivadoSynth.characterizeSpace(makeParamSpace_SU(), instFxn_SU, chPath, chLog, fpgaPart)
+    } else if(chName == "CharacterizeP2BS"){
+      VivadoSynth.characterizeSpace(makeParamSpace_P2BSStage(), instFxn_P2BSStage, chPath, chLog, fpgaPart)
+    } else {
       println("Unrecognized target for characterization")
     }
   }

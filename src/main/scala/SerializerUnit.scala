@@ -25,11 +25,11 @@ class SerializerUnitParams(
   //Predef.assert( (outVectorSize != 0 && outVectorSize != 1) )
 
   def headersAsList(): List[String] = {
-    return List("InputBitPrecision", "MatrixRows", "MatrixColumns")
+    return List("InputBitPrecision", "MatrixRows", "MatrixColumns", "staticCounter", "maxCounterPrec" )
   }
 
   def contentAsList(): List[String] = {
-    return List(inPrecision, matrixRows, matrixCols).map(_.toString)
+    return List(inPrecision, matrixRows, matrixCols, staticCounter , maxCounterPrec).map(_.toString)
   }
 }
 
@@ -40,6 +40,8 @@ class SerializerUnit(val p : SerializerUnitParams) extends Module{
     val counterValue = UInt(INPUT, width = p.maxCounterPrec)
     val start = Bool(INPUT)
     //TODO Digit serializer i.e.: width != 1
+    //ASSUMPTION: this decoupled use a different convention: valid end the serialization of the bit-width
+    //          whenever the ready signal is high the SU will restart the serialization of the input
     val out = Decoupled(Vec.fill(p.matrixRows){Vec.fill(p.matrixCols){UInt(OUTPUT, width = 1)}})
 
   }
@@ -69,15 +71,19 @@ class SerializerUnit(val p : SerializerUnitParams) extends Module{
   // Same behavior but with a run-time configurable count
   else {
     val z = Module(new DynamicCounter( new DynamicCounterParams( maxPrecision =  p.maxCounterPrec))).io
-    z.countMax := io.counterValue
+    val myCounterReg = Reg(init = UInt(0 , width = p.maxCounterPrec))
+    when(io.start){
+      myCounterReg := io.counterValue
+    }
+    z.countMax := myCounterReg
 
-    when(io.start && z.currentValue < UInt(p.inPrecision-1) ||( io.out.ready && z.currentValue === UInt(p.inPrecision - 1)) ){
+    when(io.start && z.currentValue < (myCounterReg - UInt(1)) ||( io.out.ready && z.currentValue === (myCounterReg - UInt(1))) ){
       z.inc := Bool(true)
     }.otherwise{
       z.inc := Bool(false)
     }
 
-    when(z.currentValue === UInt(p.inPrecision - 1)){
+    when(z.currentValue ===(myCounterReg - UInt(1))){
       end := Bool(true)
     }.otherwise{
       end := Bool(false)
