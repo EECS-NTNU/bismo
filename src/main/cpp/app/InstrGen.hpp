@@ -1,6 +1,7 @@
 #pragma once
 #include "BISMOInstruction.hpp"
 #include <vector>
+#include <cassert>
 
 namespace InstrGen {
 
@@ -15,9 +16,15 @@ void ExecInstrGenSingleMM(
   size_t base_l, size_t base_r, size_t base_res,
   // number of buffers for latency hiding
   size_t nbufs_res,
+  // signedness for the input matrices
+  bool signed_l, bool signed_r,
   // generated instructions will be placed here
   std::vector<BISMOInstruction> & ret
 ) {
+  // single-bit signed is used to indicate bipolar (-1, +1) which is
+  // currently not supported:
+  assert(!(bits_l == 1 && signed_l));
+  assert(!(bits_r == 1 && signed_r));
   BISMOInstruction ins;
   // all instructions are targeting the execute stage
   ins.sync.targetStage = stgExec;
@@ -42,7 +49,11 @@ void ExecInstrGenSingleMM(
           bool tile_first = (l == 0) && (r == 0);
           bool tile_last = (l == bits_l-1) && (r == bits_r-1);
           size_t weight = l + r;
-          bool negate = false; // TODO fix signedness
+          // whether the current bit position is negative for
+          // the input matrices
+          bool neg_l = (l == bits_l-1) && signed_l;
+          bool neg_r = (r == bits_r-1) && signed_r;
+          bool negate = neg_l ^ neg_r;
           size_t offset_l = tiles_k * (m + l * tiles_m);
           size_t offset_r = tiles_k * (n + r * tiles_n);
           // switch result buffers for latency hiding

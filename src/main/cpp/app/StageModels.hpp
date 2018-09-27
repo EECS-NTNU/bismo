@@ -51,6 +51,7 @@ template <
           cout << "opB = " << hex << opB << dec << " ";
           cout << "contr = " << contr << " shift: " << ins.shiftAmount << " ";
           cout << "wcontr = " << wcontr << " ";
+          cout << "wscontr = " << wscontr << " ";
           cout << "acc_prev = " << acc(m, n);
           cout << endl;
 #endif

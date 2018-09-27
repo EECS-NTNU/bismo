@@ -119,8 +119,8 @@ int main(int argc, char const *argv[]) {
     const size_t tiles_m = 1;
     const size_t tiles_k = 1;
     const size_t tiles_n = 1;
-    const size_t bits_l = 1;
-    const size_t bits_r = 1;
+    const size_t bits_l = 2;
+    const size_t bits_r = 3;
     const size_t base_l = 0;
     const size_t base_r = 0;
     const size_t base_res = 0;
@@ -130,12 +130,12 @@ int main(int argc, char const *argv[]) {
     const size_t ncols = Dk * tiles_k;
     const size_t mem_m = tiles_m * tiles_k * bits_l;
     const size_t mem_n = tiles_n * tiles_k * bits_r;
-    const bool sgn_lhs = false;
-    const bool sgn_rhs = false;
+    const bool sgn_lhs = true;
+    const bool sgn_rhs = true;
 
     // create a small random workload
-    uint8_t * lhs = new uint8_t[nrows_lhs * ncols];
-    uint8_t * rhs = new uint8_t[nrows_rhs * ncols];
+    int8_t * lhs = new int8_t[nrows_lhs * ncols];
+    int8_t * rhs = new int8_t[nrows_rhs * ncols];
     gemmbitserial::generateRandomVector(bits_l, nrows_lhs*ncols, lhs, sgn_lhs);
     gemmbitserial::generateRandomVector(bits_r, nrows_rhs*ncols, rhs, sgn_rhs);
     gemmbitserial::GEMMContext ctx = gemmbitserial::allocGEMMContext_base(
@@ -156,7 +156,8 @@ int main(int argc, char const *argv[]) {
     vector<BISMOInstruction> instrs;
     InstrGen::ExecInstrGenSingleMM(
       tiles_m, tiles_k, tiles_n, bits_l, bits_r, base_l,
-      base_r, base_res, nbufs_res, instrs
+      base_r, base_res, nbufs_res, sgn_lhs, sgn_rhs,
+      instrs
     );
 
     // test generated instructions in software model
