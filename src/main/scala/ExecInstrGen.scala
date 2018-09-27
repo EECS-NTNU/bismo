@@ -49,9 +49,14 @@ class MMDescriptor extends PrintableBundle {
   // bitwidth of input matrices
   val bits_l = UInt(width = BISMOLimits.maxShiftBits / 2)
   val bits_r = UInt(width = BISMOLimits.maxShiftBits / 2)
+  // signedness of input matrices
+  val signed_l = Bool()
+  val signed_r = Bool()
 
-  val printfStr: String = "Tm=%d Tk%d Tn=%d l=%d r=%d \n"
-  val printfElems = {() => Seq[Node](tiles_m, tiles_k, tiles_n, bits_l, bits_r)}
+  val printfStr: String = "Tm=%d Tk%d Tn=%d l=%d sgn=%d r=%d sgn=%d \n"
+  val printfElems = {() => Seq[Node](
+    tiles_m, tiles_k, tiles_n, bits_l, signed_l, bits_r, signed_r
+  )}
 
   override def cloneType: this.type =
     new MMDescriptor().asInstanceOf[this.type]
@@ -62,9 +67,15 @@ class SingleMMDescriptor extends MMDescriptor {
   // base addresses for input matrices
   val base_l = UInt(width = BISMOLimits.inpBufAddrBits)
   val base_r = UInt(width = BISMOLimits.inpBufAddrBits)
+  // base address for result buffer
+  val base_res = UInt(width = BISMOLimits.resAddrBits)
+  // number of result buffers available
+  val nbufs_res = UInt(width = BISMOLimits.resAddrBits)
 
-  override val printfStr: String = "Tm=%d Tk%d Tn=%d l=%d r=%d base_l=%d base_r=%d \n"
-  override val printfElems = {() => Seq[Node](tiles_m, tiles_k, tiles_n, bits_l, bits_r, base_l, base_r)}
+  override val printfStr: String = "Tm=%d Tk%d Tn=%d l=%d r=%d base_l=%d base_r=%d base_res=%d \n"
+  override val printfElems = {() => Seq[Node](
+    tiles_m, tiles_k, tiles_n, bits_l, bits_r, base_l, base_r, base_res
+  )}
   override def cloneType: this.type =
     new SingleMMDescriptor().asInstanceOf[this.type]
 }
@@ -75,6 +86,7 @@ class MultiMMDescriptor extends SingleMMDescriptor {
   val num_reps = UInt(width = BISMOLimits.maxRepBits)
   val bregions_l = UInt(width = BISMOLimits.maxBufRegionBits)
   val bregions_r = UInt(width = BISMOLimits.maxBufRegionBits)
+  // TODO should there be a bregions_res here as well?
 
   override val printfStr: String = "Tm=%d Tk%d Tn=%d l=%d r=%d base_l=%d base_r=%d bregions_l=%d bregions_r=%d \n"
   override val printfElems = {() => Seq[Node](tiles_m, tiles_k, tiles_n, bits_l, bits_r, base_l, base_r, bregions_l, bregions_r)}

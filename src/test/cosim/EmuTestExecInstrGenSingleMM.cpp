@@ -155,8 +155,8 @@ int main(int argc, char const *argv[]) {
     // create instruction sequence for bit serial MM
     vector<BISMOInstruction> instrs;
     InstrGen::ExecInstrGenSingleMM(
-      tiles_m, tiles_k, tiles_n, bits_l, bits_r, base_l,
-      base_r, base_res, nbufs_res, sgn_lhs, sgn_rhs,
+      tiles_m, tiles_k, tiles_n, bits_l, bits_r, sgn_lhs, sgn_rhs,
+      base_l, base_r, base_res, nbufs_res, 
       instrs
     );
 

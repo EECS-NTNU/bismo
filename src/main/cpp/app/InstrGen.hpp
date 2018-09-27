@@ -12,12 +12,12 @@ void ExecInstrGenSingleMM(
   size_t tiles_m, size_t tiles_k, size_t tiles_n,
   // number of bits in input matrices
   size_t bits_l, size_t bits_r,
+  // signedness for the input matrices
+  bool signed_l, bool signed_r,
   // base addresses for buffer accesses
   size_t base_l, size_t base_r, size_t base_res,
   // number of buffers for latency hiding
   size_t nbufs_res,
-  // signedness for the input matrices
-  bool signed_l, bool signed_r,
   // generated instructions will be placed here
   std::vector<BISMOInstruction> & ret
 ) {
