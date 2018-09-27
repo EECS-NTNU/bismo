@@ -28,6 +28,7 @@
 // CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Modifications: Davide Conficconi for New components Characterization and Cosimulation
 
 package bismo
 
@@ -79,7 +80,9 @@ object Settings {
     "EmuTestExecStage" -> {p => new EmuTestExecStage(emuP)},
     "EmuTestFetchStage" -> {p => new EmuTestFetchStage(2, 2, emuP)},
     "EmuTestResultStage" -> {p => new EmuTestResultStage(2, emuP)},
-    "EmuTestThrStage" -> {p => new EmuTestThrStage(2,3, 32, 1, 1, emuP)}
+    "EmuTestThrStage" -> {p => new EmuTestThrStage(2,3, 32, 1, 1, emuP)},
+    "EmuTestP2BSStage" -> {p => new EmuTestP2BSStage(2,3,32,1,16,emuP)}
+
   )
 }
 

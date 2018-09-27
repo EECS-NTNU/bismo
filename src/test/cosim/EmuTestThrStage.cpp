@@ -71,10 +71,8 @@
   dut->set_ctrl_writeAddr(writeAddr);
   dut->set_ctrl_writeEn(writeEn);
   dut->set_start(1);
-  //for (int i = 0; i < 1000; ++i){printf("");}
   int count = 0;
   while ( dut->get_done() !=1 ){
-    //cout << count << "GNO" << endl;
    count++;
  }
   dut->set_start(0);

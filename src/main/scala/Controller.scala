@@ -173,3 +173,7 @@ class ResultController(val myP: ResultStageParams) extends BaseController(
 class ThresholdingController(val myP: ThrStageParams) extends BaseController(
   genStageO = new ThrStageCtrlIO(myP), inChannels =  2, outChannels = 2
 ){ }
+
+class P2BSController(val myP: Parallel2BSStageParams) extends BaseController(
+  genStageO = new Parallel2BSStageCtrlIO(myP), inChannels =  2, outChannels = 2
+){ }

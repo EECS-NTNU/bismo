@@ -138,13 +138,11 @@ class Parallel2BSStage(val myP: Parallel2BSStageParams) extends Module{
   serunit.start := ShiftRegister(io.start, myP.inMemLatency)
 
 
-  /*Ogghei, la mia SU produce output validi ogni ciclo, cosa piu interessante da fare e registro e spararli fuori
-  il  valid della SU dice che ho mandato in output tutti i bit e ora c'e l'ultimo.
-  il redy glielo devo dare quando finisco e voglio riniziare? o solo per reiniziallizzare cos?
-
-*/
+  //  SU produces valid output every cycle once started, the valid is for the last bit. Give a ready signal will restart the computation
   val seqgen = Module(new SequenceGenerator(log2Up(myP.bsMemDepth))).io
 
+
+  //If stop once end then add in & bitwise the done
   seqgen.start := ShiftRegister(io.start, myP.inMemLatency)
   seqgen.init := UInt(0)
   seqgen.step := UInt(1)
@@ -165,9 +163,19 @@ class Parallel2BSStage(val myP: Parallel2BSStageParams) extends Module{
     io.res.req(i).addr := UInt(myP.resMemAddr) + io.ctrl.resOffset + seqgen.seq.bits
     //TODO is it enough?
     io.res.req(i).writeEn := seqgen.seq.valid
-    for(j <- 0 until myP.getCols()){
-      io.res.req(i).writeData := Cat(intermediate_buffer(i)(j))
+    //for(j <- 0 until myP.getCols()-1){
+    io.res.req(i).writeData := intermediate_buffer(i).asUInt()
+    //}
+  }
+
+  for(i <- 0 until myP.getRows()) {
+    when(io.start && !serunit.out.valid) {
+      printf("[HW] Address: %d, %d output, row: %d\n", seqgen.seq.bits, io.res.req(i).writeData, UInt(i))
     }
+    for (j <- 0 until myP.getCols())
+      when(io.start && !serunit.out.valid) {
+        printf("[HW] Address: %d, %d output bits row: %d\n", seqgen.seq.bits, io.res.req(i).writeData(j), UInt(i))
+      }
   }
 
   io.done := serunit.out.valid
@@ -176,48 +184,4 @@ class Parallel2BSStage(val myP: Parallel2BSStageParams) extends Module{
   }.otherwise{
     serunit.out.ready := Bool(false)
   }
-  /*
-
-
-  val start_r = Reg(init = false.B, next = io.start & seqgen.seq.valid)
-  //TODO this is for a single run per start
-  val start_pulse = io.start & seqgen.seq.valid & !start_r | ( start_r & !seqgen.seq.valid  )
-  //TODO this is for a continuous run per start
-  //val start_pulse = io.start & !start_r
-
-  //ASSUMING that my data are available as long as I need
-  for(i <- 0 until myP.getUnrollRows()) {
-    for (j <- 0 until myP.getUnrollCols()) {
-      thu.inputMatrix.bits.i(i)(j) := io.inMemory.act_rsp(i)(j).readData//(myP.getInBits() * (1 + j) - 1, myP.getInBits() * j)
-      /*when(start_pulse){
-        printf("[HW] Matrix elem %d, %d Read elem from Unit: %d\n",UInt(i), UInt(j), io.inMemory.act_rsp(i)(j).readData)//(myP.getInBits() * (1 + j) - 1, myP.getInBits() * j))
-      }*/
-    }
-    for(j <- 0 until myP.getThUnroll())
-      thu.thInterf.thresholdData(i)(j) := io.inMemory.thr_rsp(i)(j).readData//( myP.getInBits()*(1+j) - 1, myP.getInBits()*j)
-  }
-
-
-  thu.inputMatrix.valid := ShiftRegister(start_pulse, myP.activationMemoryLatency-1)
-
-  //time to write is the latency of the unit + time to write all the outputs
-  val time_to_write = myP.thuParams.getLatency()
-  //TODO: this is time to respond for the Data BRAM
-  val end = ShiftRegister(thu.outputMatrix.valid, time_to_write)
-  val end_r = Reg(init = false.B, next = end)
-  val end_pulse = end & !end_r
-  io.done := (end_pulse | end_r)
-  val i = Reg(init = UInt(0, width = 32))
-  /*when(end){
-    printf("[HW] It takes %d cycles to restart!!!\n",i);
-    i := i + UInt(1)
-  }*/
-  thu.outputMatrix.ready := end & !io.start
-  for(i <- 0 until myP.getUnrollRows())
-    for(j <- 0 until myP.getUnrollCols()){
-      io.res.req(i)(j).writeEn := thu.outputMatrix.valid
-      io.res.req(i)(j).addr := UInt(0)
-      io.res.req(i)(j).writeData := thu.outputMatrix.bits.o(i)(j)//UInt(0, width = myP.getResBitWidth() * myP.getCols()) | (thu.outputMatrix.bits.o(i)(j) << j)
-    }
-*/
 }
