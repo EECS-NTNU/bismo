@@ -20,8 +20,8 @@ class EmuTestP2BSStage(
   // parameters for accelerator instance
   val myP = new Parallel2BSStageParams(
     suParams = new SerializerUnitParams ( inPrecision = inBits, matrixRows = mRows, matrixCols = mCols,
-      staticCounter = true, maxCounterPrec = countBw),
-    thMemDepth  = 8, bsMemDepth = 8, inputMemAddr = 0, resMemAddr = 0,
+      staticCounter = false, maxCounterPrec = countBw),
+    thMemDepth  = 8, bsMemDepth = inBits, inputMemAddr = 0, resMemAddr = 0,
     thMemLatency = memLatency, bramInRegs= memLatency, bramOutRegs = memLatency
   )
 
@@ -40,7 +40,7 @@ class EmuTestP2BSStage(
 
     // access to result memory
     val resmem_addr_r = UInt(INPUT, width = log2Up(myP.getRows()))
-    val resmem_addr_e = UInt(INPUT, width = log2Up(myP.resMemAddr))
+    val resmem_addr_e = UInt(INPUT, width = log2Up(myP.bsMemDepth))
     val resmem_data = UInt(OUTPUT, width = myP.getCols())
   }
 
@@ -63,7 +63,7 @@ class EmuTestP2BSStage(
 
 
   val resmem = Vec.fill(myP.getRows()) { Module(new PipelinedDualPortBRAM(
-      addrBits = log2Up(myP.resMemAddr), dataBits = myP.getCols(),
+      addrBits = log2Up(myP.bsMemDepth), dataBits = myP.getCols(),
       regIn = 0, regOut = 0
     )).io
   }
@@ -88,7 +88,13 @@ class EmuTestP2BSStage(
       resmem(i).ports(1).req.addr := io.resmem_addr_e
       resmem(i).ports(1).req.writeEn := Bool(false)
     }
+  /*for( i <- 0 until myP.getRows()){
+    when(resmem(i).ports(0).req.writeEn){
+      printf("[CO-HW]Writing to row: %d, elem: %d, address: %d\n", UInt(i), resmem(i).ports(0).req.writeData, resmem(i).ports(0).req.addr)
+    }
+  }*/
 
   // register result reg selector inputs
   io.resmem_data := resmem(io.resmem_addr_r).ports(1).rsp.readData
+  //printf("[CO-HW] Reading elem: %d, Row: %d, Addr: %d\n", resmem(io.resmem_addr_r).ports(1).rsp.readData, io.resmem_addr_r, io.resmem_addr_e)
 }

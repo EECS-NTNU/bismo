@@ -102,7 +102,7 @@ class Parallel2BSStageTileMemIO(myP: Parallel2BSStageParams) extends Bundle {
 // interface towards result stage
 class Parallel2BSStageResMemIO(myP: Parallel2BSStageParams) extends Bundle {
   val req = Vec.fill(myP.getRows()) { new OCMRequest(
-      myP.getCols(), log2Up(myP.resMemAddr)
+      myP.getCols(), log2Up(myP.bsMemDepth)
     ).asOutput
   }
 
@@ -143,7 +143,7 @@ class Parallel2BSStage(val myP: Parallel2BSStageParams) extends Module{
 
 
   //If stop once end then add in & bitwise the done
-  seqgen.start := ShiftRegister(io.start, myP.inMemLatency)
+  seqgen.start := ShiftRegister(io.start & !serunit.out.valid, myP.inMemLatency)
   seqgen.init := UInt(0)
   seqgen.step := UInt(1)
   seqgen.count := io.ctrl.count_bits_shifting
@@ -158,28 +158,36 @@ class Parallel2BSStage(val myP: Parallel2BSStageParams) extends Module{
       intermediate_buffer(i)(j) :=  serunit.out.bits(i)(j)
     }
 
+
   for(i <- 0 until myP.getRows()){
     // Sequence generator?
     io.res.req(i).addr := UInt(myP.resMemAddr) + io.ctrl.resOffset + seqgen.seq.bits
-    //TODO is it enough?
     io.res.req(i).writeEn := seqgen.seq.valid
     //for(j <- 0 until myP.getCols()-1){
     io.res.req(i).writeData := intermediate_buffer(i).asUInt()
     //}
   }
-
+/*
   for(i <- 0 until myP.getRows()) {
     when(io.start && !serunit.out.valid) {
       printf("[HW] Address: %d, %d output, row: %d\n", seqgen.seq.bits, io.res.req(i).writeData, UInt(i))
     }
-    for (j <- 0 until myP.getCols())
-      when(io.start && !serunit.out.valid) {
-        printf("[HW] Address: %d, %d output bits row: %d\n", seqgen.seq.bits, io.res.req(i).writeData(j), UInt(i))
-      }
-  }
+    when(seqgen.seq.valid) {
+      printf("[HW] Writing with valid %d value address %d\n", intermediate_buffer(i).asUInt(), seqgen.seq.bits)
+    }
+
+    /* for (j <- 0 until myP.getCols())
+       when(io.start && !serunit.out.valid) {
+         printf("[HW] Address: %d, %d output bits row: %d\n", seqgen.seq.bits, io.res.req(i).writeData(j), UInt(i))
+       }*/
+  }*/
 
   io.done := serunit.out.valid
-  when(serunit.out.valid && !io.start){
+
+  val restart = Bool()
+  restart := serunit.out.valid && !io.start
+  when(restart){
+    //printf("[HW] The SU is restarting\n")
     serunit.out.ready := Bool(true)
   }.otherwise{
     serunit.out.ready := Bool(false)

@@ -81,7 +81,7 @@ object Settings {
     "EmuTestFetchStage" -> {p => new EmuTestFetchStage(2, 2, emuP)},
     "EmuTestResultStage" -> {p => new EmuTestResultStage(2, emuP)},
     "EmuTestThrStage" -> {p => new EmuTestThrStage(2,3, 32, 1, 1, emuP)},
-    "EmuTestP2BSStage" -> {p => new EmuTestP2BSStage(2,3,32,1,16,emuP)}
+    "EmuTestP2BSStage" -> {p => new EmuTestP2BSStage(2,3,4,1,16,emuP)}
 
   )
 }

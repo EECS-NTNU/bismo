@@ -9,7 +9,7 @@
 //Define according to the parameters of the Emulation flow
 #define ROWS 2
 #define COLS 3
-#define BW 3
+#define BW 4
 
 
  // Cosim test for basic ThrStage behavior
@@ -22,7 +22,7 @@
  //function prototypes
  void BramTransferMat(uint64_t (&mat)[ROWS][COLS], int StartAddr);
  void testP2BS(uint8_t actOffset, uint8_t thrOffset, bool writeEn, uint8_t writeAddr);
- int32_t testres(uint8_t r);
+ int32_t testres(uint8_t r, uint8_t addr);
 
 
  void BramTransferMat(uint64_t (&mat)[ROWS][COLS], int StartAddr){
@@ -56,42 +56,43 @@
  }
 
 
- int32_t testres(uint8_t r){
+ int32_t testres(uint8_t r, uint8_t addr){
    int32_t result;
-   // read result memory at address 0 of the bram (r)
+   // read result memory at address addr of the bram (r)
    dut->set_resmem_addr_r(r);
-   dut->set_resmem_addr_e(0);
+   dut->set_resmem_addr_e(addr);
    result = dut->get_resmem_data() ;
    return result;
  }
 
  int main()
  {
-   bool t_okay = false;
+   bool t_okay = true;
    try {
      p = initPlatform();
      dut = new EmuTestP2BSStage(p);
     uint64_t a [ROWS][COLS] = {{0x0000000000000001,0x0000000000000002,0x0000000000000003},
                               {0x0000000000000004,0x0000000000000005,0x0000000000000006}};
-    //TODO Gold matrix wrong :)
     uint64_t gold [BW][ROWS] = {{0x5,0x2},{0x6,0x4},{0x0,0x7}};
-    uint64_t hw_res [ROWS][BW];
-    bool result_comparison [ROWS];
+    uint64_t hw_res [BW][ROWS];
+    bool result_comparison [BW][ROWS];
 
     BramTransferMat(a,0);
 
      // Actual Thresholding
    	cout << "Starting Parallel2BitSerial" <<endl;
-     testP2BS(0,0,true,0,32);
-    for(int i = 0; i < ROWS; i++){
-        hw_res[i] = testres(i);
-        cout << "HW Values :" << hw_res[i] << endl;
+    testP2BS(0,0,true,0,BW);
+    for(int j = 0; j < BW; j++)
+      for(int i = 0; i < ROWS; i++){
+        hw_res[j][i] = testres(i,j);
+         cout << "HW Values :" << hw_res[j][i] << endl;
       }
-     cout << "Verification phase" << endl;
-    for(int i = 0; i < ROWS; i++){
-        result_comparison[i] =  hw_res[0][i] == gold[0][i];
-        cout << "Comparison :" << hw_res[0][i] << " vs "<< gold[0][i] << endl;
-        t_okay = t_okay && result_comparison[i];
+    cout << "Verification phase" << endl;
+    for(int j = 0; j < BW; j++)
+      for(int i = 0; i < ROWS; i++){
+        result_comparison[j][i] =  hw_res[j][i] == gold[j][i];
+        cout << "Comparison :" << hw_res[j][i] << " vs "<< gold[j][i] << endl;
+        t_okay = t_okay && result_comparison[j][i];
       }
      if(t_okay) {
        cout << "Test passed";
