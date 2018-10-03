@@ -22,8 +22,6 @@ class ThresholdingUnitParams(
   val matrixRows : Int,
   //Dn number of columns in the input/output matrix
   val matrixColumns : Int,
-  // threshold memory depth (how many entries, address space)
-  val thresholdMemDepth : Int,
   // unrolling factor
   //unrolling in the dimension of the popcount thus the parallel thresholds
   val unrollingFactorOutputPrecision : Int = 16,
@@ -35,15 +33,15 @@ class ThresholdingUnitParams(
 
   //check parameters consistency
   //TODO support to Row Roll and different threshold rolling factor
-  val thresholdNumber : Int = scala.math.pow(2,maxOutputBitPrecision).toInt - 1
-  Predef.assert((unrollingFactorOutputPrecision == 1) || (unrollingFactorOutputPrecision == thresholdNumber))
+  val maxThresholdNumber : Int = scala.math.pow(2,maxOutputBitPrecision).toInt - 1
+  Predef.assert((unrollingFactorOutputPrecision == 1) || (unrollingFactorOutputPrecision == maxThresholdNumber))
   Predef.assert(unrollingFactorRows == matrixRows)
   Predef.assert(unrollingFactorColumns == matrixColumns)
   //how many threshold
     // threshold memory width (how many output bits)
-  val thresholdMemWidth : Int = inputBitPrecision * thresholdNumber
+  val thresholdMemWidth : Int = inputBitPrecision * maxThresholdNumber
 
-  val thresholdLatency : Int = thresholdNumber / unrollingFactorOutputPrecision
+  val thresholdLatency : Int = maxThresholdNumber / unrollingFactorOutputPrecision
 
   val rowLatency : Int = matrixRows - unrollingFactorRows
 
@@ -58,11 +56,11 @@ class ThresholdingUnitParams(
     return thresholdMemWidth
   }
   def headersAsList(): List[String] = {
-    return List("inputBitPrecision", "maxOutputBitPrecision", "matrixRows", "matrixColumns", "thresholdMemDepth", "thresholdMemWidth", "Unit Latency" ,"unrollingOutPrecision", "UnrollingRows", "UnrollingColumns")
+    return List("inputBitPrecision", "maxOutputBitPrecision", "matrixRows", "matrixColumns", "thresholdMemWidth", "Unit Latency" ,"unrollingOutPrecision", "UnrollingRows", "UnrollingColumns")
   }
 
   def contentAsList(): List[String] = {
-    return List(inputBitPrecision, maxOutputBitPrecision, matrixRows, matrixColumns,thresholdMemDepth, getMemWidth(), getLatency() ,unrollingFactorOutputPrecision, unrollingFactorRows, unrollingFactorColumns).map(_.toString)
+    return List(inputBitPrecision, maxOutputBitPrecision, matrixRows, matrixColumns, getMemWidth(), getLatency() ,unrollingFactorOutputPrecision, unrollingFactorRows, unrollingFactorColumns).map(_.toString)
   }
 }
 
@@ -81,7 +79,7 @@ class ThresholdingOutputMatrixIO (val p: ThresholdingUnitParams) extends Bundle{
 }
 
 class ThresholdingInputThresholdIO (val p: ThresholdingUnitParams) extends Bundle{
-  val thresholdAddr = UInt(OUTPUT, width = log2Up(p.thresholdMemDepth))
+  val thresholdCount = UInt(INPUT, width = log2Up(p.maxOutputBitPrecision) + 1)
   val thresholdData = Vec.fill(p.matrixRows){Vec.fill(p.unrollingFactorOutputPrecision){Bits(INPUT, width = p.inputBitPrecision)}}
 
   override def cloneType: this.type =
@@ -122,13 +120,20 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
   val thCounter = Reg(init = UInt(0, width = log2Up(p.thresholdLatency) + 1 ))
 
   val iterationFactor = thCounter*UInt(p.unrollingFactorOutputPrecision)
+
+
+  // If rolled then count till the run-time number otherwise is 1 (quantize no more than that width)
+  val runTimeLatency = if(p.unrollingFactorOutputPrecision == 1) {io.thInterf.thresholdCount} else { UInt(1, width = log2Up(p.thresholdLatency))}
+  // More threhsolds than the really needed will be filtered with this mask
+  val input_mask = Reg(init = UInt(0, width = p.inputBitPrecision), next = io.thInterf.thresholdCount & UInt(p.unrollingFactorOutputPrecision))
+
   val sInit::sThRoll::sEnd::Nil = Enum(UInt(),3)
   val unitState = Reg(init = sInit)
   //TODO FSM coherent with the rolling factor in the matrix dimensions
   when(unitState === sInit){
     for (i <- 0 until p.unrollingFactorRows)
       for (j <- 0 until p.unrollingFactorColumns)
-        for(k <- 0 until p.unrollingFactorOutputPrecision )
+        for(k <- 0 until p.unrollingFactorOutputPrecision)
         {
           thuBB(i)(j).inVector(k) := UInt(0)
           thuBB(i)(j).thVector(k) := UInt(0)
@@ -145,13 +150,13 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
     for (i <- 0 until p.unrollingFactorRows)
       for (j <- 0 until p.unrollingFactorColumns )
         for (k <- 0 until p.unrollingFactorOutputPrecision) {
-          thuBB(i)(j).inVector(k) := inData(i)(j)
-          thuBB(i)(j).thVector(k) := thData(i)(k)
+            thuBB(i)(j).inVector(k) := inData(i)(j) & Fill(p.inputBitPrecision,input_mask(k))
+            thuBB(i)(j).thVector(k) := thData(i)(k) & Fill(p.inputBitPrecision,input_mask(k))
           /*printf("[HW] InData value %d, %d: %d\n", UInt(i), UInt(j),inData(i)(j) )
           printf("[HW] ThData value %d, %d: %d\n", UInt(i), UInt(k),thData(i)(k) )*/
         }
     thCounter := thCounter + UInt(1)
-    when(thCounter === UInt(p.thresholdLatency - 1) ){
+    when(thCounter ===  runTimeLatency - UInt(1)/*UInt(p.thresholdLatency - 1)*/ ){
       unitState := sEnd
     }
 

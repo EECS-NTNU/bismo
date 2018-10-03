@@ -22,12 +22,12 @@ class ThrStageParams(
   ) extends PrintableParam {
 
   //how many threshold
-  val thresholdNumber : Int = scala.math.pow(2,thuParams.maxOutputBitPrecision).toInt - 1
+  val maxThresholdNumber : Int = scala.math.pow(2,thuParams.maxOutputBitPrecision).toInt - 1
   // threshold memory width (how many output bits)
 
-  val thresholdMemWidth : Int = thuParams.inputBitPrecision * thresholdNumber
+  val thresholdMemWidth : Int = thuParams.inputBitPrecision * maxThresholdNumber
 
-  val thresholdLatency : Int = thresholdNumber - thuParams.unrollingFactorOutputPrecision
+  val thresholdLatency : Int = maxThresholdNumber - thuParams.unrollingFactorOutputPrecision
 
   //M of DPA
   def getUnrollRows() : Int = {
@@ -79,6 +79,7 @@ class ThrStageCtrlIO(myP: ThrStageParams) extends PrintableBundle {
   //TODO NOT REALLY USED NOW
   val actOffset = UInt(width = 32) // start offset for activation memory
   val thrOffset = UInt(width = 32) // start offset for threshold memory
+  val runTimeThrNumber = UInt(width = 32) // programmable parameter for how many thresholds use
   // write to result memory at the end of current execution
   val writeEn = Bool()
   // result memory address to use for writing
@@ -141,9 +142,13 @@ class ThrStage(val myP: ThrStageParams) extends Module{
   //ASSUMING THIS PARAM
   val seqgen = Module(new SequenceGenerator(log2Up(myP.thresholdMemDepth) + 1)).io
 
+  val thTile = if(myP.getThUnroll() == 1) {io.ctrl.runTimeThrNumber} else { UInt(1, width = myP.maxThresholdNumber)}
+
+  thu.thInterf.thresholdCount := io.ctrl.runTimeThrNumber
+
   seqgen.init := UInt(0)
-  seqgen.count := UInt(myP.thresholdNumber)
-  seqgen.step := UInt(1, width = myP.thresholdNumber)
+  seqgen.count := thTile
+  seqgen.step := UInt(1, width = myP.maxThresholdNumber)
   seqgen.start := io.start
   seqgen.seq.ready := Bool(true)
 
@@ -193,6 +198,7 @@ class ThrStage(val myP: ThrStageParams) extends Module{
   thu.inputMatrix.valid := ShiftRegister(start_pulse, myP.activationMemoryLatency-1)
 
   //time to write is the latency of the unit + time to write all the outputs
+  //TODO this is not at run time.... so if less thresholds with a rolled version I waste some cycles in this way
   val time_to_write = myP.thuParams.getLatency()
   //TODO: this is time to respond for the Data BRAM
   val end = ShiftRegister(thu.outputMatrix.valid, time_to_write)
