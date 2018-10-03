@@ -123,16 +123,16 @@ object ResModelMain {
   }
 }
 
-// call this object's main method to generate a C++ static library containing
+// call this object's main method to generate a Verilator project for
 // the cycle-accurate emulation model for the chosen accelerator. the interface
 // of the model is compatible with  the fpgatidbits.PlatformWrapper hw/sw
-// interface.
+// interface, and drivers for the VerilatedTesterWrapper is included.
 object EmuLibMain {
   def main(args: Array[String]): Unit = {
     val emuName: String = args(0)
     val emuDir: String = args(1)
     val accInst: Settings.AccelInstFxn = Settings.emuMap(emuName)
-    TidbitsMakeUtils.makeEmulatorLibrary(accInst, emuDir, Seq("--std=c++11"))
+    TidbitsMakeUtils.makeVerilator(accInst, emuDir)
   }
 }
 
