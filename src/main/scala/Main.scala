@@ -233,7 +233,7 @@ object CharacterizeMain {
     } yield new ThresholdingUnitParams(
       thBBParams = new ThresholdingBuildingBlockParams(	inPrecision = inP, popcountUnroll = unrollBB,  outPrecision = mOutP),
       inputBitPrecision = inP, maxOutputBitPrecision = mOutP, matrixRows = rows,
-      matrixColumns = cols, thresholdMemDepth = rows,  unrollingFactorOutputPrecision = unrollBB, 
+      matrixColumns = cols, unrollingFactorOutputPrecision = unrollBB,
       unrollingFactorRows = unRows, unrollingFactorColumns = unCols
     )
   }
@@ -269,7 +269,7 @@ object CharacterizeMain {
       thuParams = new ThresholdingUnitParams(
         thBBParams = new ThresholdingBuildingBlockParams(	inPrecision = inP, popcountUnroll = unrollBB,  outPrecision = mOutP),
         inputBitPrecision = inP, maxOutputBitPrecision = mOutP, matrixRows = rows,
-        matrixColumns = cols, thresholdMemDepth = rows,  unrollingFactorOutputPrecision = unrollBB,
+        matrixColumns = cols, unrollingFactorOutputPrecision = unrollBB,
         unrollingFactorRows = rows, unrollingFactorColumns = cols
       )
     )

@@ -22,9 +22,9 @@ extends GenericAccelerator(p){
   val myP = new ThrStageParams(
       thresholdMemDepth = 8, inputMemAddr = 8, resMemAddr = 8, bramInRegs = 1, bramOutRegs = 1,
       thuParams = new ThresholdingUnitParams(
-        thBBParams = new ThresholdingBuildingBlockParams(	inPrecision = inBits, popcountUnroll = 1,  outPrecision = outBits),
+        thBBParams = new ThresholdingBuildingBlockParams(	inPrecision = inBits, popcountUnroll = thUnroll,  outPrecision = outBits),
         inputBitPrecision = inBits, maxOutputBitPrecision = outBits, matrixRows = mRows,
-        matrixColumns = mCols, thresholdMemDepth = 8,  unrollingFactorOutputPrecision = thUnroll,
+        matrixColumns = mCols, unrollingFactorOutputPrecision = thUnroll,
         unrollingFactorRows = mRows, unrollingFactorColumns = mCols
       )
   )

@@ -14,7 +14,7 @@ class TestThresholdingUnit extends JUnitSuite {
     class ThresholdingUnitTester(dut: ThresholdingUnit) extends Tester(dut) {
       val r = scala.util.Random
       // number of re-runs for each test
-      val num_seqs = 5
+      val num_seqs = 1
       //Input a single random matrix and then quantize
       // as thresholding unit with random thresholds is enough
 
@@ -22,14 +22,13 @@ class TestThresholdingUnit extends JUnitSuite {
       val in_len = dut.p.inputBitPrecision
       //  number of bits for the output matrix
       val out_len = dut.p.maxOutputBitPrecision
-      val thNumber = dut.p.thresholdNumber
+      val thNumber = 1//dut.p.maxThresholdNumber
       // spatial dimensions of the array
       val m = dut.p.matrixRows
       val n = dut.p.matrixColumns
       val unroll_rows = dut.p.unrollingFactorRows
       val unroll_factor = dut.p.unrollingFactorOutputPrecision
       val unroll_cols = dut.p.unrollingFactorColumns
-      val mem_depth = dut.p.thresholdMemDepth
       val negVal = false
       val negTh = false
       var iterFactor = 0
@@ -49,6 +48,7 @@ class TestThresholdingUnit extends JUnitSuite {
 
 
         printMatrix(golden)
+        poke(dut.io.thInterf.thresholdCount, scala.math.BigInt.apply(thNumber))
         //TODO generalize in the clock cycle to wait
         for(i<-0 until m)
           for(j <- 0 until n)
@@ -59,7 +59,11 @@ class TestThresholdingUnit extends JUnitSuite {
         for(steps <- 0 until dut.p.totLatency){
           for(i<- 0 until m)
             for(j<- 0 until unroll_factor) {
-              poke(dut.io.thInterf.thresholdData(i)(j), scala.math.BigInt.apply(th(i)( (iterFactor + j) )))
+              if(j < thNumber){
+                poke(dut.io.thInterf.thresholdData(i)(j), scala.math.BigInt.apply(th(i)( (iterFactor + j) )))
+              } else {
+                poke(dut.io.thInterf.thresholdData(i)(j), scala.math.BigInt.apply(0))
+              }
             }
           step(1)
           println(iterFactor)
@@ -88,17 +92,16 @@ class TestThresholdingUnit extends JUnitSuite {
 
     for{
       inPrecision <- 4 to 4
-      maxOutPrecision <- 1 to 1
+      maxOutPrecision <- 2 to 2
       rowsDM <- 2 to 2
       columnsDN <- 2 to 2
-      thDepth <- 8 to 8 // MY WORRIES: should it be equal to the row of the matrix?
-      unrollingBB <- 1 to 1
+      unrollingBB <- 3 to 3
       unrollingRows <- 2 to 2
       unrollingCols <- 2 to 2
     } {
       val thBBParams = new ThresholdingBuildingBlockParams(	inPrecision = inPrecision, popcountUnroll = unrollingBB,  outPrecision = maxOutPrecision)
       // function that instantiates the Module to be tested
-      val p = new ThresholdingUnitParams(thBBParams, inputBitPrecision = inPrecision, maxOutPrecision, rowsDM , columnsDN, thDepth, unrollingBB, unrollingRows, unrollingCols)
+      val p = new ThresholdingUnitParams(thBBParams, inputBitPrecision = inPrecision, maxOutPrecision, rowsDM , columnsDN, unrollingBB, unrollingRows, unrollingCols)
       def testModuleInstFxn = () => { Module(new ThresholdingUnit(p)) }
       // function that instantiates the Tester to test the Module
       def testTesterInstFxn = (dut: ThresholdingUnit) => new ThresholdingUnitTester(dut)

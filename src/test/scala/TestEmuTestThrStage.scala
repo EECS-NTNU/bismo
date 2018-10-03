@@ -26,7 +26,7 @@ class TestEmuTestThrStage extends JUnitSuite {
       val in_len = dut.myP.getInBits()
       //  number of bits for the output matrix
       val out_len = dut.myP.thuParams.maxOutputBitPrecision
-      val thNumber = dut.myP.thresholdNumber
+      val thNumber = 1//dut.myP.maxThresholdNumber
       // spatial dimensions of the array
       val m = dut.myP.getRows()
       val n = dut.myP.getCols()
@@ -54,6 +54,8 @@ class TestEmuTestThrStage extends JUnitSuite {
 
         //var tmp_act : BigInt = 0
         //Control part
+          // care on this that change results on test
+          poke(dut.io.ctrl.runTimeThrNumber, scala.math.BigInt.apply(1))
           poke(dut.io.ctrl.actOffset, scala.math.BigInt.apply(0))
           poke(dut.io.ctrl.thrOffset, scala.math.BigInt.apply(0))
           poke(dut.io.ctrl.writeEn, scala.math.BigInt.apply(1))
@@ -79,11 +81,20 @@ class TestEmuTestThrStage extends JUnitSuite {
             for (j <- 0 until unroll_factor) {
               //tmp_th = tmp_th | (scala.math.BigInt.apply(th(i)(j)) << (j * dut.myP.getInBits()))
               //println("[TESTBENCH] " + tmp_th)
-              poke(dut.io.inMemory_thr_sel_r, scala.math.BigInt.apply(i))
-              poke(dut.io.inMemory_thr_sel_c, scala.math.BigInt.apply(j))
-              poke(dut.io.inMemory_thr_addr, scala.math.BigInt.apply(0))
-              poke(dut.io.inMemory_thr_data, scala.math.BigInt.apply(th(i)(j)) )
-              poke(dut.io.inMemory_thr_write, scala.math.BigInt.apply(1))
+              if(j < thNumber){
+                poke(dut.io.inMemory_thr_sel_r, scala.math.BigInt.apply(i))
+                poke(dut.io.inMemory_thr_sel_c, scala.math.BigInt.apply(j))
+                poke(dut.io.inMemory_thr_addr, scala.math.BigInt.apply(0))
+                poke(dut.io.inMemory_thr_data, scala.math.BigInt.apply(th(i)(j)) )
+                poke(dut.io.inMemory_thr_write, scala.math.BigInt.apply(1))
+              } else {
+                poke(dut.io.inMemory_thr_sel_r, scala.math.BigInt.apply(i))
+                poke(dut.io.inMemory_thr_sel_c, scala.math.BigInt.apply(j))
+                poke(dut.io.inMemory_thr_addr, scala.math.BigInt.apply(0))
+                poke(dut.io.inMemory_thr_data, scala.math.BigInt.apply(0))
+                poke(dut.io.inMemory_thr_write, scala.math.BigInt.apply(1))
+              }
+
               step(1)
             }
 
@@ -115,12 +126,11 @@ class TestEmuTestThrStage extends JUnitSuite {
     def testArgs = RosettaTestHelpers.stdArgs
 
     for{
-      inPrecision <- 4 to 4
       rows <- 2 to 2
       cols <- 3 to 3
       inBit <- 32 to 32
-      outBit <- 1 to 1
-      unroll <- 1 to 1
+      outBit <- 2 to 2
+      unroll <- 3 to 3
     } {
       val emuP = TesterWrapperParams
       def testModuleInstFxn = () => { Module(new EmuTestThrStage(rows,cols,inBit,outBit, unroll, emuP)) }
