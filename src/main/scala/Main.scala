@@ -297,17 +297,18 @@ object CharacterizeMain {
     return for {
       inBW <- Seq(4, 8, 16, 32)
       maxCounterBW <- Seq(inBW, 32)
-      rows <- 8 to 8
-      cols <- 8 to 8
-      static <- Seq(true)//true,false)
-      memDepth <- 8 to 8
+      rows <- Seq(2,3,4,8)
+      cols <- Seq(2,3,4,8)
+      static <- Seq(true,false)
+      inMemDepth <- 8 to 8
+      resMemDepth <- Seq(inBW)
       memAddr <- 0 to 0
       regLatency <- 1 to 1
 
 
     } yield new Parallel2BSStageParams(
       suParams = new SerializerUnitParams ( inPrecision = inBW, matrixRows = rows, matrixCols = cols, staticCounter = static, maxCounterPrec = maxCounterBW),
-      thMemDepth  = memDepth, bsMemDepth = memDepth, inputMemAddr = memAddr, resMemAddr = memAddr,
+      thMemDepth  = inMemDepth, bsMemDepth = resMemDepth, inputMemAddr = memAddr, resMemAddr = memAddr,
       thMemLatency = regLatency, bramInRegs= regLatency, bramOutRegs = regLatency
     )
   }
