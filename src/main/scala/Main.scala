@@ -254,13 +254,13 @@ object CharacterizeMain {
 
   def makeParamSpace_thrStage(): Seq[ThrStageParams] = {
     return for {
-      inP <- 4 to 32
-      mOutP <- 1 to 8
-      rows <- 1 to 8
-      cols <- 1 to 8
+      inP <- Seq(4, 8, 16, 32)
+      mOutP <- Seq(1,2,3,4,8)
+      rows <- Seq(1,2,3,4,6,8)
+      cols <- Seq(1,2,3,4,6,8,32,64)
       unrollBB <- Seq(1,scala.math.pow(2,mOutP).toInt - 1)
-      unRows <- 8 to 8
-      unCols <- 8 to 8
+      //unRows <- 8 to 8
+      //unCols <- 8 to 8
       resAddr <- 8 to 8
       inAddr <- 8  to 8
       thAddr <- 8 to 8
