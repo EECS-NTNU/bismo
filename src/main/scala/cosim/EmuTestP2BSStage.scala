@@ -21,7 +21,7 @@ class EmuTestP2BSStage(
   val myP = new Parallel2BSStageParams(
     suParams = new SerializerUnitParams ( inPrecision = inBits, matrixRows = mRows, matrixCols = mCols,
       staticCounter = false, maxCounterPrec = countBw),
-    thMemDepth  = 8, bsMemDepth = inBits, inputMemAddr = 0, resMemAddr = 0,
+    thMemDepth  = 8, bsMemDepth = inBits,
     thMemLatency = memLatency, bramInRegs= memLatency, bramOutRegs = memLatency
   )
 

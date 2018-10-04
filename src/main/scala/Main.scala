@@ -265,7 +265,7 @@ object CharacterizeMain {
       inAddr <- 8  to 8
       thAddr <- 8 to 8
     } yield new ThrStageParams(
-     thresholdMemDepth = thAddr, inputMemAddr = inAddr, resMemAddr = resAddr,
+     thresholdMemDepth = thAddr, inputMemDepth = inAddr, resMemDepth = resAddr,
       thuParams = new ThresholdingUnitParams(
         thBBParams = new ThresholdingBuildingBlockParams(	inPrecision = inP, popcountUnroll = unrollBB,  outPrecision = mOutP),
         inputBitPrecision = inP, maxOutputBitPrecision = mOutP, matrixRows = rows,
@@ -308,12 +308,33 @@ object CharacterizeMain {
 
     } yield new Parallel2BSStageParams(
       suParams = new SerializerUnitParams ( inPrecision = inBW, matrixRows = rows, matrixCols = cols, staticCounter = static, maxCounterPrec = maxCounterBW),
-      thMemDepth  = inMemDepth, bsMemDepth = resMemDepth, inputMemAddr = memAddr, resMemAddr = memAddr,
+      thMemDepth  = inMemDepth, bsMemDepth = resMemDepth,
       thMemLatency = regLatency, bramInRegs= regLatency, bramOutRegs = regLatency
     )
   }
 
   val instFxn_P2BSStage = {p: Parallel2BSStageParams => Module(new Parallel2BSStage(p))}
+
+
+  def makeParamSpace_BOB(): Seq[BitSerialMatMulQuantParams] = {
+    return for {
+      lhs <- 8 to 8//for(i <- 1 to 5) yield (2*i)
+      rhs <- 8 to 8//for(i <- 1 to 5) yield (2*i)
+      z <- 64 to 64
+      lmem <- 1024 to 1024
+      rmem <- 1024 to 1024
+      thmem <- 8 to 8
+      maxquantDim <- 2 to 2
+      thFolding <- 3 to 3
+    } yield new BitSerialMatMulQuantParams(
+      dpaDimLHS = lhs, dpaDimRHS = rhs, dpaDimCommon = z,
+      lhsEntriesPerMem = lmem, rhsEntriesPerMem = rmem,
+      mrp = PYNQZ1Params.toMemReqParams(),
+      thrEntriesPerMem = thmem, maxQuantDim = maxquantDim, quantFolding = thFolding
+
+    )
+  }
+  val instFxn_BOB = {p: BitSerialMatMulQuantParams => Module(new BitSerialMatMulQuantAccel(p, PYNQZ1Params))}
 
   def main(args: Array[String]): Unit = {
     val chName: String = args(0)
@@ -346,7 +367,9 @@ object CharacterizeMain {
       VivadoSynth.characterizeSpace(makeParamSpace_SU(), instFxn_SU, chPath, chLog, fpgaPart)
     } else if(chName == "CharacterizeP2BS"){
       VivadoSynth.characterizeSpace(makeParamSpace_P2BSStage(), instFxn_P2BSStage, chPath, chLog, fpgaPart)
-    } else {
+    } else if(chName == "CharacterizeBOB"){
+    VivadoSynth.characterizeSpace(makeParamSpace_BOB(), instFxn_BOB, chPath, chLog, fpgaPart)
+    }else {
       println("Unrecognized target for characterization")
     }
   }

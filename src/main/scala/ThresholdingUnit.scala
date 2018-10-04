@@ -152,7 +152,9 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
         for (k <- 0 until p.unrollingFactorOutputPrecision) {
             thuBB(i)(j).inVector(k) := inData(i)(j) & Fill(p.inputBitPrecision,input_mask(k))
             thuBB(i)(j).thVector(k) := thData(i)(k) & Fill(p.inputBitPrecision,input_mask(k))
-          /*printf("[HW] InData value %d, %d: %d\n", UInt(i), UInt(j),inData(i)(j) )
+          /*
+            ************DEBUG PRINT************
+          printf("[HW] InData value %d, %d: %d\n", UInt(i), UInt(j),inData(i)(j) )
           printf("[HW] ThData value %d, %d: %d\n", UInt(i), UInt(k),thData(i)(k) )*/
         }
     thCounter := thCounter + UInt(1)
@@ -163,7 +165,9 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
   }.elsewhen(unitState === sEnd){
     outValid := Bool(true)
     when(io.outputMatrix.ready){
-      /*for (i <- 0 until p.unrollingFactorRows)
+      /*
+        ************DEBUG PRINT************
+      for (i <- 0 until p.unrollingFactorRows)
         for (j <- 0 until p.unrollingFactorColumns)
           printf("[HW] Out Data value %d, %d: %d\n", UInt(i), UInt(j),outData(i)(j) )*/
       thCounter := UInt(0)

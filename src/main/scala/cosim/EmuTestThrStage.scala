@@ -20,7 +20,7 @@ extends GenericAccelerator(p){
   val numMemPorts = 0
   // parameters for accelerator instance
   val myP = new ThrStageParams(
-      thresholdMemDepth = 8, inputMemAddr = 8, resMemAddr = 8, bramInRegs = 1, bramOutRegs = 1,
+      thresholdMemDepth = 8, inputMemDepth = 8, resMemDepth = 8, bramInRegs = 1, bramOutRegs = 1,
       thuParams = new ThresholdingUnitParams(
         thBBParams = new ThresholdingBuildingBlockParams(	inPrecision = inBits, popcountUnroll = thUnroll,  outPrecision = outBits),
         inputBitPrecision = inBits, maxOutputBitPrecision = outBits, matrixRows = mRows,
@@ -43,13 +43,13 @@ extends GenericAccelerator(p){
     val inMemory_thr_write = Bool(INPUT)
     val inMemory_act_sel_r = UInt(INPUT, width = log2Up(myP.getUnrollRows()))
     val inMemory_act_sel_c = UInt(INPUT, width = log2Up(myP.getUnrollCols()))
-    val inMemory_act_addr = UInt(INPUT, width = log2Up(myP.inputMemAddr))
+    val inMemory_act_addr = UInt(INPUT, width = log2Up(myP.inputMemDepth))
     val inMemory_act_data = UInt(INPUT, width = myP.getInBits())
     val inMemory_act_write = Bool(INPUT)
     // access to result memory
     val resmem_addr_r = UInt(INPUT, width = log2Up(myP.getUnrollRows()))
     val resmem_addr_c = UInt(INPUT, width = log2Up(myP.getUnrollCols()))
-    val resmem_addr_e = UInt(INPUT, width = log2Up(myP.resMemAddr))
+    val resmem_addr_e = UInt(INPUT, width = log2Up(myP.resMemDepth))
     val resmem_data = UInt(OUTPUT, width = myP.getResBitWidth())
   }
 
@@ -71,14 +71,14 @@ extends GenericAccelerator(p){
   }}
   val inMemory_act = Vec.fill(myP.getUnrollRows()) { Vec.fill(myP.getUnrollCols()){
     Module(new PipelinedDualPortBRAM(
-      addrBits = log2Up(myP.inputMemAddr), dataBits = myP.getInBits(),
+      addrBits = log2Up(myP.inputMemDepth), dataBits = myP.getInBits(),
       regIn = myP.bramInRegs, regOut = myP.bramOutRegs
     )).io
   }}
 
   val resmem = Vec.fill(myP.getUnrollRows()) { Vec.fill(myP.getUnrollCols()){
     Module(new PipelinedDualPortBRAM(
-      addrBits = log2Up(myP.resMemAddr), dataBits = myP.getResBitWidth(),
+      addrBits = log2Up(myP.resMemDepth), dataBits = myP.getResBitWidth(),
       regIn = 0, regOut = 0
     )).io
   }}

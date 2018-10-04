@@ -18,8 +18,6 @@ class Parallel2BSStageParams(
     // threshold memory depth (how many entries, address space)
     val thMemDepth : Int = 8,
     val bsMemDepth : Int = 8,
-    val inputMemAddr : Int ,
-    val resMemAddr : Int,
     val thMemLatency : Int = 1,
     // levels of registers before (on address input) and after (on data output)
     // of each tile memory BRAM
@@ -161,13 +159,14 @@ class Parallel2BSStage(val myP: Parallel2BSStageParams) extends Module{
 
   for(i <- 0 until myP.getRows()){
     // Sequence generator?
-    io.res.req(i).addr := UInt(myP.resMemAddr) + io.ctrl.resOffset + seqgen.seq.bits
+    io.res.req(i).addr := UInt(0) + io.ctrl.resOffset + seqgen.seq.bits
     io.res.req(i).writeEn := seqgen.seq.valid
     //for(j <- 0 until myP.getCols()-1){
     io.res.req(i).writeData := intermediate_buffer(i).asUInt()
     //}
   }
 /*
+  ************DEBUG PRINT************
   for(i <- 0 until myP.getRows()) {
     when(io.start && !serunit.out.valid) {
       printf("[HW] Address: %d, %d output, row: %d\n", seqgen.seq.bits, io.res.req(i).writeData, UInt(i))

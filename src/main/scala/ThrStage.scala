@@ -8,17 +8,17 @@ import fpgatidbits.ocm._
 import fpgatidbits.streams._
 
 class ThrStageParams(
-  // building block params
-  val thuParams : ThresholdingUnitParams,
-  // threshold memory depth (how many entries, address space)
-  val thresholdMemDepth : Int,
-  val inputMemAddr : Int ,
-  val resMemAddr : Int,
-  val activationMemoryLatency : Int = 1,
-  // levels of registers before (on address input) and after (on data output)
-  // of each tile memory BRAM
-  val bramInRegs: Int = 1,
-  val bramOutRegs: Int = 1
+                      // building block params
+                      val thuParams : ThresholdingUnitParams,
+                      // threshold memory depth (how many entries, address space)
+                      val thresholdMemDepth : Int,
+                      val inputMemDepth : Int,
+                      val resMemDepth : Int,
+                      val activationMemoryLatency : Int = 1,
+                      // levels of registers before (on address input) and after (on data output)
+                      // of each tile memory BRAM
+                      val bramInRegs: Int = 1,
+                      val bramOutRegs: Int = 1
   ) extends PrintableParam {
 
   //how many threshold
@@ -104,7 +104,7 @@ class ThrStageTileMemIO(myP: ThrStageParams) extends Bundle {
     new OCMResponse(myP.getInBits() ).asInput
   }}
   val act_req = Vec.fill(myP.getUnrollRows()) { Vec.fill(myP.getUnrollCols()){
-    new OCMRequest(myP.getInBits(), log2Up(myP.inputMemAddr)).asOutput
+    new OCMRequest(myP.getInBits(), log2Up(myP.inputMemDepth)).asOutput
   }}
   val act_rsp = Vec.fill(myP.getUnrollRows()) { Vec.fill(myP.getUnrollCols()){
     new OCMResponse(myP.getInBits()).asInput
@@ -119,7 +119,7 @@ class ThrStageTileMemIO(myP: ThrStageParams) extends Bundle {
 class ThrStageResMemIO(myP: ThrStageParams) extends Bundle {
   val req = Vec.fill(myP.getUnrollRows()) { Vec.fill(myP.getUnrollCols()){
     new OCMRequest(
-      myP.getResBitWidth(), log2Up(myP.resMemAddr)
+      myP.getResBitWidth(), log2Up(myP.resMemDepth)
     ).asOutput
   }}
 
@@ -186,7 +186,9 @@ class ThrStage(val myP: ThrStageParams) extends Module{
   for(i <- 0 until myP.getUnrollRows()) {
     for (j <- 0 until myP.getUnrollCols()) {
       thu.inputMatrix.bits.i(i)(j) := io.inMemory.act_rsp(i)(j).readData//(myP.getInBits() * (1 + j) - 1, myP.getInBits() * j)
-      /*when(start_pulse){
+      /*
+        ************DEBUG PRINT************
+      when(start_pulse){
         printf("[HW] Matrix elem %d, %d Read elem from Unit: %d\n",UInt(i), UInt(j), io.inMemory.act_rsp(i)(j).readData)//(myP.getInBits() * (1 + j) - 1, myP.getInBits() * j))
       }*/
     }
@@ -206,7 +208,9 @@ class ThrStage(val myP: ThrStageParams) extends Module{
   val end_pulse = end & !end_r
   io.done := (end_pulse | end_r)
   val i = Reg(init = UInt(0, width = 32))
-  /*when(end){
+  /*
+    ************DEBUG PRINT************
+  when(end){
     printf("[HW] It takes %d cycles to restart!!!\n",i);
     i := i + UInt(1)
   }*/
