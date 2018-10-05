@@ -43,7 +43,8 @@ class EmuTestFetchStage(
   val numMemPorts = 1
   val myP = new FetchStageParams(
     numLHSMems = nLHS, numRHSMems = nRHS,
-    numAddrBits = 10, mrp = PYNQZ1Params.toMemReqParams(), bramWrLat = 2
+    numAddrBits = 10, mrp = PYNQZ1Params.toMemReqParams(), bramWrLat = 2,
+    thrEntriesPerMem = 8
   )
   val io = new GenericAcceleratorIF(numMemPorts, p) {
     // base control signals

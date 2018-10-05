@@ -70,7 +70,7 @@ class BitSerialMatMulQuantParams(
   def headersAsList(): List[String] = {
     return List(
       "dpaLHS", "dpaRHS", "dpaCommon", "lhsMem", "rhsMem", "DRAM_rd", "DRAM_wr",
-      "noShifter", "noNegate", "extraRegDPA", "extraRegDPU", "extraRegPC"
+      "noShifter", "noNegate", "extraRegDPA", "extraRegDPU", "extraRegPC", "thrMem", "MaxQuantDim", "QuantFolding", "StaticSerialization"
     )
   }
 
@@ -78,7 +78,8 @@ class BitSerialMatMulQuantParams(
     return List(
       dpaDimLHS, dpaDimRHS, dpaDimCommon, lhsEntriesPerMem, rhsEntriesPerMem,
       mrp.dataWidth, mrp.dataWidth, noShifter,
-      noNegate, extraRegs_DPA, extraRegs_DPU, extraRegs_PC
+      noNegate, extraRegs_DPA, extraRegs_DPU, extraRegs_PC,thrEntriesPerMem, maxQuantDim,
+      quantFolding, staticSerial
     ).map(_.toString)
   }
 
@@ -101,7 +102,7 @@ class BitSerialMatMulQuantParams(
     numLHSMems = dpaDimLHS,
     numRHSMems = dpaDimRHS,
     numAddrBits = log2Up(math.max(lhsEntriesPerMem, rhsEntriesPerMem) * dpaDimCommon / mrp.dataWidth),
-    mrp = mrp, bramWrLat = bramPipelineBefore
+    mrp = mrp, bramWrLat = bramPipelineBefore, thrEntriesPerMem = thrEntriesPerMem
   )
   val pcParams = new PopCountUnitParams(
     numInputBits = dpaDimCommon, extraPipelineRegs = extraRegs_PC
@@ -142,10 +143,10 @@ class BitSerialMatMulQuantParams(
     activationMemoryLatency = bramPipelineBefore,
     thuParams = thuParams
   )
-
+// Parametrized for possible skipping of the Thresholding stage
   val suParams = new SerializerUnitParams (
     inPrecision = dpaDimCommon, matrixRows = dpaDimLHS, matrixCols = dpaDimRHS,
-    staticCounter = staticSerial, maxCounterPrec = dpaDimCommon)
+    staticCounter = staticSerial, maxCounterPrec = log2Up(dpaDimCommon))
 
   val p2bsStageParams = new Parallel2BSStageParams(
     suParams = suParams,
@@ -206,7 +207,7 @@ class BitSerialMatMulQuantAccel(
     val exec_runcfg = Decoupled(new ExecStageCtrlIO(myP.execStageParams)).flip
     val result_runcfg = Decoupled(new ResultStageCtrlIO(myP.resultStageParams)).flip
     val thr_runcfg = Decoupled(new ThrStageCtrlIO(myP.thrStageParams)).flip
-    val p2bs_runcfg = Decoupled(new Parallel2BSStageCtrlIO(myP.p2bsStageParams))
+    val p2bs_runcfg = Decoupled(new Parallel2BSStageCtrlIO(myP.p2bsStageParams)).flip
     // command counts in each queue
     val fetch_op_count = UInt(OUTPUT, width = 32)
     val exec_op_count = UInt(OUTPUT, width = 32)
@@ -347,16 +348,16 @@ class BitSerialMatMulQuantAccel(
   io.thr_op_count := thrOpQ.count
   thrOpQ.deq <> thrCtrl.op
   thrRunCfgQ.deq <> thrCtrl.runcfg
-  //enqPulseGenFromValid(thrOpQ.enq, io.thr_op)
-  //enqPulseGenFromValid(thrRunCfgQ.enq, io.thr_runcfg)
+  enqPulseGenFromValid(thrOpQ.enq, io.thr_op)
+  enqPulseGenFromValid(thrRunCfgQ.enq, io.thr_runcfg)
 
   // wire-up: command queues and pulse generators for p2bs stage
   p2bsCtrl.enable := io.p2bs_enable
   io.p2bs_op_count := p2bsOpQ.count
   p2bsOpQ.deq <> p2bsCtrl.op
   p2bsRunCfgQ.deq <> p2bsCtrl.runcfg
-  //enqPulseGenFromValid(p2bsOpQ.enq, io.p2bs_op)
-  //enqPulseGenFromValid(p2bsRunCfgQ.enq, io.p2bs_runcfg)
+  enqPulseGenFromValid(p2bsOpQ.enq, io.p2bs_op)
+  enqPulseGenFromValid(p2bsRunCfgQ.enq, io.p2bs_runcfg)
 
 
   // wire-up: fetch controller and stage
@@ -413,13 +414,13 @@ class BitSerialMatMulQuantAccel(
   // wire-up: shared resource management (thr and p2bs stages)
   p2bsCtrl.sync_out(0) <> syncThrP2BS_free.enq
   syncThrP2BS_free.deq <> thrCtrl.sync_in(1)
-  p2bsCtrl.sync_out(1) <> syncThrP2BS_filled.enq
+  thrCtrl.sync_out(1) <> syncThrP2BS_filled.enq
   syncThrP2BS_filled.deq <> p2bsCtrl.sync_in(0)
 
   // wire-up: shared resource management (p2bs and result stages)
   resultCtrl.sync_out(0) <> syncP2BSResult_free.enq
   syncP2BSResult_free.deq <> p2bsCtrl.sync_in(1)
-  resultCtrl.sync_out(1) <> syncP2BSResult_filled.enq
+  p2bsCtrl.sync_out(1) <> syncP2BSResult_filled.enq
   syncP2BSResult_filled.deq <> resultCtrl.sync_in(0)
 
   // wire-up: result memory (exec and thr stages)
@@ -437,8 +438,8 @@ class BitSerialMatMulQuantAccel(
     m <- 0 until myP.dpaDimLHS
     n <- 0 until myP.quantFolding
   } {
-    //TODO Who write inside?
-    thrmem(m)(n).ports(0).req := thrStage.inMemory.thr_req(m)(n)
+    thrmem(m)(n).ports(0).req := fetchStage.bram.thr_rq
+    thrmem(m)(n).ports(1).req := thrStage.inMemory.thr_req(m)(n)
     thrStage.inMemory.thr_rsp(m)(n) := thrmem(m)(n).ports(1).rsp
   }
 
@@ -457,8 +458,8 @@ class BitSerialMatMulQuantAccel(
     m <- 0 until myP.dpaDimLHS
   }{
     p2bsresmem(m).ports(0).req := p2bsStage.res.req(m)
-    p2bsresmem(m).ports(1).req := resultStage.resmem_req(m)
-    resultStage.resmem_rsp(m) := p2bsresmem(m).ports(1).rsp
+    //p2bsresmem(m).ports(1).req := resultStage.resmem_req(m)
+    //resultStage.resmem_rsp(m) := p2bsresmem(m).ports(1).rsp
   }
 
   // wire-up: write channels from result stage

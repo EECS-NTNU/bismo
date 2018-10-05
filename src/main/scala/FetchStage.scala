@@ -46,7 +46,8 @@ class FetchStageParams(
   val numRHSMems: Int,    // number of RHS memories
   val numAddrBits: Int,   // number of bits for address inside target memory
   val mrp: MemReqParams,  // memory request params for platform
-  val bramWrLat: Int = 1  // number of cycles until data written to BRAM
+  val bramWrLat: Int = 1,  // number of cycles until data written to BRAM
+  val thrEntriesPerMem: Int = 8
 ) extends PrintableParam {
   def headersAsList(): List[String] = {
     return List("nodes", "rd_width")
@@ -56,8 +57,8 @@ class FetchStageParams(
     return List(numNodes, mrp.dataWidth).map(_.toString)
   }
 
-  // total number of nodes (LHS or RHS mems) targeted by the FetchStage
-  val numNodes = numLHSMems + numRHSMems
+  // total number of nodes (LHS or RHS mems) targeted by the FetchStage + Thresholds
+  val numNodes = numLHSMems + numRHSMems + 1
 
   // number of ID bits to identify a node
   def getIDBits(): Int = {
@@ -179,6 +180,8 @@ class FetchStageBRAMIO(myP: FetchStageParams) extends Bundle {
   val rhs_req = Vec.fill(myP.numRHSMems) {
     new OCMRequest(myP.mrp.dataWidth, myP.numAddrBits).asOutput
   }
+
+  val thr_rq = new OCMRequest(myP.mrp.dataWidth, log2Up(myP.thrEntriesPerMem)).asOutput
 
   override def cloneType: this.type =
     new FetchStageBRAMIO(myP).asInstanceOf[this.type]
@@ -302,6 +305,7 @@ class FetchStage(val myP: FetchStageParams) extends Module {
   // assign IDs to LHS and RHS memories for interconnect
   // 0...numLHSMems-1 are the LHS IDs
   // numLHSMems..numLHSMems+numRHSMems-1 are the RHS IDs
+  // numLHSMems+numRHSMems are the Thr ID
   for(i <- 0 until myP.numLHSMems) {
     val lhs_mem_ind =  i
     val node_ind = i
@@ -315,6 +319,11 @@ class FetchStage(val myP: FetchStageParams) extends Module {
     io.bram.rhs_req(rhs_mem_ind) := conn.node_out(node_ind)
     println(s"RHS $rhs_mem_ind assigned to node# $node_ind")
   }
+
+  //Adding thresholds memory
+  val thr_id = myP.numLHSMems +  myP.numRHSMems
+  io.bram.thr_rq := conn.node_out(thr_id)
+  println(s"Threshold mem assigned to node# $thr_id")
 
   // count responses to determine done
   val regBlockBytesReceived = Reg(init = UInt(0, 32))
