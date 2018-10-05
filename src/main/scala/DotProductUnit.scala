@@ -52,7 +52,7 @@ class DotProductUnitParams(
   // extra pipeline regs for retiming
   val extraPipelineRegs: Int = 0,
   // use an optimized VHDL compressor generator
-  val useVhdlCompressor: Boolean = true,
+  val useVhdlCompressor: Boolean = false,
   // number of regs for the VHDL compressor (if used)
   // -1 gives maximum pipelining (= compressor tree depth)
   val vhdlCompressorRegs: Int = -1

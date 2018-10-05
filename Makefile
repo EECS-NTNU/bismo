@@ -94,13 +94,13 @@ Test%:
 EmuTest%:
 	mkdir -p $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@"; cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; cd $(BUILD_DIR)/$@; g++ -std=c++11 -I$(APP_SRC_DIR) *.cpp driver.a -o $@; ./$@
 
-# generate cycle-accurate C++ emulator driver lib
-$(BUILD_DIR_EMU)/driver.a:
+# generate cycle-accurate C++ emulator via Verilator
+$(BUILD_DIR_EMU)/verilator-build.sh:
 	mkdir -p $(BUILD_DIR_EMU); $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain main $(BUILD_DIR_EMU)"
 
 # generate emulator executable including software sources
-emu: $(BUILD_DIR_EMU)/driver.a
-	cp -r $(APP_SRC_DIR)/* $(BUILD_DIR_EMU)/; cd $(BUILD_DIR_EMU); g++ -std=c++11 *.cpp driver.a -o emu; ./emu
+emu: $(BUILD_DIR_EMU)/verilator-build.sh
+	cp -r $(APP_SRC_DIR)/* $(BUILD_DIR_EMU)/; cd $(BUILD_DIR_EMU); sh verilator-build.sh; mv VerilatedTesterWrapper emu; ./emu
 
 # run resource/Fmax characterization
 Characterize%:
