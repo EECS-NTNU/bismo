@@ -58,6 +58,7 @@ BUILD_DIR_CHARACTERIZE := $(BUILD_DIR)/characterize
 BUILD_DIR_DEPLOY := $(BUILD_DIR)/deploy
 BUILD_DIR_VERILOG := $(BUILD_DIR)/hw/verilog
 BUILD_DIR_EMU := $(BUILD_DIR)/emu
+BUILD_DIR_HLS := $(BUILD_DIR)/hls
 BUILD_DIR_HWDRV := $(BUILD_DIR)/hw/driver
 BUILD_DIR_EMULIB_CPP := $(BUILD_DIR)/hw/cpp_emulib
 VERILOG_SRC_DIR := $(TOP)/src/main/verilog
@@ -68,13 +69,21 @@ ZSH_IN_PATH := $(shell command -v zsh 2> /dev/null)
 CPPTEST_SRC_DIR := $(TOP)/src/test/cosim
 HW_VERILOG := $(BUILD_DIR_VERILOG)/$(PLATFORM)Wrapper.v
 PLATFORM_SCRIPT_DIR := $(TOP)/src/main/script/$(PLATFORM)/target
+# TODO: make the HLS vars and targets more generic
+HLS_SCRIPT := $(TOP)/src/main/script/hls_syn.tcl
+HLS_PROJNAME := hlsproj
+HLS_INPUT := $(TOP)/src/main/hls/ExecInstrGen.cpp
+HLS_PART := xc7z020clg400-1
+HLS_CLK_NS := 5.0
+HLS_TOP_NAME := ExecInstrGen
+HLS_VERILOG_DIR := $(BUILD_DIR_HLS)/$(HLS_PROJNAME)/sol1/impl/verilog
 
 # platform-specific Makefile include for bitfile synthesis
 include platforms/$(PLATFORM).mk
 
 # note that all targets are phony targets, no proper dependency tracking
 .PHONY: hw_verilog emulib hw_driver hw_vivadoproj bitfile hw sw all rsync test
-.PHONY: resmodel characterize check_vivado
+.PHONY: resmodel characterize check_vivado hls
 
 check_vivado:
 ifndef VIVADO_IN_PATH
@@ -101,6 +110,10 @@ $(BUILD_DIR_EMU)/verilator-build.sh:
 # generate emulator executable including software sources
 emu: $(BUILD_DIR_EMU)/verilator-build.sh
 	cp -r $(APP_SRC_DIR)/* $(BUILD_DIR_EMU)/; cd $(BUILD_DIR_EMU); sh verilator-build.sh; mv VerilatedTesterWrapper emu; ./emu
+
+# run Vivado HLS to generate Verilog for HLS components
+hls:
+	mkdir -p $(BUILD_DIR_HLS); cd $(BUILD_DIR_HLS); vivado_hls -f $(HLS_SCRIPT) $(HLS_PROJNAME) $(HLS_INPUT) $(HLS_PART) $(HLS_CLK_NS) $(HLS_TOP_NAME)
 
 # run resource/Fmax characterization
 Characterize%:
