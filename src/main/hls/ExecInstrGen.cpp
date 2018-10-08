@@ -34,6 +34,7 @@
 # *******************************************************************************/
 
 #include <ap_int.h>
+//#include "BISMOInstruction.hpp"
 
 typedef enum {OP_ADD = 0, OP_SUB, OP_MUL} AluOpType;
 

@@ -76,6 +76,7 @@ HLS_INPUT := $(TOP)/src/main/hls/ExecInstrGen.cpp
 HLS_PART := xc7z020clg400-1
 HLS_CLK_NS := 5.0
 HLS_TOP_NAME := ExecInstrGen
+HLS_CFLAGS := "'-std=c++0x -I$(APP_SRC_DIR)\'"
 HLS_VERILOG_DIR := $(BUILD_DIR_HLS)/$(HLS_PROJNAME)/sol1/impl/verilog
 
 # platform-specific Makefile include for bitfile synthesis
@@ -113,7 +114,7 @@ emu: $(BUILD_DIR_EMU)/verilator-build.sh
 
 # run Vivado HLS to generate Verilog for HLS components
 hls:
-	mkdir -p $(BUILD_DIR_HLS); cd $(BUILD_DIR_HLS); vivado_hls -f $(HLS_SCRIPT) $(HLS_PROJNAME) $(HLS_INPUT) $(HLS_PART) $(HLS_CLK_NS) $(HLS_TOP_NAME)
+	mkdir -p $(BUILD_DIR_HLS); cd $(BUILD_DIR_HLS); vivado_hls -f $(HLS_SCRIPT) -tclargs $(HLS_PROJNAME) $(HLS_INPUT) $(HLS_PART) $(HLS_CLK_NS) $(HLS_TOP_NAME) $(HLS_CFLAGS)
 
 # run resource/Fmax characterization
 Characterize%:
