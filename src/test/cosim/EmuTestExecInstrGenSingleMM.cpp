@@ -112,7 +112,7 @@ int main(int argc, char const *argv[]) {
     cout << "EmuTestExecInstrGenSingleMM running" << endl;
 
     srand(time(NULL));
-
+    /*
     // hardware dims for test
     const size_t Dm = 2, Dk = 4, Dn = 2;
     // define dimensions for the workload
@@ -156,7 +156,7 @@ int main(int argc, char const *argv[]) {
     vector<BISMOInstruction> instrs;
     InstrGen::ExecInstrGenSingleMM(
       tiles_m, tiles_k, tiles_n, bits_l, bits_r, sgn_lhs, sgn_rhs,
-      base_l, base_r, base_res, nbufs_res, 
+      base_l, base_r, base_res, nbufs_res,
       instrs
     );
 
@@ -188,9 +188,21 @@ int main(int argc, char const *argv[]) {
     delete [] hw_acc;
     delete [] hw_res;
     delete [] hw_res_full;
-
+    */
     p = initPlatform();
     t = new EmuTestExecInstrGenSingleMM(p);
+
+    for(unsigned int i = 0; i < 10; i++) {
+      while(t->get_out_valid() != 1);
+      t_okay &= t->get_out_bits_runcfg_lhsOffset() == i;
+      t_okay &= t->get_out_bits_runcfg_rhsOffset() == 10 - i;
+      t_okay &= t->get_out_bits_runcfg_numTiles() == 2 * i;
+      t_okay &= t->get_out_bits_runcfg_shiftAmount() == i + 1;
+      cout << "okay at " << i << " " << t_okay << endl;
+      t->set_out_ready(0);
+      t->set_out_ready(1);
+    }
+
     delete t;
     deinitPlatform(p);
   } catch(const char * e) {

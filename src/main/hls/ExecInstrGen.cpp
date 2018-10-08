@@ -36,18 +36,21 @@
 #include <ap_int.h>
 #include <hls_stream.h>
 #include <stdint.h>
+#include "BISMOInstruction.hpp"
 
-void ExecInstrGen(hls::stream<int> & out) {
+void ExecInstrGen(hls::stream<BISMOExecRunInstruction> & out) {
   #pragma HLS INTERFACE ap_ctrl_none port=return
-  //#pragma HLS DATA_PACK variable=out
+  #pragma HLS DATA_PACK variable=out
   #pragma HLS INTERFACE axis port=out
 
-  for(int i = 0; i < 10; i++) {
+  BISMOExecRunInstruction ins;
+  for(unsigned int i = 0; i < 10; i++) {
     #pragma HLS PIPELINE II=1
-    out.write(i);
+    ins.targetStage = 1;
+    ins.lhsOffset = i;
+    ins.rhsOffset = 10 - i;
+    ins.numTiles = 2 * i;
+    ins.shiftAmount = i+1;
+    out.write(ins);
   }
-
-  /*BISMOExecRunInstruction ins;
-  ins.targetStage = 1;
-  out.write(ins);*/
 }

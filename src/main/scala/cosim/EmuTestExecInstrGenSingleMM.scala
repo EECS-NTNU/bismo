@@ -38,7 +38,7 @@ import fpgatidbits.PlatformWrapper._
 
 class ExecInstrGen extends BlackBox {
   val io = new Bundle {
-    val out = Decoupled(UInt(width = 32))
+    val out = Decoupled(UInt(width = 128))
     val rst_n = Bool(INPUT)
     out.bits.setName("out_V_TDATA")
     out.valid.setName("out_V_TVALID")
@@ -53,15 +53,16 @@ class ExecInstrGen extends BlackBox {
 class EmuTestExecInstrGenSingleMM(p: PlatformWrapperParams) extends GenericAccelerator(p) {
   val numMemPorts = 0
   val io = new GenericAcceleratorIF(numMemPorts, p) {
-    val in = Decoupled(new SingleMMDescriptor()).flip
-    val out = Decoupled(new BISMOInstruction())
+    /*val in = Decoupled(new SingleMMDescriptor()).flip
+    val out = Decoupled(new BISMOInstruction())*/
+    val out = Decoupled(new BISMOExecRunInstruction())
   }
   val bb = Module(new ExecInstrGen()).io
   bb.rst_n := !this.reset
-  bb.out.ready := Bool(true)
-  when(bb.out.valid) {
-    printf("Val: %d \n", bb.out.bits)
-  }
+  io.out.bits := io.out.bits.fromBits(bb.out.bits)
+  io.out.valid := bb.out.valid
+  bb.out.ready := io.out.ready & !Reg(next=io.out.ready)
+
   io.signature := makeDefaultSignature()
   /*val igen = Module(new ExecInstrGenSingleMM()).io
   io <> igen*/
