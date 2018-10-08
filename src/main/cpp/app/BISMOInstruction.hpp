@@ -1,8 +1,6 @@
 #pragma once
 
 #include <stdint.h>
-#include <iomanip>
-
 // defines the data layout and fields for BISMO instructions, and routines to
 // print them in human-readable representations
 
@@ -87,6 +85,9 @@ union BISMOInstruction {
   BISMOResultRunInstruction res;
 };
 
+#ifndef __SYNTHESIS__
+#include <iomanip>
+
 ostream& operator<<(ostream& os, const BISMOSyncInstruction& dt)
 {
     os << "sync " << (dt.isSendToken ? "send" : "receive");
@@ -157,3 +158,4 @@ ostream& operator<<(ostream& os, const BISMOInstruction& dt)
     }
     return os;
 }
+#endif
