@@ -113,8 +113,12 @@ emu: $(BUILD_DIR_EMU)/verilator-build.sh
 	cp -r $(APP_SRC_DIR)/* $(BUILD_DIR_EMU)/; cd $(BUILD_DIR_EMU); sh verilator-build.sh; mv VerilatedTesterWrapper emu; ./emu
 
 # run Vivado HLS to generate Verilog for HLS components
-hls:
+$(HLS_VERILOG_DIR)/ExecInstrGen.v:
 	mkdir -p $(BUILD_DIR_HLS); cd $(BUILD_DIR_HLS); vivado_hls -f $(HLS_SCRIPT) -tclargs $(HLS_PROJNAME) $(HLS_INPUT) $(HLS_PART) $(HLS_CLK_NS) $(HLS_TOP_NAME) $(HLS_INCL_DIR)
+
+# hw-sw cosimulation tests with extra HLS dependencies
+EmuTestExecInstrGenSingleMM: $(HLS_VERILOG_DIR)/ExecInstrGen.v
+	mkdir -p $(BUILD_DIR)/$@; cp $(HLS_VERILOG_DIR)/* $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@"; cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; ln -s $(APP_SRC_DIR)/*.hpp $(BUILD_DIR)/$@; ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@; cd $(BUILD_DIR)/$@; sh verilator-build.sh; ./VerilatedTesterWrapper
 
 # run resource/Fmax characterization
 Characterize%:
