@@ -36,13 +36,33 @@ import fpgatidbits.ocm._
 import fpgatidbits.streams._
 import fpgatidbits.PlatformWrapper._
 
+class ExecInstrGen extends BlackBox {
+  val io = new Bundle {
+    val out = Decoupled(UInt(width = 32))
+    val rst_n = Bool(INPUT)
+    out.bits.setName("out_V_TDATA")
+    out.valid.setName("out_V_TVALID")
+    out.ready.setName("out_V_TREADY")
+    rst_n.setName("ap_rst_n")
+  }
+  // clock needs to be added manually to BlackBox
+	addClock(Driver.implicitClock)
+  renameClock("clk", "ap_clk")
+}
+
 class EmuTestExecInstrGenSingleMM(p: PlatformWrapperParams) extends GenericAccelerator(p) {
   val numMemPorts = 0
   val io = new GenericAcceleratorIF(numMemPorts, p) {
     val in = Decoupled(new SingleMMDescriptor()).flip
     val out = Decoupled(new BISMOInstruction())
   }
+  val bb = Module(new ExecInstrGen()).io
+  bb.rst_n := !this.reset
+  bb.out.ready := Bool(true)
+  when(bb.out.valid) {
+    printf("Val: %d \n", bb.out.bits)
+  }
   io.signature := makeDefaultSignature()
-  val igen = Module(new ExecInstrGenSingleMM()).io
-  io <> igen
+  /*val igen = Module(new ExecInstrGenSingleMM()).io
+  io <> igen*/
 }

@@ -76,7 +76,7 @@ HLS_INPUT := $(TOP)/src/main/hls/ExecInstrGen.cpp
 HLS_PART := xc7z020clg400-1
 HLS_CLK_NS := 5.0
 HLS_TOP_NAME := ExecInstrGen
-HLS_CFLAGS := "'-std=c++0x -I$(APP_SRC_DIR)\'"
+HLS_INCL_DIR := $(APP_SRC_DIR)
 HLS_VERILOG_DIR := $(BUILD_DIR_HLS)/$(HLS_PROJNAME)/sol1/impl/verilog
 
 # platform-specific Makefile include for bitfile synthesis
@@ -102,7 +102,7 @@ Test%:
 
 # run hardware-software cosimulation tests
 EmuTest%:
-	mkdir -p $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@"; cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; cd $(BUILD_DIR)/$@; g++ -std=c++11 -I$(APP_SRC_DIR) *.cpp driver.a -o $@; ./$@
+	mkdir -p $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@"; cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; #cd $(BUILD_DIR)/$@; g++ -std=c++11 -I$(APP_SRC_DIR) *.cpp driver.a -o $@; ./$@
 
 # generate cycle-accurate C++ emulator via Verilator
 $(BUILD_DIR_EMU)/verilator-build.sh:
@@ -114,7 +114,7 @@ emu: $(BUILD_DIR_EMU)/verilator-build.sh
 
 # run Vivado HLS to generate Verilog for HLS components
 hls:
-	mkdir -p $(BUILD_DIR_HLS); cd $(BUILD_DIR_HLS); vivado_hls -f $(HLS_SCRIPT) -tclargs $(HLS_PROJNAME) $(HLS_INPUT) $(HLS_PART) $(HLS_CLK_NS) $(HLS_TOP_NAME) $(HLS_CFLAGS)
+	mkdir -p $(BUILD_DIR_HLS); cd $(BUILD_DIR_HLS); vivado_hls -f $(HLS_SCRIPT) -tclargs $(HLS_PROJNAME) $(HLS_INPUT) $(HLS_PART) $(HLS_CLK_NS) $(HLS_TOP_NAME) $(HLS_INCL_DIR)
 
 # run resource/Fmax characterization
 Characterize%:

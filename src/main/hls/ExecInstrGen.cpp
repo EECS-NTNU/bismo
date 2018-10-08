@@ -34,27 +34,20 @@
 # *******************************************************************************/
 
 #include <ap_int.h>
-//#include "BISMOInstruction.hpp"
+#include <hls_stream.h>
+#include <stdint.h>
 
-typedef enum {OP_ADD = 0, OP_SUB, OP_MUL} AluOpType;
+void ExecInstrGen(hls::stream<int> & out) {
+  #pragma HLS INTERFACE ap_ctrl_none port=return
+  //#pragma HLS DATA_PACK variable=out
+  #pragma HLS INTERFACE axis port=out
 
-ap_int<32> ExecInstrGen(ap_int<32> opA, ap_int<32> opB, ap_uint<32> mode) {
-#pragma HLS INTERFACE s_axilite port=opA  bundle=control
-#pragma HLS INTERFACE s_axilite port=opB bundle=control
-#pragma HLS INTERFACE s_axilite port=mode bundle=control
-#pragma HLS INTERFACE s_axilite port=return bundle=control
+  for(int i = 0; i < 10; i++) {
+    #pragma HLS PIPELINE II=1
+    out.write(i);
+  }
 
-	switch(mode) {
-	case OP_ADD:
-		return opA + opB;
-		break;
-	case OP_SUB:
-		return opA - opB;
-		break;
-	case OP_MUL:
-		return opA * opB;
-		break;
-	default:
-		return 0xdeadbeef;
-	}
+  /*BISMOExecRunInstruction ins;
+  ins.targetStage = 1;
+  out.write(ins);*/
 }
