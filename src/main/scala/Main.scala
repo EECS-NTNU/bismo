@@ -316,14 +316,14 @@ object CharacterizeMain {
   val instFxn_P2BSStage = {p: Parallel2BSStageParams => Module(new Parallel2BSStage(p))}
 
 
-  def makeParamSpace_BOB(): Seq[BitSerialMatMulQuantParams] = {
+  def makeParamSpace_SQUAT(): Seq[BitSerialMatMulQuantParams] = {
     return for {
-      lhs <- 8 to 8//for(i <- 1 to 5) yield (2*i)
-      rhs <- 8 to 8//for(i <- 1 to 5) yield (2*i)
+      lhs <- for(i <- 5 to 5) yield (2*i)
+      rhs <- for(i <- 5 to 5) yield (2*i)
       z <- 64 to 64
       lmem <- 1024 to 1024
       rmem <- 1024 to 1024
-      thmem <- 8 to 8
+      thmem <- 1024 to 1024
       maxquantDim <- 2 to 2
       thFolding <- 3 to 3
     } yield new BitSerialMatMulQuantParams(
@@ -334,7 +334,27 @@ object CharacterizeMain {
 
     )
   }
-  val instFxn_BOB = {p: BitSerialMatMulQuantParams => Module(new BitSerialMatMulQuantAccel(p, PYNQZ1Params))}
+  val instFxn_SQUAT = {p: BitSerialMatMulQuantParams => Module(new BitSerialMatMulQuantAccel(p, PYNQZ1Params))}
+
+  def makeParamSpace_BOB(): Seq[BOBParams] = {
+    return for {
+      lhs <- for(i <- 5 to 5) yield (2*i)
+      rhs <- for(i <- 5 to 5) yield (2*i)
+      z <- 64 to 64
+      lmem <- 1024 to 1024
+      rmem <- 1024 to 1024
+      thmem <- 512 to 512
+      maxquantDim <- 4 to 4
+      thFolding <- Seq(15)
+    } yield new BOBParams(
+      dpaDimLHS = lhs, dpaDimRHS = rhs, dpaDimCommon = z,
+      lhsEntriesPerMem = lmem, rhsEntriesPerMem = rmem,
+      mrp = PYNQZ1Params.toMemReqParams(),
+      thrEntriesPerMem = thmem, maxQuantDim = maxquantDim, quantFolding = thFolding
+
+    )
+  }
+  val instFxn_BOB = {p: BOBParams => Module(new BOBAccel(p, PYNQZ1Params))}
 
   def main(args: Array[String]): Unit = {
     val chName: String = args(0)
@@ -343,32 +363,34 @@ object CharacterizeMain {
     val chLog = chName + ".log"
     val fpgaPart: String = VivadoSynth.fpgaPartMap(platform)
 
-    if(chName == "CharacterizePC") {
+    if (chName == "CharacterizePC") {
       VivadoSynth.characterizeSpace(makeParamSpace_PC(), instFxn_PC, chPath, chLog, fpgaPart)
-    } else if(chName == "CharacterizeDPU") {
+    } else if (chName == "CharacterizeDPU") {
       VivadoSynth.characterizeSpace(makeParamSpace_DPU(), instFxn_DPU, chPath, chLog, fpgaPart)
-    } else if(chName == "CharacterizeDPA") {
+    } else if (chName == "CharacterizeDPA") {
       VivadoSynth.characterizeSpace(makeParamSpace_DPA(), instFxn_DPA, chPath, chLog, fpgaPart)
-    } else if(chName == "CharacterizeMain") {
+    } else if (chName == "CharacterizeMain") {
       VivadoSynth.characterizeSpace(makeParamSpace_Main(), instFxn_Main, chPath, chLog, fpgaPart)
-    } else if(chName == "CharacterizeResultStage") {
+    } else if (chName == "CharacterizeResultStage") {
       VivadoSynth.characterizeSpace(makeParamSpace_ResultStage(), instFxn_ResultStage, chPath, chLog, fpgaPart)
-    } else if(chName == "CharacterizeResultBuf") {
+    } else if (chName == "CharacterizeResultBuf") {
       VivadoSynth.characterizeSpace(makeParamSpace_ResultBuf(), instFxn_ResultBuf, chPath, chLog, fpgaPart)
-    } else if(chName == "CharacterizeFetchStage") {
+    } else if (chName == "CharacterizeFetchStage") {
       VivadoSynth.characterizeSpace(makeParamSpace_FetchStage(), instFxn_FetchStage, chPath, chLog, fpgaPart)
-    } else if(chName == "CharacterizeTHU") {
+    } else if (chName == "CharacterizeTHU") {
       VivadoSynth.characterizeSpace(makeParamSpace_THU(), instFxn_THU, chPath, chLog, fpgaPart)
-    } else if(chName == "CharacterizeTBB") {
+    } else if (chName == "CharacterizeTBB") {
       VivadoSynth.characterizeSpace(makeParamSpace_TBB(), instFxn_TBB, chPath, chLog, fpgaPart)
-    }else if(chName == "CharacterizeThrStage"){
+    } else if (chName == "CharacterizeThrStage") {
       VivadoSynth.characterizeSpace(makeParamSpace_thrStage(), instFxn_thrStage, chPath, chLog, fpgaPart)
-    }else if(chName == "CharacterizeSU"){
+    } else if (chName == "CharacterizeSU") {
       VivadoSynth.characterizeSpace(makeParamSpace_SU(), instFxn_SU, chPath, chLog, fpgaPart)
-    } else if(chName == "CharacterizeP2BS"){
+    } else if (chName == "CharacterizeP2BS") {
       VivadoSynth.characterizeSpace(makeParamSpace_P2BSStage(), instFxn_P2BSStage, chPath, chLog, fpgaPart)
-    } else if(chName == "CharacterizeBOB"){
-    VivadoSynth.characterizeSpace(makeParamSpace_BOB(), instFxn_BOB, chPath, chLog, fpgaPart)
+    } else if (chName == "CharacterizeSQUAT") {
+      VivadoSynth.characterizeSpace(makeParamSpace_SQUAT(), instFxn_SQUAT, chPath, chLog, fpgaPart)
+    } else if (chName == "CharacterizeBOB") {
+      VivadoSynth.characterizeSpace(makeParamSpace_BOB(), instFxn_BOB, chPath, chLog, fpgaPart)
     }else {
       println("Unrecognized target for characterization")
     }

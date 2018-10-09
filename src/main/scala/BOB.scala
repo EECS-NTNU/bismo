@@ -21,11 +21,11 @@ import fpgatidbits.streams._
 
 // This is the top-level source file that cobbles together the stages,
 // controllers and token queues into a BISMO instance.
-// The key Module here is BitSerialMatMulQuantAccel, whose configuration is
-// specified by the BitSerialMatMulQuantParams.
+// The key Module here is BOBAccel, whose configuration is
+// specified by the BOBParams.
 
 // make the instantiated config options available to softare at runtime
-class BitSerialMatMulQuantHWCfg(bitsPerField: Int) extends Bundle {
+class BOBHWCfg(bitsPerField: Int) extends Bundle {
   val readChanWidth = UInt(width = bitsPerField)
   val writeChanWidth = UInt(width = bitsPerField)
   val dpaDimLHS = UInt(width = bitsPerField)
@@ -38,35 +38,35 @@ class BitSerialMatMulQuantHWCfg(bitsPerField: Int) extends Bundle {
   val cmdQueueEntries = UInt(width = bitsPerField)
 
   override def cloneType: this.type =
-    new BitSerialMatMulQuantHWCfg(bitsPerField).asInstanceOf[this.type]
+    new BOBHWCfg(bitsPerField).asInstanceOf[this.type]
 }
 
 // parameters that control the accelerator instantiation
-class BitSerialMatMulQuantParams(
-                             val dpaDimLHS: Int,
-                             val dpaDimRHS: Int,
-                             val dpaDimCommon: Int,
-                             val lhsEntriesPerMem: Int,
-                             val rhsEntriesPerMem: Int,
-                             val mrp: MemReqParams,
-                             val resEntriesPerMem: Int = 2,
-                             val bramPipelineBefore: Int = 1,
-                             val bramPipelineAfter: Int = 1,
-                             val extraRegs_DPA: Int = 0,
-                             val extraRegs_DPU: Int = 0,
-                             val extraRegs_PC: Int = 0,
-                             val accWidth: Int = 32,
-                             val maxShiftSteps: Int = 16,
-                             val cmdQueueEntries: Int = 16,
-                             // do not instantiate the shift stage
-                             val noShifter: Boolean = false,
-                             // do not instantiate the negate stage
-                             val noNegate: Boolean = false,
-                             val thrEntriesPerMem: Int,
-                             val maxQuantDim : Int,
-                             val quantFolding: Int,
-                             val staticSerial: Boolean = false
-                           ) extends PrintableParam {
+class BOBParams(
+                                  val dpaDimLHS: Int,
+                                  val dpaDimRHS: Int,
+                                  val dpaDimCommon: Int,
+                                  val lhsEntriesPerMem: Int,
+                                  val rhsEntriesPerMem: Int,
+                                  val mrp: MemReqParams,
+                                  val resEntriesPerMem: Int = 2,
+                                  val bramPipelineBefore: Int = 1,
+                                  val bramPipelineAfter: Int = 1,
+                                  val extraRegs_DPA: Int = 0,
+                                  val extraRegs_DPU: Int = 0,
+                                  val extraRegs_PC: Int = 0,
+                                  val accWidth: Int = 32,
+                                  val maxShiftSteps: Int = 16,
+                                  val cmdQueueEntries: Int = 16,
+                                  // do not instantiate the shift stage
+                                  val noShifter: Boolean = false,
+                                  // do not instantiate the negate stage
+                                  val noNegate: Boolean = false,
+                                  val thrEntriesPerMem: Int,
+                                  val maxQuantDim : Int,
+                                  val quantFolding: Int,
+                                  val staticSerial: Boolean = false
+                                ) extends PrintableParam {
   def headersAsList(): List[String] = {
     return List(
       "dpaLHS", "dpaRHS", "dpaCommon", "lhsMem", "rhsMem", "DRAM_rd", "DRAM_wr",
@@ -83,8 +83,8 @@ class BitSerialMatMulQuantParams(
     ).map(_.toString)
   }
 
-  def asHWCfgBundle(bitsPerField: Int): BitSerialMatMulQuantHWCfg = {
-    val ret = new BitSerialMatMulQuantHWCfg(bitsPerField).asDirectionless
+  def asHWCfgBundle(bitsPerField: Int): BOBHWCfg = {
+    val ret = new BOBHWCfg(bitsPerField).asDirectionless
     ret.readChanWidth := UInt(mrp.dataWidth)
     ret.writeChanWidth := UInt(mrp.dataWidth)
     ret.dpaDimLHS := UInt(dpaDimLHS)
@@ -143,20 +143,10 @@ class BitSerialMatMulQuantParams(
     activationMemoryLatency = bramPipelineBefore,
     thuParams = thuParams
   )
-// Parametrized for possible skipping of the Thresholding stage
-  val suParams = new SerializerUnitParams (
-    inPrecision = dpaDimCommon, matrixRows = dpaDimLHS, matrixCols = dpaDimRHS,
-    staticCounter = staticSerial, maxCounterPrec = log2Up(dpaDimCommon))
-
-  val p2bsStageParams = new Parallel2BSStageParams(
-    suParams = suParams,
-    thMemDepth  = thrEntriesPerMem, bsMemDepth = resEntriesPerMem,
-    thMemLatency = bramPipelineBefore, bramInRegs= bramPipelineBefore, bramOutRegs = bramPipelineAfter
-  )
 }
 
 // Bundle to expose performance counter data to the CPU
-class BitSerialMatMulQuantPerf(myP: BitSerialMatMulQuantParams) extends Bundle {
+class BOBPerf(myP: BOBParams) extends Bundle {
   val cc = UInt(OUTPUT, width = 32)
   val cc_enable = Bool(INPUT)
   val prf_fetch = new Bundle {
@@ -176,18 +166,15 @@ class BitSerialMatMulQuantPerf(myP: BitSerialMatMulQuantParams) extends Bundle {
     val count = UInt(OUTPUT, 32)
     val sel = UInt(INPUT, log2Up(4))
   }
-  val prf_p2bs = new Bundle {
-    val count = UInt(OUTPUT, 32)
-    val sel = UInt(INPUT, log2Up(4))
-  }
+
 
   override def cloneType: this.type =
-    new BitSerialMatMulQuantPerf(myP).asInstanceOf[this.type]
+    new BOBPerf(myP).asInstanceOf[this.type]
 }
 
-class BitSerialMatMulQuantAccel(
-                            val myP: BitSerialMatMulQuantParams, p: PlatformWrapperParams
-                          ) extends GenericAccelerator(p) {
+class BOBAccel(
+                                 val myP: BOBParams, p: PlatformWrapperParams
+                               ) extends GenericAccelerator(p) {
   val numMemPorts = 1
   val io = new GenericAcceleratorIF(numMemPorts, p) {
     // enable/disable execution for each stage
@@ -207,17 +194,15 @@ class BitSerialMatMulQuantAccel(
     val exec_runcfg = Decoupled(new ExecStageCtrlIO(myP.execStageParams)).flip
     val result_runcfg = Decoupled(new ResultStageCtrlIO(myP.resultStageParams)).flip
     val thr_runcfg = Decoupled(new ThrStageCtrlIO(myP.thrStageParams)).flip
-    val p2bs_runcfg = Decoupled(new Parallel2BSStageCtrlIO(myP.p2bsStageParams)).flip
     // command counts in each queue
     val fetch_op_count = UInt(OUTPUT, width = 32)
     val exec_op_count = UInt(OUTPUT, width = 32)
     val result_op_count = UInt(OUTPUT, width = 32)
     val thr_op_count = UInt(OUTPUT, width = 32)
-    val p2bs_op_count = UInt(OUTPUT, width = 32)
     // instantiated hardware config
-    val hw = new BitSerialMatMulQuantHWCfg(32).asOutput
+    val hw = new BOBHWCfg(32).asOutput
     // performance counter I/O
-    val perf = new BitSerialMatMulQuantPerf(myP)
+    val perf = new BOBPerf(myP)
   }
   io.hw := myP.asHWCfgBundle(32)
   // instantiate accelerator stages
@@ -225,25 +210,21 @@ class BitSerialMatMulQuantAccel(
   val execStage = Module(new ExecStage(myP.execStageParams)).io
   val resultStage = Module(new ResultStage(myP.resultStageParams)).io
   val thrStage = Module( new ThrStage(myP.thrStageParams)).io
-  val p2bsStage = Module(new Parallel2BSStage(myP.p2bsStageParams)).io
   // instantiate the controllers for each stage
   val fetchCtrl = Module(new FetchController(myP.fetchStageParams)).io
   val execCtrl = Module(new ExecController(myP.execStageParams)).io
   val resultCtrl = Module(new ResultController(myP.resultStageParams)).io
   val thrCtrl = Module(new ThresholdingController(myP.thrStageParams)).io
-  val p2bsCtrl = Module(new P2BSController(myP.p2bsStageParams)).io
   // instantiate op and runcfg queues
   val fetchOpQ = Module(new FPGAQueue(io.fetch_op.bits, myP.cmdQueueEntries)).io
   val execOpQ = Module(new FPGAQueue(io.exec_op.bits, myP.cmdQueueEntries)).io
   val resultOpQ = Module(new FPGAQueue(io.result_op.bits, myP.cmdQueueEntries)).io
   val thrOpQ = Module(new FPGAQueue(io.thr_op.bits, myP.cmdQueueEntries)).io
-  val p2bsOpQ = Module(new FPGAQueue(io.p2bs_op.bits, myP.cmdQueueEntries)).io
 
   val fetchRunCfgQ = Module(new FPGAQueue(io.fetch_runcfg.bits, myP.cmdQueueEntries)).io
   val execRunCfgQ = Module(new FPGAQueue(io.exec_runcfg.bits, myP.cmdQueueEntries)).io
   val resultRunCfgQ = Module(new FPGAQueue(io.result_runcfg.bits, myP.cmdQueueEntries)).io
   val thrRunCfgQ = Module(new FPGAQueue(io.thr_runcfg.bits, myP.cmdQueueEntries)).io
-  val p2bsRunCfgQ = Module(new FPGAQueue(io.p2bs_runcfg.bits, myP.cmdQueueEntries)).io
 
   // instantiate tile memories
   val tilemem_lhs = Vec.fill(myP.dpaDimLHS) {
@@ -279,37 +260,28 @@ class BitSerialMatMulQuantAccel(
     )).io
   }}
 
-  // instantiate thrstage res memory
-  val quantizedmem = Vec.fill(myP.dpaDimLHS) { Vec.fill(myP.dpaDimRHS){
-    Module( new PipelinedDualPortBRAM(
-      addrBits = log2Up(myP.thrEntriesPerMem), dataBits = myP.maxQuantDim,
-      regIn = myP.bramPipelineBefore, regOut = myP.bramPipelineAfter
-    )).io
-  }}
 
-  // instantiate p2bs res mem
 
   // instantiate the result memory
   // TODO ResultStage actually assumes this memory can be read with zero
   // latency but current impl has latency of 1. this will cause bugs if reading
   // two different addresses in consecutive cycles.
-
-  val p2bsresmem = Vec.fill(myP.dpaDimLHS){
+  // instantiate thrstage res memory
+  val quantizedmem = Vec.fill(myP.dpaDimLHS) { Vec.fill(myP.dpaDimRHS){
     Module( new PipelinedDualPortBRAM(
-      addrBits = log2Up(myP.resEntriesPerMem), dataBits = myP.dpaDimRHS,
+      addrBits = log2Up(myP.thrEntriesPerMem), dataBits = myP.accWidth,
       regIn = 0, regOut = 0
     )).io
-  }
+  }}
 
   // instantiate synchronization token FIFOs
   val syncFetchExec_free = Module(new FPGAQueue(Bool(), 8)).io
   val syncFetchExec_filled = Module(new FPGAQueue(Bool(), 8)).io
   val syncExecThr_free = Module(new FPGAQueue(Bool(), 8)).io
   val syncExecThr_filled = Module(new FPGAQueue(Bool(), 8)).io
-  val syncThrP2BS_free = Module(new FPGAQueue(Bool(), 8)).io
-  val syncThrP2BS_filled = Module(new FPGAQueue(Bool(), 8)).io
-  val syncP2BSResult_free = Module(new FPGAQueue(Bool(), 8)).io
-  val syncP2BSResult_filled = Module(new FPGAQueue(Bool(), 8)).io
+  val syncThrResult_free = Module(new FPGAQueue(Bool(),8)).io
+  val syncThrResult_filled = Module(new FPGAQueue(Bool(),8)).io
+
 
 
   // helper function to wire-up DecoupledIO to DecoupledIO with pulse generator
@@ -351,13 +323,6 @@ class BitSerialMatMulQuantAccel(
   enqPulseGenFromValid(thrOpQ.enq, io.thr_op)
   enqPulseGenFromValid(thrRunCfgQ.enq, io.thr_runcfg)
 
-  // wire-up: command queues and pulse generators for p2bs stage
-  p2bsCtrl.enable := io.p2bs_enable
-  io.p2bs_op_count := p2bsOpQ.count
-  p2bsOpQ.deq <> p2bsCtrl.op
-  p2bsRunCfgQ.deq <> p2bsCtrl.runcfg
-  enqPulseGenFromValid(p2bsOpQ.enq, io.p2bs_op)
-  enqPulseGenFromValid(p2bsRunCfgQ.enq, io.p2bs_runcfg)
 
 
   // wire-up: fetch controller and stage
@@ -376,10 +341,6 @@ class BitSerialMatMulQuantAccel(
   thrStage.start := thrCtrl.start
   thrCtrl.done := thrStage.done
   thrStage.ctrl := thrCtrl.stageO
-  // wire-up: p2bs controller and stage
-  p2bsStage.start := p2bsCtrl.start
-  p2bsCtrl.done := p2bsStage.done
-  p2bsStage.ctrl := p2bsCtrl.stageO
 
   // wire-up: read channels to fetch stage
   fetchStage.dram.rd_req <> io.memPort(0).memRdReq
@@ -412,16 +373,11 @@ class BitSerialMatMulQuantAccel(
   syncExecThr_filled.deq <> thrCtrl.sync_in(0)
 
   // wire-up: shared resource management (thr and p2bs stages)
-  p2bsCtrl.sync_out(0) <> syncThrP2BS_free.enq
-  syncThrP2BS_free.deq <> thrCtrl.sync_in(1)
-  thrCtrl.sync_out(1) <> syncThrP2BS_filled.enq
-  syncThrP2BS_filled.deq <> p2bsCtrl.sync_in(0)
+  resultCtrl.sync_out(0) <> syncThrResult_free.enq
+  syncThrResult_free.deq <> thrCtrl.sync_in(1)
+  thrCtrl.sync_out(1) <> syncThrResult_filled.enq
+  syncThrResult_filled.deq <> resultCtrl.sync_in(0)
 
-  // wire-up: shared resource management (p2bs and result stages)
-  resultCtrl.sync_out(0) <> syncP2BSResult_free.enq
-  syncP2BSResult_free.deq <> p2bsCtrl.sync_in(1)
-  p2bsCtrl.sync_out(1) <> syncP2BSResult_filled.enq
-  syncP2BSResult_filled.deq <> resultCtrl.sync_in(0)
 
   // wire-up: result memory (exec and thr stages)
   for{
@@ -449,18 +405,10 @@ class BitSerialMatMulQuantAccel(
     n <- 0 until myP.dpaDimRHS
   }{
     quantizedmem(m)(n).ports(0).req := thrStage.res.req(m)(n)
-    quantizedmem(m)(n).ports(1).req := p2bsStage.inMemory.thr_req(m)(n)
-    p2bsStage.inMemory.thr_rsp(m)(n) := quantizedmem(m)(n).ports(1).rsp
+    quantizedmem(m)(n).ports(1).req := resultStage.resmem_req(m)(n)
+    resultStage.resmem_rsp(m)(n) := quantizedmem(m)(n).ports(1).rsp
   }
 
-  // wire-up: p2bs matrix memory (p2bs and result stages)
-  for{
-    m <- 0 until myP.dpaDimLHS
-  }{
-    p2bsresmem(m).ports(0).req := p2bsStage.res.req(m)
-    //p2bsresmem(m).ports(1).req := resultStage.resmem_req(m)
-    //resultStage.resmem_rsp(m) := p2bsresmem(m).ports(1).rsp
-  }
 
   // wire-up: write channels from result stage
   resultStage.dram.wr_req <> io.memPort(0).memWrReq
@@ -483,12 +431,10 @@ class BitSerialMatMulQuantAccel(
   execCtrl.perf.start := io.perf.cc_enable
   resultCtrl.perf.start := io.perf.cc_enable
   thrCtrl.perf.start := io.perf.cc_enable
-  p2bsCtrl.perf.start := io.perf.cc_enable
   io.perf.prf_fetch <> fetchCtrl.perf
   io.perf.prf_exec <> execCtrl.perf
   io.perf.prf_res <> resultCtrl.perf
   io.perf.prf_thr <> thrCtrl.perf
-  io.perf.prf_p2bs <> p2bsCtrl.perf
 
   /* TODO expose the useful ports from the monitors below:
   StreamMonitor(syncFetchExec_free.enq, io.perf.cc_enable)

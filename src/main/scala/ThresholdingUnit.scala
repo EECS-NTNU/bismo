@@ -125,7 +125,7 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
   // If rolled then count till the run-time number otherwise is 1 (quantize no more than that width)
   val runTimeLatency = if(p.unrollingFactorOutputPrecision == 1) {io.thInterf.thresholdCount} else { UInt(1, width = log2Up(p.thresholdLatency))}
   // More threhsolds than the really needed will be filtered with this mask
-  val input_mask = Reg(init = UInt(0, width = p.unrollingFactorRows), next = io.thInterf.thresholdCount & UInt(p.unrollingFactorOutputPrecision))
+  val input_mask = Reg(init = UInt(0, width = p.unrollingFactorOutputPrecision), next = io.thInterf.thresholdCount & UInt(p.unrollingFactorOutputPrecision))
 
   val sInit::sThRoll::sEnd::Nil = Enum(UInt(),3)
   val unitState = Reg(init = sInit)
