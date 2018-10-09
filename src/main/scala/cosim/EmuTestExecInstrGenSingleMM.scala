@@ -40,9 +40,9 @@ class ExecInstrGen extends BlackBox {
   val io = new Bundle {
     val out = Decoupled(UInt(width = 128))
     val rst_n = Bool(INPUT)
-    out.bits.setName("out_V_TDATA")
-    out.valid.setName("out_V_TVALID")
-    out.ready.setName("out_V_TREADY")
+    out.bits.setName("out_V_V_TDATA")
+    out.valid.setName("out_V_V_TVALID")
+    out.ready.setName("out_V_V_TREADY")
     rst_n.setName("ap_rst_n")
   }
   // clock needs to be added manually to BlackBox
@@ -55,11 +55,11 @@ class EmuTestExecInstrGenSingleMM(p: PlatformWrapperParams) extends GenericAccel
   val io = new GenericAcceleratorIF(numMemPorts, p) {
     /*val in = Decoupled(new SingleMMDescriptor()).flip
     val out = Decoupled(new BISMOInstruction())*/
-    val out = Decoupled(new BISMOExecRunInstruction())
+    val out = Decoupled(UInt(width = 128))
   }
   val bb = Module(new ExecInstrGen()).io
   bb.rst_n := !this.reset
-  io.out.bits := io.out.bits.fromBits(bb.out.bits)
+  io.out.bits := bb.out.bits
   io.out.valid := bb.out.valid
   bb.out.ready := io.out.ready & !Reg(next=io.out.ready)
 

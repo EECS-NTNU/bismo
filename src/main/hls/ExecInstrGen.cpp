@@ -38,19 +38,38 @@
 #include <stdint.h>
 #include "BISMOInstruction.hpp"
 
-void ExecInstrGen(hls::stream<BISMOExecRunInstruction> & out) {
+void ExecInstrGen(
+  hls::stream<ap_uint<128>> & out
+) {
   #pragma HLS INTERFACE ap_ctrl_none port=return
-  #pragma HLS DATA_PACK variable=out
   #pragma HLS INTERFACE axis port=out
 
-  BISMOExecRunInstruction ins;
+  BISMOExecRunInstruction exec;
+  BISMOSyncInstruction sync;
+  #pragma HLS DATA_PACK variable=exec
+  #pragma HLS DATA_PACK variable=sync
+
+  sync.isRunCfg = 0;
+  sync.targetStage = 1;
+  sync.isSendToken = 1;
+  sync.chanID = 2;
+  out.write(sync.asRaw());
+
   for(unsigned int i = 0; i < 10; i++) {
     #pragma HLS PIPELINE II=1
-    ins.targetStage = 1;
-    ins.lhsOffset = i;
-    ins.rhsOffset = 10 - i;
-    ins.numTiles = 2 * i;
-    ins.shiftAmount = i+1;
-    out.write(ins);
+    exec.isRunCfg = 1;
+    exec.targetStage = 1;
+    exec.lhsOffset = i;
+    exec.rhsOffset = 10 - i;
+    exec.numTiles = 2 * i;
+    exec.shiftAmount = i+1;
+    out.write(exec.asRaw());
   }
+
+  sync.isRunCfg = 0;
+  sync.targetStage = 1;
+  sync.isSendToken = 0;
+  sync.chanID = 2;
+  out.write(sync.asRaw());
+
 }
