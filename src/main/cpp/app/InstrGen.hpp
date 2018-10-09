@@ -1,4 +1,5 @@
 #pragma once
+#include <stdint.h>
 #include "BISMOInstruction.hpp"
 #include "hls_stream.h"
 #include <cassert>
@@ -8,21 +9,21 @@ namespace InstrGen {
 typedef struct {
   // number of tiles in a single binary matrix
   // expressed in terms of the instantiated DPA size
-  size_t tiles_m;
-  size_t tiles_k;
-  size_t tiles_n;
+  uint16_t tiles_m;
+  uint16_t tiles_k;
+  uint16_t tiles_n;
   // number of bits in input matrices
-  size_t bits_l;
-  size_t bits_r;
+  uint8_t bits_l;
+  uint8_t bits_r;
   // signedness for the input matrices
   bool signed_l;
   bool signed_r;
   // base addresses for buffer accesses
-  size_t base_l;
-  size_t base_r;
-  size_t base_res;
+  uint16_t base_l;
+  uint16_t base_r;
+  uint8_t base_res;
   // number of buffers for latency hiding
-  size_t nbufs_res;
+  uint8_t nbufs_res;
 } SingleMMDescriptor;
 
 // create the Execute stage instruction stream for a single bit-serial MM
