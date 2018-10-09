@@ -1,6 +1,6 @@
 #pragma once
 #include "BISMOInstruction.hpp"
-#include <vector>
+#include "hls_stream.h"
 
 //#define DEBUG_EXEC_MODEL
 
@@ -73,14 +73,15 @@ template <
   // number of buffers in lhs, rhs and result buffers
   size_t lmem_size, size_t rmem_size, size_t resmem_size
 > void ExecMultiInstr(
-  std::vector<BISMOInstruction> instrs,  // instruction queue to execute
+  hls::stream<BISMOInstruction> & instrs, // instruction queue to execute
   const BitVector lmem[M][lmem_size],    // LHS memory
   const BitVector rmem[N][rmem_size],    // RHS memory
   Accumulator * acc_ptr,                 // accumulators [M, N]
   Accumulator * res_ptr                  // result memory [M, N, resmem_size]
 ) {
   // simply call exec on each instruction
-  for(auto & i : instrs) {
+  while(!instrs.empty()) {
+    BISMOInstruction i = instrs.read();
     ExecSingleInstr<M, N, lmem_size, rmem_size, resmem_size>(
       i, lmem, rmem, acc_ptr, res_ptr
     );

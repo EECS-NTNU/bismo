@@ -78,6 +78,8 @@ HLS_CLK_NS := 5.0
 HLS_TOP_NAME := ExecInstrGen
 HLS_INCL_DIR := $(APP_SRC_DIR)
 HLS_VERILOG_DIR := $(BUILD_DIR_HLS)/$(HLS_PROJNAME)/sol1/impl/verilog
+VIVADOHLS_ROOT ?= $(shell dirname $(shell which vivado_hls))/..
+HLS_SIM_INCL := $(VIVADOHLS_ROOT)/include/hls_stream.h
 
 # platform-specific Makefile include for bitfile synthesis
 include platforms/$(PLATFORM).mk
@@ -118,7 +120,7 @@ $(HLS_VERILOG_DIR)/ExecInstrGen.v:
 
 # hw-sw cosimulation tests with extra HLS dependencies
 EmuTestExecInstrGenSingleMM: $(HLS_VERILOG_DIR)/ExecInstrGen.v
-	mkdir -p $(BUILD_DIR)/$@; cp $(HLS_VERILOG_DIR)/* $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@"; cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; ln -s $(APP_SRC_DIR)/*.hpp $(BUILD_DIR)/$@; ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@; cd $(BUILD_DIR)/$@; sh verilator-build.sh; ./VerilatedTesterWrapper
+	mkdir -p $(BUILD_DIR)/$@; cp $(HLS_VERILOG_DIR)/* $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@"; cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; ln -s $(APP_SRC_DIR)/*.hpp $(BUILD_DIR)/$@; ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@; ln -s $(HLS_SIM_INCL) $(BUILD_DIR)/$@; cd $(BUILD_DIR)/$@; sh verilator-build.sh; ./VerilatedTesterWrapper
 
 # run resource/Fmax characterization
 Characterize%:

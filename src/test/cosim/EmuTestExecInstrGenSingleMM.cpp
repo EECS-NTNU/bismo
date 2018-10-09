@@ -112,7 +112,7 @@ int main(int argc, char const *argv[]) {
     cout << "EmuTestExecInstrGenSingleMM running" << endl;
 
     srand(time(NULL));
-    /*
+
     // hardware dims for test
     const size_t Dm = 2, Dk = 4, Dn = 2;
     // define dimensions for the workload
@@ -153,12 +153,20 @@ int main(int argc, char const *argv[]) {
     gemmbitserial::printmatrix(ctx.res, nrows_lhs, nrows_rhs);
 
     // create instruction sequence for bit serial MM
-    vector<BISMOInstruction> instrs;
-    InstrGen::ExecInstrGenSingleMM(
-      tiles_m, tiles_k, tiles_n, bits_l, bits_r, sgn_lhs, sgn_rhs,
-      base_l, base_r, base_res, nbufs_res,
-      instrs
-    );
+    hls::stream<BISMOInstruction> instrs;
+    InstrGen::SingleMMDescriptor dsc;
+    dsc.tiles_m = tiles_m;
+    dsc.tiles_k = tiles_k;
+    dsc.tiles_n = tiles_n;
+    dsc.bits_l = bits_l;
+    dsc.bits_r = bits_r;
+    dsc.signed_l = sgn_lhs;
+    dsc.signed_r = sgn_rhs;
+    dsc.base_l = base_l;
+    dsc.base_r = base_r;
+    dsc.base_res = base_res;
+    dsc.nbufs_res = nbufs_res;
+    InstrGen::ExecInstrGenSingleMM(dsc, instrs);
 
     // test generated instructions in software model
     StageModels::Accumulator * hw_acc = new StageModels::Accumulator[tiles_m*tiles_n];
@@ -188,7 +196,7 @@ int main(int argc, char const *argv[]) {
     delete [] hw_acc;
     delete [] hw_res;
     delete [] hw_res_full;
-    */
+
     p = initPlatform();
     t = new EmuTestExecInstrGenSingleMM(p);
 
