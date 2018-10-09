@@ -32,6 +32,19 @@ struct BISMOSyncInstruction {
   uint64_t chanID : 2;
   uint64_t unused0 : 58;
   uint64_t unused1 : 64;
+
+  #ifdef __SYNTHESIS__
+  ap_uint<128> asRaw() {
+    ap_uint<128> ret = 0;
+    ret(1, 0) = targetStage;
+    ret(2, 2) = isRunCfg;
+    ret(3, 3) = isSendToken;
+    ret(5, 4) = chanID;
+    ret(63, 6) = unused0;
+    ret(127, 64) = unused1;
+    return ret;
+  }
+  #endif
 };
 
 struct BISMOFetchRunInstruction {
@@ -61,6 +74,25 @@ struct BISMOExecRunInstruction {
   uint64_t clear_before_first_accumulation : 1;
   uint64_t writeEn : 1;
   uint64_t writeAddr : 1;
+
+  #ifdef __SYNTHESIS__
+  ap_uint<128> asRaw() {
+    ap_uint<128> ret = 0;
+    ret(1, 0) = targetStage;
+    ret(2, 2) = isRunCfg;
+    ret(63, 3) = unused0;
+    ret(70, 64) = unused1;
+    ret(86, 71) = lhsOffset;
+    ret(102, 87) = rhsOffset;
+    ret(118, 103) = numTiles;
+    ret(123, 119) = shiftAmount;
+    ret(124, 124) = negate;
+    ret(125, 125) = clear_before_first_accumulation;
+    ret(126, 126) = writeEn;
+    ret(127, 127) = writeAddr;
+    return ret;
+  }
+  #endif
 };
 
 struct BISMOResultRunInstruction {
@@ -74,19 +106,26 @@ struct BISMOResultRunInstruction {
   uint64_t waitCompleteBytes : 16; // deprecated, do not use
 };
 
+#ifndef __SYNTHESIS__
+#include <iomanip>
+
 // union to store and decode all instruction types
 // all instructions are currently 128 bits
-
+// excluded from synthesis due to Vivado HLS problems with
+// handling unions of structs
 union BISMOInstruction {
   uint32_t raw[4] = {0, 0, 0, 0};
   BISMOSyncInstruction sync;
   BISMOFetchRunInstruction fetch;
   BISMOExecRunInstruction exec;
   BISMOResultRunInstruction res;
+  void clear() {
+    raw[0] = 0;
+    raw[1] = 0;
+    raw[2] = 0;
+    raw[3] = 0;
+  }
 };
-
-#ifndef __SYNTHESIS__
-#include <iomanip>
 
 ostream& operator<<(ostream& os, const BISMOSyncInstruction& dt)
 {
