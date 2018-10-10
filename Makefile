@@ -121,6 +121,15 @@ EmuTestVerifyHLSInstrEncoding: $(BUILD_DIR_HLS)/VerifyHLSInstrEncoding
 	ln -s $(HLS_SIM_INCL) $(BUILD_DIR)/$@;
 	cd $(BUILD_DIR)/$@; sh verilator-build.sh; ./VerilatedTesterWrapper
 
+EmuTestExecInstrGen: $(BUILD_DIR_HLS)/ExecInstrGen
+	mkdir -p $(BUILD_DIR)/$@;
+	cp $(BUILD_DIR_HLS)/ExecInstrGen/$(HLS_VERILOG_RPATH)/* $(BUILD_DIR)/$@;
+	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@";
+	cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
+	ln -s $(APP_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
+	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
+	ln -s $(HLS_SIM_INCL) $(BUILD_DIR)/$@;
+	cd $(BUILD_DIR)/$@; sh verilator-build.sh; ./VerilatedTesterWrapper
 
 # run Scala/Chisel tests
 Test%:

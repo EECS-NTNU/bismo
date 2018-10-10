@@ -70,7 +70,8 @@ object Settings {
     "EmuTestFetchStage" -> {p => new EmuTestFetchStage(2, 2, emuP)},
     "EmuTestResultStage" -> {p => new EmuTestResultStage(2, emuP)},
     "EmuTestInstrEncoding" -> {p => new EmuTestInstrEncoding(emuP)},
-    "EmuTestVerifyHLSInstrEncoding" -> {p => new EmuTestVerifyHLSInstrEncoding(emuP)}
+    "EmuTestVerifyHLSInstrEncoding" -> {p => new EmuTestVerifyHLSInstrEncoding(emuP)},
+    "EmuTestExecInstrGen" -> {p => new EmuTestExecInstrGen(emuP)}
   )
 }
 
