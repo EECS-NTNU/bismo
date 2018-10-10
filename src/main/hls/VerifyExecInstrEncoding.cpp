@@ -1,0 +1,71 @@
+# /*******************************************************************************
+# Copyright (c) 2018, Xilinx, Inc.
+# All rights reserved.
+# Author: Yaman Umuroglu
+#
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+#
+# 1. Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer.
+#
+#
+# 2. Redistributions in binary form must reproduce the above copyright notice,
+# this list of conditions and the following disclaimer in the documentation
+# and/or other materials provided with the distribution.
+#
+#
+# 3. Neither the name of the copyright holder nor the names of its contributors
+# may be used to endorse or promote products derived from this software
+# without specific prior written permission.
+#
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+# IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+# INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+# OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+# EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+# *******************************************************************************/
+
+#include <ap_int.h>
+#include <hls_stream.h>
+#include <stdint.h>
+#include "BISMOInstruction.hpp"
+
+
+void VerifyExecInstrEncoding(
+  hls::stream<ap_uint<128>> & out
+) {
+  #pragma HLS INTERFACE ap_ctrl_none port=return
+  #pragma HLS INTERFACE axis port=out
+  BISMOExecRunInstruction exec;
+  BISMOSyncInstruction sync;
+  #pragma HLS DATA_PACK variable=exec
+  #pragma HLS DATA_PACK variable=sync
+  sync.isRunCfg = 0;
+  sync.targetStage = 1;
+  sync.isSendToken = 1;
+  sync.chanID = 2;
+  out.write(sync.asRaw());
+  for(unsigned int i = 0; i < 10; i++) {
+    #pragma HLS PIPELINE II=1
+    exec.isRunCfg = 1;
+    exec.targetStage = 1;
+    exec.lhsOffset = i;
+    exec.rhsOffset = 10 - i;
+    exec.numTiles = 2 * i;
+    exec.shiftAmount = i+1;
+    out.write(exec.asRaw());
+  }
+  sync.isRunCfg = 0;
+  sync.targetStage = 1;
+  sync.isSendToken = 0;
+  sync.chanID = 2;
+  out.write(sync.asRaw());
+}

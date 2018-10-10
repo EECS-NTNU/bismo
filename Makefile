@@ -72,12 +72,10 @@ PLATFORM_SCRIPT_DIR := $(TOP)/src/main/script/$(PLATFORM)/target
 # TODO: make the HLS vars and targets more generic
 HLS_SCRIPT := $(TOP)/src/main/script/hls_syn.tcl
 HLS_PROJNAME := hlsproj
-HLS_INPUT := $(TOP)/src/main/hls/ExecInstrGen.cpp
+HLS_INPUT_DIR := $(TOP)/src/main/hls
 HLS_PART := xc7z020clg400-1
 HLS_CLK_NS := 5.0
-HLS_TOP_NAME := ExecInstrGen
 HLS_INCL_DIR := $(APP_SRC_DIR)
-HLS_VERILOG_DIR := $(BUILD_DIR_HLS)/$(HLS_PROJNAME)/sol1/impl/verilog
 VIVADOHLS_ROOT ?= $(shell dirname $(shell which vivado_hls))/..
 HLS_SIM_INCL := $(VIVADOHLS_ROOT)/include/hls_stream.h
 
@@ -86,7 +84,7 @@ include platforms/$(PLATFORM).mk
 
 # note that all targets are phony targets, no proper dependency tracking
 .PHONY: hw_verilog emulib hw_driver hw_vivadoproj bitfile hw sw all rsync test
-.PHONY: resmodel characterize check_vivado hls
+.PHONY: resmodel characterize check_vivado
 
 check_vivado:
 ifndef VIVADO_IN_PATH
@@ -97,6 +95,24 @@ check_zsh:
 ifndef ZSH_IN_PATH
     $(error "zsh not in path; needed by oh-my-xilinx for characterization")
 endif
+
+$(BUILD_DIR_HLS)/%:
+	mkdir -p $(BUILD_DIR_HLS) \;
+	cd $(BUILD_DIR_HLS); vivado_hls -f $(HLS_SCRIPT) -tclargs $* $(HLS_INPUT_DIR)/$*.cpp $(HLS_PART) $(HLS_CLK_NS) $* $(HLS_INCL_DIR)
+
+# run Vivado HLS to generate Verilog for HLS components
+#$(HLS_VERILOG_DIR)/ExecInstrGen.v:
+#	mkdir -p $(BUILD_DIR_HLS); cd $(BUILD_DIR_HLS); vivado_hls -f $(HLS_SCRIPT) -tclargs $(HLS_PROJNAME) $(HLS_INPUT) $(HLS_PART) $(HLS_CLK_NS) $(HLS_TOP_NAME) $(HLS_INCL_DIR)
+
+#$(HLS_VERILOG_DIR)/%.v:
+#	mkdir -p $(BUILD_DIR_HLS)/$*;
+#	cd $(BUILD_DIR_HLS)/$*;
+#	vivado_hls -f $(HLS_SCRIPT) -tclargs $(HLS_PROJNAME) $(HLS_INPUT) $(HLS_PART) $(HLS_CLK_NS) $(HLS_TOP_NAME) $(HLS_INCL_DIR)
+
+# hw-sw cosimulation tests with extra HLS dependencies
+#EmuTestExecInstrGenSingleMM: $(HLS_VERILOG_DIR)/ExecInstrGen.v
+#	mkdir -p $(BUILD_DIR)/$@; cp $(HLS_VERILOG_DIR)/* $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@"; cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; ln -s $(APP_SRC_DIR)/*.hpp $(BUILD_DIR)/$@; ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@; ln -s $(HLS_SIM_INCL) $(BUILD_DIR)/$@; cd $(BUILD_DIR)/$@; sh verilator-build.sh; ./VerilatedTesterWrapper
+
 
 # run Scala/Chisel tests
 Test%:
@@ -114,13 +130,6 @@ $(BUILD_DIR_EMU)/verilator-build.sh:
 emu: $(BUILD_DIR_EMU)/verilator-build.sh
 	cp -r $(APP_SRC_DIR)/* $(BUILD_DIR_EMU)/; cd $(BUILD_DIR_EMU); sh verilator-build.sh; mv VerilatedTesterWrapper emu; ./emu
 
-# run Vivado HLS to generate Verilog for HLS components
-$(HLS_VERILOG_DIR)/ExecInstrGen.v:
-	mkdir -p $(BUILD_DIR_HLS); cd $(BUILD_DIR_HLS); vivado_hls -f $(HLS_SCRIPT) -tclargs $(HLS_PROJNAME) $(HLS_INPUT) $(HLS_PART) $(HLS_CLK_NS) $(HLS_TOP_NAME) $(HLS_INCL_DIR)
-
-# hw-sw cosimulation tests with extra HLS dependencies
-EmuTestExecInstrGenSingleMM: $(HLS_VERILOG_DIR)/ExecInstrGen.v
-	mkdir -p $(BUILD_DIR)/$@; cp $(HLS_VERILOG_DIR)/* $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@"; cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; ln -s $(APP_SRC_DIR)/*.hpp $(BUILD_DIR)/$@; ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@; ln -s $(HLS_SIM_INCL) $(BUILD_DIR)/$@; cd $(BUILD_DIR)/$@; sh verilator-build.sh; ./VerilatedTesterWrapper
 
 # run resource/Fmax characterization
 Characterize%:
