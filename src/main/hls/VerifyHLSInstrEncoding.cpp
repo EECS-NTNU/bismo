@@ -39,7 +39,7 @@
 #include "BISMOInstruction.hpp"
 
 
-void VerifyExecInstrEncoding(
+void VerifyHLSInstrEncoding(
   hls::stream<ap_uint<128>> & out
 ) {
   #pragma HLS INTERFACE ap_ctrl_none port=return

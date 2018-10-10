@@ -71,6 +71,7 @@ HW_VERILOG := $(BUILD_DIR_VERILOG)/$(PLATFORM)Wrapper.v
 PLATFORM_SCRIPT_DIR := $(TOP)/src/main/script/$(PLATFORM)/target
 # TODO: make the HLS vars and targets more generic
 HLS_SCRIPT := $(TOP)/src/main/script/hls_syn.tcl
+HLS_VERILOG_RPATH := sol1/impl/verilog
 HLS_PROJNAME := hlsproj
 HLS_INPUT_DIR := $(TOP)/src/main/hls
 HLS_PART := xc7z020clg400-1
@@ -110,8 +111,15 @@ $(BUILD_DIR_HLS)/%:
 #	vivado_hls -f $(HLS_SCRIPT) -tclargs $(HLS_PROJNAME) $(HLS_INPUT) $(HLS_PART) $(HLS_CLK_NS) $(HLS_TOP_NAME) $(HLS_INCL_DIR)
 
 # hw-sw cosimulation tests with extra HLS dependencies
-#EmuTestExecInstrGenSingleMM: $(HLS_VERILOG_DIR)/ExecInstrGen.v
-#	mkdir -p $(BUILD_DIR)/$@; cp $(HLS_VERILOG_DIR)/* $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@"; cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; ln -s $(APP_SRC_DIR)/*.hpp $(BUILD_DIR)/$@; ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@; ln -s $(HLS_SIM_INCL) $(BUILD_DIR)/$@; cd $(BUILD_DIR)/$@; sh verilator-build.sh; ./VerilatedTesterWrapper
+EmuTestVerifyHLSInstrEncoding: $(BUILD_DIR_HLS)/VerifyHLSInstrEncoding
+	mkdir -p $(BUILD_DIR)/$@;
+	cp $(BUILD_DIR_HLS)/VerifyHLSInstrEncoding/$(HLS_VERILOG_RPATH)/* $(BUILD_DIR)/$@;
+	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@";
+	cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
+	ln -s $(APP_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
+	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
+	ln -s $(HLS_SIM_INCL) $(BUILD_DIR)/$@;
+	cd $(BUILD_DIR)/$@; sh verilator-build.sh; ./VerilatedTesterWrapper
 
 
 # run Scala/Chisel tests

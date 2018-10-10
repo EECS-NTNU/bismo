@@ -36,7 +36,7 @@ import fpgatidbits.ocm._
 import fpgatidbits.streams._
 import fpgatidbits.PlatformWrapper._
 
-class ExecInstrGen extends BlackBox {
+class VerifyHLSInstrEncoding extends BlackBox {
   val io = new Bundle {
     val out = Decoupled(UInt(width = 128))
     val rst_n = Bool(INPUT)
@@ -50,20 +50,16 @@ class ExecInstrGen extends BlackBox {
   renameClock("clk", "ap_clk")
 }
 
-class EmuTestExecInstrGenSingleMM(p: PlatformWrapperParams) extends GenericAccelerator(p) {
+class EmuTestVerifyHLSInstrEncoding(p: PlatformWrapperParams) extends GenericAccelerator(p) {
   val numMemPorts = 0
   val io = new GenericAcceleratorIF(numMemPorts, p) {
-    /*val in = Decoupled(new SingleMMDescriptor()).flip
-    val out = Decoupled(new BISMOInstruction())*/
     val out = Decoupled(UInt(width = 128))
   }
-  val bb = Module(new ExecInstrGen()).io
+  val bb = Module(new VerifyHLSInstrEncoding()).io
   bb.rst_n := !this.reset
   io.out.bits := bb.out.bits
   io.out.valid := bb.out.valid
   bb.out.ready := io.out.ready & !Reg(next=io.out.ready)
 
   io.signature := makeDefaultSignature()
-  /*val igen = Module(new ExecInstrGenSingleMM()).io
-  io <> igen*/
 }
