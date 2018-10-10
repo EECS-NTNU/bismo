@@ -129,11 +129,11 @@ class BOBParams(
     resMemReadLatency = 0
   )
   val thBBParams = new ThresholdingBuildingBlockParams(
-    inPrecision = dpaDimCommon, popcountUnroll = quantFolding,  outPrecision = maxQuantDim)
+    inPrecision = accWidth, popcountUnroll = quantFolding,  outPrecision = maxQuantDim)
 
   val thuParams =  new ThresholdingUnitParams(
     thBBParams = thBBParams,
-    inputBitPrecision = dpaDimCommon, maxOutputBitPrecision = maxQuantDim,
+    inputBitPrecision = accWidth, maxOutputBitPrecision = maxQuantDim,
     matrixRows = dpaDimLHS, matrixColumns = dpaDimRHS,
     unrollingFactorOutputPrecision = quantFolding,  unrollingFactorRows = dpaDimLHS, unrollingFactorColumns = dpaDimRHS
   )
