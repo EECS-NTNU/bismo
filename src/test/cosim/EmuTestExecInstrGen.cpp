@@ -227,8 +227,17 @@ int main(int argc, char const *argv[]) {
 
     // give the descriptor to the instruction generator
     writeDescriptor(dsc);
-    BISMOInstruction ins_gen = readInstr();
-    cout << ins_gen << endl;
+    // read and compare generated instructions
+    for(auto & i : instrs) {
+      BISMOInstruction ins_gen = readInstr();
+      bool ok = memcmp(ins_gen.raw, i.raw, sizeof(i)) == 0;
+      t_okay &= ok;
+      cout << "Equal? " << ok << endl;
+      if(!ok) {
+        cout << "Expected: " << i << endl;
+        cout << "Found: " << ins_gen << endl;
+      }
+    }
 
     delete t;
     deinitPlatform(p);

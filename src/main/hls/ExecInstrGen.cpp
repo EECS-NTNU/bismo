@@ -48,17 +48,17 @@ void ExecInstrGen(
 
   BISMOExecRunInstruction exec;
   BISMOSyncInstruction sync;
-  #pragma HLS DATA_PACK variable=exec
-  #pragma HLS DATA_PACK variable=sync
 
   SingleMMDescriptor ins_in;
   ins_in.fromRaw(in.read());
   // TODO: convert the software ExecInstrGenSingleMM to an HLS-friendly
   // format and call directly instead of copy-paste
-  // all instructions are targeting the execute stage
+  // invariants
   sync.targetStage = stgExec;
-  // start by acquiring input buffers
+  exec.targetStage = stgExec;
+  exec.isRunCfg = 1;
   sync.isRunCfg = 0;
+  // start by acquiring input buffers
   sync.isSendToken = 0;
   sync.chanID = 0;
   out.write(sync.asRaw());
@@ -87,7 +87,6 @@ void ExecInstrGen(
           size_t offset_r = ins_in.tiles_k * (n + r * ins_in.tiles_n);
           // switch result buffers for latency hiding
           offset_res = (offset_res + 1) % ins_in.nbufs_res;
-          exec.isRunCfg = 1;
           exec.lhsOffset = ins_in.base_l + offset_l;
           exec.rhsOffset = ins_in.base_r + offset_r;
           exec.numTiles = ins_in.tiles_k;
@@ -103,14 +102,12 @@ void ExecInstrGen(
       }
       // finished computing result tile
       // release the result buffer
-      sync.isRunCfg = 0;
       sync.isSendToken = 1;
       sync.chanID = 1;
       out.write(sync.asRaw());
     }
   }
   // release the input buffers
-  sync.isRunCfg = 0;
   sync.isSendToken = 1;
   sync.chanID = 0;
   out.write(sync.asRaw());
