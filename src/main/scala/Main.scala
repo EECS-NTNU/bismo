@@ -318,14 +318,14 @@ object CharacterizeMain {
 
   def makeParamSpace_SQUAT(): Seq[BitSerialMatMulQuantParams] = {
     return for {
-      lhs <- for(i <- 5 to 5) yield (2*i)
-      rhs <- for(i <- 5 to 5) yield (2*i)
+      lhs <- for(i <- 1 to 8) yield (2*i)
+      rhs <- for(i <- 1 to 8) yield (2*i)
       z <- 64 to 64
-      lmem <- 1024 to 1024
-      rmem <- 1024 to 1024
-      thmem <- 1024 to 1024
-      maxquantDim <- 2 to 2
-      thFolding <- 3 to 3
+      lmem <- 512 to 512
+      rmem <- 512 to 512
+      thmem <- 512 to 512
+      maxquantDim <- Seq(2,4,8)
+      thFolding <- Seq(1,scala.math.pow(2,maxquantDim).toInt - 1)
     } yield new BitSerialMatMulQuantParams(
       dpaDimLHS = lhs, dpaDimRHS = rhs, dpaDimCommon = z,
       lhsEntriesPerMem = lmem, rhsEntriesPerMem = rmem,
@@ -338,14 +338,14 @@ object CharacterizeMain {
 
   def makeParamSpace_BOB(): Seq[BOBParams] = {
     return for {
-      lhs <- for(i <- 5 to 5) yield (2*i)
-      rhs <- for(i <- 5 to 5) yield (2*i)
+      lhs <- for(i <- 1 to 5) yield (2*i)
+      rhs <- for(i <- 1 to 5) yield (2*i)
       z <- 64 to 64
-      lmem <- 1024 to 1024
-      rmem <- 1024 to 1024
+      lmem <- 512 to 512
+      rmem <- 512 to 512
       thmem <- 512 to 512
-      maxquantDim <- 4 to 4
-      thFolding <- Seq(15)
+      maxquantDim <- Seq(1,2,4)
+      thFolding <- Seq(1,scala.math.pow(2,maxquantDim).toInt - 1)
     } yield new BOBParams(
       dpaDimLHS = lhs, dpaDimRHS = rhs, dpaDimCommon = z,
       lhsEntriesPerMem = lmem, rhsEntriesPerMem = rmem,
