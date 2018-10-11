@@ -124,6 +124,38 @@ struct SingleMMDescriptor {
   uint8_t base_res;
   // number of buffers for latency hiding
   uint8_t nbufs_res;
+
+  #ifdef __SYNTHESIS__
+  ap_uint<128> asRaw() {
+    ap_uint<128> raw = 0;
+    raw(15, 0) = tiles_m;
+    raw(31, 16) = tiles_k;
+    raw(47, 32) = tiles_n;
+    raw(55, 48) = bits_l;
+    raw(61, 56) = bits_r;
+    raw(62, 62) = signed_l;
+    raw(63, 63) = signed_r;
+    raw(79, 64) = base_l;
+    raw(95, 80) = base_r;
+    raw(103, 96) = base_res;
+    raw(111, 104) = nbufs_res;
+    return raw;
+  }
+
+  void fromRaw(ap_uint<128> raw) {
+    tiles_m = raw(15, 0);
+    tiles_k = raw(31, 16);
+    tiles_n = raw(47, 32);
+    bits_l = raw(55, 48);
+    bits_r = raw(61, 56);
+    signed_l = raw(62, 62);
+    signed_r = raw(63, 63);
+    base_l = raw(79, 64);
+    base_r = raw(95, 80);
+    base_res = raw(103, 96);
+    nbufs_res = raw(111, 104);
+  }
+  #endif
 };
 
 #ifndef __SYNTHESIS__

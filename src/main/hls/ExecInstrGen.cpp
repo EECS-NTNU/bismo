@@ -39,20 +39,20 @@
 #include "BISMOInstruction.hpp"
 
 void ExecInstrGen(
-  hls::stream<SingleMMDescriptor> & desc_in,
+  hls::stream<ap_uint<128>> & in,
   hls::stream<ap_uint<128>> & out
 ) {
   #pragma HLS INTERFACE ap_ctrl_none port=return
   #pragma HLS INTERFACE axis port=out
-  #pragma HLS INTERFACE axis port=desc_in
-  #pragma HLS DATA_PACK variable=desc_in
+  #pragma HLS INTERFACE axis port=in
 
   BISMOExecRunInstruction exec;
   BISMOSyncInstruction sync;
   #pragma HLS DATA_PACK variable=exec
   #pragma HLS DATA_PACK variable=sync
 
-  SingleMMDescriptor in = desc_in.read();
+  SingleMMDescriptor ins_in;
+  ins_in.fromRaw(in.read());
   // TODO: convert the software ExecInstrGenSingleMM to an HLS-friendly
   // format and call directly instead of copy-paste
   // all instructions are targeting the execute stage
@@ -64,40 +64,40 @@ void ExecInstrGen(
   out.write(sync.asRaw());
   // keep track of which result buffer we wrote to last
   size_t offset_res = 0;
-  for(size_t m = 0; m < in.tiles_m; m++) {
-    for(size_t n = 0; n < in.tiles_n; n++) {
+  for(size_t m = 0; m < ins_in.tiles_m; m++) {
+    for(size_t n = 0; n < ins_in.tiles_n; n++) {
       // starting a new result tile:
       // acquire a result buffer
       sync.isRunCfg = 0;
       sync.isSendToken = 0;
       sync.chanID = 1;
       out.write(sync.asRaw());
-      for(size_t l = 0; l < in.bits_l; l++) {
-        for(size_t r = 0; r < in.bits_r; r++) {
+      for(size_t l = 0; l < ins_in.bits_l; l++) {
+        for(size_t r = 0; r < ins_in.bits_r; r++) {
           // helper variables based on current loop iteration
           bool tile_first = (l == 0) && (r == 0);
-          bool tile_last = (l == in.bits_l-1) && (r == in.bits_r-1);
+          bool tile_last = (l == ins_in.bits_l-1) && (r == ins_in.bits_r-1);
           size_t weight = l + r;
           // whether the current bit position is negative for
           // the input matrices
-          bool neg_l = (l == in.bits_l-1) && in.signed_l;
-          bool neg_r = (r == in.bits_r-1) && in.signed_r;
+          bool neg_l = (l == ins_in.bits_l-1) && ins_in.signed_l;
+          bool neg_r = (r == ins_in.bits_r-1) && ins_in.signed_r;
           bool negate = neg_l ^ neg_r;
-          size_t offset_l = in.tiles_k * (m + l * in.tiles_m);
-          size_t offset_r = in.tiles_k * (n + r * in.tiles_n);
+          size_t offset_l = ins_in.tiles_k * (m + l * ins_in.tiles_m);
+          size_t offset_r = ins_in.tiles_k * (n + r * ins_in.tiles_n);
           // switch result buffers for latency hiding
-          offset_res = (offset_res + 1) % in.nbufs_res;
+          offset_res = (offset_res + 1) % ins_in.nbufs_res;
           exec.isRunCfg = 1;
-          exec.lhsOffset = in.base_l + offset_l;
-          exec.rhsOffset = in.base_r + offset_r;
-          exec.numTiles = in.tiles_k;
+          exec.lhsOffset = ins_in.base_l + offset_l;
+          exec.rhsOffset = ins_in.base_r + offset_r;
+          exec.numTiles = ins_in.tiles_k;
           exec.shiftAmount = weight;
           exec.negate = negate ? 1 : 0;
           // clear accumulator on first iteration of this result tile
           exec.clear_before_first_accumulation = tile_first ? 1 : 0;
           // write result on first iteration of this result tile
           exec.writeEn = tile_last ? 1 : 0;
-          exec.writeAddr = in.base_res + offset_res;
+          exec.writeAddr = ins_in.base_res + offset_res;
           out.write(exec.asRaw());
         }
       }
