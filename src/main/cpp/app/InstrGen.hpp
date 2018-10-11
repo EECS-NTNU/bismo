@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include "BISMOInstruction.hpp"
-#include <hls_stream.h>
+#include <vector>
 #include <cassert>
 
 namespace InstrGen {
@@ -10,7 +10,7 @@ void ExecInstrGenSingleMM(
   // desciptor for the MM operation
   SingleMMDescriptor in,
   // generated instructions will be placed here
-  hls::stream<BISMOInstruction> & out
+  std::vector<BISMOInstruction> & out
 ) {
   // single-bit signed is used to indicate bipolar (-1, +1) which is
   // currently not supported:
@@ -23,7 +23,7 @@ void ExecInstrGenSingleMM(
   ins.sync.isRunCfg = 0;
   ins.sync.isSendToken = 0;
   ins.sync.chanID = 0;
-  out.write(ins);
+  out.push_back(ins);
   // keep track of which result buffer we wrote to last
   size_t offset_res = 0;
   for(size_t m = 0; m < in.tiles_m; m++) {
@@ -33,7 +33,7 @@ void ExecInstrGenSingleMM(
       ins.sync.isRunCfg = 0;
       ins.sync.isSendToken = 0;
       ins.sync.chanID = 1;
-      out.write(ins);
+      out.push_back(ins);
       for(size_t l = 0; l < in.bits_l; l++) {
         for(size_t r = 0; r < in.bits_r; r++) {
           // helper variables based on current loop iteration
@@ -60,7 +60,7 @@ void ExecInstrGenSingleMM(
           // write result on first iteration of this result tile
           ins.exec.writeEn = tile_last ? 1 : 0;
           ins.exec.writeAddr = in.base_res + offset_res;
-          out.write(ins);
+          out.push_back(ins);
         }
       }
       // finished computing result tile
@@ -68,14 +68,14 @@ void ExecInstrGenSingleMM(
       ins.sync.isRunCfg = 0;
       ins.sync.isSendToken = 1;
       ins.sync.chanID = 1;
-      out.write(ins);
+      out.push_back(ins);
     }
   }
   // release the input buffers
   ins.sync.isRunCfg = 0;
   ins.sync.isSendToken = 1;
   ins.sync.chanID = 0;
-  out.write(ins);
+  out.push_back(ins);
 }
 
 }

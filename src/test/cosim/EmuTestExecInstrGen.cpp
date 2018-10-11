@@ -178,7 +178,7 @@ int main(int argc, char const *argv[]) {
     gemmbitserial::printmatrix(ctx.res, nrows_lhs, nrows_rhs);
 
     // create instruction sequence for bit serial MM
-    hls::stream<BISMOInstruction> instrs;
+    std::vector<BISMOInstruction> instrs;
     SingleMMDescriptor dsc;
     dsc.tiles_m = tiles_m;
     dsc.tiles_k = tiles_k;
