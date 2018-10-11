@@ -106,6 +106,26 @@ struct BISMOResultRunInstruction {
   uint64_t waitCompleteBytes : 16; // deprecated, do not use
 };
 
+struct SingleMMDescriptor {
+  // number of tiles in a single binary matrix
+  // expressed in terms of the instantiated DPA size
+  uint16_t tiles_m;
+  uint16_t tiles_k;
+  uint16_t tiles_n;
+  // number of bits in input matrices
+  uint8_t bits_l;
+  uint8_t bits_r;
+  // signedness for the input matrices
+  bool signed_l;
+  bool signed_r;
+  // base addresses for buffer accesses
+  uint16_t base_l;
+  uint16_t base_r;
+  uint8_t base_res;
+  // number of buffers for latency hiding
+  uint8_t nbufs_res;
+};
+
 #ifndef __SYNTHESIS__
 #include <iomanip>
 

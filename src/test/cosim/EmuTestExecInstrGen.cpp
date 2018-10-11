@@ -166,7 +166,7 @@ int main(int argc, char const *argv[]) {
 
     // create instruction sequence for bit serial MM
     hls::stream<BISMOInstruction> instrs;
-    InstrGen::SingleMMDescriptor dsc;
+    SingleMMDescriptor dsc;
     dsc.tiles_m = tiles_m;
     dsc.tiles_k = tiles_k;
     dsc.tiles_n = tiles_n;
