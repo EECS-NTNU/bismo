@@ -152,6 +152,9 @@ public:
   // for the given stage, create instruction fetches to pull out instrs from
   // DRAM, and ensure that instr buffer is copied to accel DRAM
   void create_instr_stream(BISMOTargetStage stg) {
+    // hack: circumvent regular instr creation for exec stage
+    // TODO remove all instrfetch logic?
+    if(stg == stgExec) return;
     assert((INSTR_FETCH_GRANULARITY * BYTES_PER_INSTR) % FETCH_SIZEALIGN == 0);
     assert(stg < N_STAGES);
     add_nop_padding(stg, FETCH_SIZEALIGN);

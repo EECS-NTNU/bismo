@@ -73,7 +73,8 @@ public:
     m_acc->reset();
     m_acc->clearInstrBuf();
     m_acc->init_resource_pools();
-    m_acc->set_stage_enables(1, 1, 1);
+    //m_acc->set_stage_enables(1, 1, 1);
+    m_acc->set_stage_enables(1, 0, 1);
     // build schedule for each stage based on shape
     build_schedule_trivial();
     // uncomment to see the generated instructions
@@ -450,6 +451,8 @@ protected:
     assert(0 == lhs.ncols_a % dpa_z);
     //Binary matrix
     assert(lhs.nbits == 1 && rhs.nbits == 1);
+    // single-tile ExecInstrGen for now
+    assert(lhs_l1_per_l2 == 1 && rhs_l1_per_l2 == 1);
 
     /*lhs.printSummary();
     rhs.printSummary();
@@ -539,6 +542,22 @@ protected:
 
           // send the prepared buffers to exec
           makeinstr_sync(stgFetch, true, 0);
+
+          SingleMMDescriptor desc;
+          desc.tiles_m = lhs_l1_per_l2;
+          desc.tiles_k = lhs_l0_per_l1;
+          desc.tiles_n = rhs_l1_per_l2;
+          desc.bits_l = lhs.nbits;
+          desc.bits_r = rhs.nbits;
+          desc.signed_l = lhs.issigned;
+          desc.signed_r = rhs.issigned;
+          // TODO exec_to_fetch_width_ratio adjustment?
+          desc.base_l = current_bram_region * lhs_l0_per_bram;
+          desc.base_r = current_bram_region * rhs_l0_per_bram;
+          desc.base_res = 0;
+          desc.nbufs_res = 1;
+          m_acc->pushExecDescriptor(desc);
+
 
           // process the fetched L2 tile
           // exec stage acquires input matrix buffers
