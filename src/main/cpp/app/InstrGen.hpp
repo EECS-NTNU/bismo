@@ -17,7 +17,7 @@ void ExecInstrGenSingleMM(
   assert(!(in.bits_l == 1 && in.signed_l));
   assert(!(in.bits_r == 1 && in.signed_r));
   BISMOInstruction ins;
-  // all instructions are targeting the execute stage
+  ins.clear();
   ins.sync.targetStage = stgExec;
   // start by acquiring input buffers
   ins.sync.isRunCfg = 0;
@@ -30,6 +30,8 @@ void ExecInstrGenSingleMM(
     for(size_t n = 0; n < in.tiles_n; n++) {
       // starting a new result tile:
       // acquire a result buffer
+      ins.clear();
+      ins.sync.targetStage = stgExec;
       ins.sync.isRunCfg = 0;
       ins.sync.isSendToken = 0;
       ins.sync.chanID = 1;
@@ -49,6 +51,8 @@ void ExecInstrGenSingleMM(
           size_t offset_r = in.tiles_k * (n + r * in.tiles_n);
           // switch result buffers for latency hiding
           offset_res = (offset_res + 1) % in.nbufs_res;
+          ins.clear();
+          ins.exec.targetStage = stgExec;
           ins.exec.isRunCfg = 1;
           ins.exec.lhsOffset = in.base_l + offset_l;
           ins.exec.rhsOffset = in.base_r + offset_r;
@@ -65,6 +69,8 @@ void ExecInstrGenSingleMM(
       }
       // finished computing result tile
       // release the result buffer
+      ins.clear();
+      ins.sync.targetStage = stgExec;
       ins.sync.isRunCfg = 0;
       ins.sync.isSendToken = 1;
       ins.sync.chanID = 1;
