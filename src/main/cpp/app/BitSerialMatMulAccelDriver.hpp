@@ -42,7 +42,9 @@
 
 #define CMDFIFO_CAP       16
 #define FETCHEXEC_TOKENS  2
+#define EXECTHR_TOKENS    2
 #define EXECRES_TOKENS    2
+#define THRRES_TOKENS     2
 #define N_CTRL_STATES     4
 #define FETCH_ADDRALIGN   64
 #define FETCH_SIZEALIGN   8
@@ -233,8 +235,8 @@ public:
   static void printThrRunCfg(ThrRunCfg r) {
     cout << "ThrRunCfg ============================" << endl;
     cout << "actOffset: " << r.actOffset << endl;
-    cout << "thrOffset: " << thrOffset << endl;
-    cout << "runTimeThrNumber" << runTimeThrNumber << endl;
+    cout << "thrOffset: " << r.thrOffset << endl;
+    cout << "runTimeThrNumber" << r.runTimeThrNumber << endl;
     cout << "writeEn: " << r.writeEn << endl;
     cout << "writeAddr: " << r.writeAddr << endl;
     cout << "========================================" << endl;
@@ -453,22 +455,29 @@ public:
   // initialize the tokens in FIFOs representing shared resources
   //TODO FOR BOB
   void init_resource_pools() {
-    set_stage_enables(0, 0, 0);
+    set_stage_enables(0, 0, 0, 0);
     for(int i = 0; i < FETCHEXEC_TOKENS; i++) {
       push_exec_op(make_op(opSendToken, 0));
     }
     assert(m_accel->get_exec_op_count() == FETCHEXEC_TOKENS);
-    set_stage_enables(0, 1, 0);
+    set_stage_enables(0, 1, 0, 0);
     while(m_accel->get_exec_op_count() != 0);
+    set_stage_enables(0, 0, 0, 0);
+    for(int i = 0; i < EXECTHR_TOKENS; i++) {
+      push_thr_op(make_op(opSendToken, 0));
+    }
+    assert(m_accel->get_thr_op_count() == EXECTHR_TOKENS);
+    set_stage_enables(0, 0, 1, 0);
+    while(m_accel->get_result_op_count() != 0);
 
-    set_stage_enables(0, 0, 0);
-    for(int i = 0; i < EXECRES_TOKENS; i++) {
+    set_stage_enables(0, 0, 0, 0);
+    for(int i = 0; i < THRRES_TOKENS; i++) {
       push_result_op(make_op(opSendToken, 0));
     }
-    assert(m_accel->get_result_op_count() == EXECRES_TOKENS);
-    set_stage_enables(0, 0, 1);
+    assert(m_accel->get_result_op_count() == THRRES_TOKENS);
+    set_stage_enables(0, 0, 0, 1);
     while(m_accel->get_result_op_count() != 0);
-    set_stage_enables(0, 0, 0);
+    set_stage_enables(0, 0, 0, 0);
   }
 
   // get the instantiated hardware config

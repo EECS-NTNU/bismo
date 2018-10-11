@@ -128,18 +128,20 @@ public:
 
   void run() {
     clear_all_queue_pointers();
-    m_acc->set_stage_enables(0, 0, 0);
+    m_acc->set_stage_enables(0, 0, 0, 0);
     // initial fill-up of the instruction queues
     fill_fetch_op();
     fill_fetch_runcfg();
     fill_exec_op();
     fill_exec_runcfg();
+    fill_thr_op();
+    fill_thr_runcfg();
     fill_result_op();
     fill_result_runcfg();
     // start the cycle counter
     m_acc->perf_set_cc_enable(true);
     // enable all stages
-    m_acc->set_stage_enables(1, 1, 1);
+    m_acc->set_stage_enables(1, 1, 1, 1);
     // run the generated schedule -- keep pushing operands until all generated
     // instructions have been pushed
     while(!allPushed()) {
@@ -147,19 +149,22 @@ public:
       fill_fetch_runcfg();
       fill_exec_op();
       fill_exec_runcfg();
+      fill_thr_op();
+      fill_thr_runcfg();
       fill_result_op();
       fill_result_runcfg();
     }
     // wait until the result stage has no instructions std::left (= all finished)
     while(!allFinished());
     // disable all stages
-    m_acc->set_stage_enables(0, 0, 0);
+    m_acc->set_stage_enables(0, 0, 0,0);
     // stop the cycle counter
     m_acc->perf_set_cc_enable(false);
     m_cycles = m_acc->perf_get_cc();
     // fetch the number of cycles spent in different states for each stage
     updateFetchStateCounters();
     updateExecStateCounters();
+    updateThrStateCounters();
     updateResultStateCounters();
   }
 
@@ -335,6 +340,7 @@ protected:
   uint32_t m_cycles;
   uint32_t m_fetch_cstate_cycles[N_CTRL_STATES];
   uint32_t m_exec_cstate_cycles[N_CTRL_STATES];
+  uint32_t m_thr_cstate_cycles[N_CTRL_STATES];
   uint32_t m_result_cstate_cycles[N_CTRL_STATES];
   uint32_t m_bytes_to_fetch, m_bytes_to_write;
 
@@ -346,13 +352,15 @@ protected:
   void * m_accelLHS;
   void * m_accelRHS;
   void * m_accelRes;
+  //TODO Add here???
 
-  std::vector<Op> m_fetch_op, m_exec_op, m_result_op;
+  std::vector<Op> m_fetch_op, m_exec_op, m_result_op, m_thr_op;
   std::vector<FetchRunCfg> m_fetch_runcfg;
   std::vector<ExecRunCfg> m_exec_runcfg;
+  std::vector<ThrRunCfg> m_thr_runcfg;
   std::vector<ResultRunCfg> m_result_runcfg;
-  size_t m_fetch_op_ptr, m_result_op_ptr, m_exec_op_ptr;
-  size_t m_fetch_runcfg_ptr, m_result_runcfg_ptr, m_exec_runcfg_ptr;
+  size_t m_fetch_op_ptr, m_result_op_ptr, m_exec_op_ptr, m_thr_op_ptr;
+  size_t m_fetch_runcfg_ptr, m_result_runcfg_ptr, m_exec_runcfg_ptr, m_thr_runcfg_ptr;
 
   // keep track of what we have in the on-chip memory to avoid re-fetching
   std::vector<uint64_t> m_cached_lhs, m_cached_rhs;
@@ -446,6 +454,12 @@ protected:
     }
   }
 
+    void fill_thr_op() {
+    while(!m_acc->thr_op_full() && m_thr_op_ptr < m_thr_op.size()) {
+      m_acc->push_thr_op(m_thr_op[m_thr_op_ptr++]);
+    }
+  }
+
   void fill_result_op() {
     while(!m_acc->result_op_full() && m_result_op_ptr < m_result_op.size()) {
       m_acc->push_result_op(m_result_op[m_result_op_ptr++]);
@@ -470,7 +484,13 @@ protected:
     }
   }
 
+void fill_thr_runcfg() {
+    while(!m_acc->thr_runcfg_full() && m_thr_runcfg_ptr < m_thr_runcfg.size()) {
+      m_acc->push_thr_runcfg(m_thr_runcfg[m_thr_runcfg_ptr++]);
+    }
+  }
   // helper functions for generating sync instructions
+  //TODO FLOW CHANGED!!!
   void makeinstr_fetch_sync_getexecbuffer() {
     m_fetch_op.push_back(m_acc->make_op(opReceiveToken, 0));
   }
@@ -518,6 +538,12 @@ protected:
   void updateResultStateCounters() {
     for(int i = 0; i < N_CTRL_STATES; i++) {
       m_result_cstate_cycles[i] = m_acc->perf_result_stats((ControllerState) i);
+    }
+  }
+
+  void updateThrStateCounters() {
+    for(int i = 0; i < N_CTRL_STATES; i++) {
+      m_thr_cstate_cycles[i] = m_acc->perf_thr_stats((ControllerState) i);
     }
   }
 
