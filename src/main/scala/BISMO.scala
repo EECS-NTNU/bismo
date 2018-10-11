@@ -76,6 +76,7 @@ class BitSerialMatMulParams(
   val accWidth: Int = 32,
   val maxShiftSteps: Int = 16,
   val cmdQueueEntries: Int = 16,
+  val dscQueueEntries: Int = 4,
   // do not instantiate the shift stage
   val noShifter: Boolean = false,
   // do not instantiate the negate stage
@@ -228,6 +229,8 @@ class BitSerialMatMulAccel(
     val fetch_enable = Bool(INPUT)
     val exec_enable = Bool(INPUT)
     val result_enable = Bool(INPUT)
+    // descriptors for instruction generator
+    val dsc_exec = Decoupled(UInt(width=BISMOLimits.execDescrBits)).flip
     // descriptors for instruction fetch generation
     val if_fetch = Decoupled(new BlockSequenceDescriptor(BISMOLimits.ifgBits)).flip
     val if_exec = Decoupled(new BlockSequenceDescriptor(BISMOLimits.ifgBits)).flip
@@ -315,6 +318,20 @@ class BitSerialMatMulAccel(
     vld.ready := enq.ready
   }
 
+  // instantiate the instruction generators
+  val igExec = Module(new ExecInstrGen()).io
+  // wire up reset differently (Vivado HLS BlackBox)
+  igExec.rst_n := !this.reset
+  // instantiate descriptor queues
+  val execDscQ = Module(new FPGAQueue(UInt(width = BISMOLimits.execDescrBits), myP.dscQueueEntries)).io
+  enqPulseGenFromValid(execDscQ.enq, io.dsc_exec)
+  execDscQ.deq <> igExec.in
+  // wire up instruction generator to instruction queue
+  // need to use .fromBits due to difference in types (wires/content are the same)
+  execOpQ.enq.valid := igExec.out.valid
+  execOpQ.enq.bits := execOpQ.enq.bits.fromBits(igExec.out.bits)
+  igExec.out.ready := execOpQ.enq.ready
+
   // OCM queues for storing instruction fetch instructions for each stage
   val ifq_fetch = Module(new FPGAQueue(io.if_fetch.bits, 2)).io
   val ifq_exec = Module(new FPGAQueue(io.if_exec.bits, 2)).io
@@ -363,7 +380,7 @@ class BitSerialMatMulAccel(
   // route incoming instructions according to target stage
   FPGAQueue(instrResize.out, 2) <> opSwitch.in
   opSwitch.out_fetch <> fetchOpQ.enq
-  opSwitch.out_exec <> execOpQ.enq
+  //opSwitch.out_exec <> execOpQ.enq
   opSwitch.out_result <> resultOpQ.enq
 
   // ifg_fetch.out  |

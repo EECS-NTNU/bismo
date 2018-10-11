@@ -49,4 +49,5 @@ object BISMOLimits {
   val maxBufRegions = 8
   val maxBufRegionBits = log2Up(maxBufRegions)
   val maxRepBits = 16
+  val execDescrBits = 128
 }
