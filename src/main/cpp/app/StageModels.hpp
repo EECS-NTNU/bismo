@@ -1,6 +1,6 @@
 #pragma once
 #include "BISMOInstruction.hpp"
-#include "hls_stream.h"
+#include <hls_stream.h>
 
 //#define DEBUG_EXEC_MODEL
 

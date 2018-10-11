@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <ap_int.h>
 // defines the data layout and fields for BISMO instructions, and routines to
 // print them in human-readable representations
 
@@ -33,7 +34,6 @@ struct BISMOSyncInstruction {
   uint64_t unused0 : 58;
   uint64_t unused1 : 64;
 
-  #ifdef __SYNTHESIS__
   ap_uint<128> asRaw() {
     ap_uint<128> ret = 0;
     ret(1, 0) = targetStage;
@@ -44,7 +44,6 @@ struct BISMOSyncInstruction {
     ret(127, 64) = unused1;
     return ret;
   }
-  #endif
 };
 
 struct BISMOFetchRunInstruction {
@@ -75,7 +74,6 @@ struct BISMOExecRunInstruction {
   uint64_t writeEn : 1;
   uint64_t writeAddr : 1;
 
-  #ifdef __SYNTHESIS__
   ap_uint<128> asRaw() {
     ap_uint<128> ret = 0;
     ret(1, 0) = targetStage;
@@ -92,7 +90,6 @@ struct BISMOExecRunInstruction {
     ret(127, 127) = writeAddr;
     return ret;
   }
-  #endif
 };
 
 struct BISMOResultRunInstruction {
@@ -125,7 +122,6 @@ struct SingleMMDescriptor {
   // number of buffers for latency hiding
   uint8_t nbufs_res;
 
-  #ifdef __SYNTHESIS__
   ap_uint<128> asRaw() {
     ap_uint<128> raw = 0;
     raw(15, 0) = tiles_m;
@@ -155,7 +151,6 @@ struct SingleMMDescriptor {
     base_res = raw(103, 96);
     nbufs_res = raw(111, 104);
   }
-  #endif
 };
 
 #ifndef __SYNTHESIS__

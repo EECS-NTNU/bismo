@@ -1,7 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include "BISMOInstruction.hpp"
-#include "hls_stream.h"
+#include <hls_stream.h>
 #include <cassert>
 
 namespace InstrGen {

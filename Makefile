@@ -78,7 +78,7 @@ HLS_PART := xc7z020clg400-1
 HLS_CLK_NS := 5.0
 HLS_INCL_DIR := $(APP_SRC_DIR)
 VIVADOHLS_ROOT ?= $(shell dirname $(shell which vivado_hls))/..
-HLS_SIM_INCL := $(VIVADOHLS_ROOT)/include/hls_stream.h
+HLS_SIM_INCL := $(VIVADOHLS_ROOT)/include
 
 # platform-specific Makefile include for bitfile synthesis
 include platforms/$(PLATFORM).mk
@@ -118,8 +118,7 @@ EmuTestVerifyHLSInstrEncoding: $(BUILD_DIR_HLS)/VerifyHLSInstrEncoding
 	cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
-	ln -s $(HLS_SIM_INCL) $(BUILD_DIR)/$@;
-	cd $(BUILD_DIR)/$@; sh verilator-build.sh; ./VerilatedTesterWrapper
+	cd $(BUILD_DIR)/$@; sh verilator-build.sh -I$(HLS_SIM_INCL); ./VerilatedTesterWrapper
 
 EmuTestExecInstrGen: $(BUILD_DIR_HLS)/ExecInstrGen
 	mkdir -p $(BUILD_DIR)/$@;
@@ -128,8 +127,7 @@ EmuTestExecInstrGen: $(BUILD_DIR_HLS)/ExecInstrGen
 	cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
-	ln -s $(HLS_SIM_INCL) $(BUILD_DIR)/$@;
-	cd $(BUILD_DIR)/$@; sh verilator-build.sh; ./VerilatedTesterWrapper
+	cd $(BUILD_DIR)/$@; sh verilator-build.sh -I$(HLS_SIM_INCL); ./VerilatedTesterWrapper
 
 # run Scala/Chisel tests
 Test%:
