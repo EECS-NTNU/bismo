@@ -40,76 +40,23 @@ import fpgatidbits.streams._
 // shape and size, repeated many times) this saves a tremendous amount of
 // instruction storage and bandwidth.
 
-// descriptor for a bit-serial matrix multiply
-class MMDescriptor extends PrintableBundle {
-  // number of DPA tiles in each spatial direction (for a single binary matrix)
-  val tiles_m = UInt(width = BISMOLimits.inpBufAddrBits)
-  val tiles_k = UInt(width = BISMOLimits.inpBufAddrBits)
-  val tiles_n = UInt(width = BISMOLimits.inpBufAddrBits)
-  // bitwidth of input matrices
-  val bits_l = UInt(width = BISMOLimits.maxShiftBits / 2)
-  val bits_r = UInt(width = BISMOLimits.maxShiftBits / 2)
-  // signedness of input matrices
-  val signed_l = Bool()
-  val signed_r = Bool()
+// Currently, the generators are implemented in Vivado HLS, and are declared
+// as Chisel BlackBox components.
 
-  val printfStr: String = "Tm=%d Tk%d Tn=%d l=%d sgn=%d r=%d sgn=%d \n"
-  val printfElems = {() => Seq[Node](
-    tiles_m, tiles_k, tiles_n, bits_l, signed_l, bits_r, signed_r
-  )}
-
-  override def cloneType: this.type =
-    new MMDescriptor().asInstanceOf[this.type]
-}
-
-// descriptor for a single bit-serial matmul including buffer base addrs
-class SingleMMDescriptor extends MMDescriptor {
-  // base addresses for input matrices
-  val base_l = UInt(width = BISMOLimits.inpBufAddrBits)
-  val base_r = UInt(width = BISMOLimits.inpBufAddrBits)
-  // base address for result buffer
-  val base_res = UInt(width = BISMOLimits.resAddrBits)
-  // number of result buffers available
-  val nbufs_res = UInt(width = BISMOLimits.resAddrBits)
-
-  override val printfStr: String = "Tm=%d Tk%d Tn=%d l=%d r=%d base_l=%d base_r=%d base_res=%d \n"
-  override val printfElems = {() => Seq[Node](
-    tiles_m, tiles_k, tiles_n, bits_l, bits_r, base_l, base_r, base_res
-  )}
-  override def cloneType: this.type =
-    new SingleMMDescriptor().asInstanceOf[this.type]
-}
-
-// descriptor for several bit-serial matmuls of the same shape/size, including
-// how many buffer regions are available for latency hiding
-class MultiMMDescriptor extends SingleMMDescriptor {
-  val num_reps = UInt(width = BISMOLimits.maxRepBits)
-  val bregions_l = UInt(width = BISMOLimits.maxBufRegionBits)
-  val bregions_r = UInt(width = BISMOLimits.maxBufRegionBits)
-  // TODO should there be a bregions_res here as well?
-
-  override val printfStr: String = "Tm=%d Tk%d Tn=%d l=%d r=%d base_l=%d base_r=%d bregions_l=%d bregions_r=%d \n"
-  override val printfElems = {() => Seq[Node](tiles_m, tiles_k, tiles_n, bits_l, bits_r, base_l, base_r, bregions_l, bregions_r)}
-  override def cloneType: this.type =
-    new MultiMMDescriptor().asInstanceOf[this.type]
-}
-
-// instruction generator for a single bit-serial matrix multiply
-// each descriptor from "in" will turn into a sequence of instructions on "out"
-class ExecInstrGenSingleMM extends Module {
+class ExecInstrGen extends BlackBox {
   val io = new Bundle {
-    val in = Decoupled(new SingleMMDescriptor()).flip
-    val out = Decoupled(new BISMOInstruction())
+    val in = Decoupled(UInt(width = 128)).flip
+    val out = Decoupled(UInt(width = 128))
+    val rst_n = Bool(INPUT)
+    in.bits.setName("in_V_V_TDATA")
+    in.valid.setName("in_V_V_TVALID")
+    in.ready.setName("in_V_V_TREADY")
+    out.bits.setName("out_V_V_TDATA")
+    out.valid.setName("out_V_V_TVALID")
+    out.ready.setName("out_V_V_TREADY")
+    rst_n.setName("ap_rst_n")
   }
-  // TODO
-}
-
-// instruction generator for a single bit-serial matrix multiply
-// each descriptor from "in" will turn into a sequence of instructions on "out"
-class ExecInstrGenMultiMM extends Module {
-  val io = new Bundle {
-    val in = Decoupled(new MultiMMDescriptor()).flip
-    val out = Decoupled(new BISMOInstruction())
-  }
-  // TODO
+  // clock needs to be added manually to BlackBox
+	addClock(Driver.implicitClock)
+  renameClock("clk", "ap_clk")
 }

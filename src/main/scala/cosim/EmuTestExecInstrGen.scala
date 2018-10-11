@@ -36,24 +36,6 @@ import fpgatidbits.ocm._
 import fpgatidbits.streams._
 import fpgatidbits.PlatformWrapper._
 
-class ExecInstrGen extends BlackBox {
-  val io = new Bundle {
-    val in = Decoupled(UInt(width = 128)).flip
-    val out = Decoupled(UInt(width = 128))
-    val rst_n = Bool(INPUT)
-    in.bits.setName("in_V_V_TDATA")
-    in.valid.setName("in_V_V_TVALID")
-    in.ready.setName("in_V_V_TREADY")
-    out.bits.setName("out_V_V_TDATA")
-    out.valid.setName("out_V_V_TVALID")
-    out.ready.setName("out_V_V_TREADY")
-    rst_n.setName("ap_rst_n")
-  }
-  // clock needs to be added manually to BlackBox
-	addClock(Driver.implicitClock)
-  renameClock("clk", "ap_clk")
-}
-
 class EmuTestExecInstrGen(p: PlatformWrapperParams) extends GenericAccelerator(p) {
   val numMemPorts = 0
   val io = new GenericAcceleratorIF(numMemPorts, p) {
