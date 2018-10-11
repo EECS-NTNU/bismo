@@ -78,7 +78,7 @@ public:
     // prepare the accelerator for operation
     m_acc->reset();
     m_acc->init_resource_pools();
-    m_acc->set_stage_enables(1, 1, 1);
+    m_acc->set_stage_enables(1, 1, 1, 1);
   }
 
   ~BitSerialMatMulExecutor() {

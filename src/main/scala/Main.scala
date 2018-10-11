@@ -47,23 +47,28 @@ import fpgatidbits.TidbitsMakeUtils
 object Settings {
   type AccelInstFxn = PlatformWrapperParams => GenericAccelerator
   type AccelMap = Map[String, AccelInstFxn]
-
-  val myInstParams = new BitSerialMatMulParams(
+  //val myInstParams = new BitSerialMatMulParams(
+  val myInstParams = new BOBParams(
     dpaDimLHS = 8, dpaDimRHS = 8, dpaDimCommon = 256,
     lhsEntriesPerMem = 64 * 32 * 1024 / (8 * 256),
     rhsEntriesPerMem = 64 * 32 * 1024 / (8 * 256),
     mrp = PYNQZ1Params.toMemReqParams(),
-    cmdQueueEntries = 256
+    cmdQueueEntries = 256,
+    thrEntriesPerMem = 512, maxQuantDim = 4, quantFolding = 1
   )
   val myInstFxn: AccelInstFxn = {
-    (p: PlatformWrapperParams) => new BitSerialMatMulAccel(myInstParams, p)
+    (p: PlatformWrapperParams) => new BOBAccel(myInstParams, p)
+    //(p: PlatformWrapperParams) => new BitSerialMatMulAccel(myInstParams, p)
   }
 
-  def makeInstFxn(myP: BitSerialMatMulParams): AccelInstFxn = {
+/*  def makeInstFxn(myP: BitSerialMatMulParams): AccelInstFxn = {
     return {(p: PlatformWrapperParams) => new BitSerialMatMulAccel(myP, p)}
-  }
+  }*/
 
-  // instantiate smaller accelerator for emu for faster testing
+  def makeInstFxn(myP: BOBParams): AccelInstFxn = {
+    return {(p: PlatformWrapperParams) => new BOBAccel(myP, p)}
+  }
+  // instantiate smaller accelerator for emu for faster testing0
   val emuInstParams = new BitSerialMatMulParams(
     dpaDimLHS = 2, dpaDimRHS = 2, dpaDimCommon = 128, lhsEntriesPerMem = 128,
     rhsEntriesPerMem = 128, mrp = PYNQZ1Params.toMemReqParams()
@@ -95,10 +100,12 @@ object ChiselMain {
     val dpaDimCommon: Int = args(3).toInt
     val dpaDimRHS: Int = args(4).toInt
     val accInst = Settings.makeInstFxn(
-      new BitSerialMatMulParams(
+      //TODO updated for BOB :)
+      new BOBParams(
         dpaDimLHS = dpaDimLHS, dpaDimRHS = dpaDimRHS, dpaDimCommon = dpaDimCommon,
         lhsEntriesPerMem = 64 * 32 * 1024 / (dpaDimLHS * dpaDimCommon),
         rhsEntriesPerMem = 64 * 32 * 1024 / (dpaDimRHS * dpaDimCommon),
+        thrEntriesPerMem = 256, maxQuantDim = 4, quantFolding = 1,
         mrp = PYNQZ1Params.toMemReqParams()
       )
     )
