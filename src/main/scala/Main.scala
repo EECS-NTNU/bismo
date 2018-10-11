@@ -47,13 +47,13 @@ import fpgatidbits.TidbitsMakeUtils
 object Settings {
   type AccelInstFxn = PlatformWrapperParams => GenericAccelerator
   type AccelMap = Map[String, AccelInstFxn]
-
   val myInstParams = new BitSerialMatMulParams(
     dpaDimLHS = 8, dpaDimRHS = 8, dpaDimCommon = 256,
     lhsEntriesPerMem = 64 * 32 * 1024 / (8 * 256),
     rhsEntriesPerMem = 64 * 32 * 1024 / (8 * 256),
     mrp = PYNQZ1Params.toMemReqParams(),
-    cmdQueueEntries = 256
+    cmdQueueEntries = 256,
+    thrEntriesPerMem = 512, maxQuantDim = 4, quantFolding = 1
   )
   val myInstFxn: AccelInstFxn = {
     (p: PlatformWrapperParams) => new BitSerialMatMulAccel(myInstParams, p)
@@ -62,11 +62,11 @@ object Settings {
   def makeInstFxn(myP: BitSerialMatMulParams): AccelInstFxn = {
     return {(p: PlatformWrapperParams) => new BitSerialMatMulAccel(myP, p)}
   }
-
-  // instantiate smaller accelerator for emu for faster testing
+  // instantiate smaller accelerator for emu for faster testing0
   val emuInstParams = new BitSerialMatMulParams(
     dpaDimLHS = 2, dpaDimRHS = 2, dpaDimCommon = 128, lhsEntriesPerMem = 128,
-    rhsEntriesPerMem = 128, mrp = PYNQZ1Params.toMemReqParams()
+    rhsEntriesPerMem = 128, mrp = PYNQZ1Params.toMemReqParams(),
+    thrEntriesPerMem = 128, maxQuantDim = 4, quantFolding = 1
   )
 
   // given accelerator or hw-sw-test name, return its hardware instantiator
@@ -95,10 +95,12 @@ object ChiselMain {
     val dpaDimCommon: Int = args(3).toInt
     val dpaDimRHS: Int = args(4).toInt
     val accInst = Settings.makeInstFxn(
+      //TODO updated for BOB :)
       new BitSerialMatMulParams(
         dpaDimLHS = dpaDimLHS, dpaDimRHS = dpaDimRHS, dpaDimCommon = dpaDimCommon,
         lhsEntriesPerMem = 64 * 32 * 1024 / (dpaDimLHS * dpaDimCommon),
         rhsEntriesPerMem = 64 * 32 * 1024 / (dpaDimRHS * dpaDimCommon),
+        thrEntriesPerMem = 256, maxQuantDim = 4, quantFolding = 1,
         mrp = PYNQZ1Params.toMemReqParams()
       )
     )

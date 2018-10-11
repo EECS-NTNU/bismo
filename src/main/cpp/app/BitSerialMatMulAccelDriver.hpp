@@ -42,7 +42,9 @@
 
 #define CMDFIFO_CAP       16
 #define FETCHEXEC_TOKENS  2
+#define EXECTHR_TOKENS    2
 #define EXECRES_TOKENS    2
+#define THRRES_TOKENS     2
 #define N_CTRL_STATES     4
 #define FETCH_ADDRALIGN   64
 #define FETCH_SIZEALIGN   8
@@ -97,6 +99,7 @@ typedef struct {
 typedef struct{
   uint32_t actOffset;
   uint32_t thrOffset;
+  uint32_t runTimeThrNumber;
   bool writeEn;
   uint32_t writeAddr;
 } ThrRunCfg;
@@ -113,6 +116,9 @@ typedef struct {
   uint32_t readChanWidth;
   uint32_t rhsEntriesPerMem;
   uint32_t writeChanWidth;
+  uint32_t thrEntriesPerMem;
+  uint32_t quantFolding;
+
 } HardwareCfg;
 
 typedef uint64_t PackedBitGroupType;
@@ -229,7 +235,8 @@ public:
   static void printThrRunCfg(ThrRunCfg r) {
     cout << "ThrRunCfg ============================" << endl;
     cout << "actOffset: " << r.actOffset << endl;
-    cout << "thrOffset: " << thrOffset << endl;
+    cout << "thrOffset: " << r.thrOffset << endl;
+    cout << "runTimeThrNumber" << r.runTimeThrNumber << endl;
     cout << "writeEn: " << r.writeEn << endl;
     cout << "writeAddr: " << r.writeAddr << endl;
     cout << "========================================" << endl;
@@ -302,6 +309,9 @@ public:
   const bool result_op_full() {
     return m_accel->get_result_op_ready() == 1 ? false : true;
   }
+  const bool thr_op_full() {
+    return m_accel->get_thr_op_ready() == 1 ? false : true;
+  }
   const bool fetch_runcfg_full() {
     return m_accel->get_fetch_runcfg_ready() == 1 ? false : true;
   }
@@ -311,6 +321,9 @@ public:
   const bool result_runcfg_full() {
     return m_accel->get_result_runcfg_ready() == 1 ? false : true;
   }
+  const bool thr_runcfg_full() {
+    return m_accel->get_thr_runcfg_ready() == 1 ? false : true;
+  }
 
   // reset the accelerator
   void reset() {
@@ -319,10 +332,11 @@ public:
   }
 
   // enable/disable the execution of each stage
-  void set_stage_enables(const int fetch, const int exec, const int result) {
+  void set_stage_enables(const int fetch, const int exec, const int thr, const int result) {
     m_accel->set_fetch_enable(fetch);
     m_accel->set_exec_enable(exec);
     m_accel->set_result_enable(result);
+    m_accel->set_thr_enable(thr);
   }
 
   Op make_op(OpCode opcode, uint32_t syncChannel) {
@@ -361,6 +375,17 @@ public:
     m_accel->set_result_op_valid(1);
     m_accel->set_result_op_valid(0);
   }
+
+  // push a command to the Result op queue
+  void push_thr_op(Op op) {
+    m_accel->set_thr_op_bits_opcode((AccelReg) op.opcode);
+    m_accel->set_thr_op_bits_token_channel(op.syncChannel);
+    // push into result op FIFO
+    assert(!thr_op_full());
+    m_accel->set_thr_op_valid(1);
+    m_accel->set_thr_op_valid(0);
+  }
+
 
   // push a command to the Fetch runcfg queue
   void push_fetch_runcfg(FetchRunCfg cfg) {
@@ -412,24 +437,47 @@ public:
     m_accel->set_result_runcfg_valid(0);
   }
 
+    // push a command to the Thresholding runcfg queue
+  void push_thr_runcfg(ThrRunCfg cfg) {
+    // set up all the fields for the command
+    m_accel->set_thr_runcfg_bits_actOffset((AccelDblReg) cfg.actOffset);
+    m_accel->set_thr_runcfg_bits_thrOffset(cfg.thrOffset);
+    m_accel->set_thr_runcfg_bits_runTimeThrNumber(cfg.runTimeThrNumber);
+    m_accel->set_thr_runcfg_bits_writeEn(cfg.writeEn);
+    m_accel->set_thr_runcfg_bits_writeAddr(cfg.writeAddr);
+    // push to runcfg FIFO
+    assert(!thr_runcfg_full());
+    m_accel->set_thr_runcfg_valid(1);
+    m_accel->set_thr_runcfg_valid(0);
+  }
+
+
   // initialize the tokens in FIFOs representing shared resources
+  //TODO FOR BOB
   void init_resource_pools() {
-    set_stage_enables(0, 0, 0);
+    set_stage_enables(0, 0, 0, 0);
     for(int i = 0; i < FETCHEXEC_TOKENS; i++) {
       push_exec_op(make_op(opSendToken, 0));
     }
     assert(m_accel->get_exec_op_count() == FETCHEXEC_TOKENS);
-    set_stage_enables(0, 1, 0);
+    set_stage_enables(0, 1, 0, 0);
     while(m_accel->get_exec_op_count() != 0);
+    set_stage_enables(0, 0, 0, 0);
+    for(int i = 0; i < EXECTHR_TOKENS; i++) {
+      push_thr_op(make_op(opSendToken, 0));
+    }
+    assert(m_accel->get_thr_op_count() == EXECTHR_TOKENS);
+    set_stage_enables(0, 0, 1, 0);
+    while(m_accel->get_result_op_count() != 0);
 
-    set_stage_enables(0, 0, 0);
-    for(int i = 0; i < EXECRES_TOKENS; i++) {
+    set_stage_enables(0, 0, 0, 0);
+    for(int i = 0; i < THRRES_TOKENS; i++) {
       push_result_op(make_op(opSendToken, 0));
     }
-    assert(m_accel->get_result_op_count() == EXECRES_TOKENS);
-    set_stage_enables(0, 0, 1);
+    assert(m_accel->get_result_op_count() == THRRES_TOKENS);
+    set_stage_enables(0, 0, 0, 1);
     while(m_accel->get_result_op_count() != 0);
-    set_stage_enables(0, 0, 0);
+    set_stage_enables(0, 0, 0, 0);
   }
 
   // get the instantiated hardware config
@@ -449,6 +497,8 @@ public:
     cout << "readChanWidth = " << m_cfg.readChanWidth << endl;
     cout << "rhsEntriesPerMem = " << m_cfg.rhsEntriesPerMem << endl;
     cout << "writeChanWidth = " << m_cfg.writeChanWidth << endl;
+    cout << "thrEntriesPerMem = " << m_cfg.thrEntriesPerMem << endl;
+    cout << "quantFolding = " << m_cfg.quantFolding << endl;
   }
 
 protected:
@@ -469,6 +519,10 @@ protected:
     m_cfg.readChanWidth = m_accel->get_hw_readChanWidth();
     m_cfg.rhsEntriesPerMem = m_accel->get_hw_rhsEntriesPerMem();
     m_cfg.writeChanWidth = m_accel->get_hw_writeChanWidth();
+    m_cfg.thrEntriesPerMem = m_accel->get_hw_thrEntriesPerMem();
+    m_cfg.quantFolding = m_accel->get_hw_quantFolding();
+    
+
   }
 };
 #endif // BitSerialMatMulAccelDriver_H

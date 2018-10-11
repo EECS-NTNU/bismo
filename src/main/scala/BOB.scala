@@ -36,6 +36,8 @@ class BOBHWCfg(bitsPerField: Int) extends Bundle {
   val accWidth = UInt(width = bitsPerField)
   val maxShiftSteps = UInt(width = bitsPerField)
   val cmdQueueEntries = UInt(width = bitsPerField)
+  val thrEntriesPerMem = UInt(width = bitsPerField)
+  val quantFolding = UInt(width = bitsPerField)
 
   override def cloneType: this.type =
     new BOBHWCfg(bitsPerField).asInstanceOf[this.type]
@@ -95,6 +97,8 @@ class BOBParams(
     ret.accWidth := UInt(accWidth)
     ret.maxShiftSteps := UInt(maxShiftSteps)
     ret.cmdQueueEntries := UInt(cmdQueueEntries)
+    ret.thrEntriesPerMem := UInt(thrEntriesPerMem)
+    ret.quantFolding := UInt(quantFolding)
     return ret
   }
 
