@@ -46,8 +46,6 @@ void VerifyHLSInstrEncoding(
   #pragma HLS INTERFACE axis port=out
   BISMOExecRunInstruction exec;
   BISMOSyncInstruction sync;
-  #pragma HLS DATA_PACK variable=exec
-  #pragma HLS DATA_PACK variable=sync
   sync.isRunCfg = 0;
   sync.targetStage = 1;
   sync.isSendToken = 1;
