@@ -38,9 +38,12 @@ import fpgatidbits.PlatformWrapper._
 
 class ExecInstrGen extends BlackBox {
   val io = new Bundle {
-    // TODO add descriptor input
+    val in = Decoupled(UInt(width = 128)).flip
     val out = Decoupled(UInt(width = 128))
     val rst_n = Bool(INPUT)
+    in.bits.setName("in_V_V_TDATA")
+    in.valid.setName("in_V_V_TVALID")
+    in.ready.setName("in_V_V_TREADY")
     out.bits.setName("out_V_V_TDATA")
     out.valid.setName("out_V_V_TVALID")
     out.ready.setName("out_V_V_TREADY")
@@ -54,14 +57,14 @@ class ExecInstrGen extends BlackBox {
 class EmuTestExecInstrGen(p: PlatformWrapperParams) extends GenericAccelerator(p) {
   val numMemPorts = 0
   val io = new GenericAcceleratorIF(numMemPorts, p) {
-    // TODO add descriptor input
+    val in = Decoupled(UInt(width = 128)).flip
     val out = Decoupled(UInt(width = 128))
   }
   io.signature := makeDefaultSignature()
   val bb = Module(new ExecInstrGen()).io
   bb.rst_n := !this.reset
-  io.out.bits := bb.out.bits
-  io.out.valid := bb.out.valid
+  bb.out <> io.out
   bb.out.ready := io.out.ready & !Reg(next=io.out.ready)
-  // TODO wire up descriptor input
+  io.in <> bb.in
+  bb.in.valid := io.in.valid & !Reg(next=io.in.valid)
 }
