@@ -100,7 +100,7 @@ object ChiselMain {
         dpaDimLHS = dpaDimLHS, dpaDimRHS = dpaDimRHS, dpaDimCommon = dpaDimCommon,
         lhsEntriesPerMem = 64 * 32 * 1024 / (dpaDimLHS * dpaDimCommon),
         rhsEntriesPerMem = 64 * 32 * 1024 / (dpaDimRHS * dpaDimCommon),
-        thrEntriesPerMem = 256, maxQuantDim = 4, quantFolding = 1,
+        thrEntriesPerMem = 512, maxQuantDim = 4, quantFolding = 1,
         mrp = PYNQZ1Params.toMemReqParams()
       )
     )
