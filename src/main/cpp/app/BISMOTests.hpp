@@ -46,12 +46,29 @@ bool test(
   string testName,
   WrapperRegDriver * platform, BitSerialMatMulAccelDriver * acc,
   size_t nrows_lhs, size_t nrows_rhs, size_t ncols, size_t nbits_lhs = 1,
-  size_t nbits_rhs = 1, bool sgn_lhs = false, bool sgn_rhs = false
+  size_t nbits_rhs = 1, bool sgn_lhs = false, bool sgn_rhs = false,
+  size_t ncols_ths, size_t nbits_ths = 1, bool sgn_ths = false
 ) {
   uint8_t * lhs = new uint8_t[nrows_lhs * ncols];
   uint8_t * rhs = new uint8_t[nrows_rhs * ncols];
+  int32_t * ths = new int32_t[nrows_lhs][ncols_ths];
+
   generateRandomVector(nbits_lhs, nrows_lhs*ncols, lhs);
   generateRandomVector(nbits_rhs, nrows_rhs*ncols, rhs);
+
+  
+
+  for (int i = 0; i < nrows_lhs; i++)
+  {
+  	generateRandomVector(nbits_ths, ncols_ths, ths[i]);
+  	cout << "Vector " << i;
+  	for(int j = 0; j < nrows_lhs; j++ ){
+  		cout <<"Elems" << ths[i][j] << ", ";
+  	}
+  	cout << endl;
+  }
+
+
   GEMMContext ctx = acc->allocGEMMContext(
     nrows_lhs, ncols, nrows_rhs, nbits_lhs, nbits_rhs, sgn_lhs, sgn_rhs
   );
@@ -86,6 +103,7 @@ bool test(
 
   delete [] lhs;
   delete [] rhs;
+  delete [] ths;
   delete [] accel_res;
 
   return res == 0;
@@ -100,7 +118,8 @@ bool test_binary_onchip_onetile(
     all_OK &= test(
       "binary_onchip_onetile_coldiv" + to_string(col_div), platform, acc,
       acc->hwcfg().dpaDimLHS, acc->hwcfg().dpaDimRHS,
-      acc->hwcfg().dpaDimCommon * acc->hwcfg().lhsEntriesPerMem / col_div
+      acc->hwcfg().dpaDimCommon * acc->hwcfg().lhsEntriesPerMem / col_div,
+      1,1,false,false, std::pow(2,acc->hwcfg.maxQuantDim)-1, acc->hwcfg().accWidth, false
     );
   }
 
@@ -114,7 +133,8 @@ bool test_binary_size_independent(
   all_OK &= test(
     "binary_size_independent_",
     platform, acc,
-    17, 7, 11
+    17, 7, 11,
+    1,1,false,false, std::pow(2,acc->hwcfg.maxQuantDim)-1, acc->hwcfg().accWidth, false
   );
 
   return all_OK;
@@ -133,7 +153,8 @@ bool test_binary_onchip_multitile(
       all_OK &= test(
         "binary_onchip_multitile_" +
         to_string(nrows_lhs) + "x" + to_string(ncols) + "x"+ to_string(nrows_rhs),
-        platform, acc, nrows_lhs, nrows_rhs, ncols
+        platform, acc, nrows_lhs, nrows_rhs, ncols,
+        1,1,false,false, std::pow(2,acc->hwcfg.maxQuantDim)-1, acc->hwcfg().accWidth, false
       );
     }
   }
@@ -153,7 +174,8 @@ bool test_binary_offchip_multitile(
       all_OK &= test(
         "binary_offchip_multitile_" +
         to_string(nrows_lhs) + "x" + to_string(ncols) + "x"+ to_string(nrows_rhs),
-        platform, acc, nrows_lhs, nrows_rhs, ncols
+        platform, acc, nrows_lhs, nrows_rhs, ncols,
+        1,1,false,false, std::pow(2,acc->hwcfg.maxQuantDim)-1, acc->hwcfg().accWidth, false
       );
     }
   }
@@ -175,7 +197,8 @@ bool test_binary_offchip_widerows_multitile(
         all_OK &= test(
           "test_binary_offchip_widerows_multitile_" +
           to_string(nrows_lhs) + "x" + to_string(ncols) + "x"+ to_string(nrows_rhs),
-          platform, acc, nrows_lhs, nrows_rhs, ncols
+          platform, acc, nrows_lhs, nrows_rhs, ncols,
+          1,1,false,false, std::pow(2,acc->hwcfg.maxQuantDim)-1, acc->hwcfg().accWidth, false
         );
       }
     }

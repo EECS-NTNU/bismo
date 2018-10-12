@@ -117,6 +117,7 @@ typedef struct {
   uint32_t rhsEntriesPerMem;
   uint32_t writeChanWidth;
   uint32_t thrEntriesPerMem;
+  uint32_t maxQuantDim;
   uint32_t quantFolding;
 
 } HardwareCfg;
@@ -152,6 +153,42 @@ public:
   float fclk_MHz() const {
     return m_fclk;
   }
+
+/*******************************************
+//TODO: Should update here for ths?
+*******************************************/
+/*
+void BramSingleTransfer(uint64_t *mat ,int addr, bool activations, int sel_r, int sel_c){
+  cout << "Single Transfer to BRAM of " << *mat; 
+  cout << " at address "<< addr << " in act(1)/thr(0)"<< activations;
+  cout << " Row "<< sel_r << " Cols " << sel_c << endl;
+  if (activations)
+  {
+    dut->set_inMemory_act_sel_r(sel_r);
+    dut->set_inMemory_act_sel_c(sel_c);
+    dut->set_inMemory_act_addr(addr);
+    dut->set_inMemory_act_data(*mat);
+    dut->set_inMemory_act_write(1);
+    dut->set_inMemory_act_write(0);
+
+  }else{
+    dut->set_inMemory_thr_sel_r(sel_r);
+    dut->set_inMemory_thr_sel_c(sel_c);
+    dut->set_inMemory_thr_addr(addr);
+    dut->set_inMemory_thr_data(*mat);
+    dut->set_inMemory_thr_write(1);
+    dut->set_inMemory_thr_write(0);
+  }
+ }
+
+    for(int i = 0; i < ROWS; i++){
+      for (int j = 0; j < THS; j++)
+      {
+        BramSingleTransfer(&(th[i][j]),0,false,i,j);
+        
+      }
+    }
+*/
 
   // allocate a GEMMContext compliant with the accelerator size
   gemmbitserial::GEMMContext allocGEMMContext(
@@ -260,6 +297,10 @@ public:
 
   const size_t get_fetch_first_rhs_id() {
     return m_cfg.dpaDimLHS;
+  }
+
+  const size_t get_fetch_first_ths_id(){
+    return m_cfg.maxQuantDim;
   }
 
   // do a sanity check on a FetchRunCfg in terms of alignment and
@@ -498,6 +539,7 @@ public:
     cout << "rhsEntriesPerMem = " << m_cfg.rhsEntriesPerMem << endl;
     cout << "writeChanWidth = " << m_cfg.writeChanWidth << endl;
     cout << "thrEntriesPerMem = " << m_cfg.thrEntriesPerMem << endl;
+    cout << "MaxQuantDim = " <, m_cfg.maxQuantDim << endl; 
     cout << "quantFolding = " << m_cfg.quantFolding << endl;
   }
 
@@ -520,6 +562,7 @@ protected:
     m_cfg.rhsEntriesPerMem = m_accel->get_hw_rhsEntriesPerMem();
     m_cfg.writeChanWidth = m_accel->get_hw_writeChanWidth();
     m_cfg.thrEntriesPerMem = m_accel->get_hw_thrEntriesPerMem();
+    m_cfg.maxQuantDim = m_accel->get_hw_maxQuantDim();
     m_cfg.quantFolding = m_accel->get_hw_quantFolding();
     
 

@@ -37,6 +37,7 @@ class BOBHWCfg(bitsPerField: Int) extends Bundle {
   val maxShiftSteps = UInt(width = bitsPerField)
   val cmdQueueEntries = UInt(width = bitsPerField)
   val thrEntriesPerMem = UInt(width = bitsPerField)
+  val maxQuantDim = UInt(width = bitsPerField)
   val quantFolding = UInt(width = bitsPerField)
 
   override def cloneType: this.type =
@@ -80,8 +81,8 @@ class BOBParams(
     return List(
       dpaDimLHS, dpaDimRHS, dpaDimCommon, lhsEntriesPerMem, rhsEntriesPerMem,
       mrp.dataWidth, mrp.dataWidth, noShifter,
-      noNegate, extraRegs_DPA, extraRegs_DPU, extraRegs_PC,thrEntriesPerMem, maxQuantDim,
-      quantFolding, staticSerial
+      noNegate, extraRegs_DPA, extraRegs_DPU, extraRegs_PC,
+      thrEntriesPerMem, maxQuantDim, quantFolding, staticSerial
     ).map(_.toString)
   }
 
@@ -98,6 +99,7 @@ class BOBParams(
     ret.maxShiftSteps := UInt(maxShiftSteps)
     ret.cmdQueueEntries := UInt(cmdQueueEntries)
     ret.thrEntriesPerMem := UInt(thrEntriesPerMem)
+    ret.maxQuantDim := UInt(maxQuantDim)
     ret.quantFolding := UInt(quantFolding)
     return ret
   }
@@ -106,7 +108,8 @@ class BOBParams(
     numLHSMems = dpaDimLHS,
     numRHSMems = dpaDimRHS,
     numAddrBits = log2Up(math.max(lhsEntriesPerMem, rhsEntriesPerMem) * dpaDimCommon / mrp.dataWidth),
-    mrp = mrp, bramWrLat = bramPipelineBefore, thrEntriesPerMem = thrEntriesPerMem
+    mrp = mrp, bramWrLat = bramPipelineBefore, 
+    thrEntriesPerMem = thrEntriesPerMem, thsCols = scala.math.pow(2,maxQuantDim).toInt - 1
   )
   val pcParams = new PopCountUnitParams(
     numInputBits = dpaDimCommon, extraPipelineRegs = extraRegs_PC
@@ -398,7 +401,7 @@ class BOBAccel(
     m <- 0 until myP.dpaDimLHS
     n <- 0 until myP.quantFolding
   } {
-    thrmem(m)(n).ports(0).req := fetchStage.bram.thr_rq
+    thrmem(m)(n).ports(0).req := fetchStage.bram.thr_rq(m)(n)
     thrmem(m)(n).ports(1).req := thrStage.inMemory.thr_req(m)(n)
     thrStage.inMemory.thr_rsp(m)(n) := thrmem(m)(n).ports(1).rsp
   }

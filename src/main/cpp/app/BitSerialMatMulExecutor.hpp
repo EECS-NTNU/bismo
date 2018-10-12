@@ -110,6 +110,21 @@ public:
     }
   }
 
+/*******************************************
+//TODO: Should update here for ths?
+*******************************************/
+  void setTHS(gemmbitserial::BitSerialMatrix from) {
+    assert(m_shape.rhs.nrows_a == from.nrows_a);
+    assert(m_shape.rhs.nbits == from.nbits);
+    // copy host -> accel
+    m_platform->copyBufferHostToAccel(from.data, m_accelRHS, rhsBytes());
+    // invalidate cache
+    for(unsigned int i = 0; i < FETCHEXEC_TOKENS; i++) {
+      m_cached_rhs[i] = INVALID_CACHE_ENTRY;
+    }
+  }
+  //////////////////////////////////////////////////////////////////////////////
+
   void getRes(ResultType * to) {
     // result alignment
     size_t alignedResElems = m_shape.rhs.nrows_a * m_shape.lhs.nrows_a;

@@ -55,6 +55,7 @@ class BitSerialMatMulHWCfg(bitsPerField: Int) extends Bundle {
   val maxShiftSteps = UInt(width = bitsPerField)
   val cmdQueueEntries = UInt(width = bitsPerField)
   val thrEntriesPerMem = UInt(width = bitsPerField)
+  val maxQuantDim = UInt(width = bitsPerField)
   val quantFolding = UInt(width = bitsPerField)
 
   override def cloneType: this.type =
@@ -99,7 +100,7 @@ class BitSerialMatMulParams(
       dpaDimLHS, dpaDimRHS, dpaDimCommon, lhsEntriesPerMem, rhsEntriesPerMem,
       mrp.dataWidth, mrp.dataWidth, noShifter,
       noNegate, extraRegs_DPA, extraRegs_DPU, extraRegs_PC,
-      thrEntriesPerMem, quantFolding, staticSerial
+      thrEntriesPerMem, maxQuantDim, quantFolding, staticSerial
     ).map(_.toString)
   }
 
@@ -116,6 +117,7 @@ class BitSerialMatMulParams(
     ret.maxShiftSteps := UInt(maxShiftSteps)
     ret.cmdQueueEntries := UInt(cmdQueueEntries)
     ret.thrEntriesPerMem := UInt(thrEntriesPerMem)
+    ret.maxQuantDim := UInt(maxQuantDim)
     ret.quantFolding := UInt(quantFolding)
     return ret
   }
@@ -124,7 +126,8 @@ class BitSerialMatMulParams(
     numLHSMems = dpaDimLHS,
     numRHSMems = dpaDimRHS,
     numAddrBits = log2Up(math.max(lhsEntriesPerMem, rhsEntriesPerMem) * dpaDimCommon / mrp.dataWidth),
-    mrp = mrp, bramWrLat = bramPipelineBefore
+    mrp = mrp, bramWrLat = bramPipelineBefore,
+    thrEntriesPerMem = thrEntriesPerMem, thsCols = scala.math.pow(2,maxQuantDim).toInt - 1
   )
   val pcParams = new PopCountUnitParams(
     numInputBits = dpaDimCommon, extraPipelineRegs = extraRegs_PC
@@ -223,6 +226,12 @@ class BitSerialMatMulAccel(
     val hw = new BitSerialMatMulHWCfg(32).asOutput
     // performance counter I/O
     val perf = new BitSerialMatMulPerf(myP)
+
+    val inMemory_thr_sel_r = UInt(INPUT, width = log2Up(myP.getUnrollRows()))
+    val inMemory_thr_sel_c = UInt(INPUT, width = log2Up(myP.getUnrollCols()))
+    val inMemory_thr_addr = UInt(INPUT, width = log2Up(myP.thresholdMemDepth))
+    val inMemory_thr_data = UInt(INPUT, width = myP.getInBits())
+    val inMemory_thr_write = Bool(INPUT)
   }
   io.hw := myP.asHWCfgBundle(32)
   // instantiate accelerator stages
@@ -414,7 +423,11 @@ class BitSerialMatMulAccel(
     m <- 0 until myP.dpaDimLHS
     n <- 0 until myP.quantFolding
   } {
-    thrmem(m)(n).ports(0).req := fetchStage.bram.thr_rq
+    thrmem(m)(n).ports(0).req.addr := io.inMemory_thr_addr
+    thrmem(m)(n).ports(0).req.writeData := io.inMemory_thr_data
+    val myWriteEn = (io.inMemory_thr_sel_r === UInt(m) && io.inMemory_thr_sel_c === UInt(n)) & io.inMemory_thr_write
+    thrmem(m)(n).ports(0).req.writeEn := myWriteEn
+    //thrmem(m)(n).ports(0).req := fetchStage.bram.thr_rq(m)(n)
     thrmem(m)(n).ports(1).req := thrStage.inMemory.thr_req(m)(n)
     thrStage.inMemory.thr_rsp(m)(n) := thrmem(m)(n).ports(1).rsp
   }

@@ -53,7 +53,7 @@ object Settings {
     rhsEntriesPerMem = 64 * 32 * 1024 / (8 * 256),
     mrp = PYNQZ1Params.toMemReqParams(),
     cmdQueueEntries = 256,
-    thrEntriesPerMem = 512, maxQuantDim = 4, quantFolding = 1
+    thrEntriesPerMem = 128, maxQuantDim = 4, quantFolding = 1
   )
   val myInstFxn: AccelInstFxn = {
     (p: PlatformWrapperParams) => new BitSerialMatMulAccel(myInstParams, p)
@@ -100,7 +100,7 @@ object ChiselMain {
         dpaDimLHS = dpaDimLHS, dpaDimRHS = dpaDimRHS, dpaDimCommon = dpaDimCommon,
         lhsEntriesPerMem = 64 * 32 * 1024 / (dpaDimLHS * dpaDimCommon),
         rhsEntriesPerMem = 64 * 32 * 1024 / (dpaDimRHS * dpaDimCommon),
-        thrEntriesPerMem = 512, maxQuantDim = 4, quantFolding = 1,
+        thrEntriesPerMem = 128, maxQuantDim = 4, quantFolding = 1,
         mrp = PYNQZ1Params.toMemReqParams()
       )
     )

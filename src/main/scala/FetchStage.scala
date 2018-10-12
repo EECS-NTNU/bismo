@@ -47,7 +47,9 @@ class FetchStageParams(
   val numAddrBits: Int,   // number of bits for address inside target memory
   val mrp: MemReqParams,  // memory request params for platform
   val bramWrLat: Int = 1,  // number of cycles until data written to BRAM
-  val thrEntriesPerMem: Int = 8
+  val thrEntriesPerMem: Int = 8,
+  val thsCols: Int = 3
+
 ) extends PrintableParam {
   def headersAsList(): List[String] = {
     return List("nodes", "rd_width")
@@ -58,8 +60,7 @@ class FetchStageParams(
   }
 
   // total number of nodes (LHS or RHS mems) targeted by the FetchStage + Thresholds
-  val numNodes = numLHSMems + numRHSMems + 1
-
+  val numNodes = numLHSMems + numRHSMems //+ numLHSMems + thsCols
   // number of ID bits to identify a node
   def getIDBits(): Int = {
     return log2Up(getNumNodes())
@@ -181,7 +182,10 @@ class FetchStageBRAMIO(myP: FetchStageParams) extends Bundle {
     new OCMRequest(myP.mrp.dataWidth, myP.numAddrBits).asOutput
   }
 
-  val thr_rq = new OCMRequest(myP.mrp.dataWidth, log2Up(myP.thrEntriesPerMem)).asOutput
+ /* val thr_rq = Vec.fill(myP.numLHSMems) { 
+    Vec.fill(myP.thsCols){
+    new OCMRequest(myP.mrp.dataWidth, log2Up(myP.thrEntriesPerMem)).asOutput
+  }}*/
 
   override def cloneType: this.type =
     new FetchStageBRAMIO(myP).asInstanceOf[this.type]
@@ -321,9 +325,15 @@ class FetchStage(val myP: FetchStageParams) extends Module {
   }
 
   //Adding thresholds memory
-  val thr_id = myP.numLHSMems +  myP.numRHSMems
-  io.bram.thr_rq := conn.node_out(thr_id)
-  println(s"Threshold mem assigned to node# $thr_id")
+  /*
+    for(i <- 0 until myP.numLHSMems)
+    for(j <- 0 until myP.thsCols) {
+    val thr_mem_ind_row = i
+    val thr_mem_ind_col = j
+    val node_ind = myP.numLHSMems + myP.numRHSMems + i + j
+    io.bram.thr_rq(thr_mem_ind_row)(thr_mem_ind_col) := conn.node_out(node_ind)
+    println(s"THS $thr_mem_ind_row $thr_mem_ind_col assigned to node# $node_ind")
+  }*/
 
   // count responses to determine done
   val regBlockBytesReceived = Reg(init = UInt(0, 32))
