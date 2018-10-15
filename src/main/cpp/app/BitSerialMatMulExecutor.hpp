@@ -131,7 +131,11 @@ public:
     // enable all stages
     m_acc->set_stage_enables(1, 1, 1);
     // wait until all the results are written
-    while(!allFinished());
+    while(!allFinished()) {
+      //m_acc->updateStateBreakdown();
+      //m_acc->printStateBreakdown();
+      //m_acc->printTokenCounts();
+    };
     // disable all stages
     m_acc->set_stage_enables(0, 0, 0);
     // stop the cycle counter
