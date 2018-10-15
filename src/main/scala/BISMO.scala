@@ -295,7 +295,10 @@ class BitSerialMatMulAccel(
   enqPulseGenFromValid(execDscQ.enq, io.dsc_exec)
   execDscQ.deq <> igExec.in
   // wire up instruction generator to instruction queue
-  enqPulseGenFromValid(execOpQ.enq, igExec.out)
+  // need to use .fromBits due to difference in types (wires/content are the same)
+  execOpQ.enq.valid := igExec.out.valid
+  execOpQ.enq.bits := execOpQ.enq.bits.fromBits(igExec.out.bits)
+  igExec.out.ready := execOpQ.enq.ready
 
   // push from top level into instruction queues
   enqPulseGenFromValid(fetchOpQ.enq, io.ins_fetch)
