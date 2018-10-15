@@ -52,14 +52,9 @@
 #define FETCH_ADDRALIGN           64
 #define FETCH_SIZEALIGN           64
 #define FETCH_BLOCK_MAX           (1 << BISMO_LIMIT_DRAM_BSIZE_BITS)
-#define MAX_INSTR_SEGS            1024
-#define MAX_DRAM_INSTRS           (MAX_INSTR_SEGS*m_cfg.cmdQueueEntries)
-#define BYTES_PER_INSTR           16
-#define INSTR_FETCH_GRANULARITY   (m_cfg.cmdQueueEntries/2)
-//#define INSTR_FETCH_GRANULARITY   64
 
-#define max(x,y) (x > y ? x : y)
-#define FETCH_ALIGN       max(FETCH_ADDRALIGN, FETCH_SIZEALIGN)
+#define max(x,y)                  (x > y ? x : y)
+#define FETCH_ALIGN               max(FETCH_ADDRALIGN, FETCH_SIZEALIGN)
 
 typedef enum {
   csGetCmd = 0, csRun, csSend, csReceive
@@ -89,22 +84,9 @@ public:
     m_fclk = 200.0;
     update_hw_cfg();
     measure_fclk();
-    // buffer allocation for instruction buffers in DRAM
-    for(size_t i = 0; i < N_STAGES; i++) {
-      m_host_ibuf[i] = new BISMOInstruction[MAX_DRAM_INSTRS];
-      m_acc_ibuf[i] = m_platform->allocAccelBuffer(maxDRAMInstrBytes());
-    }
-    // set up instruction fetch threshold
-    m_accel->set_if_threshold(m_cfg.cmdQueueEntries-INSTR_FETCH_GRANULARITY);
-
-    clearInstrBuf();
   }
 
   ~BitSerialMatMulAccelDriver() {
-    for(size_t i = 0; i < N_STAGES; i++) {
-      m_platform->deallocAccelBuffer(m_acc_ibuf[i]);
-      delete [] m_host_ibuf[i];
-    }
   }
 
   // write a descriptor into the instruction generator
@@ -119,115 +101,31 @@ public:
     m_accel->set_dsc_exec_valid(0);
   }
 
-  // clear the DRAM instruction buffer
-  void clearInstrBuf() {
-    for(size_t i = 0; i < N_STAGES; i++) {
-      m_icnt[i] = 0;
-    }
+  // push a instruction into the fetch instr.q.
+  void pushFetchInstruction(BISMOInstruction ins) {
+    while(m_accel->get_ins_fetch_ready() != 1);
+    m_accel->set_ins_fetch_bits0(ins.raw[3]);
+    m_accel->set_ins_fetch_bits1(ins.raw[2]);
+    m_accel->set_ins_fetch_bits2(ins.raw[1]);
+    m_accel->set_ins_fetch_bits3(ins.raw[0]);
+    m_accel->set_ins_fetch_valid(1);
+    m_accel->set_ins_fetch_valid(0);
   }
 
-  void create_instr_stream() {
-    for(size_t i = 0; i < N_STAGES; i++) {
-      create_instr_stream((BISMOTargetStage) i);
-    }
+  // push a instruction into the result instr.q.
+  void pushResultInstruction(BISMOInstruction ins) {
+    while(m_accel->get_ins_res_ready() != 1);
+    m_accel->set_ins_res_bits0(ins.raw[3]);
+    m_accel->set_ins_res_bits1(ins.raw[2]);
+    m_accel->set_ins_res_bits2(ins.raw[1]);
+    m_accel->set_ins_res_bits3(ins.raw[0]);
+    m_accel->set_ins_res_valid(1);
+    m_accel->set_ins_res_valid(0);
   }
+
 
   size_t get_completed_writes() {
     return (size_t) m_accel->get_completed_writes();
-  }
-
-  void add_nop_padding(BISMOTargetStage stg, size_t alignToBytes) {
-    // determine how much padding is needed
-    const size_t current = stageInstrBytes(stg);
-    const size_t rem = current % alignToBytes;
-    if(rem == 0) return;
-    const size_t pad_bytes = alignToBytes - rem;
-    const size_t pad_instrs = pad_bytes / BYTES_PER_INSTR;
-    // create and push padding instructions (NOPs)
-    for(size_t i = 0; i < pad_instrs; i++) {
-      push_instruction_dram(make_nop_instr(stg));
-    }
-  }
-
-  // for the given stage, create instruction fetches to pull out instrs from
-  // DRAM, and ensure that instr buffer is copied to accel DRAM
-  void create_instr_stream(BISMOTargetStage stg) {
-    // hack: circumvent regular instr creation for exec stage
-    // TODO remove all instrfetch logic?
-    if(stg == stgExec) return;
-    assert((INSTR_FETCH_GRANULARITY * BYTES_PER_INSTR) % FETCH_SIZEALIGN == 0);
-    assert(stg < N_STAGES);
-    add_nop_padding(stg, FETCH_SIZEALIGN);
-    size_t n_instrs = m_icnt[stg];
-    AccelReg stgBufferBase = (AccelReg)(AccelDblReg) m_acc_ibuf[stg];
-    BISMOInstruction * hostInstrs = m_host_ibuf[stg];
-    size_t instr_per_block = FETCH_SIZEALIGN / BYTES_PER_INSTR;
-
-    // copy the actual instructions to DRAM
-    const size_t instr_bytes = BYTES_PER_INSTR * n_instrs;
-    m_platform->copyBufferHostToAccel(hostInstrs, (void*) stgBufferBase, instr_bytes);
-    // put in the descriptor for the corresponding stage
-    switch (stg) {
-      case stgFetch:
-        m_accel->set_ibuf_ptr_fetch(stgBufferBase);
-        m_accel->set_if_fetch_bits_start(0);
-        m_accel->set_if_fetch_bits_count(n_instrs);
-        m_accel->set_if_fetch_bits_blockSize(instr_per_block);
-        while(!m_accel->get_if_fetch_ready());
-        m_accel->set_if_fetch_valid(1);
-        m_accel->set_if_fetch_valid(0);
-        break;
-      case stgExec:
-        m_accel->set_ibuf_ptr_exec(stgBufferBase);
-        m_accel->set_if_exec_bits_start(0);
-        m_accel->set_if_exec_bits_count(n_instrs);
-        m_accel->set_if_exec_bits_blockSize(instr_per_block);
-        while(!m_accel->get_if_exec_ready());
-        m_accel->set_if_exec_valid(1);
-        m_accel->set_if_exec_valid(0);
-        break;
-      case stgResult:
-        m_accel->set_ibuf_ptr_result(stgBufferBase);
-        m_accel->set_if_result_bits_start(0);
-        m_accel->set_if_result_bits_count(n_instrs);
-        m_accel->set_if_result_bits_blockSize(instr_per_block);
-        while(!m_accel->get_if_result_ready());
-        m_accel->set_if_result_valid(1);
-        m_accel->set_if_result_valid(0);
-        break;
-      default:
-        cerr << "Unrecognized state in makeInstructionFetch" << endl;
-        assert(0);
-    }
-  }
-
-  const size_t maxDRAMInstrBytes() const {
-    return MAX_DRAM_INSTRS * BYTES_PER_INSTR;
-  }
-
-  const size_t stageInstrCount(BISMOTargetStage stg) const {
-    return m_icnt[stg];
-  }
-
-  const size_t stageInstrBytes(BISMOTargetStage stg) const {
-    return m_icnt[stg] * BYTES_PER_INSTR;
-  }
-
-  const size_t totalInstrBytes() const {
-    size_t ret = 0;
-    for(size_t i = 0; i < N_STAGES; i++) {
-      ret += stageInstrBytes((BISMOTargetStage) i);
-    }
-    return ret;
-  }
-
-  void push_instruction_dram(BISMOInstruction ins) {
-    verifyInstr(ins);
-    BISMOTargetStage stg = (BISMOTargetStage) ins.fetch.targetStage;
-    assert(m_icnt[stg] < MAX_DRAM_INSTRS);
-
-    m_host_ibuf[stg][m_icnt[stg]] = ins;
-    m_icnt[stg]++;
   }
 
   void verifyInstr(BISMOInstruction ins) {
@@ -321,11 +219,11 @@ public:
   }
 
   const size_t get_fetch_first_lhs_id() {
-    return 1;
+    return 0;
   }
 
   const size_t get_fetch_first_rhs_id() {
-    return 1 + m_cfg.dpaDimLHS;
+    return 0 + m_cfg.dpaDimLHS;
   }
 
   // do a sanity check on an instruction to fetch stage in terms of alignment and
@@ -459,11 +357,13 @@ public:
     return ins;
   }
 
+  // add a token into the fetch-exec free queue
   void add_token_fetchexec_free() {
     m_accel->set_addtoken_ef(1);
     m_accel->set_addtoken_ef(0);
   }
 
+  // add a token into the exec-result free queue
   void add_token_execresult_free() {
     m_accel->set_addtoken_re(1);
     m_accel->set_addtoken_re(0);
@@ -571,10 +471,6 @@ protected:
   WrapperRegDriver * m_platform;
   HardwareCfg m_cfg;
   float m_fclk;
-  // instruction buffers
-  BISMOInstruction * m_host_ibuf[N_STAGES];
-  void * m_acc_ibuf[N_STAGES];
-  size_t m_icnt[N_STAGES];
   // performance counter variables
   uint32_t m_fetch_cstate_cycles[N_CTRL_STATES];
   uint32_t m_exec_cstate_cycles[N_CTRL_STATES];

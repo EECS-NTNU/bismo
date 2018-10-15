@@ -71,10 +71,7 @@ public:
     }
     // prepare the accelerator for operation
     m_acc->reset();
-    m_acc->clearInstrBuf();
     m_acc->init_resource_pools();
-    //m_acc->set_stage_enables(1, 1, 1);
-    m_acc->set_stage_enables(1, 0, 1);
     // build schedule for each stage based on shape
     build_schedule_trivial();
     // uncomment to see the generated instructions
@@ -129,7 +126,6 @@ public:
 
   void run() {
     m_acc->set_stage_enables(0, 0, 0);
-    m_acc->create_instr_stream();
     // start the cycle counter
     m_acc->perf_set_cc_enable(true);
     // enable all stages
@@ -244,9 +240,6 @@ public:
     std::cout << "(" << 100*getWorkloadBinaryOpCount(false)/getWorkloadBinaryOpCount(true) << "%)" << std::endl;
     std::cout << "Input matrix bytes: LHS " << lhsBytes() << " RHS " << rhsBytes() << std::endl;
     std::cout << "Result matrix bytes: " << resBytes() << std::endl;
-    std::cout << "Instructions: " << m_acc->stageInstrCount(stgFetch) << " fetch ";
-    std::cout << m_acc->stageInstrCount(stgExec) << " execute ";
-    std::cout << m_acc->stageInstrCount(stgResult) << " result" << std::endl;
     std::cout << "HW input matrix buffer bytes: " << getHWBufSize() << std::endl;
     std::cout << "HW peak perf: " << getHWPeakBinaryGOPS() << " binary GOPS" << std::endl;
     std::cout << "HW fclk: " << m_acc->fclk_MHz() << " MHz" << std::endl;
@@ -266,12 +259,10 @@ public:
     m_acc->printStateBreakdown();
 
     std::cout << "Memory System ==========================================" << std::endl;
-    size_t rd_total = (m_bytes_to_fetch + m_acc->totalInstrBytes());
+    size_t rd_total = (m_bytes_to_fetch);
     float rd_bw = (float) rd_total / getLastRuntimeCycles();
     float rd_fetchact_bw = (float) m_bytes_to_fetch / m_acc->getStateBreakdown(stgFetch, csRun);
     std::cout << "Total DRAM reads: " << rd_total << " bytes" << std::endl;
-    std::cout << "Instruction DRAM reads: " << m_acc->totalInstrBytes() << " bytes (";
-    std::cout << 100*((float)(m_acc->totalInstrBytes())/rd_total) << "% of total)" << std::endl;
     std::cout << "Matrix DRAM reads: " << m_bytes_to_fetch << " bytes (";
     std::cout << 100*((float)(m_bytes_to_fetch)/rd_total) << "% of total)" << std::endl;
     std::cout << "HW theoretical peak read bandwidth: " << getHWReadBW() << " bytes/cycle" << std::endl;
@@ -329,17 +320,11 @@ protected:
     ins.fetch.targetStage = stgFetch;
     ins.fetch.isRunCfg = 1;
     ins.fetch.unused0 = 0;
-    m_acc->push_instruction_dram(ins);
+    m_acc->pushFetchInstruction(ins);
   }
 
   void makeinstr_exec_run(BISMOExecRunInstruction r) {
-    BISMOInstruction ins;
-    ins.exec = r;
-    ins.exec.targetStage = stgExec;
-    ins.exec.isRunCfg = 1;
-    ins.exec.unused0 = 0;
-    ins.exec.unused1 = 0;
-    m_acc->push_instruction_dram(ins);
+    // TODO remove this function when execinstrgen migration is complete
   }
 
   void makeinstr_result_run(BISMOResultRunInstruction rrc) {
@@ -349,7 +334,7 @@ protected:
     ins.res.isRunCfg = 1;
     ins.res.nop = 0;
     ins.res.unused0 = 0;
-    m_acc->push_instruction_dram(ins);
+    m_acc->pushResultInstruction(ins);
     // count result bytes for statistics
     m_bytes_to_write += m_hwcfg.dpaDimLHS * m_hwcfg.dpaDimRHS * sizeof(ResultType);
   }
@@ -365,7 +350,16 @@ protected:
   // helper functions for generating sync instructions
   void makeinstr_sync(BISMOTargetStage stg, bool isSend, uint32_t chanID) {
     BISMOInstruction ins = m_acc->make_sync_instr(stg, isSend, chanID);
-    m_acc->push_instruction_dram(ins);
+    if(stg == stgFetch) {
+      m_acc->pushFetchInstruction(ins);
+    } else if(stg == stgExec) {
+      // TODO remove once exec instrgen migration is complete
+    } else if(stg == stgResult) {
+      m_acc->pushResultInstruction(ins);
+    } else {
+      cout << "Invalid stage for makeinstr_sync" << endl;
+      assert(0);
+    }
   }
 
   // get the pointer to the start of given result tile
