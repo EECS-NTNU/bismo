@@ -190,36 +190,6 @@ object Stages {
   val stgFetch :: stgExec :: stgResult :: Nil = Enum(UInt(), 3)
 }
 
-class BISMOInstructionRouter extends Module {
-  val io = new Bundle {
-    val in = Decoupled(UInt(width = BISMOLimits.instrBits)).flip
-    val out_fetch = Decoupled(new BISMOFetchRunInstruction())
-    val out_exec = Decoupled(new BISMOExecRunInstruction())
-    val out_result = Decoupled(new BISMOResultRunInstruction())
-  }
-  val deintl = Module(new StreamDeinterleaver(
-    numDests = 3, gen = io.in.bits,
-    route = (x: UInt) => new BISMOInstruction().fromBits(x).targetStage
-  )).io
-  io.in <> deintl.in
-  deintl.out.map(_.ready := Bool(false))
-  // fetch
-  io.out_fetch.valid := deintl.out(Stages.stgFetch).valid
-  io.out_fetch.bits := io.out_fetch.bits.fromBits(deintl.out(Stages.stgFetch).bits.toBits)
-  deintl.out(Stages.stgFetch).ready := io.out_fetch.ready
-  // exec
-  io.out_exec.valid := deintl.out(Stages.stgExec).valid
-  io.out_exec.bits := io.out_exec.bits.fromBits(deintl.out(Stages.stgExec).bits.toBits)
-  deintl.out(Stages.stgExec).ready := io.out_exec.ready
-  // result
-  io.out_result.valid := deintl.out(Stages.stgResult).valid
-  io.out_result.bits := io.out_result.bits.fromBits(deintl.out(Stages.stgResult).bits.toBits)
-  deintl.out(Stages.stgResult).ready := io.out_result.ready
-  /*when(io.in.fire()) {
-    printf("Routing new instruction, target stage = %d\n", new BISMOInstruction().fromBits(io.in.bits).targetStage)
-  }*/
-}
-
 class BitSerialMatMulAccel(
   val myP: BitSerialMatMulParams, p: PlatformWrapperParams
 ) extends GenericAccelerator(p) {
@@ -231,16 +201,9 @@ class BitSerialMatMulAccel(
     val result_enable = Bool(INPUT)
     // descriptors for instruction generator
     val dsc_exec = Decoupled(UInt(width=BISMOLimits.execDescrBits)).flip
-    // descriptors for instruction fetch generation
-    val if_fetch = Decoupled(new BlockSequenceDescriptor(BISMOLimits.ifgBits)).flip
-    val if_exec = Decoupled(new BlockSequenceDescriptor(BISMOLimits.ifgBits)).flip
-    val if_result = Decoupled(new BlockSequenceDescriptor(BISMOLimits.ifgBits)).flip
-    // instruction buffer pointers in DRAM
-    val ibuf_ptr_fetch = UInt(INPUT, 32)
-    val ibuf_ptr_exec = UInt(INPUT, 32)
-    val ibuf_ptr_result = UInt(INPUT, 32)
-    // fetch threshold
-    val if_threshold = UInt(INPUT, 32)
+    // instruction queues
+    val ins_fetch = Decoupled(UInt(width=BISMOLimits.instrBits)).flip
+    val ins_res = Decoupled(UInt(width=BISMOLimits.instrBits)).flip
     // command counts in each queue
     val fetch_op_count = UInt(OUTPUT, width = 32)
     val exec_op_count = UInt(OUTPUT, width = 32)
@@ -263,7 +226,6 @@ class BitSerialMatMulAccel(
 
   }
   io.hw := myP.asHWCfgBundle(32)
-  val opSwitch = Module(new BISMOInstructionRouter()).io
   // instantiate accelerator stages
   val fetchStage = Module(new FetchStage(myP.fetchStageParams)).io
   val execStage = Module(new ExecStage(myP.execStageParams)).io
@@ -316,9 +278,11 @@ class BitSerialMatMulAccel(
   io.tc_re := syncExecResult_free.count
 
   // helper function to wire-up DecoupledIO to DecoupledIO with pulse generator
-  def enqPulseGenFromValid[T <: Data](enq: DecoupledIO[T], vld: DecoupledIO[T]) = {
+  def enqPulseGenFromValid[TI <: Data, TO <: Bits](
+    enq: DecoupledIO[TI], vld: DecoupledIO[TO]
+  ) = {
     enq.valid := vld.valid & !Reg(next=vld.valid)
-    enq.bits := vld.bits
+    enq.bits := enq.bits.fromBits(vld.bits)
     vld.ready := enq.ready
   }
 
@@ -331,96 +295,16 @@ class BitSerialMatMulAccel(
   enqPulseGenFromValid(execDscQ.enq, io.dsc_exec)
   execDscQ.deq <> igExec.in
   // wire up instruction generator to instruction queue
-  // need to use .fromBits due to difference in types (wires/content are the same)
-  execOpQ.enq.valid := igExec.out.valid
-  execOpQ.enq.bits := execOpQ.enq.bits.fromBits(igExec.out.bits)
-  igExec.out.ready := execOpQ.enq.ready
+  enqPulseGenFromValid(execOpQ.enq, igExec.out)
 
-  // OCM queues for storing instruction fetch instructions for each stage
-  val ifq_fetch = Module(new FPGAQueue(io.if_fetch.bits, 2)).io
-  val ifq_exec = Module(new FPGAQueue(io.if_exec.bits, 2)).io
-  val ifq_result = Module(new FPGAQueue(io.if_result.bits, 2)).io
-  enqPulseGenFromValid(ifq_fetch.enq, io.if_fetch)
-  enqPulseGenFromValid(ifq_exec.enq, io.if_exec)
-  enqPulseGenFromValid(ifq_result.enq, io.if_result)
-
-  // instruction fetch generators for each stage
-  val ifg_fetch = Module(new InstructionFetchGen("fetch")).io
-  val ifg_exec = Module(new InstructionFetchGen("exec")).io
-  val ifg_result = Module(new InstructionFetchGen("result")).io
-
-  // wire up instruction fetch generators
-  // fetch
-  //ifg_fetch.enable := io.fetch_enable
-  ifg_fetch.enable := Bool(true)
-  ifq_fetch.deq <> ifg_fetch.cmd
-  ifg_fetch.ibuf_ptr := Reg(next=io.ibuf_ptr_fetch)
-  ifg_fetch.queue_count := fetchOpQ.count
-  ifg_fetch.queue_threshold := io.if_threshold
-  ifg_fetch.new_instr_pulse := fetchOpQ.enq.fire()
-  // exec
-  //ifg_exec.enable := io.exec_enable
-  ifg_exec.enable := Bool(true)
-  ifq_exec.deq <> ifg_exec.cmd
-  ifg_exec.ibuf_ptr := Reg(next=io.ibuf_ptr_exec)
-  ifg_exec.queue_count := execOpQ.count
-  ifg_exec.queue_threshold := io.if_threshold
-  ifg_exec.new_instr_pulse := execOpQ.enq.fire()
-  // result
-  //ifg_result.enable := io.result_enable
-  ifg_result.enable := Bool(true)
-  ifq_result.deq <> ifg_result.cmd
-  ifg_result.ibuf_ptr := Reg(next=io.ibuf_ptr_result)
-  ifg_result.queue_count := resultOpQ.count
-  ifg_result.queue_threshold := io.if_threshold
-  ifg_result.new_instr_pulse := resultOpQ.enq.fire()
-
-  // Fetch stage exposes instructions fetched from DRAM
-  // StreamResizer to match instr q output width
-  val instrResize = Module(new StreamResizer(
-    inWidth = myP.mrp.dataWidth, outWidth = BISMOLimits.instrBits
-  )).io
-  FPGAQueue(fetchStage.instrs, 2) <> instrResize.in
-  // route incoming instructions according to target stage
-  FPGAQueue(instrResize.out, 2) <> opSwitch.in
-  opSwitch.out_fetch <> fetchOpQ.enq
-  //opSwitch.out_exec <> execOpQ.enq
-  opSwitch.out_result <> resultOpQ.enq
-
-  // ifg_fetch.out  |
-  // ifg_exec.out   |-> (arbiter) -> fetch controller
-  // ifg_result.out |
-  // fetchOpQ.deq   |
-
-  // higher priority assigned to lower slots
-  val fetchInstrMix = Module(new Arbiter(new BISMOFetchRunInstruction(), n=4)).io
-  ifg_fetch.out <> fetchInstrMix.in(0)
-  ifg_exec.out <> fetchInstrMix.in(1)
-  ifg_result.out <> fetchInstrMix.in(2)
-  fetchOpQ.deq <> fetchInstrMix.in(3)
-
-  /*
-  when(opSwitch.in.fire()) {
-    printf("opSwitch %x\n", opSwitch.in.bits)
-  }
-  when(ocmInstrQ.enq.fire()) {
-    printf("OCM instrq %x\n", ocmInstrQ.enq.bits)
-  }
-  when(fetchStage.instrs.fire()) {
-    printf("DRAM instrq %x\n", fetchStage.instrs.bits)
-  }
-  StreamMonitor(opSwitch.out_fetch, Bool(true), "fetch", true)
-  StreamMonitor(opSwitch.out_exec, Bool(true), "exec", true)
-  StreamMonitor(opSwitch.out_result, Bool(true), "res", true)
-  StreamMonitor(instrMixer.in(1), Bool(true), "dram_ins", true)
-  StreamMonitor(ocmInstrQ.enq, Bool(true), "ocm_ins", true)
-  */
+  // push from top level into instruction queues
+  enqPulseGenFromValid(fetchOpQ.enq, io.ins_fetch)
+  enqPulseGenFromValid(resultOpQ.enq, io.ins_res)
 
   // wire-up: command queues and pulse generators for fetch stage
   fetchCtrl.enable := io.fetch_enable
   io.fetch_op_count := fetchOpQ.count
-  //fetchOpQ.deq <> fetchCtrl.op
-  FPGAQueue(fetchInstrMix.out, 2) <> fetchCtrl.op
+  fetchOpQ.deq <> fetchCtrl.op
 
   // wire-up: command queues and pulse generators for exec stage
   execCtrl.enable := io.exec_enable
@@ -463,7 +347,7 @@ class BitSerialMatMulAccel(
     execStage.tilemem.rhs_rsp(m) := tilemem_rhs(m).ports(1).rsp
     //when(tilemem_rhs(m).ports(0).req.writeEn) { printf("RHS BRAM %d write: addr %d data %x\n", UInt(m), tilemem_rhs(m).ports(0).req.addr, tilemem_rhs(m).ports(0).req.writeData) }
   }
-  
+
   // wire-up: shared resource management
   // the "free" queues are initially filled by pulsing top-level I/O signals,
   // so use arbiters to mix top-level and controller-emitted signals

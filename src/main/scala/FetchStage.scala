@@ -57,8 +57,7 @@ class FetchStageParams(
   }
 
   // total number of nodes (LHS or RHS mems) targeted by the FetchStage
-  // the +1 is for the instruction queue
-  val numNodes = numLHSMems + numRHSMems + 1
+  val numNodes = numLHSMems + numRHSMems
 
   // number of ID bits to identify a node
   def getIDBits(): Int = {
@@ -106,17 +105,12 @@ class FetchStagePacket(myP: FetchStageParams) extends PrintableBundle {
 class FetchInterconnect(val myP: FetchStageParams) extends Module {
   val io = new Bundle {
     val in = Decoupled(new FetchStagePacket(myP)).flip
-    val instrq_ready = Bool(INPUT)
     val node_out = Vec.fill(myP.getNumNodes()) {
       new OCMRequest(myP.mrp.dataWidth, myP.numAddrBits).asOutput
     }
   }
-  // the interconnect delivers data directly to BRAMs, which are deterministic
-  // and do not cause any backpressure. therefore, the interconnect can always
-  // deliver packets... unless we are fetching into the instruction queue, and
-  // it is not ready. we handle this case specifically.
-  val targetInstrFetch = (io.in.bits.id === UInt(0) & io.in.valid)
-  io.in.ready := Mux(targetInstrFetch, io.instrq_ready, Bool(true))
+  // no backpressure in fetch interconnect or targets, always ready
+  io.in.ready := Bool(true)
   // shift register stages along which we will carry packets
   // the valid reg chain must be initialized to all zeroes to avoid garbage writes
   val regNodeValid = Vec.fill(myP.getNumNodes()) { Reg(init = Bool(false)) }
@@ -137,11 +131,6 @@ class FetchInterconnect(val myP: FetchStageParams) extends Module {
     // the correct destination is the only node that gets its write enable
     io.node_out(i).writeEn := (regNodePacket(i).id === UInt(i)) & regNodeValid(i)
   }
-  // handle node 0 as a special snowflake since it uses a ready-valid handshake
-  io.node_out(0).writeData := io.in.bits.data
-  io.node_out(0).addr := io.in.bits.addr
-  io.node_out(0).writeEn := io.in.valid & io.in.bits.id === UInt(0)
-
   // uncomment to see all fetch packets passing through:
   //PrintableBundleStreamMonitor(io.in, Bool(true), "FetchInterconnect.in", true)
 }
@@ -269,8 +258,6 @@ class FetchStage(val myP: FetchStageParams) extends Module {
     val perf = new FetchStagePerfIO(myP)
     val bram = new FetchStageBRAMIO(myP)
     val dram = new FetchStageDRAMIO(myP)
-    // instructions fetched from DRAM
-    val instrs = Decoupled(UInt(width = myP.mrp.dataWidth))
   }
 
   /*when(io.start) {
@@ -314,26 +301,18 @@ class FetchStage(val myP: FetchStageParams) extends Module {
   routegen.bram_id_range := io.csr.bram_id_range
   FPGAQueue(routegen.out, 2) <> conn.in
 
-  // statically assign ID 0 for the instruction output
-  val instrNode = conn.node_out(0)
-  conn.instrq_ready := io.instrs.ready
-  io.instrs.valid := instrNode.writeEn
-  io.instrs.bits := instrNode.writeData
-  println("Instruction queue assigned to node# 0")
-
   // assign IDs to LHS and RHS memories for interconnect
-  // 0 is the instruction queue
-  // 1...numLHSMems are the LHS IDs
-  // numLHSMems+1..numLHSMems+numRHSMems are the RHS IDs
+  // 0...numLHSMems are the LHS IDs
+  // numLHSMems..numLHSMems+numRHSMems-1 are the RHS IDs
   for(i <- 0 until myP.numLHSMems) {
     val lhs_mem_ind =  i
-    val node_ind = i + 1
+    val node_ind = i
     io.bram.lhs_req(lhs_mem_ind) := conn.node_out(node_ind)
     println(s"LHS $lhs_mem_ind assigned to node# $node_ind")
   }
   for(i <- 0 until myP.numRHSMems) {
     val rhs_mem_ind = i
-    val node_ind = myP.numLHSMems + i + 1
+    val node_ind = myP.numLHSMems + i
     io.bram.rhs_req(rhs_mem_ind) := conn.node_out(node_ind)
     println(s"RHS $rhs_mem_ind assigned to node# $node_ind")
   }
