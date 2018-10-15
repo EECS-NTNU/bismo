@@ -535,19 +535,35 @@ void fill_thr_runcfg() {
     m_exec_op.push_back(m_acc->make_op(opSendToken, 0));
   }
 
-  void makeinstr_exec_sync_getresultbuffer() {
+  void makeinstr_exec_sync_getthrbuffer() {
     m_exec_op.push_back(m_acc->make_op(opReceiveToken, 1));
   }
 
-  void makeinstr_exec_sync_putresultbuffer() {
+  void makeinstr_exec_sync_putthrbuffer() {
     m_exec_op.push_back(m_acc->make_op(opSendToken, 1));
   }
 
-  void makeinstr_result_sync_getexecbuffer() {
+  void makeinstr_thr_sync_getexecbuffer() {
+    m_thr_op.push_back(m_acc->make_op(opReceiveToken, 0));
+  }
+
+  void makeinstr_thr_sync_putexecbuffer() {
+    m_thr_op.push_back(m_acc->make_op(opSendToken, 0));
+  }
+
+  void makeinstr_thr_sync_getresultbuffer() {
+    m_thr_op.push_back(m_acc->make_op(opReceiveToken, 1));
+  }
+
+  void makeinstr_thr_sync_putresultbuffer() {
+    m_thr_op.push_back(m_acc->make_op(opSendToken, 1));
+  }
+
+  void makeinstr_result_sync_getthrbuffer() {
     m_result_op.push_back(m_acc->make_op(opReceiveToken, 0));
   }
 
-  void makeinstr_result_sync_putexecbuffer() {
+  void makeinstr_result_sync_putthrbuffer() {
     m_result_op.push_back(m_acc->make_op(opSendToken, 0));
   }
 
@@ -757,7 +773,7 @@ void fill_thr_runcfg() {
               if(z_l2 == z_l2_per_matrix - 1) {
                 // about to finish a new stripe
                 // exec stage acquires new result buffer
-                makeinstr_exec_sync_getresultbuffer();
+                makeinstr_exec_sync_getthrbuffer();
               }
               ExecRunCfg erc;
               erc.numTiles = lhs_l0_per_l1;
@@ -776,10 +792,24 @@ void fill_thr_runcfg() {
 
               if(z_l2 == z_l2_per_matrix - 1) {
                 // finishing a stripe: release result buffer from exec
-                makeinstr_exec_sync_putresultbuffer();
+                makeinstr_exec_sync_putthrbuffer();
                 // result stage: acquire result buffer
-                makeinstr_result_sync_getexecbuffer();
-                // generate result
+                makeinstr_thr_sync_getexecbuffer();
+                /***************** THRESHOLDING CONFIGURATION *****************/
+
+                ThrRunCfg thrc;
+                thrc.actOffset = current_resmem_region;
+                thrc.thrOffset = 0;
+                thrc.runTimeThrNumber = m_acc->hwcfg().maxQuantDim;
+                thrc.writeEn = true;
+                thrc.writeAddr = 0;
+                makeinstr_thr_sync_getresultbuffer();
+                makeinstr_thr_sync_putresultbuffer();
+                makeinstr_result_sync_putthrbuffer();
+                makeinstr_result_sync_getthrbuffer();
+                makeinstr_thr_run(thrc);
+                /***************** END *****************/
+                            // generate result
                 ResultRunCfg rrc;
                 rrc.resmem_addr = current_resmem_region;
                 // find the inds of which L1 tile we are currently working on
@@ -790,7 +820,7 @@ void fill_thr_runcfg() {
                 rrc.waitComplete = false;
                 rrc.waitCompleteBytes = 0;
                 makeinstr_result_run(rrc);
-                makeinstr_result_sync_putexecbuffer();
+                makeinstr_thr_sync_putexecbuffer();
                 // use next resmem region for next time
                 current_resmem_region = current_resmem_region < resmem_regions-1 ? current_resmem_region + 1 : 0;
               }
@@ -805,12 +835,17 @@ void fill_thr_runcfg() {
     }
 
     /***************** THRESHOLDING CONFIGURATION *****************/
+    //TODO: Still needed or wrong up?
     ThrRunCfg thrc;
     thrc.actOffset = 0;
     thrc.thrOffset = 0;
     thrc.runTimeThrNumber = m_acc->hwcfg().maxQuantDim;
     thrc.writeEn = true;
     thrc.writeAddr = 0;
+    makeinstr_thr_sync_getresultbuffer();
+    makeinstr_thr_sync_putresultbuffer();
+    makeinstr_result_sync_putthrbuffer();
+    makeinstr_result_sync_getthrbuffer();
     makeinstr_thr_run(thrc);
     /***************** END *****************/
     // wait until all result writes are complete

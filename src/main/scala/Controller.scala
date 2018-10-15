@@ -160,19 +160,39 @@ class BaseController[Ts <: Bundle](
 // derived classes for each type of controller.
 class FetchController(val myP: FetchStageParams) extends BaseController(
   genStageO = new FetchStageCtrlIO(myP), inChannels = 1, outChannels = 1
-){ }
+){
+  val prevState = Reg(next=regState)
+  when(regState != prevState) {
+    printf("Fetch changed state: %d -> %d \n", prevState, regState)
+  }
+}
 
 class ExecController(val myP: ExecStageParams) extends BaseController(
   genStageO = new ExecStageCtrlIO(myP), inChannels = 2, outChannels = 2
-){ }
+){
+  val prevState = Reg(next=regState)
+  when(regState != prevState) {
+    printf("Exec changed state: %d -> %d \n", prevState, regState)
+  }
+}
 
 class ResultController(val myP: ResultStageParams) extends BaseController(
   genStageO = new ResultStageCtrlIO(myP), inChannels = 1, outChannels = 1
-){ }
+){
+  val prevState = Reg(next=regState)
+  when(regState != prevState) {
+    printf("Result changed state: %d -> %d \n", prevState, regState)
+  }
+}
 
 class ThresholdingController(val myP: ThrStageParams) extends BaseController(
   genStageO = new ThrStageCtrlIO(myP), inChannels =  2, outChannels = 2
-){ }
+){
+  val prevState = Reg(next=regState)
+  when(regState != prevState) {
+    printf("Thres changed state: %d -> %d \n", prevState, regState)
+  }
+}
 
 class P2BSController(val myP: Parallel2BSStageParams) extends BaseController(
   genStageO = new Parallel2BSStageCtrlIO(myP), inChannels =  2, outChannels = 2
