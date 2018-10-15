@@ -153,7 +153,7 @@ class BitSerialMatMulParams(
     resEntriesPerMem = resEntriesPerMem,
     resMemReadLatency = 0
   )
-    val thBBParams = new ThresholdingBuildingBlockParams(
+  val thBBParams = new ThresholdingBuildingBlockParams(
     inPrecision = accWidth, popcountUnroll = quantFolding,  outPrecision = maxQuantDim)
 
   val thuParams =  new ThresholdingUnitParams(
@@ -227,10 +227,10 @@ class BitSerialMatMulAccel(
     // performance counter I/O
     val perf = new BitSerialMatMulPerf(myP)
 
-    val inMemory_thr_sel_r = UInt(INPUT, width = log2Up(myP.getUnrollRows()))
-    val inMemory_thr_sel_c = UInt(INPUT, width = log2Up(myP.getUnrollCols()))
-    val inMemory_thr_addr = UInt(INPUT, width = log2Up(myP.thresholdMemDepth))
-    val inMemory_thr_data = UInt(INPUT, width = myP.getInBits())
+    val inMemory_thr_sel_r = UInt(INPUT, width = log2Up(myP.thrStageParams.getUnrollRows()))
+    val inMemory_thr_sel_c = UInt(INPUT, width = log2Up(myP.thrStageParams.getUnrollCols()))
+    val inMemory_thr_addr = UInt(INPUT, width = log2Up(myP.thrEntriesPerMem))
+    val inMemory_thr_data = UInt(INPUT, width = myP.accWidth)
     val inMemory_thr_write = Bool(INPUT)
   }
   io.hw := myP.asHWCfgBundle(32)

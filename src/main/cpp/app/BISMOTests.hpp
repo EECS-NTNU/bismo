@@ -56,18 +56,19 @@ bool test(
   generateRandomVector(nbits_lhs, nrows_lhs*ncols, lhs);
   generateRandomVector(nbits_rhs, nrows_rhs*ncols, rhs);
 
-  
-
+/**************************** THS transfer ****************************/
+  //TODO multi tile ths?
   for (int i = 0; i < nrows_lhs; i++)
   {
   	generateRandomVector(nbits_ths, ncols_ths, ths[i]);
   	cout << "Vector " << i;
-  	for(int j = 0; j < nrows_lhs; j++ ){
+  	for(int j = 0; j < ncols_ths; j++ ){
   		cout <<"Elems" << ths[i][j] << ", ";
+  		thsSingleTransfer(&ths[i][j], 0, i, j);
   	}
   	cout << endl;
   }
-
+/**************************** END ****************************/
 
   GEMMContext ctx = acc->allocGEMMContext(
     nrows_lhs, ncols, nrows_rhs, nbits_lhs, nbits_rhs, sgn_lhs, sgn_rhs

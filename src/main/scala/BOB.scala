@@ -401,7 +401,7 @@ class BOBAccel(
     m <- 0 until myP.dpaDimLHS
     n <- 0 until myP.quantFolding
   } {
-    thrmem(m)(n).ports(0).req := fetchStage.bram.thr_rq(m)(n)
+    //thrmem(m)(n).ports(0).req := fetchStage.bram.thr_rq(m)(n)
     thrmem(m)(n).ports(1).req := thrStage.inMemory.thr_req(m)(n)
     thrStage.inMemory.thr_rsp(m)(n) := thrmem(m)(n).ports(1).rsp
   }

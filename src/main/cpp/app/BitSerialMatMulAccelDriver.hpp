@@ -153,42 +153,20 @@ public:
   float fclk_MHz() const {
     return m_fclk;
   }
-
-/*******************************************
-//TODO: Should update here for ths?
-*******************************************/
-/*
-void BramSingleTransfer(uint64_t *mat ,int addr, bool activations, int sel_r, int sel_c){
-  cout << "Single Transfer to BRAM of " << *mat; 
-  cout << " at address "<< addr << " in act(1)/thr(0)"<< activations;
-  cout << " Row "<< sel_r << " Cols " << sel_c << endl;
-  if (activations)
-  {
-    dut->set_inMemory_act_sel_r(sel_r);
-    dut->set_inMemory_act_sel_c(sel_c);
-    dut->set_inMemory_act_addr(addr);
-    dut->set_inMemory_act_data(*mat);
-    dut->set_inMemory_act_write(1);
-    dut->set_inMemory_act_write(0);
-
-  }else{
-    dut->set_inMemory_thr_sel_r(sel_r);
-    dut->set_inMemory_thr_sel_c(sel_c);
-    dut->set_inMemory_thr_addr(addr);
-    dut->set_inMemory_thr_data(*mat);
-    dut->set_inMemory_thr_write(1);
-    dut->set_inMemory_thr_write(0);
-  }
+/**************************** THS transfer ****************************/
+//THS single elem transfer
+void thsSingleTransfer(int32_t *mat ,int addr, int sel_r, int sel_c){
+  cout << "Single Transfer to THS of " << *mat; 
+  cout << " at address= "<< addr;
+  cout << " Row= "<< sel_r << " Cols= " << sel_c << endl;
+    m_accel->set_inMemory_thr_sel_r(sel_r);
+    m_accel->set_inMemory_thr_sel_c(sel_c);
+    m_accel->set_inMemory_thr_addr(addr);
+    m_accel->set_inMemory_thr_data(*mat);
+    m_accel->set_inMemory_thr_write(1);
+    m_accel->set_inMemory_thr_write(0);
  }
-
-    for(int i = 0; i < ROWS; i++){
-      for (int j = 0; j < THS; j++)
-      {
-        BramSingleTransfer(&(th[i][j]),0,false,i,j);
-        
-      }
-    }
-*/
+/**************************** END ****************************/
 
   // allocate a GEMMContext compliant with the accelerator size
   gemmbitserial::GEMMContext allocGEMMContext(
