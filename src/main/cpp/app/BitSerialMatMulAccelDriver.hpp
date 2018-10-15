@@ -452,6 +452,15 @@ public:
     std::cout << std::endl;
   }
 
+  void printTokenCounts() const {
+    cout << "Tokens counts: ";
+    cout << "ef = " << m_accel->get_tc_ef() << " ";
+    cout << "fe = " << m_accel->get_tc_fe() << " ";
+    cout << "er = " << m_accel->get_tc_er() << " ";
+    cout << "re = " << m_accel->get_tc_re() << " ";
+    cout << endl;
+  }
+
   // print a summary of the hardware config
   void print_hwcfg_summary() const {
     cout << "accWidth = " << m_cfg.accWidth << endl;
