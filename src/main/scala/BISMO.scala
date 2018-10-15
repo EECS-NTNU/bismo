@@ -254,6 +254,10 @@ class BitSerialMatMulAccel(
     val tc_ef = UInt(OUTPUT, 32)
     val tc_re = UInt(OUTPUT, 32)
     val tc_er = UInt(OUTPUT, 32)
+    // pulse to add new tokens to the queues indicating "empty" buffers
+    // are available
+    val addtoken_ef = Bool(INPUT)
+    val addtoken_re = Bool(INPUT)
     // written bytes
     val completed_writes = UInt(OUTPUT, 32)
 
@@ -459,14 +463,29 @@ class BitSerialMatMulAccel(
     execStage.tilemem.rhs_rsp(m) := tilemem_rhs(m).ports(1).rsp
     //when(tilemem_rhs(m).ports(0).req.writeEn) { printf("RHS BRAM %d write: addr %d data %x\n", UInt(m), tilemem_rhs(m).ports(0).req.addr, tilemem_rhs(m).ports(0).req.writeData) }
   }
-  // wire-up: shared resource management (fetch and exec controllers)
-  execCtrl.sync_out(0) <> syncFetchExec_free.enq
+  
+  // wire-up: shared resource management
+  // the "free" queues are initially filled by pulsing top-level I/O signals,
+  // so use arbiters to mix top-level and controller-emitted signals
+  // these 2 inputs are not used simultaneously in practice though
+  val syncFetchExec_free_mix = Module(new Arbiter(Bool(), 2)).io
+  //execCtrl.sync_out(0) <> syncFetchExec_free.enq
+  execCtrl.sync_out(0) <> syncFetchExec_free_mix.in(0)
+  syncFetchExec_free_mix.in(1).valid := io.addtoken_ef & !Reg(next=io.addtoken_ef)
+  syncFetchExec_free_mix.in(1).bits := Bool(false) // don't care, value ignored
+  syncFetchExec_free_mix.out <> syncFetchExec_free.enq
+
+  val syncExecResult_free_mix = Module(new Arbiter(Bool(), 2)).io
+  //resultCtrl.sync_out(0) <> syncExecResult_free.enq
+  resultCtrl.sync_out(0) <> syncExecResult_free_mix.in(0)
+  syncExecResult_free_mix.in(1).valid := io.addtoken_re & !Reg(next=io.addtoken_re)
+  syncExecResult_free_mix.in(1).bits := Bool(false) // don't care, value ignored
+  syncExecResult_free_mix.out <> syncExecResult_free.enq
+
   syncFetchExec_free.deq <> fetchCtrl.sync_in(0)
   fetchCtrl.sync_out(0) <> syncFetchExec_filled.enq
   syncFetchExec_filled.deq <> execCtrl.sync_in(0)
 
-  // wire-up: shared resource management (exec and result stages)
-  resultCtrl.sync_out(0) <> syncExecResult_free.enq
   syncExecResult_free.deq <> execCtrl.sync_in(1)
   execCtrl.sync_out(1) <> syncExecResult_filled.enq
   syncExecResult_filled.deq <> resultCtrl.sync_in(0)

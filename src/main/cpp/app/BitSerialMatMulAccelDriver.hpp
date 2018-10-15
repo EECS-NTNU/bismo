@@ -459,28 +459,29 @@ public:
     return ins;
   }
 
+  void add_token_fetchexec_free() {
+    m_accel->set_addtoken_ef(1);
+    m_accel->set_addtoken_ef(0);
+  }
+
+  void add_token_execresult_free() {
+    m_accel->set_addtoken_re(1);
+    m_accel->set_addtoken_re(0);
+  }
+
   // initialize the tokens in FIFOs representing shared resources
   // this also serves as a sanity check for basic functionality in the hardware
   void init_resource_pools() {
-    // emit tokens from exec stage into the exec-fetch token queue
+    set_stage_enables(0, 0, 0);
     for(int i = 0; i < FETCHEXEC_TOKENS; i++) {
-      push_instruction_dram(make_sync_instr(stgExec, true, 0));
+      add_token_fetchexec_free();
     }
-    create_instr_stream(stgExec);
-    // run instr fetches for exec + exec for the actual token init
-    set_stage_enables(1, 1, 0);
     while(m_accel->get_tc_ef() != FETCHEXEC_TOKENS);
-    set_stage_enables(0, 0, 0);
-    // emit tokens from result stage into the result-exec token queue
+
     for(int i = 0; i < EXECRES_TOKENS; i++) {
-      push_instruction_dram(make_sync_instr(stgResult, true, 0));
+      add_token_execresult_free();
     }
-    create_instr_stream(stgResult);
-    // issue instr fetches for res + run res for token init
-    set_stage_enables(1, 0, 1);
     while(m_accel->get_tc_re() != EXECRES_TOKENS);
-    set_stage_enables(0, 0, 0);
-    clearInstrBuf();
   }
 
   // get the instantiated hardware config
