@@ -156,9 +156,9 @@ public:
 /**************************** THS transfer ****************************/
 //THS single elem transfer
 void thsSingleTransfer(int32_t *mat ,int addr, int sel_r, int sel_c){
-  cout << "Single Transfer to THS of " << *mat; 
-  cout << " at address= "<< addr;
-  cout << " Row= "<< sel_r << " Cols= " << sel_c << endl;
+  //cout << "Single Transfer to THS of " << *mat; 
+  //cout << " at address= "<< addr;
+  //cout << " Row= "<< sel_r << " Cols= " << sel_c << endl;
     m_accel->set_inMemory_thr_sel_r(sel_r);
     m_accel->set_inMemory_thr_sel_c(sel_c);
     m_accel->set_inMemory_thr_addr(addr);
@@ -474,6 +474,7 @@ void thsSingleTransfer(int32_t *mat ,int addr, int sel_r, int sel_c){
   // initialize the tokens in FIFOs representing shared resources
   //TODO FOR BOB
   void init_resource_pools() {
+    cout << "[DEBUG] INIT RESOURCES" << endl;
     set_stage_enables(0, 0, 0, 0);
     for(int i = 0; i < FETCHEXEC_TOKENS; i++) {
       push_exec_op(make_op(opSendToken, 0));
@@ -488,7 +489,7 @@ void thsSingleTransfer(int32_t *mat ,int addr, int sel_r, int sel_c){
     assert(m_accel->get_thr_op_count() == EXECTHR_TOKENS);
     set_stage_enables(0, 0, 1, 0);
     while(m_accel->get_result_op_count() != 0);
-
+    cout << "[DEBUG] MID" << endl;
     set_stage_enables(0, 0, 0, 0);
     for(int i = 0; i < THRRES_TOKENS; i++) {
       push_result_op(make_op(opSendToken, 0));
@@ -497,6 +498,7 @@ void thsSingleTransfer(int32_t *mat ,int addr, int sel_r, int sel_c){
     set_stage_enables(0, 0, 0, 1);
     while(m_accel->get_result_op_count() != 0);
     set_stage_enables(0, 0, 0, 0);
+    cout << "[DEBUG] end of init RESOURCES" << endl;
   }
 
   // get the instantiated hardware config
@@ -517,7 +519,7 @@ void thsSingleTransfer(int32_t *mat ,int addr, int sel_r, int sel_c){
     cout << "rhsEntriesPerMem = " << m_cfg.rhsEntriesPerMem << endl;
     cout << "writeChanWidth = " << m_cfg.writeChanWidth << endl;
     cout << "thrEntriesPerMem = " << m_cfg.thrEntriesPerMem << endl;
-    cout << "MaxQuantDim = " <, m_cfg.maxQuantDim << endl; 
+    cout << "MaxQuantDim = " << m_cfg.maxQuantDim << endl; 
     cout << "quantFolding = " << m_cfg.quantFolding << endl;
   }
 

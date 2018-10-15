@@ -33,12 +33,23 @@
 #include <string>
 #include <iostream>
 #include <vector>
+#include <cmath>
 using namespace std;
 #include "BitSerialMatMulAccelDriver.hpp"
 #include "BitSerialMatMulExecutor.hpp"
 #include "gemmbitserial/test/testhelpers.hpp"
 
 using namespace gemmbitserial;
+
+void generateRandMatrixInt(size_t bits, size_t rows, size_t cols, int32_t** ret) {
+  int32_t minVal = 0;
+  int32_t maxVal = (1 << bits);
+  for(size_t i = 0; i < rows; i++) {
+  	for(size_t j = 0; j < cols; j++){
+	    ret[i][j] = (int32_t) (rand() % maxVal);
+  	}
+  }
+}
 
 // BISMO top-level tests
 
@@ -47,24 +58,31 @@ bool test(
   WrapperRegDriver * platform, BitSerialMatMulAccelDriver * acc,
   size_t nrows_lhs, size_t nrows_rhs, size_t ncols, size_t nbits_lhs = 1,
   size_t nbits_rhs = 1, bool sgn_lhs = false, bool sgn_rhs = false,
-  size_t ncols_ths, size_t nbits_ths = 1, bool sgn_ths = false
+  size_t ncols_ths= 15, size_t nbits_ths = 1, bool sgn_ths = false
 ) {
   uint8_t * lhs = new uint8_t[nrows_lhs * ncols];
   uint8_t * rhs = new uint8_t[nrows_rhs * ncols];
-  int32_t * ths = new int32_t[nrows_lhs][ncols_ths];
+  int32_t ** ths = new int32_t*[nrows_lhs];
+  for (int i = 0; i < nrows_lhs; ++i)
+  {
+  	ths[i] = new int32_t[ncols_ths];
+  }
 
   generateRandomVector(nbits_lhs, nrows_lhs*ncols, lhs);
   generateRandomVector(nbits_rhs, nrows_rhs*ncols, rhs);
 
 /**************************** THS transfer ****************************/
+  generateRandMatrixInt(4, nrows_lhs, ncols_ths, ths);
+
   //TODO multi tile ths?
   for (int i = 0; i < nrows_lhs; i++)
   {
-  	generateRandomVector(nbits_ths, ncols_ths, ths[i]);
-  	cout << "Vector " << i;
+  	//TODO random vector for more than 8 bits
+  	//generateRandMatrixInt(4, ncols_ths, &(ths[i]);
+  	cout << "Vector " << i << endl;
   	for(int j = 0; j < ncols_ths; j++ ){
-  		cout <<"Elems" << ths[i][j] << ", ";
-  		thsSingleTransfer(&ths[i][j], 0, i, j);
+  		cout <<" Elem" << *(*(ths + i)+j) << ", ";
+  		acc->thsSingleTransfer(&ths[i][j], 0, i, j);
   	}
   	cout << endl;
   }
@@ -104,7 +122,12 @@ bool test(
 
   delete [] lhs;
   delete [] rhs;
+  for (int i = 0; i < nrows_lhs; ++i)
+  {
+  	delete[] ths[i];
+  }
   delete [] ths;
+
   delete [] accel_res;
 
   return res == 0;
@@ -120,7 +143,7 @@ bool test_binary_onchip_onetile(
       "binary_onchip_onetile_coldiv" + to_string(col_div), platform, acc,
       acc->hwcfg().dpaDimLHS, acc->hwcfg().dpaDimRHS,
       acc->hwcfg().dpaDimCommon * acc->hwcfg().lhsEntriesPerMem / col_div,
-      1,1,false,false, std::pow(2,acc->hwcfg.maxQuantDim)-1, acc->hwcfg().accWidth, false
+      1,1,false,false, std::pow(2,acc->hwcfg().maxQuantDim)-1, acc->hwcfg().accWidth, false
     );
   }
 
@@ -135,7 +158,7 @@ bool test_binary_size_independent(
     "binary_size_independent_",
     platform, acc,
     17, 7, 11,
-    1,1,false,false, std::pow(2,acc->hwcfg.maxQuantDim)-1, acc->hwcfg().accWidth, false
+    1,1,false,false, std::pow(2,acc->hwcfg().maxQuantDim)-1, acc->hwcfg().accWidth, false
   );
 
   return all_OK;
@@ -155,7 +178,7 @@ bool test_binary_onchip_multitile(
         "binary_onchip_multitile_" +
         to_string(nrows_lhs) + "x" + to_string(ncols) + "x"+ to_string(nrows_rhs),
         platform, acc, nrows_lhs, nrows_rhs, ncols,
-        1,1,false,false, std::pow(2,acc->hwcfg.maxQuantDim)-1, acc->hwcfg().accWidth, false
+        1,1,false,false, std::pow(2,acc->hwcfg().maxQuantDim)-1, acc->hwcfg().accWidth, false
       );
     }
   }
@@ -176,7 +199,7 @@ bool test_binary_offchip_multitile(
         "binary_offchip_multitile_" +
         to_string(nrows_lhs) + "x" + to_string(ncols) + "x"+ to_string(nrows_rhs),
         platform, acc, nrows_lhs, nrows_rhs, ncols,
-        1,1,false,false, std::pow(2,acc->hwcfg.maxQuantDim)-1, acc->hwcfg().accWidth, false
+        1,1,false,false, std::pow(2,acc->hwcfg().maxQuantDim)-1, acc->hwcfg().accWidth, false
       );
     }
   }
@@ -199,7 +222,7 @@ bool test_binary_offchip_widerows_multitile(
           "test_binary_offchip_widerows_multitile_" +
           to_string(nrows_lhs) + "x" + to_string(ncols) + "x"+ to_string(nrows_rhs),
           platform, acc, nrows_lhs, nrows_rhs, ncols,
-          1,1,false,false, std::pow(2,acc->hwcfg.maxQuantDim)-1, acc->hwcfg().accWidth, false
+          1,1,false,false, std::pow(2,acc->hwcfg().maxQuantDim)-1, acc->hwcfg().accWidth, false
         );
       }
     }

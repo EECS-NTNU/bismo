@@ -153,13 +153,16 @@ public:
     fill_thr_runcfg();
     fill_result_op();
     fill_result_runcfg();
+    cout << "[DEBUG] Filled and not enabled stages" << endl;
     // start the cycle counter
     m_acc->perf_set_cc_enable(true);
     // enable all stages
     m_acc->set_stage_enables(1, 1, 1, 1);
     // run the generated schedule -- keep pushing operands until all generated
     // instructions have been pushed
+    cout << "[DEBUG] Now will wait for all pushed" << endl;
     while(!allPushed()) {
+      cout << "[DEBUG] Still waiting..." << endl;
       fill_fetch_op();
       fill_fetch_runcfg();
       fill_exec_op();
@@ -171,11 +174,15 @@ public:
     }
     // wait until the result stage has no instructions std::left (= all finished)
     while(!allFinished());
+    cout << "[DEBUG] ALL finished" << endl;
     // disable all stages
     m_acc->set_stage_enables(0, 0, 0,0);
+    cout << "[DEBUG] OOGHEI" << endl;
     // stop the cycle counter
     m_acc->perf_set_cc_enable(false);
+    cout << "[DEBUG] SGHIRIBENZI" << endl;
     m_cycles = m_acc->perf_get_cc();
+    cout << "[DEBUG] GNAAAAA" << endl;
     // fetch the number of cycles spent in different states for each stage
     updateFetchStateCounters();
     updateExecStateCounters();
@@ -428,6 +435,11 @@ protected:
     m_exec_runcfg.push_back(r);
   }
 
+  void makeinstr_thr_run(ThrRunCfg thr){
+    m_thr_op.push_back(m_acc->make_op(opRun, 0));
+    m_thr_runcfg.push_back(thr);
+  }
+
   void makeinstr_result_run(ResultRunCfg rrc) {
     // ensure generated runcfg for result is valid
     m_acc->verifyResultRunCfg(rrc);
@@ -439,8 +451,8 @@ protected:
 
   void clear_all_queue_pointers() {
     // set queue pointers to zero
-    m_fetch_op_ptr = m_result_op_ptr = m_exec_op_ptr = 0;
-    m_fetch_runcfg_ptr = m_result_runcfg_ptr = m_exec_runcfg_ptr = 0;
+    m_fetch_op_ptr = m_result_op_ptr = m_exec_op_ptr = m_thr_op_ptr = 0;
+    m_fetch_runcfg_ptr = m_result_runcfg_ptr = m_exec_runcfg_ptr = m_thr_runcfg_ptr = 0;
   }
 
   // whether all instruction execution has finished
@@ -454,6 +466,7 @@ protected:
     return
       m_fetch_op_ptr == m_fetch_op.size() &&
       m_exec_op_ptr == m_exec_op.size() &&
+      m_thr_op_ptr == m_thr_op.size() &&
       m_result_op_ptr == m_result_op.size();
   }
 
@@ -790,6 +803,16 @@ void fill_thr_runcfg() {
         }
       }
     }
+
+    /***************** THRESHOLDING CONFIGURATION *****************/
+    ThrRunCfg thrc;
+    thrc.actOffset = 0;
+    thrc.thrOffset = 0;
+    thrc.runTimeThrNumber = m_acc->hwcfg().maxQuantDim;
+    thrc.writeEn = true;
+    thrc.writeAddr = 0;
+    makeinstr_thr_run(thrc);
+    /***************** END *****************/
     // wait until all result writes are complete
     ResultRunCfg rrc;
     rrc.waitComplete = true;
