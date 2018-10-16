@@ -101,6 +101,19 @@ struct BISMOResultRunInstruction {
   uint64_t dram_base : 32;
   uint64_t dram_skip : 16;
   uint64_t waitCompleteBytes : 16; // deprecated, do not use
+
+  ap_uint<128> asRaw() {
+    ap_uint<128> ret = 0;
+    ret(1, 0) = targetStage;
+    ret(2, 2) = isRunCfg;
+    ret(61, 3) = unused0;
+    ret(62, 62) = nop;
+    ret(63, 63) = resmem_addr;
+    ret(95, 64) = dram_base;
+    ret(111, 96) = dram_skip;
+    ret(127, 112) = waitCompleteBytes;
+    return ret;
+  }
 };
 
 struct SingleMMDescriptor {
