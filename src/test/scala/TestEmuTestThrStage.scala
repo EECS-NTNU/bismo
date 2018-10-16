@@ -26,7 +26,7 @@ class TestEmuTestThrStage extends JUnitSuite {
       val in_len = dut.myP.getInBits()
       //  number of bits for the output matrix
       val out_len = dut.myP.thuParams.maxOutputBitPrecision
-      val thNumber = 1//dut.myP.maxThresholdNumber
+      val thNumber = dut.myP.maxThresholdNumber//1//dut.myP.maxThresholdNumber
       // spatial dimensions of the array
       val m = dut.myP.getRows()
       val n = dut.myP.getCols()
@@ -40,10 +40,10 @@ class TestEmuTestThrStage extends JUnitSuite {
 
       for(i <- 1 to num_seqs) {
 
-        val a = Seq(Seq(1,2,3),Seq(4,5,6))//RosettaTestHelpers.randomIntMatrix(m, n, in_len, negVal)
+        val a = /*Seq(Seq(1,2,3),Seq(4,5,6))*/RosettaTestHelpers.randomIntMatrix(m, n, 8, negVal)
         println("Matrix a")
         printMatrix(a)
-        val th = Seq(Seq(1),Seq(0))//RosettaTestHelpers.randomIntMatrix(m, thNumber, in_len, negTh)
+        val th = RosettaTestHelpers.randomIntMatrix(m,thNumber,4,negTh)/*= Seq(Seq(1),Seq(0))*/ //RosettaTestHelpers.randomInt(m, thNumber, in_len, negTh)
         println("matrrix th")
         printMatrix(th)
         val golden = RosettaTestHelpers.quantizeMatrix(a, th)
@@ -55,7 +55,7 @@ class TestEmuTestThrStage extends JUnitSuite {
         //var tmp_act : BigInt = 0
         //Control part
           // care on this that change results on test
-          poke(dut.io.ctrl.runTimeThrNumber, scala.math.BigInt.apply(1))
+          poke(dut.io.ctrl.runTimeThrNumber, scala.math.BigInt.apply(65535))
           poke(dut.io.ctrl.actOffset, scala.math.BigInt.apply(0))
           poke(dut.io.ctrl.thrOffset, scala.math.BigInt.apply(0))
           poke(dut.io.ctrl.writeEn, scala.math.BigInt.apply(1))
@@ -127,10 +127,10 @@ class TestEmuTestThrStage extends JUnitSuite {
 
     for{
       rows <- 2 to 2
-      cols <- 3 to 3
+      cols <- 2 to 2
       inBit <- 32 to 32
-      outBit <- 2 to 2
-      unroll <- 3 to 3
+      outBit <- 4 to 4
+      unroll <- 15 to 15
     } {
       val emuP = TesterWrapperParams
       def testModuleInstFxn = () => { Module(new EmuTestThrStage(rows,cols,inBit,outBit, unroll, emuP)) }

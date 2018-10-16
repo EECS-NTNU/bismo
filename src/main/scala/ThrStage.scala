@@ -212,10 +212,10 @@ class ThrStage(val myP: ThrStageParams) extends Module{
   val end_pulse = end & !end_r
   io.done := (end_pulse | end_r)
   /*************DEBUG PRINT*************/
-  when(end_pulse | end_r){
-    Debugger.log("[HW: Thr Stage] Thresholding stage Done\n", 0)
-    // printf("[HW: Thr Stage] Thresholding stage Done\n")
-  }
+//  when(end_pulse | end_r){
+//    Debugger.log("[HW: Thr Stage] Thresholding stage Done\n", 0)
+//    // printf("[HW: Thr Stage] Thresholding stage Done\n")
+//  }
   /*************   END   *************/
 
   val i = Reg(init = UInt(0, width = 32))

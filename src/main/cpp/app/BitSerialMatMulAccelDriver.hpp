@@ -156,9 +156,9 @@ public:
 /**************************** THS transfer ****************************/
 //THS single elem transfer
 void thsSingleTransfer(int32_t *mat ,int addr, int sel_r, int sel_c){
-  cout << "Single Transfer to THS of " << *mat; 
-  cout << " at address= "<< addr;
-  cout << " Row= "<< sel_r << " Cols= " << sel_c << endl;
+  // cout << "Single Transfer to THS of " << *mat; 
+  // cout << " at address= "<< addr;
+  // cout << " Row= "<< sel_r << " Cols= " << sel_c << endl;
     m_accel->set_inMemory_thr_sel_r(sel_r);
     m_accel->set_inMemory_thr_sel_c(sel_c);
     m_accel->set_inMemory_thr_addr(addr);

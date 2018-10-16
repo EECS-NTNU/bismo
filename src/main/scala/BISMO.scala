@@ -430,11 +430,11 @@ class BitSerialMatMulAccel(
     val myWriteEn = (io.inMemory_thr_sel_r === UInt(m) && io.inMemory_thr_sel_c === UInt(n)) & io.inMemory_thr_write
     thrmem(m)(n).ports(0).req.writeEn := myWriteEn
     /*************** DEBUG PRINT **************/
-    when(myWriteEn){
-      //Debugger.log("[HW: TOP-lvl] Input Thr" + io.inMemory_thr_data + " with write enable "
-      //  + io.inMemory_thr_write + " and address " +  io.inMemory_thr_sel_r + " " + io.inMemory_thr_sel_c  + "\n", myP.debugLevel)
-      printf("[HW: TOP-lvl] Input Thr %d with write enable %d and address %d %d\n", io.inMemory_thr_data, io.inMemory_thr_write,io.inMemory_thr_sel_r, io.inMemory_thr_sel_c)
-      }
+    // when(myWriteEn){
+    //   //Debugger.log("[HW: TOP-lvl] Input Thr" + io.inMemory_thr_data + " with write enable "
+    //   //  + io.inMemory_thr_write + " and address " +  io.inMemory_thr_sel_r + " " + io.inMemory_thr_sel_c  + "\n", myP.debugLevel)
+    //   printf("[HW: TOP-lvl] Input Thr %d with write enable %d and address %d %d\n", io.inMemory_thr_data, io.inMemory_thr_write,io.inMemory_thr_sel_r, io.inMemory_thr_sel_c)
+    //   }
     /***************   END   **************/
     //thrmem(m)(n).ports(0).req := fetchStage.bram.thr_rq(m)(n)
     thrmem(m)(n).ports(1).req := thrStage.inMemory.thr_req(m)(n)

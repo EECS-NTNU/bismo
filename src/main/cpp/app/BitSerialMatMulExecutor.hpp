@@ -800,7 +800,7 @@ void fill_thr_runcfg() {
                 ThrRunCfg thrc;
                 thrc.actOffset = current_resmem_region;
                 thrc.thrOffset = 0;
-                thrc.runTimeThrNumber = std::pow(2,m_acc->hwcfg().maxQuantDim)-1;// m_acc->hwcfg().maxQuantDim;
+                thrc.runTimeThrNumber = (65535);//(1 << (std::pow(2,m_acc->hwcfg().maxQuantDim)-1)) - 1 );// m_acc->hwcfg().maxQuantDim;
                 thrc.writeEn = true;
                 thrc.writeAddr = 0;
                 makeinstr_thr_sync_getresultbuffer();

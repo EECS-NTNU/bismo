@@ -51,6 +51,29 @@ void generateRandMatrixInt(size_t bits, size_t rows, size_t cols, int32_t** ret)
   }
 }
 
+
+  //helper funtction to quantize a given matrix with a given matrix of thresholds
+void quantizeMatrix(int32_t * a, int32_t ** b, size_t arows, size_t acols, size_t bcols, int32_t ** r ){
+    for (int i = 0; i < arows; i++)
+      for (int j = 0; j < acols; j++)
+        for (int k = 0; k < bcols; k++)
+        {
+          if(a[i * acols + j] > b[i][k]){
+            r[i][j]++;
+          }
+        }
+  }
+
+void printmatrixInt(int32_t ** mat, int rows, int cols) {
+  for(int i = 0; i < rows; i++) {
+    for(int j = 0; j < cols; j++) {
+      std::cout << (int) mat[i][j] << " ";
+    }
+    std::cout << std::endl;
+  }
+  std::cout << std::endl;
+}
+ 
 // BISMO top-level tests
 
 bool test(
@@ -60,29 +83,46 @@ bool test(
   size_t nbits_rhs = 1, bool sgn_lhs = false, bool sgn_rhs = false,
   size_t ncols_ths= 15, size_t nbits_ths = 1, bool sgn_ths = false
 ) {
+  //This is for tiling
+  size_t ths_rows = nrows_lhs * (nrows_lhs / nrows_rhs);
+
   uint8_t * lhs = new uint8_t[nrows_lhs * ncols];
   uint8_t * rhs = new uint8_t[nrows_rhs * ncols];
-  int32_t ** ths = new int32_t*[nrows_lhs];
-  for (int i = 0; i < nrows_lhs; ++i)
+
+  int32_t ** ths = new int32_t*[ths_rows];
+  int32_t ** qres = new int32_t*[ths_rows];
+  //Allocation of different matrix
+  for (int i = 0; i < ths_rows; ++i)
   {
   	ths[i] = new int32_t[ncols_ths];
+    qres[i] = new int32_t[nrows_lhs];
   }
-
+  //Init quantized res matrix
+  for (int i = 0; i < ths_rows; i++)
+    for (int j = 0; j < nrows_lhs; j++)
+    {
+      qres[i][j] = 0;
+    }
   generateRandomVector(nbits_lhs, nrows_lhs*ncols, lhs);
   generateRandomVector(nbits_rhs, nrows_rhs*ncols, rhs);
 
 /**************************** THS transfer ****************************/
-  generateRandMatrixInt(4, nrows_lhs, ncols_ths, ths);
+  
+  generateRandMatrixInt(4, ths_rows, ncols_ths, ths);
+  printmatrixInt(ths, ths_rows, ncols_ths  );
 
   //TODO multi tile ths?
-  for (int i = 0; i < nrows_lhs; i++)
+  for (int i = 0; i < ths_rows; i++)
   {
   	//TODO random vector for more than 8 bits
   	//generateRandMatrixInt(4, ncols_ths, &(ths[i]);
   	//cout << "Vector " << i << endl;
   	for(int j = 0; j < ncols_ths; j++ ){
   		//cout <<" Elem" << *(*(ths + i)+j) << " " <<  i << ", "<< j << ";";
+
+      /******************************************************************/
       //TODO loading on different address depending on the rolling factor
+      /******************************************************************/
   		acc->thsSingleTransfer(&ths[i][j], 0, i, j);
   	}
   	cout << endl;
@@ -105,7 +145,13 @@ bool test(
   runner->run();
   runner->getRes(accel_res);
 
+
+  quantizeMatrix(ctx.res, ths, ths_rows, nrows_lhs, ncols_ths, qres);
+
   int res = memcmp(ctx.res, accel_res, nrows_lhs*nrows_rhs*sizeof(ResultType));
+  //TODO final verification miss
+  //int resq = memcmp(qres,accel_res,nrows_lhs*nrows_rhs*sizeof(ResultType));
+  //cout << "Quantization comparison result: " << resq << endl;
 
   if(res == 0) {
     cout << "Test succeeded (" << testName << ")" << endl;
@@ -117,6 +163,8 @@ bool test(
     printmatrix(ctx.res, nrows_rhs, nrows_lhs);
     cout << "Produced: " << endl;
     printmatrix(accel_res, nrows_rhs, nrows_lhs);
+    cout << "Quantized: " << endl;
+    printmatrixInt(qres, nrows_rhs, nrows_lhs);
   }
 
   delete runner;
@@ -126,8 +174,11 @@ bool test(
   for (int i = 0; i < nrows_lhs; ++i)
   {
   	delete[] ths[i];
+    delete[] qres[i];
   }
   delete [] ths;
+  delete [] qres;
+
 
   delete [] accel_res;
 

@@ -72,5 +72,6 @@ class ThresholdingBuildingBlock(val p: ThresholdingBuildingBlockParams) extends 
       next_value := popcountVector + outReg
     }
   	io.outValue := outReg
+    //printf("[HW: THBB] Output : %d\n", outReg)
 
 }

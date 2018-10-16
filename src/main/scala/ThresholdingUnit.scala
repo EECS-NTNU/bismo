@@ -24,7 +24,7 @@ class ThresholdingUnitParams(
   val matrixColumns : Int,
   // unrolling factor
   //unrolling in the dimension of the popcount thus the parallel thresholds
-  val unrollingFactorOutputPrecision : Int = 16,
+  val unrollingFactorOutputPrecision : Int = 15,
   //unrolling factor for the input matrix rows
   val unrollingFactorRows : Int = 1,
   //unrolling factor for the columns of the input matrix
@@ -79,7 +79,7 @@ class ThresholdingOutputMatrixIO (val p: ThresholdingUnitParams) extends Bundle{
 }
 
 class ThresholdingInputThresholdIO (val p: ThresholdingUnitParams) extends Bundle{
-  val thresholdCount = UInt(INPUT, width = log2Up(p.maxOutputBitPrecision) + 1)
+  val thresholdCount = UInt(INPUT, width = p.unrollingFactorOutputPrecision)
   val thresholdData = Vec.fill(p.matrixRows){Vec.fill(p.unrollingFactorOutputPrecision){Bits(INPUT, width = p.inputBitPrecision)}}
 
   override def cloneType: this.type =
@@ -125,7 +125,7 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
   // If rolled then count till the run-time number otherwise is 1 (quantize no more than that width)
   val runTimeLatency = if(p.unrollingFactorOutputPrecision == 1) {io.thInterf.thresholdCount} else { UInt(1, width = log2Up(p.thresholdLatency))}
   // More threhsolds than the really needed will be filtered with this mask
-  val input_mask = Reg(init = UInt(0, width = p.unrollingFactorOutputPrecision), next = io.thInterf.thresholdCount & UInt(p.unrollingFactorOutputPrecision))
+  val input_mask = Reg(init = UInt(0, width = p.unrollingFactorOutputPrecision), next = io.thInterf.thresholdCount )
 
   val sInit::sThRoll::sEnd::Nil = Enum(UInt(),3)
   val unitState = Reg(init = sInit)
@@ -155,8 +155,9 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
           /*************DEBUG PRINT*************/
           //Debugger.log("[HW: THU] InData value "+UInt(i)+", "+UInt(j)+": "+inData(i)(j)+"\n",1)
           //Debugger.log("[HW: THU] ThData value "+UInt(i)+", "+UInt(k)+": "+thData(i)(k)+"\n",1)
-          printf("[HW: THU] InData value %d, %d: %d\n", UInt(i), UInt(j),inData(i)(j) )
-          printf("[HW: THU] ThData value %d, %d: %d\n", UInt(i), UInt(k),thData(i)(k) )
+          //printf("[HW: THU] InData value %d, %d: %d\n", UInt(i), UInt(j),inData(i)(j) )
+          //printf("[HW: THU] ThData value %d, %d: %d\n", UInt(i), UInt(k),thData(i)(k) )
+          //printf("[HW: THU] Clear Acc value %d, %d: %d\n", UInt(i), UInt(k), thuBB(i)(j).clearAcc)
           
         }
     thCounter := thCounter + UInt(1)
@@ -168,12 +169,12 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
     outValid := Bool(true)
     when(io.outputMatrix.ready){
       /*************DEBUG PRINT*************/
-      for (i <- 0 until p.unrollingFactorRows)
-        for (j <- 0 until p.unrollingFactorColumns){
-          //Debugger.log("[HW: THU] Out Data value "+UInt(i)+", "+UInt(j)+": "+outData(i)(j)+"\n",1)
-
-          printf("[HW: THU] Out Data value %d, %d: %d\n", UInt(i), UInt(j),outData(i)(j) )
-        }
+//      for (i <- 0 until p.unrollingFactorRows)
+//        for (j <- 0 until p.unrollingFactorColumns){
+//          //Debugger.log("[HW: THU] Out Data value "+UInt(i)+", "+UInt(j)+": "+outData(i)(j)+"\n",1)
+//
+//          printf("[HW: THU] Out Data value %d, %d: %d\n", UInt(i), UInt(j),outData(i)(j) )
+//        }
       /*************    END    *************/
       thCounter := UInt(0)
       for (i <- 0 until p.unrollingFactorRows)
