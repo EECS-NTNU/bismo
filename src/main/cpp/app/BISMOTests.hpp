@@ -79,9 +79,10 @@ bool test(
   {
   	//TODO random vector for more than 8 bits
   	//generateRandMatrixInt(4, ncols_ths, &(ths[i]);
-  	cout << "Vector " << i << endl;
+  	//cout << "Vector " << i << endl;
   	for(int j = 0; j < ncols_ths; j++ ){
-  		cout <<" Elem" << *(*(ths + i)+j) << ", ";
+  		//cout <<" Elem" << *(*(ths + i)+j) << " " <<  i << ", "<< j << ";";
+      //TODO loading on different address depending on the rolling factor
   		acc->thsSingleTransfer(&ths[i][j], 0, i, j);
   	}
   	cout << endl;

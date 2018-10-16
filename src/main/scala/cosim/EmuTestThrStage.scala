@@ -37,7 +37,7 @@ extends GenericAccelerator(p){
     val ctrl = new ThrStageCtrlIO(myP).asInput
     // write access to input matrix tile memory
     val inMemory_thr_sel_r = UInt(INPUT, width = log2Up(myP.getUnrollRows()))
-    val inMemory_thr_sel_c = UInt(INPUT, width = log2Up(myP.getUnrollCols()))
+    val inMemory_thr_sel_c = UInt(INPUT, width = log2Up(myP.getThUnroll()))
     val inMemory_thr_addr = UInt(INPUT, width = log2Up(myP.thresholdMemDepth))
     val inMemory_thr_data = UInt(INPUT, width = myP.getInBits())
     val inMemory_thr_write = Bool(INPUT)

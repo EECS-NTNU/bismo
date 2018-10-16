@@ -153,16 +153,16 @@ public:
     fill_thr_runcfg();
     fill_result_op();
     fill_result_runcfg();
-    cout << "[DEBUG] Filled and not enabled stages" << endl;
+    // cout << "[DEBUG] Filled and not enabled stages" << endl;
     // start the cycle counter
     m_acc->perf_set_cc_enable(true);
     // enable all stages
     m_acc->set_stage_enables(1, 1, 1, 1);
     // run the generated schedule -- keep pushing operands until all generated
     // instructions have been pushed
-    cout << "[DEBUG] Now will wait for all pushed" << endl;
+    // cout << "[DEBUG] Now will wait for all pushed" << endl;
     while(!allPushed()) {
-      cout << "[DEBUG] Still waiting..." << endl;
+      // cout << "[DEBUG] Still waiting..." << endl;
       fill_fetch_op();
       fill_fetch_runcfg();
       fill_exec_op();
@@ -174,15 +174,15 @@ public:
     }
     // wait until the result stage has no instructions std::left (= all finished)
     while(!allFinished());
-    cout << "[DEBUG] ALL finished" << endl;
+    // cout << "[DEBUG] ALL finished" << endl;
     // disable all stages
     m_acc->set_stage_enables(0, 0, 0,0);
-    cout << "[DEBUG] OOGHEI" << endl;
+    // cout << "[DEBUG] OOGHEI" << endl;
     // stop the cycle counter
     m_acc->perf_set_cc_enable(false);
-    cout << "[DEBUG] SGHIRIBENZI" << endl;
+    // cout << "[DEBUG] SGHIRIBENZI" << endl;
     m_cycles = m_acc->perf_get_cc();
-    cout << "[DEBUG] GNAAAAA" << endl;
+    // cout << "[DEBUG] GNAAAAA" << endl;
     // fetch the number of cycles spent in different states for each stage
     updateFetchStateCounters();
     updateExecStateCounters();
@@ -800,7 +800,7 @@ void fill_thr_runcfg() {
                 ThrRunCfg thrc;
                 thrc.actOffset = current_resmem_region;
                 thrc.thrOffset = 0;
-                thrc.runTimeThrNumber = m_acc->hwcfg().maxQuantDim;
+                thrc.runTimeThrNumber = std::pow(2,m_acc->hwcfg().maxQuantDim)-1;// m_acc->hwcfg().maxQuantDim;
                 thrc.writeEn = true;
                 thrc.writeAddr = 0;
                 makeinstr_thr_sync_getresultbuffer();
@@ -836,7 +836,7 @@ void fill_thr_runcfg() {
 
     /***************** THRESHOLDING CONFIGURATION *****************/
     //TODO: Still needed or wrong up?
-    ThrRunCfg thrc;
+    /*ThrRunCfg thrc;
     thrc.actOffset = 0;
     thrc.thrOffset = 0;
     thrc.runTimeThrNumber = m_acc->hwcfg().maxQuantDim;
@@ -846,7 +846,7 @@ void fill_thr_runcfg() {
     makeinstr_thr_sync_putresultbuffer();
     makeinstr_result_sync_putthrbuffer();
     makeinstr_result_sync_getthrbuffer();
-    makeinstr_thr_run(thrc);
+    makeinstr_thr_run(thrc);*/
     /***************** END *****************/
     // wait until all result writes are complete
     ResultRunCfg rrc;

@@ -66,7 +66,7 @@ object Settings {
   val emuInstParams = new BitSerialMatMulParams(
     dpaDimLHS = 2, dpaDimRHS = 2, dpaDimCommon = 128, lhsEntriesPerMem = 128,
     rhsEntriesPerMem = 128, mrp = PYNQZ1Params.toMemReqParams(),
-    thrEntriesPerMem = 128, maxQuantDim = 4, quantFolding = 1
+    thrEntriesPerMem = 128, maxQuantDim = 4, quantFolding = 15
   )
 
   // given accelerator or hw-sw-test name, return its hardware instantiator
@@ -80,9 +80,8 @@ object Settings {
     "EmuTestExecStage" -> {p => new EmuTestExecStage(emuP)},
     "EmuTestFetchStage" -> {p => new EmuTestFetchStage(2, 2, emuP)},
     "EmuTestResultStage" -> {p => new EmuTestResultStage(2, emuP)},
-    "EmuTestThrStage" -> {p => new EmuTestThrStage(2,3, 32, 1, 1, emuP)},
+    "EmuTestThrStage" -> {p => new EmuTestThrStage(mRows = 2, mCols = 2, inBits = 32,outBits =  4, thUnroll= 15, emuP)},
     "EmuTestP2BSStage" -> {p => new EmuTestP2BSStage(2,3,4,1,16,emuP)}
-
   )
 }
 
@@ -100,7 +99,7 @@ object ChiselMain {
         dpaDimLHS = dpaDimLHS, dpaDimRHS = dpaDimRHS, dpaDimCommon = dpaDimCommon,
         lhsEntriesPerMem = 64 * 32 * 64 / (dpaDimLHS * dpaDimCommon),
         rhsEntriesPerMem = 64 * 32 * 64 / (dpaDimRHS * dpaDimCommon),
-        thrEntriesPerMem = 64, maxQuantDim = 4, quantFolding = 1,
+        thrEntriesPerMem = 64, maxQuantDim = 4, quantFolding = 15,
         mrp = PYNQZ1Params.toMemReqParams()
       )
     )

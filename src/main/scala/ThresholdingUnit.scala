@@ -152,10 +152,12 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
         for (k <- 0 until p.unrollingFactorOutputPrecision) {
             thuBB(i)(j).inVector(k) := inData(i)(j) & Fill(p.inputBitPrecision,input_mask(k))
             thuBB(i)(j).thVector(k) := thData(i)(k) & Fill(p.inputBitPrecision,input_mask(k))
-          /*
-            ************DEBUG PRINT************
-          printf("[HW] InData value %d, %d: %d\n", UInt(i), UInt(j),inData(i)(j) )
-          printf("[HW] ThData value %d, %d: %d\n", UInt(i), UInt(k),thData(i)(k) )*/
+          /*************DEBUG PRINT*************/
+          //Debugger.log("[HW: THU] InData value "+UInt(i)+", "+UInt(j)+": "+inData(i)(j)+"\n",1)
+          //Debugger.log("[HW: THU] ThData value "+UInt(i)+", "+UInt(k)+": "+thData(i)(k)+"\n",1)
+          printf("[HW: THU] InData value %d, %d: %d\n", UInt(i), UInt(j),inData(i)(j) )
+          printf("[HW: THU] ThData value %d, %d: %d\n", UInt(i), UInt(k),thData(i)(k) )
+          
         }
     thCounter := thCounter + UInt(1)
     when(thCounter ===  runTimeLatency - UInt(1)/*UInt(p.thresholdLatency - 1)*/ ){
@@ -165,11 +167,14 @@ class ThresholdingUnit(val p: ThresholdingUnitParams) extends Module {
   }.elsewhen(unitState === sEnd){
     outValid := Bool(true)
     when(io.outputMatrix.ready){
-      /*
-        ************DEBUG PRINT************
+      /*************DEBUG PRINT*************/
       for (i <- 0 until p.unrollingFactorRows)
-        for (j <- 0 until p.unrollingFactorColumns)
-          printf("[HW] Out Data value %d, %d: %d\n", UInt(i), UInt(j),outData(i)(j) )*/
+        for (j <- 0 until p.unrollingFactorColumns){
+          //Debugger.log("[HW: THU] Out Data value "+UInt(i)+", "+UInt(j)+": "+outData(i)(j)+"\n",1)
+
+          printf("[HW: THU] Out Data value %d, %d: %d\n", UInt(i), UInt(j),outData(i)(j) )
+        }
+      /*************    END    *************/
       thCounter := UInt(0)
       for (i <- 0 until p.unrollingFactorRows)
         for (j <- 0 until p.unrollingFactorColumns)

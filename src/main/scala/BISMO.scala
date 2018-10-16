@@ -86,7 +86,8 @@ class BitSerialMatMulParams(
   val thrEntriesPerMem: Int = 128,
   val maxQuantDim : Int = 4,
   val quantFolding: Int = 0,
-  val staticSerial: Boolean = false
+  val staticSerial: Boolean = false,
+  val debugLevel: Int = 4 // Debug Levels: 0 info, 1 debug, 2 moderate, 3 failure 
 ) extends PrintableParam {
   def headersAsList(): List[String] = {
     return List(
@@ -228,11 +229,12 @@ class BitSerialMatMulAccel(
     val perf = new BitSerialMatMulPerf(myP)
 
     val inMemory_thr_sel_r = UInt(INPUT, width = log2Up(myP.thrStageParams.getUnrollRows()))
-    val inMemory_thr_sel_c = UInt(INPUT, width = log2Up(myP.thrStageParams.getUnrollCols()))
+    val inMemory_thr_sel_c = UInt(INPUT, width = log2Up(myP.thrStageParams.getThUnroll()))
     val inMemory_thr_addr = UInt(INPUT, width = log2Up(myP.thrEntriesPerMem))
     val inMemory_thr_data = UInt(INPUT, width = myP.accWidth)
     val inMemory_thr_write = Bool(INPUT)
   }
+
   io.hw := myP.asHWCfgBundle(32)
   // instantiate accelerator stages
   val fetchStage = Module(new FetchStage(myP.fetchStageParams)).io
@@ -427,6 +429,13 @@ class BitSerialMatMulAccel(
     thrmem(m)(n).ports(0).req.writeData := io.inMemory_thr_data
     val myWriteEn = (io.inMemory_thr_sel_r === UInt(m) && io.inMemory_thr_sel_c === UInt(n)) & io.inMemory_thr_write
     thrmem(m)(n).ports(0).req.writeEn := myWriteEn
+    /*************** DEBUG PRINT **************/
+    when(myWriteEn){
+      //Debugger.log("[HW: TOP-lvl] Input Thr" + io.inMemory_thr_data + " with write enable "
+      //  + io.inMemory_thr_write + " and address " +  io.inMemory_thr_sel_r + " " + io.inMemory_thr_sel_c  + "\n", myP.debugLevel)
+      printf("[HW: TOP-lvl] Input Thr %d with write enable %d and address %d %d\n", io.inMemory_thr_data, io.inMemory_thr_write,io.inMemory_thr_sel_r, io.inMemory_thr_sel_c)
+      }
+    /***************   END   **************/
     //thrmem(m)(n).ports(0).req := fetchStage.bram.thr_rq(m)(n)
     thrmem(m)(n).ports(1).req := thrStage.inMemory.thr_req(m)(n)
     thrStage.inMemory.thr_rsp(m)(n) := thrmem(m)(n).ports(1).rsp

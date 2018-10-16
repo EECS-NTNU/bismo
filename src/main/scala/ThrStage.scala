@@ -186,11 +186,15 @@ class ThrStage(val myP: ThrStageParams) extends Module{
   for(i <- 0 until myP.getUnrollRows()) {
     for (j <- 0 until myP.getUnrollCols()) {
       thu.inputMatrix.bits.i(i)(j) := io.inMemory.act_rsp(i)(j).readData//(myP.getInBits() * (1 + j) - 1, myP.getInBits() * j)
-      /*
-        ************DEBUG PRINT************
+      
+      /************* DEBUG PRINT ************/
       when(start_pulse){
-        printf("[HW] Matrix elem %d, %d Read elem from Unit: %d\n",UInt(i), UInt(j), io.inMemory.act_rsp(i)(j).readData)//(myP.getInBits() * (1 + j) - 1, myP.getInBits() * j))
-      }*/
+        // Debugger.log("[HW: Thr Stage] Matrix elem "+ UInt(i) + " " +
+        //  UInt(j) +" Read elem from Unit: " + 
+        //  io.inMemory.act_rsp(i)(j).readData + "\n", 1)
+        //printf("[HW: Thr Stage] Matrix elem %d, %d Read elem from Unit: %d\n",UInt(i), , io.inMemory.act_rsp(i)(j).readData)//(myP.getInBits() * (1 + j) - 1, myP.getInBits() * j))
+      }
+      /************** END ************/
     }
     for(j <- 0 until myP.getThUnroll())
     thu.thInterf.thresholdData(i)(j) := io.inMemory.thr_rsp(i)(j).readData//( myP.getInBits()*(1+j) - 1, myP.getInBits()*j)
@@ -207,6 +211,13 @@ class ThrStage(val myP: ThrStageParams) extends Module{
   val end_r = Reg(init = false.B, next = end)
   val end_pulse = end & !end_r
   io.done := (end_pulse | end_r)
+  /*************DEBUG PRINT*************/
+  when(end_pulse | end_r){
+    Debugger.log("[HW: Thr Stage] Thresholding stage Done\n", 0)
+    // printf("[HW: Thr Stage] Thresholding stage Done\n")
+  }
+  /*************   END   *************/
+
   val i = Reg(init = UInt(0, width = 32))
   /*
     ************DEBUG PRINT************

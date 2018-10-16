@@ -161,37 +161,45 @@ class BaseController[Ts <: Bundle](
 class FetchController(val myP: FetchStageParams) extends BaseController(
   genStageO = new FetchStageCtrlIO(myP), inChannels = 1, outChannels = 1
 ){
-  val prevState = Reg(next=regState)
-  when(regState != prevState) {
-    printf("Fetch changed state: %d -> %d \n", prevState, regState)
-  }
+/************************** SYNC DEBUG **************************/
+  // val prevState = Reg(next=regState)
+  // when(regState != prevState) {
+  //   printf("[HW-DEBUG] Fetch changed state: %d -> %d \n", prevState, regState)
+  // }
+/************************** END **************************/
 }
 
 class ExecController(val myP: ExecStageParams) extends BaseController(
   genStageO = new ExecStageCtrlIO(myP), inChannels = 2, outChannels = 2
 ){
-  val prevState = Reg(next=regState)
-  when(regState != prevState) {
-    printf("Exec changed state: %d -> %d \n", prevState, regState)
-  }
+/************************** SYNC DEBUG **************************/
+  // val prevState = Reg(next=regState)
+  // when(regState != prevState) {
+  //   printf("[HW-DEBUG] Exec changed state: %d -> %d \n", prevState, regState)
+  // }
+/************************** END **************************/
 }
 
 class ResultController(val myP: ResultStageParams) extends BaseController(
   genStageO = new ResultStageCtrlIO(myP), inChannels = 1, outChannels = 1
 ){
-  val prevState = Reg(next=regState)
-  when(regState != prevState) {
-    printf("Result changed state: %d -> %d \n", prevState, regState)
-  }
+/************************** SYNC DEBUG **************************/
+  // val prevState = Reg(next=regState)
+  // when(regState != prevState) {
+  //   printf("[HW-DEBUG] Result changed state: %d -> %d \n", prevState, regState)
+  // }
+/************************** END **************************/
 }
 
 class ThresholdingController(val myP: ThrStageParams) extends BaseController(
   genStageO = new ThrStageCtrlIO(myP), inChannels =  2, outChannels = 2
 ){
-  val prevState = Reg(next=regState)
-  when(regState != prevState) {
-    printf("Thres changed state: %d -> %d \n", prevState, regState)
-  }
+  /************************** SYNC DEBUG **************************/
+  // val prevState = Reg(next=regState)
+  // when(regState != prevState) {
+  //   printf("[HW-DEBUG] Thres changed state: %d -> %d \n", prevState, regState)
+  // }
+  /************************** END **************************/
 }
 
 class P2BSController(val myP: Parallel2BSStageParams) extends BaseController(
