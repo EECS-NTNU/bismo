@@ -30,4 +30,4 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #!/bin/sh
 
-g++ -std=c++11 *.cpp -lsds_lib -o app
+g++ -std=c++11 -pthread *.cpp -lcma -o app
