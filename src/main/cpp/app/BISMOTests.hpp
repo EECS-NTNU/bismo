@@ -64,6 +64,21 @@ void quantizeMatrix(int32_t * a, int32_t ** b, size_t arows, size_t acols, size_
         }
   }
 
+
+    //helper funtction to quantize a given matrix with a given matrix of thresholds
+void quantizeMatrix2(int32_t * a, int32_t * b, size_t arows, size_t acols, size_t brows, size_t bcols, int32_t * r, size_t offset ){
+    for (int i = 0; i < arows; i++)
+      for (int j = 0; j < acols; j++)
+        for (int k = 0; k < bcols; k++)
+          //for (int l = 0; l < bcols; l++)
+          {
+            if(a[((i+offset) * acols) + j] > b[i * bcols + k] ){
+              r[((i+offset) * acols) + j]++;
+            }
+          }
+  }
+
+
 void printmatrixInt(int32_t ** mat, int rows, int cols) {
   for(int i = 0; i < rows; i++) {
     for(int j = 0; j < cols; j++) {
@@ -73,6 +88,8 @@ void printmatrixInt(int32_t ** mat, int rows, int cols) {
   }
   std::cout << std::endl;
 }
+
+
  
 // BISMO top-level tests
 
@@ -89,27 +106,38 @@ bool test(
   uint8_t * lhs = new uint8_t[nrows_lhs * ncols];
   uint8_t * rhs = new uint8_t[nrows_rhs * ncols];
 
-  int32_t ** ths = new int32_t*[ths_rows];
-  int32_t ** qres = new int32_t*[ths_rows];
-  //Allocation of different matrix
-  for (int i = 0; i < ths_rows; ++i)
-  {
-  	ths[i] = new int32_t[ncols_ths];
-    qres[i] = new int32_t[nrows_lhs];
-  }
-  //Init quantized res matrix
-  for (int i = 0; i < ths_rows; i++)
+  int32_t * ths_bs = new int32_t[nrows_lhs * ncols_ths];
+  int32_t * qres_bs = new int32_t[nrows_rhs * nrows_lhs];
+
+  for (int i = 0; i < nrows_rhs; i++)
     for (int j = 0; j < nrows_lhs; j++)
     {
-      qres[i][j] = 0;
+      qres_bs[i* nrows_lhs + j] = 0;
     }
+
+  // int32_t ** ths = new int32_t*[ths_rows];
+  // int32_t ** qres = new int32_t*[ths_rows];
+  // //Allocation of different matrix
+  // for (int i = 0; i < ths_rows; ++i)
+  // {
+  // 	ths[i] = new int32_t[ncols_ths];
+  //   qres[i] = new int32_t[nrows_lhs];
+  // }
+  // //Init quantized res matrix
+  // for (int i = 0; i < ths_rows; i++)
+  //   for (int j = 0; j < nrows_lhs; j++)
+  //   {
+  //     qres[i][j] = 0;
+  //   }
   generateRandomVector(nbits_lhs, nrows_lhs*ncols, lhs);
   generateRandomVector(nbits_rhs, nrows_rhs*ncols, rhs);
+  generateRandomVector(4, nrows_lhs * ncols_ths, ths_bs);
+  printmatrix(ths_bs, nrows_lhs, ncols_ths );
 
 /**************************** THS transfer ****************************/
   
-  generateRandMatrixInt(4, ths_rows, ncols_ths, ths);
-  printmatrixInt(ths, ths_rows, ncols_ths  );
+  // generateRandMatrixInt(4, ths_rows, ncols_ths, ths);
+  // printmatrixInt(ths, ths_rows, ncols_ths  );
 
   //TODO multi tile ths?
   for (int i = 0; i < ths_rows; i++)
@@ -123,7 +151,7 @@ bool test(
       /******************************************************************/
       //TODO loading on different address depending on the rolling factor
       /******************************************************************/
-  		acc->thsSingleTransfer(&ths[i][j], 0, i, j);
+  		acc->thsSingleTransfer(&ths_bs[i * ncols_ths + j], 0, i, j);
   	}
   	cout << endl;
   }
@@ -146,12 +174,16 @@ bool test(
   runner->getRes(accel_res);
 
 
-  quantizeMatrix(ctx.res, ths, ths_rows, nrows_lhs, ncols_ths, qres);
+  // quantizeMatrix(ctx.res, ths, ths_rows, nrows_lhs, ncols_ths, qres);
+  //TODO: Tiling properly
+  quantizeMatrix2(ctx.res, ths_bs, nrows_lhs, nrows_lhs, nrows_lhs, ncols_ths, qres_bs, 0);
+  quantizeMatrix2(ctx.res, ths_bs, nrows_lhs, nrows_lhs, nrows_lhs, ncols_ths, qres_bs, nrows_lhs);
+
 
   int res = memcmp(ctx.res, accel_res, nrows_lhs*nrows_rhs*sizeof(ResultType));
   //TODO final verification miss
-  //int resq = memcmp(qres,accel_res,nrows_lhs*nrows_rhs*sizeof(ResultType));
-  //cout << "Quantization comparison result: " << resq << endl;
+  int resq = memcmp(qres_bs,accel_res,nrows_lhs*nrows_rhs*sizeof(ResultType));
+  cout << "Quantization comparison result: " << resq << endl;
 
   if(res == 0) {
     cout << "Test succeeded (" << testName << ")" << endl;
@@ -164,23 +196,38 @@ bool test(
     cout << "Produced: " << endl;
     printmatrix(accel_res, nrows_rhs, nrows_lhs);
     cout << "Quantized: " << endl;
-    printmatrixInt(qres, nrows_rhs, nrows_lhs);
+    // printmatrixInt(qres, nrows_rhs, nrows_lhs);
+    printmatrix(qres_bs, nrows_rhs, nrows_lhs);
+
   }
+  
+
+  printf("Start deleting :)\n");
 
   delete runner;
+  printf("Deleted runner \n");
 
   delete [] lhs;
-  delete [] rhs;
-  for (int i = 0; i < nrows_lhs; ++i)
-  {
-  	delete[] ths[i];
-    delete[] qres[i];
-  }
-  delete [] ths;
-  delete [] qres;
+  printf("Deleted lhs\n");
 
+  delete [] rhs;
+  // for (int i = 0; i < nrows_lhs; ++i)
+  // {
+  // 	delete[] ths[i];
+  //   delete[] qres[i];
+  // }
+  // delete [] ths;
+  // delete [] qres;
+  printf("Deleted rhs\n");
+
+  delete [] qres_bs;
+  printf("Deleted qres\n");
+
+  delete [] ths_bs;
+  printf("Deleted ths\n");
 
   delete [] accel_res;
+  printf("Deleted accel res\n");
 
   return res == 0;
 }
