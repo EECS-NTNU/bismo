@@ -22,7 +22,7 @@ $(GEN_BITFILE_PATH): $(BITFILE_PRJDIR)/bitfile_synth.xpr
 
 # copy bitfile to the deployment folder, make an empty tcl script for bitfile loader
 hw: $(GEN_BITFILE_PATH)
-	mkdir -p $(BUILD_DIR_DEPLOY); cp $(GEN_BITFILE_PATH) $(BUILD_DIR_DEPLOY)/bismo.bit; touch $(BUILD_DIR_DEPLOY)/bismo.tcl
+	mkdir -p $(BUILD_DIR_DEPLOY); cp $(GEN_BITFILE_PATH) $(BUILD_DIR_DEPLOY)/bismo.bit; cp $(BITFILE_PRJDIR)/bismo.tcl $(BUILD_DIR_DEPLOY)/bismo.tcl
 
 # copy all user sources and driver sources to the deployment folder
 sw: $(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp

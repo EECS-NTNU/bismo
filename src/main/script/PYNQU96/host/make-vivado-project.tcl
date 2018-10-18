@@ -88,9 +88,8 @@ connect_bd_net [get_bd_pins [get_bd_cells *rst_ps8*]/peripheral_reset] [get_bd_p
 regenerate_bd_layout
 validate_bd_design
 save_bd_design
-
-# use global mode (no out-of-context) for bd synthesis
-#set_property synth_checkpoint_mode None [get_files $config_proj_dir/$config_proj_name.srcs/sources_1/bd/procsys/procsys.bd]
+# generate tcl for PYNQ, used to set fclk
+write_bd_tcl $config_proj_dir/bismo.tcl
 
 # create HDL wrapper
 make_wrapper -files [get_files $config_proj_dir/$config_proj_name.srcs/sources_1/bd/procsys/procsys.bd] -top
@@ -98,11 +97,6 @@ add_files -norecurse $config_proj_dir/$config_proj_name.srcs/sources_1/bd/procsy
 update_compile_order -fileset sources_1
 update_compile_order -fileset sim_1
 set_property top procsys_wrapper [current_fileset]
-
-# use manual compile order to ensure accel verilog is processed prior to block design
-#update_compile_order -fileset sources_1
-#set_property source_mgmt_mode DisplayOnly [current_project]
-
 
 # set synthesis strategy
 set_property strategy Flow_PerfOptimized_high [get_runs synth_1]
