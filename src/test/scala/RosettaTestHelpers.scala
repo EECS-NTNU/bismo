@@ -33,7 +33,7 @@
 object RosettaTestHelpers {
   // standard arguments to pass to chiselTest
   val stdArgs = Array("--genHarness", "--compile", "--test", "--backend", "c",
-    "--targetDir", "build/test")
+    "--targetDir", "build/test", "--vcd")
 
   // random number generation functions
   val r = scala.util.Random

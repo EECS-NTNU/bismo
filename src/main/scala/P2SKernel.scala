@@ -8,6 +8,7 @@ package bismo
 import Chisel._
 import fpgatidbits.ocm._
 import fpgatidbits.streams._
+import fpgatidbits.dma._
 
 class P2SKernelParams (
                         val maxInBw : Int = 8,
@@ -29,7 +30,8 @@ class P2SKernelCtrlIO(myP: P2SKernelParams) extends PrintableBundle{
   val dramBaseAddrDst = UInt(width = 32)
   val matrixRows = UInt(width = 32)
   val matrixCols = UInt(width = 32)
-  val actualInBw = UInt(width = log2Up(myP.maxInBw))
+  val actualInBw = UInt(width = myP.maxInBw)
+  val waitCompleteBytes = UInt(width = 32)
 
   override def cloneType(): this.type =
     new P2SKernelCtrlIO(myP).asInstanceOf[this.type]
@@ -39,21 +41,33 @@ class P2SKernelCtrlIO(myP: P2SKernelParams) extends PrintableBundle{
 
 class P2SKernel (myP: P2SKernelParams) extends Module {
   val io = new Bundle{
-      val ctrl = new P2SKernelCtrlIO(myP: P2SKernelParams)
+      val ctrl = new P2SKernelCtrlIO(myP: P2SKernelParams).asInput()
+      val dramBaseSrc = UInt(OUTPUT, width = 32)
+      val dramBaseDst = UInt(OUTPUT, width = 32)
       val inputStream =  Decoupled((UInt( width = myP.maxInBw * myP.nInElemPerWord)).asInput()).flip()
       val outStream = Decoupled(UInt(width = myP.outStreamSize)).asOutput()
+      val start = Bool(INPUT)
+      val done = Bool(OUTPUT)
   }
 
-  val operands = Vec.fill(myP.nInElemPerWord){Reg(init = UInt(0, width=myP.maxInBw)}
+  io.dramBaseDst := io.ctrl.dramBaseAddrDst
+  io.dramBaseSrc := io.ctrl.dramBaseAddrSrc
 
-  when(io.inputStream.valid){
-    io.outStream.valid := Bool(true)
-  }.otherwise{
-    io.outStream.valid := Bool(false)
+  val operands = Vec.fill(myP.nInElemPerWord){Reg(init = UInt(0, width=myP.maxInBw))}
+  val filteredOps = Vec.fill((myP.nInElemPerWord)){UInt(width=myP.maxInBw)}
+
+  io.outStream.valid := ShiftRegister(io.inputStream.valid,1)
+  for(i <- 0 until myP.nInElemPerWord) {
+    operands(i) := io.inputStream.bits(myP.maxInBw * (1 + i) - 1, myP.maxInBw * i)
+    filteredOps(i) := operands(i) & io.ctrl.actualInBw
   }
-  for(i <- 0 until myP.nInElemPerWord)
-    operands(i) := io.inputStream.bits( myP.maxInBw * (1 + i) - 1, myP.maxInBw * i)
+   val sumVec = Vec.fill(myP.nInElemPerWord/2){UInt()}
 
-  for(i <- 0 until myP.nInElemPerWord-1)
-    io.outStream := Cat(operands(i) + operands(i+1))
+  for(i <- 0 until myP.nInElemPerWord/2 )
+    sumVec(i) := filteredOps(i) + filteredOps(myP.nInElemPerWord - 1 -i )
+
+
+   io.outStream.bits := sumVec.asUInt()
+
+
 }

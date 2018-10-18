@@ -45,9 +45,21 @@ class TestP2SKernel() extends JUnitSuite {
       // number of re-runs for each test
       val num_seqs = 1
 
-
       for (i <- 1 to num_seqs) {
+        poke(dut.io.ctrl.dramBaseAddrSrc, scala.math.BigInt.apply(0x1000))
+        poke(dut.io.ctrl.dramBaseAddrDst, scala.math.BigInt.apply(0x2000))
+        poke(dut.io.ctrl.actualInBw, scala.math.BigInt.apply(0xFF))
+        // poke the stream 0000 0000 00000001 00000010 00000011 0000 0100 0000 0101 0000 0110 0000 0111
+        poke(dut.io.inputStream.valid, true)
+        poke(dut.io.inputStream.bits, scala.math.BigInt.apply(0x0001020304050607L) )
+        step(1)
+        poke(dut.io.inputStream.valid, false)
+        expect(dut.io.outStream.bits, 0x07070707L )
+        expect(dut.io.outStream.valid, true)
+        step(1)
 
+
+      }
     }
 
     // Chisel arguments to pass to chiselMainTest
@@ -56,7 +68,7 @@ class TestP2SKernel() extends JUnitSuite {
     for {
       inbw <- 8 to 8
       elemXWord <- 8 to 8
-      outSize <- 64
+      outSize <- 64 to 64
 
     } {
       // function that instantiates the Module to be tested
@@ -81,3 +93,5 @@ class TestP2SKernel() extends JUnitSuite {
     }
   }
 }
+
+
