@@ -69,14 +69,17 @@ source "${xdc_dir}/ultra96.tcl"
 set_property -dict [list CONFIG.PSU__USE__M_AXI_GP0 {1} CONFIG.PSU__USE__S_AXI_GP2 {1}] [get_bd_cells zynq_ultra_ps_e_0]
 # TODO set frequency here
 # set_property -dict [list CONFIG.PCW_FPGA0_PERIPHERAL_FREQMHZ $config_freq CONFIG.PCW_FPGA1_PERIPHERAL_FREQMHZ {142.86} CONFIG.PCW_FPGA2_PERIPHERAL_FREQMHZ {200} CONFIG.PCW_FPGA3_PERIPHERAL_FREQMHZ {166.67} CONFIG.PCW_EN_CLK1_PORT {1} CONFIG.PCW_EN_CLK2_PORT {1} CONFIG.PCW_EN_CLK3_PORT {1} CONFIG.PCW_USE_M_AXI_GP0 {1}] $ps7
+set clkdiv [expr { int(1500/$config_freq) }]
+set_property -dict [list CONFIG.PSU__CRL_APB__PL2_REF_CTRL__DIVISOR0 $clkdiv] [get_bd_cells zynq_ultra_ps_e_0]
+
 
 # add the accelerator RTL module into the block design
 create_bd_cell -type module -reference PYNQU96Wrapper PYNQU96Wrapper_0
 
 # connect control-status registers
-apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/zynq_ultra_ps_e_0/pl_clk2 (299 MHz)} Clk_slave {/zynq_ultra_ps_e_0/pl_clk2 (299 MHz)} Clk_xbar {/zynq_ultra_ps_e_0/pl_clk2 (299 MHz)} Master {/zynq_ultra_ps_e_0/M_AXI_HPM0_FPD} Slave {/PYNQU96Wrapper_0/csr} intc_ip {New AXI Interconnect} master_apm {0}}  [get_bd_intf_pins PYNQU96Wrapper_0/csr]
+apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/zynq_ultra_ps_e_0/pl_clk2} Clk_slave {/zynq_ultra_ps_e_0/pl_clk2} Clk_xbar {/zynq_ultra_ps_e_0/pl_clk2} Master {/zynq_ultra_ps_e_0/M_AXI_HPM0_FPD} Slave {/PYNQU96Wrapper_0/csr} intc_ip {New AXI Interconnect} master_apm {0}}  [get_bd_intf_pins PYNQU96Wrapper_0/csr]
 # connect AXI master ports
-apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/zynq_ultra_ps_e_0/pl_clk2 (299 MHz)} Clk_slave {/zynq_ultra_ps_e_0/pl_clk2 (299 MHz)} Clk_xbar {/zynq_ultra_ps_e_0/pl_clk2 (299 MHz)} Master {/PYNQU96Wrapper_0/mem0} Slave {/zynq_ultra_ps_e_0/S_AXI_HP0_FPD} intc_ip {Auto} master_apm {0}}  [get_bd_intf_pins zynq_ultra_ps_e_0/S_AXI_HP0_FPD]
+apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/zynq_ultra_ps_e_0/pl_clk2} Clk_slave {/zynq_ultra_ps_e_0/pl_clk2} Clk_xbar {/zynq_ultra_ps_e_0/pl_clk2} Master {/PYNQU96Wrapper_0/mem0} Slave {/zynq_ultra_ps_e_0/S_AXI_HP0_FPD} intc_ip {Auto} master_apm {0}}  [get_bd_intf_pins zynq_ultra_ps_e_0/S_AXI_HP0_FPD]
 
 add_files -fileset constrs_1 -norecurse "${xdc_dir}/ultra96.xdc"
 
