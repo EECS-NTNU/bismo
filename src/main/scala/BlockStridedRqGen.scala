@@ -72,6 +72,9 @@ class BlockStridedRqGen(
   ))).io
 
   outer_sg.in.valid := io.in.valid
+  when(io.in.valid){
+    printf("[HW: 2D Req gen] Started  base %d,\n block count %d,\n block step %d\n",io.in.bits.base,io.in.bits.block_count,io.in.bits.block_step  )
+  }
   io.in.ready := outer_sg.in.ready
   outer_sg.in.bits.init := io.in.bits.base
   outer_sg.in.bits.count := io.in.bits.block_count
@@ -92,4 +95,8 @@ class BlockStridedRqGen(
   io.out.bits.addr := inner_seq.bits
   io.out.bits.numBytes := io.block_intra_step
   io.out.bits.metaData := UInt(0)
+
+  when(inner_seq.valid){
+    printf("[HW: 2D Req gen] Out valid\n")
+  }
 }

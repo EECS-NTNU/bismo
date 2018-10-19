@@ -9,6 +9,7 @@ import fpgatidbits.PlatformWrapper._
 import Chisel._
 import fpgatidbits.dma._
 import fpgatidbits.ocm._
+import fpgatidbits.streams.ReadRespFilter
 
 // make the instantiated config options available to softare at runtime
 class StandAloneP2SHWCfg(bitsPerField: Int) extends Bundle {
@@ -29,7 +30,7 @@ class StandAloneP2SParams(
                            ) extends PrintableParam {
 
 
-  val p2sparams =   new P2SKernelParams( maxInBw = maxInBw, nInElemPerWord = nInElemPerWord, outStreamSize  = outStreamSize)
+  val p2sparams =   new P2SKernelParams( maxInBw = maxInBw, nInElemPerWord = nInElemPerWord, outStreamSize  = outStreamSize, mrp = mrp)
 
   def headersAsList(): List[String] = {
     return List(
@@ -81,6 +82,13 @@ class StandAloneP2SAccel(
   // instantiate request generator
   val inRg = Module(new BlockStridedRqGen( mrp = myP.mrp, writeEn = false )).io
 
+  val start_r = Reg(init = false.B, next = io.start )
+  //TODO this is for a single run per start
+  val start_pulse = io.start & !start_r
+  inRg.in.valid := start_pulse
+  when(inRg.out.valid){
+    printf("[HW: SAccel] Valid Read request addr %d\n", inRg.out.bits.addr)
+  }
   inRg.in.bits.base :=  p2skrnl.dramBaseSrc
   inRg.in.bits.block_step := io.inDma.outer_step
   inRg.in.bits.block_count := io.inDma.outer_count
@@ -89,10 +97,25 @@ class StandAloneP2SAccel(
   inRg.block_intra_count := io.inDma.inner_count
 
   io.memPort(0).memRdReq <> inRg.out
-  io.memPort(0).memRdRsp <> p2skrnl.inputStream
+
+  when(inRg.out.valid){
+    printf("[HW: SAccel] Addr %d with base addr %d \n", inRg.out.bits.addr, p2skrnl.dramBaseSrc)
+  }
+  ReadRespFilter(io.memPort(0).memRdRsp) <> p2skrnl.inputStream
+  when(io.memPort(0).memRdRsp.valid){
+    printf("[HW: SAccel] Valid Read Response: %d\n", io.memPort(0).memRdRsp.bits.readData)
+
+  }
+  when(io.memPort(0).memRdRsp.ready && io.memPort(0).memRdRsp.valid ){
+    printf("[HW: SAccel] Read Response Handshake!\n")
+
+  }
+
 
 
   val outRg = Module(new BlockStridedRqGen( mrp = myP.mrp, writeEn = true )).io
+
+  outRg.in.valid := p2skrnl.done
 
   outRg.in.bits.base := p2skrnl.dramBaseDst
   outRg.in.bits.block_step := io.outDma.outer_step
@@ -101,8 +124,8 @@ class StandAloneP2SAccel(
   outRg.block_intra_step := io.outDma.inner_step
   outRg.block_intra_count := io.outDma.inner_count
 
+  outRg.out <> io.memPort(0).memWrReq
   p2skrnl.outStream <> io.memPort(0).memWrDat
-  io.memPort(0).memWrReq <> outRg.out
 
 
   // completion detection logic

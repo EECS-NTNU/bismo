@@ -13,7 +13,8 @@ import fpgatidbits.dma._
 class P2SKernelParams (
                         val maxInBw : Int = 8,
                         val nInElemPerWord : Int = 8,
-                        val outStreamSize : Int = 64
+                        val outStreamSize : Int = 64,
+                        val mrp: MemReqParams
 ) extends PrintableParam {
 
  def headersAsList(): List[String] = {
@@ -44,8 +45,8 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
       val ctrl = new P2SKernelCtrlIO(myP: P2SKernelParams).asInput()
       val dramBaseSrc = UInt(OUTPUT, width = 32)
       val dramBaseDst = UInt(OUTPUT, width = 32)
-      val inputStream =  Decoupled((UInt( width = myP.maxInBw * myP.nInElemPerWord)).asInput()).flip()
-      val outStream = Decoupled(UInt(width = myP.outStreamSize)).asOutput()
+      val inputStream = Decoupled(UInt( width = myP.maxInBw * myP.nInElemPerWord)).flip()
+      val outStream = Decoupled(UInt(width = myP.mrp.dataWidth))
       val start = Bool(INPUT)
       val done = Bool(OUTPUT)
   }
@@ -56,7 +57,11 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
   val operands = Vec.fill(myP.nInElemPerWord){Reg(init = UInt(0, width=myP.maxInBw))}
   val filteredOps = Vec.fill((myP.nInElemPerWord)){UInt(width=myP.maxInBw)}
 
+  io.inputStream.ready := Bool(true)
   io.outStream.valid := ShiftRegister(io.inputStream.valid,1)
+  when(io.outStream.valid){
+    printf("[HW: P2SKrnl] Input valid :D\n")
+  }
   for(i <- 0 until myP.nInElemPerWord) {
     operands(i) := io.inputStream.bits(myP.maxInBw * (1 + i) - 1, myP.maxInBw * i)
     filteredOps(i) := operands(i) & io.ctrl.actualInBw
