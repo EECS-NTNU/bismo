@@ -61,7 +61,7 @@ void set_up_transfer_singletarget(
   dut->set_csr_dramBaseAddrSrc((AccelDblReg) accel_buf);
   cout << "[SW] DRAM Base Addr Src" << accel_buf << endl;
   dut->set_csr_dramBaseAddrDst((AccelDblReg) accel_buf_dst );
-  dut->set_csr_matrixRows(8);
+  dut->set_csr_matrixRows(1);
   dut->set_csr_matrixCols(8);
   dut->set_csr_actualInBw(0xFF);
   dut->set_csr_waitCompleteBytes(nbytes);

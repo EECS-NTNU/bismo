@@ -31,7 +31,16 @@ class StandAloneP2SParams(
                            ) extends PrintableParam {
 
 
-  val p2sparams =   new P2SKernelParams( maxInBw = maxInBw, nInElemPerWord = nInElemPerWord, outStreamSize  = outStreamSize, mrp = mrp)
+  val suparams = new SerializerUnitParams(
+    inPrecision = maxInBw, matrixRows = 8,
+    matrixCols  = 8, staticCounter = false, maxCounterPrec = maxInBw
+  )
+
+  val p2sparams =   new P2SKernelParams(
+    maxInBw = maxInBw, nInElemPerWord = nInElemPerWord,
+    outStreamSize  = outStreamSize, mrp = mrp,
+    suparams = suparams
+  )
 
   def headersAsList(): List[String] = {
     return List(

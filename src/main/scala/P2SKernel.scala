@@ -14,7 +14,8 @@ class P2SKernelParams (
                         val maxInBw : Int = 8,
                         val nInElemPerWord : Int = 8,
                         val outStreamSize : Int = 64,
-                        val mrp: MemReqParams
+                        val mrp: MemReqParams,
+                        val suparams: SerializerUnitParams
 ) extends PrintableParam {
 
  def headersAsList(): List[String] = {
@@ -57,7 +58,7 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
   val operands = Vec.fill(myP.nInElemPerWord){Reg(init = UInt(0, width=myP.maxInBw))}
   val filteredOps = Vec.fill((myP.nInElemPerWord)){UInt(width=myP.maxInBw)}
 
-  io.inputStream.ready := io.start
+
   io.outStream.valid := ShiftRegister(io.inputStream.valid,1)
   //when(io.outStream.valid){
   //  printf("[HW: P2SKrnl] Input valid \n")
@@ -67,6 +68,30 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
     filteredOps(i) := operands(i) & io.ctrl.actualInBw
   }
    val sumVec = Vec.fill(myP.nInElemPerWord/2){UInt()}
+
+  val serUnit = Module ( new SerializerUnit(myP.suparams)).io
+
+  serUnit.counterValue := io.ctrl.actualInBw
+
+  for(i <- 0 until myP.nInElemPerWord){
+    serUnit.input(0)(i) := filteredOps(i)
+  }
+
+
+  // FSM logic for control
+  val sSUReady :: sSUProcessing :: Nil = Enum(UInt(), 2)
+  val regState = Reg(init = UInt(sSUReady))
+
+
+
+  val suStart = Reg(init = Bool(true))
+
+  when(io.inputStream.valid ){
+    suStart := Bool(true)
+  }
+  serUnit.start := suStart
+
+  io.inputStream.ready := io.start & serUnit.out.valid
 
   for(i <- 0 until myP.nInElemPerWord/2 ) {
     sumVec(i) := filteredOps(i*2) + filteredOps(i*2 + 1 )
