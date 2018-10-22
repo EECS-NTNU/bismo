@@ -67,15 +67,15 @@ void set_up_transfer_singletarget(
   dut->set_csr_waitCompleteBytes(nbytes);
 
 
-  dut->set_inDma_outer_step(0);
+  dut->set_inDma_outer_step(1);
   dut->set_inDma_outer_count(1);
-  dut->set_inDma_inner_step(0);
+  dut->set_inDma_inner_step(1);
   dut->set_inDma_inner_count(1);
 
 
-  dut->set_outDma_outer_step(0);
+  dut->set_outDma_outer_step(1);
   dut->set_outDma_outer_count(1);
-  dut->set_outDma_inner_step(0);
+  dut->set_outDma_inner_step(1);
   dut->set_outDma_inner_count(1);
   
 }/*
@@ -137,9 +137,9 @@ int main()
   // TODO set up mask here to exclude other channels
   bool singletarget_dram_OK = true;
   size_t nwords = 8;
-  size_t nbytes = nwords * sizeof(uint64_t);
+  size_t nbytes = nwords * sizeof(uint8_t);
   uint32_t target_bram = 1;
-  uint64_t * hostbuf = new uint64_t[nwords];
+  uint8_t * hostbuf = new uint8_t[nwords];
   uint64_t * hostbuf2  = new uint64_t[nwords];
   for(int i = 0; i < nwords; i++) {
     hostbuf[i] = i+1;
@@ -156,10 +156,13 @@ int main()
   //cout << "[SW] Done :) "<<endl; 
 
   p->copyBufferAccelToHost(accelbuf2, hostbuf2, nbytes );
+  uint64_t mask  = 0x00000000000000FF;
+  cout << "Mask:" << mask << endl;
   cout << "Result of Accel: " << endl;
+  cout << hostbuf2[0] << endl;
   for (int i = 0; i < nwords; i++)
   {
-    cout << "Pos:" << i << "Elem: " << hostbuf2[i] << endl;
+    cout << "Pos:" << i << "Elem: " << (hostbuf2[0] & (mask << (i*8)) >> (i*8)) << endl;
   }
   //singletarget_dram_OK &= (memcmp_from_bram(target_bram, 0, nbytes, hostbuf) == 0);
   //cout << "DRAM to single-target test passed? " << singletarget_dram_OK << endl;

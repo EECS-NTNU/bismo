@@ -38,9 +38,9 @@ class EmuTestP2SAccel(
   when(io.memPort(0).memRdReq.valid){
     printf("[CO-HW: P2SAlone Received valid request addr %d \n", io.memPort(0).memRdReq.bits.addr )
   }
-  when(io.memPort(0).memRdRsp.valid){
-    printf("[CO-HW: P2SAlone Read Rsp valid, Data %d\n", io.memPort(0).memRdRsp.bits.readData)
-  }
+  //when(io.memPort(0).memRdRsp.valid){
+  //  printf("[CO-HW: P2SAlone Read Rsp valid, Data %d\n", io.memPort(0).memRdRsp.bits.readData)
+  //}
   io.inDma <> accel.inDma
   io.outDma <> accel.outDma
 

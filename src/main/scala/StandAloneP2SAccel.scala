@@ -78,6 +78,7 @@ class StandAloneP2SAccel(
 
   val p2skrnl = Module( new P2SKernel(myP.p2sparams)).io
   p2skrnl.ctrl <> io.p2sCtrl
+  p2skrnl.start := io.start
 
 
   // instantiate request generator
@@ -101,13 +102,18 @@ class StandAloneP2SAccel(
 
   // add PrintableBundleStreamMonitor to print all mem rd req/rsp transactions
   PrintableBundleStreamMonitor(io.memPort(0).memRdReq, Bool(true), "memRdReq", true)
-  PrintableBundleStreamMonitor(io.memPort(0).memRdRsp, Bool(true), "memRdRsp", true)
+  //PrintableBundleStreamMonitor(io.memPort(0).memRdRsp, Bool(true), "memRdRsp", true)
+  PrintableBundleStreamMonitor(io.memPort(0).memWrReq , Bool(true), "memWrReq", true)
+  //PrintableBundleStreamMonitor(io.memPort(0).memWrDat , Bool(true), "memWrDat", true)
+  PrintableBundleStreamMonitor(io.memPort(0).memWrRsp , Bool(true), "memWrRsp", true)
+
 
 
   when(inRg.out.valid){
     printf("[HW: SAccel] Addr %d with base addr %d \n", inRg.out.bits.addr, p2skrnl.dramBaseSrc)
   }
   ReadRespFilter(io.memPort(0).memRdRsp) <> p2skrnl.inputStream
+/*
   when(io.memPort(0).memRdRsp.valid){
     printf("[HW: SAccel] Valid Read Response: %d\n", io.memPort(0).memRdRsp.bits.readData)
 
@@ -116,12 +122,12 @@ class StandAloneP2SAccel(
     printf("[HW: SAccel] Read Response Handshake!\n")
 
   }
-
+*/
 
 
   val outRg = Module(new BlockStridedRqGen( mrp = myP.mrp, writeEn = true )).io
 
-  outRg.in.valid := p2skrnl.done
+  outRg.in.valid := p2skrnl.outStream.valid
 
   outRg.in.bits.base := p2skrnl.dramBaseDst
   outRg.in.bits.block_step := io.outDma.outer_step
@@ -155,14 +161,14 @@ class StandAloneP2SAccel(
 
   when(io.start){
     mycount := mycount + UInt(1)
-    when(mycount === UInt(10)){
-      mycount := UInt(10)
+    when(mycount === UInt(100)){
+      mycount := UInt(100)
     }
   }.otherwise{
     mycount := UInt(0)
   }
 
-  when(mycount === UInt(10)){
+  when(mycount === UInt(100)){
     io.done := Bool(true)
 
   }.otherwise{

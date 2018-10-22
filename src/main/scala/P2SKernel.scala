@@ -57,11 +57,11 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
   val operands = Vec.fill(myP.nInElemPerWord){Reg(init = UInt(0, width=myP.maxInBw))}
   val filteredOps = Vec.fill((myP.nInElemPerWord)){UInt(width=myP.maxInBw)}
 
-  io.inputStream.ready := Bool(true)
+  io.inputStream.ready := io.start
   io.outStream.valid := ShiftRegister(io.inputStream.valid,1)
-  when(io.outStream.valid){
-    printf("[HW: P2SKrnl] Input valid :D\n")
-  }
+  //when(io.outStream.valid){
+  //  printf("[HW: P2SKrnl] Input valid \n")
+  //}
   for(i <- 0 until myP.nInElemPerWord) {
     operands(i) := io.inputStream.bits(myP.maxInBw * (1 + i) - 1, myP.maxInBw * i)
     filteredOps(i) := operands(i) & io.ctrl.actualInBw
@@ -73,6 +73,11 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
 
 
    io.outStream.bits := sumVec.asUInt()
+
+  /*when(io.outStream.valid){
+      printf("[HW: P2SKrnl] Output valid Data %d\n", io.outStream.bits)
+
+  }*/
 
 
 }
