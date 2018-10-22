@@ -88,9 +88,11 @@ class StandAloneP2SAccel(
   //TODO this is for a single run per start
   val start_pulse = io.start & !start_r
   inRg.in.valid := start_pulse
+  /*
   when(inRg.out.valid){
     printf("[HW: SAccel] Valid Read request addr %d\n", inRg.out.bits.addr)
   }
+  */
   inRg.in.bits.base :=  p2skrnl.dramBaseSrc
   inRg.in.bits.block_step := io.inDma.outer_step
   inRg.in.bits.block_count := io.inDma.outer_count
@@ -108,10 +110,11 @@ class StandAloneP2SAccel(
   PrintableBundleStreamMonitor(io.memPort(0).memWrRsp , Bool(true), "memWrRsp", true)
 
 
-
+/*
   when(inRg.out.valid){
     printf("[HW: SAccel] Addr %d with base addr %d \n", inRg.out.bits.addr, p2skrnl.dramBaseSrc)
   }
+  */
   ReadRespFilter(io.memPort(0).memRdRsp) <> p2skrnl.inputStream
 /*
   when(io.memPort(0).memRdRsp.valid){

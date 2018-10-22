@@ -68,16 +68,18 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
   }
    val sumVec = Vec.fill(myP.nInElemPerWord/2){UInt()}
 
-  for(i <- 0 until myP.nInElemPerWord/2 )
-    sumVec(i) := filteredOps(i) + filteredOps(myP.nInElemPerWord - 1 -i )
+  for(i <- 0 until myP.nInElemPerWord/2 ) {
+    sumVec(i) := filteredOps(i*2) + filteredOps(i*2 + 1 )
+   // printf("[HW: P2SKrnl] Adding %d + %d\n", filteredOps(i), filteredOps(myP.nInElemPerWord - 1 - i) )
 
+  }
 
    io.outStream.bits := sumVec.asUInt()
-
-  /*when(io.outStream.valid){
+/*
+  when(io.outStream.valid){
       printf("[HW: P2SKrnl] Output valid Data %d\n", io.outStream.bits)
 
-  }*/
-
+  }
+*/
 
 }

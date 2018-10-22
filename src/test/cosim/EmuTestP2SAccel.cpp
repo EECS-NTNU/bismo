@@ -70,13 +70,13 @@ void set_up_transfer_singletarget(
   dut->set_inDma_outer_step(1);
   dut->set_inDma_outer_count(1);
   dut->set_inDma_inner_step(1);
-  dut->set_inDma_inner_count(1);
+  dut->set_inDma_inner_count(8);
 
 
   dut->set_outDma_outer_step(1);
   dut->set_outDma_outer_count(1);
   dut->set_outDma_inner_step(1);
-  dut->set_outDma_inner_count(1);
+  dut->set_outDma_inner_count(8);
   
 }/*
 
@@ -137,14 +137,23 @@ int main()
   // TODO set up mask here to exclude other channels
   bool singletarget_dram_OK = true;
   size_t nwords = 8;
-  size_t nbytes = nwords * sizeof(uint8_t);
+  size_t nbytes = nwords * sizeof(uint64_t);
   uint32_t target_bram = 1;
-  uint8_t * hostbuf = new uint8_t[nwords];
+  uint64_t * hostbuf = new uint64_t[nwords];
   uint64_t * hostbuf2  = new uint64_t[nwords];
+  uint64_t * gold = new uint64_t[nwords];
+  uint64_t mask  = 0x00000000000000FF;
   for(int i = 0; i < nwords; i++) {
-    hostbuf[i] = i+1;
-    //printf("%d\n",hostbuf[i] );
+    hostbuf[i] = i+1070;
+    uint64_t sum = 0;
+    for (int j = 0; j < nwords; j++)
+    {
+      sum += ((hostbuf[i] & (mask << (j*8)) )>> (j*8));
+    }
+    gold[i] = sum;
+    cout << gold[i] << ", ";
   }
+  cout << endl;
   void * accelbuf = p->allocAccelBuffer(nbytes);
   void * accelbuf2 = p->allocAccelBuffer(nbytes);
 
@@ -156,13 +165,17 @@ int main()
   //cout << "[SW] Done :) "<<endl; 
 
   p->copyBufferAccelToHost(accelbuf2, hostbuf2, nbytes );
-  uint64_t mask  = 0x00000000000000FF;
-  cout << "Mask:" << mask << endl;
+  
+  cout << "[SW] Result collection and comparison" << endl; 
   cout << "Result of Accel: " << endl;
-  cout << hostbuf2[0] << endl;
-  for (int i = 0; i < nwords; i++)
-  {
-    cout << "Pos:" << i << "Elem: " << (hostbuf2[0] & (mask << (i*8)) >> (i*8)) << endl;
+  //cout << hostbuf2[0] << endl;
+  for (int i = 0; i < nwords; i++){
+    cout << hostbuf2[i] << " " << endl;
+    for (int j = 0; j < nwords; j++)
+    {
+      cout << "Pos:" << j << " Elem: " << ((hostbuf2[i] & (mask << (j*8)) )>> (j*8)) << "; ";
+    }
+    cout << endl;
   }
   //singletarget_dram_OK &= (memcmp_from_bram(target_bram, 0, nbytes, hostbuf) == 0);
   //cout << "DRAM to single-target test passed? " << singletarget_dram_OK << endl;
