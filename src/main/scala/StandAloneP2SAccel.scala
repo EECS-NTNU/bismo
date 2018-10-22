@@ -10,6 +10,7 @@ import Chisel._
 import fpgatidbits.dma._
 import fpgatidbits.ocm._
 import fpgatidbits.streams.ReadRespFilter
+import fpgatidbits.streams.PrintableBundleStreamMonitor
 
 // make the instantiated config options available to softare at runtime
 class StandAloneP2SHWCfg(bitsPerField: Int) extends Bundle {
@@ -97,6 +98,10 @@ class StandAloneP2SAccel(
   inRg.block_intra_count := io.inDma.inner_count
 
   io.memPort(0).memRdReq <> inRg.out
+
+  // add PrintableBundleStreamMonitor to print all mem rd req/rsp transactions
+  PrintableBundleStreamMonitor(io.memPort(0).memRdReq, Bool(true), "memRdReq", true)
+  PrintableBundleStreamMonitor(io.memPort(0).memRdRsp, Bool(true), "memRdRsp", true)
 
 
   when(inRg.out.valid){
