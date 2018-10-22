@@ -137,27 +137,29 @@ int main()
   // TODO set up mask here to exclude other channels
   bool singletarget_dram_OK = true;
   size_t nwords = 8;
-  size_t nbytes = nwords * sizeof(uint8_t);
+  size_t nbytes = nwords * sizeof(uint64_t);
   uint32_t target_bram = 1;
-  uint8_t * hostbuf = new uint8_t[nwords];
+  uint64_t * hostbuf = new uint64_t[nwords];
+  uint64_t * hostbuf2  = new uint64_t[nwords];
   for(int i = 0; i < nwords; i++) {
     hostbuf[i] = i+1;
     //printf("%d\n",hostbuf[i] );
   }
   void * accelbuf = p->allocAccelBuffer(nbytes);
+  void * accelbuf2 = p->allocAccelBuffer(nbytes);
 
   p->copyBufferHostToAccel(hostbuf, accelbuf, nbytes);
   //cout << "[SW] Copying data to the accelerator" << endl;
-  set_up_transfer_singletarget(accelbuf, nbytes, accelbuf);//target_bram, 0, nwords);
+  set_up_transfer_singletarget(accelbuf, nbytes, accelbuf2);//target_bram, 0, nwords);
   //cout << "[SW] Set up all the params " << endl;
   exec_and_wait();
   //cout << "[SW] Done :) "<<endl; 
 
-  p->copyBufferAccelToHost(accelbuf, hostbuf, nbytes );
+  p->copyBufferAccelToHost(accelbuf2, hostbuf2, nbytes );
   cout << "Result of Accel: " << endl;
   for (int i = 0; i < nwords; i++)
   {
-    cout << "Pos:" << i << "Elem: " << hostbuf[i] << endl;
+    cout << "Pos:" << i << "Elem: " << hostbuf2[i] << endl;
   }
   //singletarget_dram_OK &= (memcmp_from_bram(target_bram, 0, nbytes, hostbuf) == 0);
   //cout << "DRAM to single-target test passed? " << singletarget_dram_OK << endl;

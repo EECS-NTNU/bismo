@@ -98,6 +98,7 @@ class StandAloneP2SAccel(
 
   io.memPort(0).memRdReq <> inRg.out
 
+
   when(inRg.out.valid){
     printf("[HW: SAccel] Addr %d with base addr %d \n", inRg.out.bits.addr, p2skrnl.dramBaseSrc)
   }
@@ -132,7 +133,7 @@ class StandAloneP2SAccel(
   val regCompletedWrBytes = Reg(init = UInt(0, 32))
 
   val allComplete = (regCompletedWrBytes === io.p2sCtrl.waitCompleteBytes)
-  io.done := allComplete
+
 
   io.memPort(0).memWrRsp.ready := Bool(true)
   when(io.memPort(0).memWrRsp.valid) {
@@ -143,6 +144,24 @@ class StandAloneP2SAccel(
     when(allComplete && !io.start){
       regCompletedWrBytes := UInt(0)
     }
+  }
+
+  val mycount = Reg( init = UInt(0))
+
+  when(io.start){
+    mycount := mycount + UInt(1)
+    when(mycount === UInt(10)){
+      mycount := UInt(10)
+    }
+  }.otherwise{
+    mycount := UInt(0)
+  }
+
+  when(mycount === UInt(10)){
+    io.done := Bool(true)
+
+  }.otherwise{
+    io.done := allComplete
   }
 
 
