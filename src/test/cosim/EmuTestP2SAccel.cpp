@@ -67,15 +67,15 @@ void set_up_transfer_singletarget(
   dut->set_csr_waitCompleteBytes(nbytes);
 
 
-  dut->set_inDma_outer_step(1);
+  dut->set_inDma_outer_step(8);
   dut->set_inDma_outer_count(1);
-  dut->set_inDma_inner_step(1);
+  dut->set_inDma_inner_step(8);
   dut->set_inDma_inner_count(8);
 
 
-  dut->set_outDma_outer_step(1);
+  dut->set_outDma_outer_step(8);
   dut->set_outDma_outer_count(1);
-  dut->set_outDma_inner_step(1);
+  dut->set_outDma_inner_step(8);
   dut->set_outDma_inner_count(8);
   
 }/*

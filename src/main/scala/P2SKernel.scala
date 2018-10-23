@@ -59,15 +59,12 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
   val filteredOps = Vec.fill((myP.nInElemPerWord)){UInt(width=myP.maxInBw)}
 
 
-  io.outStream.valid := ShiftRegister(io.inputStream.valid,1)
-  //when(io.outStream.valid){
-  //  printf("[HW: P2SKrnl] Input valid \n")
-  //}
+
   for(i <- 0 until myP.nInElemPerWord) {
     operands(i) := io.inputStream.bits(myP.maxInBw * (1 + i) - 1, myP.maxInBw * i)
     filteredOps(i) := operands(i) & io.ctrl.actualInBw
   }
-   val sumVec = Vec.fill(myP.nInElemPerWord/2){UInt()}
+
 
   val serUnit = Module ( new SerializerUnit(myP.suparams)).io
 
@@ -79,16 +76,24 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
 
 
   // FSM logic for control for starting the SU
-  val sSUReady :: sSUProcessing :: Nil = Enum(UInt(), 2)
-  val regState = Reg(init = UInt(sSUReady))
+  val sSUIdle :: sSUReady :: sSUProcessing :: Nil = Enum(UInt(), 3)
+  val regState = Reg(init = UInt(sSUIdle))
 
-  when(regState === sSUReady){
+  when(regState === sSUIdle){
+    serUnit.start := Bool(false)
+    serUnit.out.ready := Bool(false)
+    when(io.inputStream.valid) {
+      serUnit.start := Bool(true)
+      serUnit.out.ready := Bool(true)
+      regState := sSUProcessing
+    }
+  }
+  .elsewhen(regState === sSUReady){
     io.inputStream.ready := Bool(true)
     serUnit.start := Bool(false)
     serUnit.out.ready := Bool(false)
 
     when(io.inputStream.valid){
-      io.inputStream.ready := Bool(false)
       serUnit.start := Bool(true)
       serUnit.out.ready := Bool(true)
       regState := sSUProcessing
@@ -101,7 +106,7 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
     when(serUnit.out.valid & io.outStream.ready){
       serUnit.out.ready := Bool(true)
       serUnit.start := Bool(false)
-      io.inputStream.ready := Bool(true)
+      //io.inputStream.ready := Bool(true)
       regState := sSUReady
     }
   }.otherwise{
@@ -113,6 +118,8 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
 
 
 
+  val sumVec = Vec.fill(myP.nInElemPerWord/2){UInt()}
+
   for(i <- 0 until myP.nInElemPerWord/2 ) {
     sumVec(i) := filteredOps(i*2) + filteredOps(i*2 + 1 )
    // printf("[HW: P2SKrnl] Adding %d + %d\n", filteredOps(i), filteredOps(myP.nInElemPerWord - 1 - i) )
@@ -120,6 +127,11 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
   }
 
    io.outStream.bits := sumVec.asUInt()
+
+  io.outStream.valid := serUnit.out.valid
+  //when(io.outStream.valid){
+  //  printf("[HW: P2SKrnl] Input valid \n")
+  //}
 /*
   when(io.outStream.valid){
       printf("[HW: P2SKrnl] Output valid Data %d\n", io.outStream.bits)

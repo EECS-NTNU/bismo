@@ -32,7 +32,7 @@ class StandAloneP2SParams(
 
 
   val suparams = new SerializerUnitParams(
-    inPrecision = maxInBw, matrixRows = 8,
+    inPrecision = maxInBw, matrixRows = 1,
     matrixCols  = 8, staticCounter = false, maxCounterPrec = maxInBw
   )
 
@@ -109,7 +109,10 @@ class StandAloneP2SAccel(
   inRg.block_intra_step := io.inDma.inner_step
   inRg.block_intra_count := io.inDma.inner_count
 
+
   io.memPort(0).memRdReq <> inRg.out
+
+  //io.memPort(0).memRdReq.bits.numBytes := UInt(myP.maxInBw * myP.nInElemPerWord / 8)
 
   // add PrintableBundleStreamMonitor to print all mem rd req/rsp transactions
   PrintableBundleStreamMonitor(io.memPort(0).memRdReq, Bool(true), "memRdReq", true)
@@ -124,7 +127,19 @@ class StandAloneP2SAccel(
     printf("[HW: SAccel] Addr %d with base addr %d \n", inRg.out.bits.addr, p2skrnl.dramBaseSrc)
   }
   */
-  ReadRespFilter(io.memPort(0).memRdRsp) <> p2skrnl.inputStream
+  val inQueue = FPGAQueue(ReadRespFilter(io.memPort(0).memRdRsp),128)
+  inQueue <> p2skrnl.inputStream
+  val regCompletedRdBytes = Reg(init = UInt(0, 32))
+  val allRead = regCompletedRdBytes === ( io.inDma.inner_count * UInt(myP.maxInBw * myP.nInElemPerWord) )
+
+//  val rdhandshake = (io.memPort(0).memRdRsp.valid & io.memPort(0).memRdRsp.ready)
+  val rdhandshake = (inQueue.valid & p2skrnl.inputStream.ready)
+
+
+  when(rdhandshake & !allRead){
+    regCompletedRdBytes := regCompletedRdBytes + UInt(myP.maxInBw * myP.nInElemPerWord)
+  }
+
 /*
   when(io.memPort(0).memRdRsp.valid){
     printf("[HW: SAccel] Valid Read Response: %d\n", io.memPort(0).memRdRsp.bits.readData)
@@ -139,7 +154,7 @@ class StandAloneP2SAccel(
 
   val outRg = Module(new BlockStridedRqGen( mrp = myP.mrp, writeEn = true )).io
 
-  outRg.in.valid := p2skrnl.outStream.valid
+  outRg.in.valid := allRead
 
   outRg.in.bits.base := p2skrnl.dramBaseDst
   outRg.in.bits.block_step := io.outDma.outer_step
@@ -149,7 +164,9 @@ class StandAloneP2SAccel(
   outRg.block_intra_count := io.outDma.inner_count
 
   outRg.out <> io.memPort(0).memWrReq
-  p2skrnl.outStream <> io.memPort(0).memWrDat
+  //io.memPort(0).memWrReq.bits.numBytes := UInt(myP.p2sparams.outStreamSize / 8)
+
+  FPGAQueue(p2skrnl.outStream, 256) <>  io.memPort(0).memWrDat
 
 
   // completion detection logic
@@ -159,33 +176,12 @@ class StandAloneP2SAccel(
 
 
   io.memPort(0).memWrRsp.ready := Bool(true)
-  when(io.memPort(0).memWrRsp.valid) {
-    regCompletedWrBytes := regCompletedWrBytes + UInt(myP.p2sparams.outStreamSize)
+  when(io.memPort(0).memWrRsp.valid && !allComplete) {
+    regCompletedWrBytes := regCompletedWrBytes + UInt(myP.p2sparams.outStreamSize / 8)
 
-  }.otherwise{
-    //TODO miss restart the regcompletedwrbytes
-    when(allComplete && !io.start){
-      regCompletedWrBytes := UInt(0)
-    }
   }
 
-  val mycount = Reg( init = UInt(0))
-
-  when(io.start){
-    mycount := mycount + UInt(1)
-    when(mycount === UInt(100)){
-      mycount := UInt(100)
-    }
-  }.otherwise{
-    mycount := UInt(0)
-  }
-
-  when(mycount === UInt(100)){
-    io.done := Bool(true)
-
-  }.otherwise{
-    io.done := allComplete
-  }
+  io.done := allComplete
 
 
 
