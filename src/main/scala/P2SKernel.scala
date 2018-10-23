@@ -78,20 +78,40 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
   }
 
 
-  // FSM logic for control
+  // FSM logic for control for starting the SU
   val sSUReady :: sSUProcessing :: Nil = Enum(UInt(), 2)
   val regState = Reg(init = UInt(sSUReady))
 
+  when(regState === sSUReady){
+    io.inputStream.ready := Bool(true)
+    serUnit.start := Bool(false)
+    serUnit.out.ready := Bool(false)
 
+    when(io.inputStream.valid){
+      io.inputStream.ready := Bool(false)
+      serUnit.start := Bool(true)
+      serUnit.out.ready := Bool(true)
+      regState := sSUProcessing
+    }
+  }.elsewhen(regState === sSUProcessing){
+    io.inputStream.ready := Bool(false)
+    serUnit.start := Bool(true)
+    serUnit.out.ready := Bool(false)
+    //TODO this has to when I've write all the output in a local buffer
+    when(serUnit.out.valid & io.outStream.ready){
+      serUnit.out.ready := Bool(true)
+      serUnit.start := Bool(false)
+      io.inputStream.ready := Bool(true)
+      regState := sSUReady
+    }
+  }.otherwise{
+    serUnit.start := Bool(false)
+    serUnit.out.ready := Bool(false)
+    io.inputStream.ready := Bool(false)
 
-  val suStart = Reg(init = Bool(true))
-
-  when(io.inputStream.valid ){
-    suStart := Bool(true)
   }
-  serUnit.start := suStart
 
-  io.inputStream.ready := io.start & serUnit.out.valid
+
 
   for(i <- 0 until myP.nInElemPerWord/2 ) {
     sumVec(i) := filteredOps(i*2) + filteredOps(i*2 + 1 )

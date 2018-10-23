@@ -169,3 +169,7 @@ class ExecController(val myP: ExecStageParams) extends BaseController(
 class ResultController(val myP: ResultStageParams) extends BaseController(
   genStageO = new ResultStageCtrlIO(myP), inChannels = 1, outChannels = 1
 ){ }
+
+class ThresholdingController(val myP: ThrStageParams) extends BaseController(
+  genStageO = new ThrStageCtrlIO(myP), inChannels =  2, outChannels = 2
+){ }

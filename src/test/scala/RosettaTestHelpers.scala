@@ -28,6 +28,9 @@
 // CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Modifications: Davide Conficconi
+// Add quantization helpers
+
 
 // useful definitions for testing Chisel modules inside Rosetta
 object RosettaTestHelpers {
@@ -100,4 +103,32 @@ object RosettaTestHelpers {
   def randomIntMatrix(row: Int, col: Int, nBits: Int, allowNeg: Boolean): Seq[Seq[Int]] = {
     return vectorToMatrix(randomIntVector(row*col, nBits, allowNeg), row, col)
   }
+  //helper funtction to quantize a given matrix with a given matrix of thresholds
+  def quantizeMatrix(a: Seq[Seq[Int]], b: Seq[Seq[Int]]): Seq[Seq[Int]] = {
+    val ret = for(i <- 0 to a.size-1) yield
+      for(j <- 0 to a(i).size-1) yield
+        {
+          b(i).map((x:Int)=> if (a(i)(j)>x) 1 else 0 ).reduce(_+_)
+
+        }
+    return ret
+  }
+
+//Printer helper function
+  def printMatrix(a: Seq[Seq[Int]]) = {
+    for(i <- 0 to a.size-1){
+      for(j <- 0 to a(i).size-1){
+        print(a(i)(j))
+        print(" ")
+      }
+      println(" ")
+    }
+  }
+
+  def printVector(a : Seq[Int]) ={
+    for(i <- 0 to a.size - 1)
+      print(Integer.toString(a(i),2))
+    println()
+  }
 }
+

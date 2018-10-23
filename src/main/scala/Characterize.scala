@@ -121,7 +121,7 @@ object VivadoSynth {
         dsp = dsps_fields(1).toInt, target_ns = req_ns, fmax_mhz = fmax_mhz
       )
     } catch {
-      case _ : Throwable => println("Synthesis failed, probably out of resources")
+      case _ : Throwable => println("Characterization ERROR: something went wrong. Synthesis failed, probably out of resources")
     }
 
     println("Results for parameters:")

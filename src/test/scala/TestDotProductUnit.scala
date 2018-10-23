@@ -36,18 +36,19 @@ import org.junit.Test
 import RosettaTestHelpers._
 
 class TestDotProductUnit extends JUnitSuite {
-  // Tester-derived class to give stimulus and observe the outputs for the
-  // Module to be tested
-  class DotProductUnitTester(c: DotProductUnit) extends Tester(c) {
-    val r = scala.util.Random
-    // number of re-runs for each test
-    val num_seqs = 100
-    // number of bits in each operand
-    val pc_len = c.p.pcParams.numInputBits
-    // max shift steps for random input
-    val max_shift = c.p.maxShiftSteps
-    // latency from inputs changed to accumulate update
-    val latency = c.p.getLatency()
+  @Test def BasicDotProdTest {
+    // Tester-derived class to give stimulus and observe the outputs for the
+    // Module to be tested
+    class DotProductUnitTester(c: DotProductUnit) extends Tester(c) {
+      val r = scala.util.Random
+      // number of re-runs for each test
+      val num_seqs = 1
+      // number of bits in each operand
+      val pc_len = c.p.pcParams.numInputBits
+      // max shift steps for random input
+      val max_shift = c.p.maxShiftSteps
+      // latency from inputs changed to accumulate update
+      val latency = c.p.getLatency()
 
     // helper fuctions for more concise tests
     // wait up to <latency> cycles with valid=0 to create pipeline bubbles
@@ -101,7 +102,6 @@ class TestDotProductUnit extends JUnitSuite {
       step(latency-1)
       expect(c.io.out, golden)
     }
-
     // test 2: binary, unsigned vectors that do not fit into popCountWidth
     for(i <- 1 to num_seqs) {
       // produce seq_len different popcount vectors, each pc_len bits

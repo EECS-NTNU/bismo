@@ -134,7 +134,9 @@ object EmuLibMain {
     val emuName: String = args(0)
     val emuDir: String = args(1)
     val accInst: Settings.AccelInstFxn = Settings.emuMap(emuName)
-    TidbitsMakeUtils.makeEmulatorLibrary(accInst, emuDir, Seq("--std=c++11"))
+    TidbitsMakeUtils.makeEmulatorLibrary(
+      accInst, emuDir, Seq("--std=c++11", "-DDEBUG"), Seq("--vcd")
+    )
   }
 }
 
