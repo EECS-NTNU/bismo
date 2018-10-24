@@ -58,6 +58,23 @@ struct BISMOFetchRunInstruction {
   uint64_t dram_block_offset_bytes : 16;
   uint64_t dram_block_count : 16;
   uint64_t tiles_per_row : 16;
+
+  ap_uint<128> asRaw() {
+    ap_uint<128> ret = 0;
+    ret(1, 0) = targetStage;
+    ret(2, 2) = isRunCfg;
+    ret(5, 3) = unused0;
+    ret(10, 6) = bram_id_start;
+    ret(15, 11) = bram_id_range;
+    ret(31, 16) = bram_addr_base;
+    ret(63, 32) = dram_base;
+    ret(79, 64) = dram_block_size_bytes;
+    ret(95, 80) = dram_block_offset_bytes;
+    ret(111, 96) = dram_block_count;
+    ret(127, 112) = tiles_per_row;
+
+    return ret;
+  }
 };
 
 struct BISMOExecRunInstruction {
