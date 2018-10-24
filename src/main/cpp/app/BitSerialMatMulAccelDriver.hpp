@@ -92,11 +92,15 @@ public:
   // write a descriptor into the instruction generator
   void pushExecDescriptor(SingleMMDescriptor desc) {
     while(m_accel->get_dsc_exec_ready() != 1);
-    const ap_uint<128> raw = desc.asRaw();
-    m_accel->set_dsc_exec_bits3(raw(31, 0));
-    m_accel->set_dsc_exec_bits2(raw(63, 32));
-    m_accel->set_dsc_exec_bits1(raw(95, 64));
-    m_accel->set_dsc_exec_bits0(raw(127, 96));
+    const ap_uint<BISMO_MMDESCR_BITS> raw = desc.asRaw();
+    m_accel->set_dsc_exec_bits6(raw(31, 0));
+    m_accel->set_dsc_exec_bits5(raw(63, 32));
+    m_accel->set_dsc_exec_bits4(raw(95, 64));
+    m_accel->set_dsc_exec_bits3(raw(127, 96));
+    m_accel->set_dsc_exec_bits2(raw(159, 128));
+    m_accel->set_dsc_exec_bits1(raw(191, 160));
+    m_accel->set_dsc_exec_bits0(raw(207, 192));
+
     m_accel->set_dsc_exec_valid(1);
     m_accel->set_dsc_exec_valid(0);
   }

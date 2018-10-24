@@ -200,7 +200,7 @@ class BitSerialMatMulAccel(
     val exec_enable = Bool(INPUT)
     val result_enable = Bool(INPUT)
     // descriptors for instruction generator
-    val dsc_exec = Decoupled(UInt(width=BISMOLimits.execDescrBits)).flip
+    val dsc_exec = Decoupled(UInt(width=BISMOLimits.descrBits)).flip
     // instruction queues
     val ins_fetch = Decoupled(UInt(width=BISMOLimits.instrBits)).flip
     val ins_res = Decoupled(UInt(width=BISMOLimits.instrBits)).flip
@@ -291,7 +291,7 @@ class BitSerialMatMulAccel(
   // wire up reset differently (Vivado HLS BlackBox)
   igExec.rst_n := !this.reset
   // instantiate descriptor queues
-  val execDscQ = Module(new FPGAQueue(UInt(width = BISMOLimits.execDescrBits), myP.dscQueueEntries)).io
+  val execDscQ = Module(new FPGAQueue(UInt(width = BISMOLimits.descrBits), myP.dscQueueEntries)).io
   enqPulseGenFromValid(execDscQ.enq, io.dsc_exec)
   execDscQ.deq <> igExec.in
   // wire up instruction generator to instruction queue

@@ -17,6 +17,7 @@ enum BISMOTargetStage {
 #define BISMO_LIMIT_DRAM_BCNT_BITS  16
 #define BISMO_LIMIT_MAXSHIFT_BITS   5
 #define BISMO_LIMIT_RESADDR_BITS    1
+#define BISMO_MMDESCR_BITS          208
 
 
 // NOTE: the ordering of the fields is important and should
@@ -151,9 +152,13 @@ struct SingleMMDescriptor {
   uint8_t base_res;
   // number of buffers for latency hiding
   uint8_t nbufs_res;
+  // base pointers for source and result matrices
+  uint32_t dram_lhs;
+  uint32_t dram_rhs;
+  uint32_t dram_res;
 
-  ap_uint<128> asRaw() {
-    ap_uint<128> raw = 0;
+  ap_uint<BISMO_MMDESCR_BITS> asRaw() {
+    ap_uint<BISMO_MMDESCR_BITS> raw = 0;
     raw(15, 0) = tiles_m;
     raw(31, 16) = tiles_k;
     raw(47, 32) = tiles_n;
@@ -165,10 +170,13 @@ struct SingleMMDescriptor {
     raw(95, 80) = base_r;
     raw(103, 96) = base_res;
     raw(111, 104) = nbufs_res;
+    raw(143, 112) = dram_lhs;
+    raw(175, 144) = dram_rhs;
+    raw(207, 176) = dram_res;
     return raw;
   }
 
-  void fromRaw(ap_uint<128> raw) {
+  void fromRaw(ap_uint<BISMO_MMDESCR_BITS> raw) {
     tiles_m = raw(15, 0);
     tiles_k = raw(31, 16);
     tiles_n = raw(47, 32);
@@ -180,6 +188,9 @@ struct SingleMMDescriptor {
     base_r = raw(95, 80);
     base_res = raw(103, 96);
     nbufs_res = raw(111, 104);
+    dram_lhs = raw(143, 112);
+    dram_rhs = raw(175, 144);
+    dram_res = raw(207, 176);
   }
 };
 

@@ -39,7 +39,7 @@
 #include "BISMOInstruction.hpp"
 
 void ExecInstrGen(
-  hls::stream<ap_uint<128>> & in,
+  hls::stream<ap_uint<BISMO_MMDESCR_BITS>> & in,
   hls::stream<ap_uint<128>> & out
 ) {
   #pragma HLS INTERFACE ap_ctrl_none port=return
