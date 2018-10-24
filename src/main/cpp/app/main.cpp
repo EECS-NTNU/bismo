@@ -60,26 +60,30 @@ void benchmark_interactive(
 }
 
 int main(int argc, char const *argv[]) {
-  WrapperRegDriver * platform = initPlatform();
-  BitSerialMatMulAccelDriver * acc = new BitSerialMatMulAccelDriver(platform);
-  acc->print_hwcfg_summary();
+  try {
+    WrapperRegDriver * platform = initPlatform();
+    BitSerialMatMulAccelDriver * acc = new BitSerialMatMulAccelDriver(platform);
+    acc->print_hwcfg_summary();
 
-  // Uncomment to enable interactive benchmarking:
-  // benchmark_interactive(platform, acc);
+    // Uncomment to enable interactive benchmarking:
+    // benchmark_interactive(platform, acc);
 
-  bool all_OK = true;
-  all_OK &= test_binary_onchip_onetile(platform, acc);
-  all_OK &= test_binary_onchip_multitile(platform, acc);
-  all_OK &= test_binary_offchip_multitile(platform, acc);
-  all_OK &= test_binary_offchip_widerows_multitile(platform, acc);
+    bool all_OK = true;
+    all_OK &= test_binary_onchip_onetile(platform, acc);
+    all_OK &= test_binary_onchip_multitile(platform, acc);
+    all_OK &= test_binary_offchip_multitile(platform, acc);
+    all_OK &= test_binary_offchip_widerows_multitile(platform, acc);
 
-  if(all_OK) {
-    cout << "All tests passed succesfully" << endl;
-  } else {
-    cout << "Some tests failed!" << endl;
+    if(all_OK) {
+      cout << "All tests passed succesfully" << endl;
+    } else {
+      cout << "Some tests failed!" << endl;
+    }
+
+    delete acc;
+    deinitPlatform(platform);
+  } catch (const char * e) {
+    cout << "Exception: " << e << endl;
   }
-
-  delete acc;
-  deinitPlatform(platform);
   return 0;
 }
