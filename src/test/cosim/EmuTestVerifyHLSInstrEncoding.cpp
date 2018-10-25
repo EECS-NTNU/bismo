@@ -48,8 +48,9 @@ BISMOInstruction readInstr() {
   std::vector<unsigned int> rinds = t->getStatusRegs()["out_bits"];
   while(t->get_out_valid() != 1);
   BISMOInstruction ins_read;
+  //ins_read((3-r)*32 + 31, (3-r)*32) = p->readReg(rinds[r]);
   for(int r = 0; r < 4; r++) {
-    ins_read.raw[r] = p->readReg(rinds[r]);
+    ins_read(32*(r+1)-1, 32*r) = p->readReg(rinds[r]);
   }
   t->set_out_ready(0);
   t->set_out_ready(1);
@@ -65,32 +66,31 @@ int main(int argc, char const *argv[]) {
     // test instruction encoding for HLS:
     // create golden (expected) instruction stream
     std::vector<BISMOInstruction> golden;
-    BISMOInstruction ins;
-    ins.sync.isRunCfg = 0;
-    ins.sync.targetStage = 1;
-    ins.sync.isSendToken = 1;
-    ins.sync.chanID = 2;
-    golden.push_back(ins);
+    BISMOSyncInstruction sync;
+    BISMOExecRunInstruction exec;
+    sync.isRunCfg = 0;
+    sync.targetStage = 1;
+    sync.isSendToken = 1;
+    sync.chanID = 2;
+    golden.push_back(sync.asRaw());
     for(unsigned int i = 0; i < 10; i++) {
-      ins.clear();
-      ins.exec.isRunCfg = 1;
-      ins.exec.targetStage = 1;
-      ins.exec.lhsOffset = i;
-      ins.exec.rhsOffset = 10 - i;
-      ins.exec.numTiles = 2 * i;
-      ins.exec.shiftAmount = i+1;
-      golden.push_back(ins);
+      exec.isRunCfg = 1;
+      exec.targetStage = 1;
+      exec.lhsOffset = i;
+      exec.rhsOffset = 10 - i;
+      exec.numTiles = 2 * i;
+      exec.shiftAmount = i+1;
+      golden.push_back(exec.asRaw());
     }
-    ins.clear();
-    ins.sync.isRunCfg = 0;
-    ins.sync.targetStage = 1;
-    ins.sync.isSendToken = 0;
-    ins.sync.chanID = 2;
-    golden.push_back(ins);
+    sync.isRunCfg = 0;
+    sync.targetStage = 1;
+    sync.isSendToken = 0;
+    sync.chanID = 2;
+    golden.push_back(sync.asRaw());
     // compare generated vs golden instructions
     for(auto & i : golden) {
       BISMOInstruction read_ins = readInstr();
-      bool ok = memcmp(read_ins.raw, i.raw, sizeof(i)) == 0;
+      bool ok = (read_ins == i);
       t_okay &= ok;
       cout << "Equal? " << ok << endl;
       if(!ok) {

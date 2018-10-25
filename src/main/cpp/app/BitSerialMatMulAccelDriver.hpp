@@ -108,10 +108,10 @@ public:
   // push a instruction into the fetch instr.q.
   void pushFetchInstruction(BISMOInstruction ins) {
     while(m_accel->get_ins_fetch_ready() != 1);
-    m_accel->set_ins_fetch_bits0(ins.raw[3]);
-    m_accel->set_ins_fetch_bits1(ins.raw[2]);
-    m_accel->set_ins_fetch_bits2(ins.raw[1]);
-    m_accel->set_ins_fetch_bits3(ins.raw[0]);
+    m_accel->set_ins_fetch_bits0(ins(127, 96));
+    m_accel->set_ins_fetch_bits1(ins(95, 64));
+    m_accel->set_ins_fetch_bits2(ins(63, 32));
+    m_accel->set_ins_fetch_bits3(ins(31, 0));
     m_accel->set_ins_fetch_valid(1);
     m_accel->set_ins_fetch_valid(0);
   }
@@ -119,10 +119,10 @@ public:
   // push a instruction into the result instr.q.
   void pushResultInstruction(BISMOInstruction ins) {
     while(m_accel->get_ins_res_ready() != 1);
-    m_accel->set_ins_res_bits0(ins.raw[3]);
-    m_accel->set_ins_res_bits1(ins.raw[2]);
-    m_accel->set_ins_res_bits2(ins.raw[1]);
-    m_accel->set_ins_res_bits3(ins.raw[0]);
+    m_accel->set_ins_res_bits0(ins(127, 96));
+    m_accel->set_ins_res_bits1(ins(95, 64));
+    m_accel->set_ins_res_bits2(ins(63, 32));
+    m_accel->set_ins_res_bits3(ins(31, 0));
     m_accel->set_ins_res_valid(1);
     m_accel->set_ins_res_valid(0);
   }
@@ -133,7 +133,9 @@ public:
   }
 
   void verifyInstr(BISMOInstruction ins) {
-    BISMOTargetStage stg = (BISMOTargetStage) ins.fetch.targetStage;
+    BISMOSyncInstruction sync;
+    sync.fromRaw(ins);
+    BISMOTargetStage stg = (BISMOTargetStage) (int) sync.targetStage;
     if(stg == stgFetch) {
       verifyFetchInstr(ins);
     } else if(stg == stgExec) {
@@ -233,10 +235,12 @@ public:
   // do a sanity check on an instruction to fetch stage in terms of alignment and
   // out-of-bounds values
   void verifyFetchInstr(BISMOInstruction ins) {
-    BISMOSyncInstruction s = ins.sync;
+    BISMOSyncInstruction s;
+    s.fromRaw(ins);
     assert(s.targetStage == stgFetch);
     if(s.isRunCfg) {
-      BISMOFetchRunInstruction f = ins.fetch;
+      BISMOFetchRunInstruction f;
+      f.fromRaw(ins);
       // ensure all fields are within limits
       ASSERT_BITS(f.bram_id_start, BISMO_LIMIT_FETCHID_BITS);
       ASSERT_BITS(f.bram_id_range, BISMO_LIMIT_FETCHID_BITS);
@@ -269,10 +273,12 @@ public:
 
   // do a sanity check on an instruction for exec stage in terms of out-of-bounds values
   void verifyExecInstr(BISMOInstruction ins) {
-    BISMOSyncInstruction s = ins.sync;
+    BISMOSyncInstruction s;
+    s.fromRaw(ins);
     assert(s.targetStage == stgExec);
     if(s.isRunCfg) {
-      BISMOExecRunInstruction f = ins.exec;
+      BISMOExecRunInstruction f;
+      f.fromRaw(ins);
       // ensure all fields are within limits
       ASSERT_BITS(f.lhsOffset, BISMO_LIMIT_INBUFADDR_BITS);
       ASSERT_BITS(f.rhsOffset, BISMO_LIMIT_INBUFADDR_BITS);
@@ -292,10 +298,12 @@ public:
   // do a sanity check on an instr for result stage in terms of alignment and
   // out-of-bounds values
   void verifyResultInstr(BISMOInstruction ins) {
-    BISMOSyncInstruction s = ins.sync;
+    BISMOSyncInstruction s;
+    s.fromRaw(ins);
     assert(s.targetStage == stgResult);
     if(s.isRunCfg) {
-      BISMOResultRunInstruction r = ins.res;
+      BISMOResultRunInstruction r;
+      r.fromRaw(ins);
       // ensure all fields are within limits
       ASSERT_BITS(r.resmem_addr, BISMO_LIMIT_RESADDR_BITS);
       ASSERT_BITS(r.dram_base, BISMO_LIMIT_DRAMADDR_BITS);
@@ -336,29 +344,35 @@ public:
 
   // create and return a synchronization (token queue read/write) instruction
   BISMOInstruction make_sync_instr(BISMOTargetStage stg, bool isSend, uint32_t syncChannel) {
-    BISMOInstruction ins;
-    ins.sync.targetStage = stg;
-    ins.sync.isRunCfg = 0;
-    ins.sync.isSendToken = isSend ? 1 : 0;
-    ins.sync.chanID = syncChannel;
-    ins.sync.unused0 = 0;
-    ins.sync.unused1 = 0;
-    return ins;
+    BISMOSyncInstruction ins;
+    ins.targetStage = stg;
+    ins.isRunCfg = 0;
+    ins.isSendToken = isSend ? 1 : 0;
+    ins.chanID = syncChannel;
+    ins.unused0 = 0;
+    ins.unused1 = 0;
+    return ins.asRaw();
   }
 
   // create and return a no-operation (busy wait) instruction
   BISMOInstruction make_nop_instr(BISMOTargetStage stg) {
-    BISMOInstruction ins;
-    // all fields initialized to zero, including the key repetition count fields
-    // just need to set target stage and isRunCfg
-    ins.sync.targetStage = stg;
-    ins.sync.isRunCfg = 1;
-    if(stg == stgResult) {
+
+    if(stg != stgResult) {
+      BISMOSyncInstruction ins;
+      // all fields initialized to zero, including the key repetition count fields
+      // just need to set target stage and isRunCfg
+      ins.targetStage = stg;
+      ins.isRunCfg = 1;
+      return ins.asRaw();
+    } else {
+      BISMOResultRunInstruction ins;
       // the exception to this is the result stage, which has an explicit nop
       // field
-      ins.res.nop = 1;
+      ins.targetStage = stg;
+      ins.isRunCfg = 1;
+      ins.nop = 1;
+      return ins.asRaw();
     }
-    return ins;
   }
 
   // add a token into the fetch-exec free queue

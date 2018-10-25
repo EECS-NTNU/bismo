@@ -24,7 +24,8 @@ template <
   Accumulator * acc_ptr,                // accumulators [M, N]
   Accumulator * res_ptr                 // result memory [M, N, resmem_size]
 ) {
-  BISMOExecRunInstruction ins = in.exec;
+  BISMOExecRunInstruction ins;
+  ins.fromRaw(in);
   if(ins.isRunCfg == 0) {
     // sync instructions are simply ignored (assumed to resolve)
     // immediately

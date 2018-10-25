@@ -319,12 +319,10 @@ protected:
     // count requested fetch bytes for statistics
     uint32_t fetchPerGroup = r.dram_block_size_bytes * r.dram_block_count;
     m_bytes_to_fetch += fetchPerGroup;
-    BISMOInstruction ins;
-    ins.fetch = r;
-    ins.fetch.targetStage = stgFetch;
-    ins.fetch.isRunCfg = 1;
-    ins.fetch.unused0 = 0;
-    m_acc->pushFetchInstruction(ins);
+    r.targetStage = stgFetch;
+    r.isRunCfg = 1;
+    r.unused0 = 0;
+    m_acc->pushFetchInstruction(r.asRaw());
   }
 
   void makeinstr_exec_run(BISMOExecRunInstruction r) {
@@ -332,13 +330,11 @@ protected:
   }
 
   void makeinstr_result_run(BISMOResultRunInstruction rrc) {
-    BISMOInstruction ins;
-    ins.res = rrc;
-    ins.res.targetStage = stgResult;
-    ins.res.isRunCfg = 1;
-    ins.res.nop = 0;
-    ins.res.unused0 = 0;
-    m_acc->pushResultInstruction(ins);
+    rrc.targetStage = stgResult;
+    rrc.isRunCfg = 1;
+    rrc.nop = 0;
+    rrc.unused0 = 0;
+    m_acc->pushResultInstruction(rrc.asRaw());
     // count result bytes for statistics
     m_bytes_to_write += m_hwcfg.dpaDimLHS * m_hwcfg.dpaDimRHS * sizeof(ResultType);
   }

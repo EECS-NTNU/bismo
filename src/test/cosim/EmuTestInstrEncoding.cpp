@@ -43,15 +43,14 @@ using namespace std;
 
 WrapperRegDriver * p;
 EmuTestInstrEncoding * t;
-BISMOInstruction sw_ins, hw_ins;
 
-void write_sw_instruction() {
+void write_sw_instruction(BISMOInstruction sw_ins) {
   // BitFieldMember uses big-endian packing but
   // Chisel expects little-endian, so swap storage order here
-  t->set_raw_instr_in0(sw_ins.raw[3]);
-  t->set_raw_instr_in1(sw_ins.raw[2]);
-  t->set_raw_instr_in2(sw_ins.raw[1]);
-  t->set_raw_instr_in3(sw_ins.raw[0]);
+  t->set_raw_instr_in0(sw_ins(127, 96));
+  t->set_raw_instr_in1(sw_ins(95, 64));
+  t->set_raw_instr_in2(sw_ins(63, 32));
+  t->set_raw_instr_in3(sw_ins(31, 0));
 }
 
 int main()
@@ -64,24 +63,28 @@ int main()
     assert(sizeof(BISMOSyncInstruction) == 16);
     assert(sizeof(BISMOFetchRunInstruction) == 16);
     assert(sizeof(BISMOExecRunInstruction) == 16);
+    BISMOSyncInstruction sw_sync, hw_sync;
+    BISMOExecRunInstruction sw_exec, hw_exec;
+    BISMOFetchRunInstruction sw_fetch, hw_fetch;
+    BISMOResultRunInstruction sw_res, hw_res;
 
     bool sync_ok = true;
 
     for(int ts = 0; ts < 3; ts++) {
       for(int irc = 0; irc < 2; irc++) {
         for(int ist = 0; ist < 2; ist++) {
-          sw_ins.sync.targetStage = ts;
-          sw_ins.sync.isRunCfg = irc;
-          sw_ins.sync.isSendToken = ist;
-          sw_ins.sync.chanID = 3;
+          sw_sync.targetStage = ts;
+          sw_sync.isRunCfg = irc;
+          sw_sync.isSendToken = ist;
+          sw_sync.chanID = 3;
 
           write_sw_instruction();
 
-          hw_ins.sync.isRunCfg = t->get_sync_instr_out_isRunCfg();
-          hw_ins.sync.targetStage = t->get_sync_instr_out_targetStage();
-          hw_ins.sync.isSendToken = t->get_sync_instr_out_isSendToken();
-          hw_ins.sync.chanID = t->get_sync_instr_out_chanID();
-          sync_ok &= (memcmp(sw_ins.raw, hw_ins.raw, 16) == 0);
+          hw_sync.isRunCfg = t->get_sync_instr_out_isRunCfg();
+          hw_sync.targetStage = t->get_sync_instr_out_targetStage();
+          hw_sync.isSendToken = t->get_sync_instr_out_isSendToken();
+          hw_sync.chanID = t->get_sync_instr_out_chanID();
+          sync_ok &= (sw_sync.asRaw() == hw_sync.asRaw());
         }
       }
     }
@@ -90,82 +93,82 @@ int main()
     t_okay &= sync_ok;
 
     // test fetch runcfg instructions
-    sw_ins.fetch.isRunCfg = 1;
-    sw_ins.fetch.targetStage = 0;
-    sw_ins.fetch.dram_base = 0xdead;
-    sw_ins.fetch.dram_block_size_bytes = 0xbeef;
-    sw_ins.fetch.dram_block_offset_bytes = 0xfeed;
-    sw_ins.fetch.dram_block_count = 0xdeaf;
-    sw_ins.fetch.tiles_per_row = 0xb00b;
-    sw_ins.fetch.bram_addr_base = 0xd00d;
-    sw_ins.fetch.bram_id_start = 10;
-    sw_ins.fetch.bram_id_range = 20;
+    sw_fetch.isRunCfg = 1;
+    sw_fetch.targetStage = 0;
+    sw_fetch.dram_base = 0xdead;
+    sw_fetch.dram_block_size_bytes = 0xbeef;
+    sw_fetch.dram_block_offset_bytes = 0xfeed;
+    sw_fetch.dram_block_count = 0xdeaf;
+    sw_fetch.tiles_per_row = 0xb00b;
+    sw_fetch.bram_addr_base = 0xd00d;
+    sw_fetch.bram_id_start = 10;
+    sw_fetch.bram_id_range = 20;
 
     write_sw_instruction();
 
-    hw_ins.fetch.isRunCfg = t->get_fr_instr_out_isRunCfg();
-    hw_ins.fetch.targetStage = t->get_fr_instr_out_targetStage();
-    hw_ins.fetch.dram_base = t->get_fr_instr_out_runcfg_dram_base();
-    hw_ins.fetch.dram_block_size_bytes = t->get_fr_instr_out_runcfg_dram_block_size_bytes();
-    hw_ins.fetch.dram_block_offset_bytes = t->get_fr_instr_out_runcfg_dram_block_offset_bytes();
-    hw_ins.fetch.dram_block_count = t->get_fr_instr_out_runcfg_dram_block_count();
-    hw_ins.fetch.tiles_per_row = t->get_fr_instr_out_runcfg_tiles_per_row();
-    hw_ins.fetch.bram_addr_base = t->get_fr_instr_out_runcfg_bram_addr_base();
-    hw_ins.fetch.bram_id_start = t->get_fr_instr_out_runcfg_bram_id_start();
-    hw_ins.fetch.bram_id_range = t->get_fr_instr_out_runcfg_bram_id_range();
+    hw_fetch.isRunCfg = t->get_fr_instr_out_isRunCfg();
+    hw_fetch.targetStage = t->get_fr_instr_out_targetStage();
+    hw_fetch.dram_base = t->get_fr_instr_out_runcfg_dram_base();
+    hw_fetch.dram_block_size_bytes = t->get_fr_instr_out_runcfg_dram_block_size_bytes();
+    hw_fetch.dram_block_offset_bytes = t->get_fr_instr_out_runcfg_dram_block_offset_bytes();
+    hw_fetch.dram_block_count = t->get_fr_instr_out_runcfg_dram_block_count();
+    hw_fetch.tiles_per_row = t->get_fr_instr_out_runcfg_tiles_per_row();
+    hw_fetch.bram_addr_base = t->get_fr_instr_out_runcfg_bram_addr_base();
+    hw_fetch.bram_id_start = t->get_fr_instr_out_runcfg_bram_id_start();
+    hw_fetch.bram_id_range = t->get_fr_instr_out_runcfg_bram_id_range();
 
-    bool fr_ok = (memcmp(sw_ins.raw, hw_ins.raw, 16) == 0);
+    bool fr_ok = (sw_fetch.asRaw() == hw_fetch.asRaw());
     cout << "Fetch instruction encoding: " << fr_ok << endl;
     t_okay &= fr_ok;
 
     // test exec runcfg instructions
-    sw_ins.exec.isRunCfg = 1;
-    sw_ins.exec.targetStage = 1;
-    sw_ins.exec.lhsOffset = 161;
-    sw_ins.exec.rhsOffset = 177;
-    sw_ins.exec.numTiles = 17;
-    sw_ins.exec.shiftAmount = 4;
-    sw_ins.exec.negate = 0;
-    sw_ins.exec.clear_before_first_accumulation = 1;
-    sw_ins.exec.writeEn = 0;
-    sw_ins.exec.writeAddr = 1;
+    sw_exec.isRunCfg = 1;
+    sw_exec.targetStage = 1;
+    sw_exec.lhsOffset = 161;
+    sw_exec.rhsOffset = 177;
+    sw_exec.numTiles = 17;
+    sw_exec.shiftAmount = 4;
+    sw_exec.negate = 0;
+    sw_exec.clear_before_first_accumulation = 1;
+    sw_exec.writeEn = 0;
+    sw_exec.writeAddr = 1;
 
     write_sw_instruction();
 
-    hw_ins.exec.isRunCfg = t->get_er_instr_out_isRunCfg();
-    hw_ins.exec.targetStage = t->get_er_instr_out_targetStage();
-    hw_ins.exec.lhsOffset = t->get_er_instr_out_runcfg_lhsOffset();
-    hw_ins.exec.rhsOffset = t->get_er_instr_out_runcfg_rhsOffset();
-    hw_ins.exec.numTiles = t->get_er_instr_out_runcfg_numTiles();
-    hw_ins.exec.shiftAmount = t->get_er_instr_out_runcfg_shiftAmount();
-    hw_ins.exec.negate = t->get_er_instr_out_runcfg_negate();
-    hw_ins.exec.clear_before_first_accumulation = t->get_er_instr_out_runcfg_clear_before_first_accumulation();
-    hw_ins.exec.writeEn = t->get_er_instr_out_runcfg_writeEn();
-    hw_ins.exec.writeAddr = t->get_er_instr_out_runcfg_writeAddr();
+    hw_exec.isRunCfg = t->get_er_instr_out_isRunCfg();
+    hw_exec.targetStage = t->get_er_instr_out_targetStage();
+    hw_exec.lhsOffset = t->get_er_instr_out_runcfg_lhsOffset();
+    hw_exec.rhsOffset = t->get_er_instr_out_runcfg_rhsOffset();
+    hw_exec.numTiles = t->get_er_instr_out_runcfg_numTiles();
+    hw_exec.shiftAmount = t->get_er_instr_out_runcfg_shiftAmount();
+    hw_exec.negate = t->get_er_instr_out_runcfg_negate();
+    hw_exec.clear_before_first_accumulation = t->get_er_instr_out_runcfg_clear_before_first_accumulation();
+    hw_exec.writeEn = t->get_er_instr_out_runcfg_writeEn();
+    hw_exec.writeAddr = t->get_er_instr_out_runcfg_writeAddr();
 
-    bool er_ok = (memcmp(sw_ins.raw, hw_ins.raw, 16) == 0);
+    bool er_ok = (hw_exec.asRaw() == sw_exec.asRaw());
     cout << "Execute instruction encoding: " << er_ok << endl;
     t_okay &= er_ok;
 
-    sw_ins.res.isRunCfg = 1;
-    sw_ins.res.targetStage = 2;
-    sw_ins.res.dram_base = 193;
-    sw_ins.res.dram_skip = 795;
-    sw_ins.res.waitComplete = 1;
-    sw_ins.res.waitCompleteBytes = 1539;
-    sw_ins.res.resmem_addr = 0;
+    sw_res.isRunCfg = 1;
+    sw_res.targetStage = 2;
+    sw_res.dram_base = 193;
+    sw_res.dram_skip = 795;
+    sw_res.waitComplete = 1;
+    sw_res.waitCompleteBytes = 1539;
+    sw_res.resmem_addr = 0;
 
     write_sw_instruction();
 
-    hw_ins.res.isRunCfg = t->get_rr_instr_out_isRunCfg();
-    hw_ins.res.targetStage = t->get_rr_instr_out_targetStage();
-    hw_ins.res.dram_base = t->get_rr_instr_out_runcfg_dram_base();
-    hw_ins.res.dram_skip = t->get_rr_instr_out_runcfg_dram_skip();
-    hw_ins.res.waitComplete = t->get_rr_instr_out_runcfg_waitComplete();
-    hw_ins.res.waitCompleteBytes = t->get_rr_instr_out_runcfg_waitCompleteBytes();
-    hw_ins.res.resmem_addr = t->get_rr_instr_out_runcfg_resmem_addr();
+    hw_res.isRunCfg = t->get_rr_instr_out_isRunCfg();
+    hw_res.targetStage = t->get_rr_instr_out_targetStage();
+    hw_res.dram_base = t->get_rr_instr_out_runcfg_dram_base();
+    hw_res.dram_skip = t->get_rr_instr_out_runcfg_dram_skip();
+    hw_res.waitComplete = t->get_rr_instr_out_runcfg_waitComplete();
+    hw_res.waitCompleteBytes = t->get_rr_instr_out_runcfg_waitCompleteBytes();
+    hw_res.resmem_addr = t->get_rr_instr_out_runcfg_resmem_addr();
 
-    bool rr_ok = (memcmp(sw_ins.raw, hw_ins.raw, 16) == 0);
+    bool rr_ok = (sw_res.asRaw() == hw_res.asRaw());
     cout << "Result instruction encoding: " << rr_ok << endl;
     t_okay &= rr_ok;
 

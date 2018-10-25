@@ -124,7 +124,7 @@ BISMOInstruction readInstr() {
   while(t->get_out_valid() != 1);
   BISMOInstruction ins_read;
   for(int r = 0; r < 4; r++) {
-    ins_read.raw[r] = p->readReg(rinds[r]);
+    ins_read(32*(r+1)-1, 32*r) = p->readReg(rinds[r]);
   }
   t->set_out_ready(0);
   t->set_out_ready(1);
@@ -230,7 +230,7 @@ int main(int argc, char const *argv[]) {
     // read and compare generated instructions
     for(auto & i : instrs) {
       BISMOInstruction ins_gen = readInstr();
-      bool ok = memcmp(ins_gen.raw, i.raw, sizeof(i)) == 0;
+      bool ok = (ins_gen == i);
       t_okay &= ok;
       cout << "Equal? " << ok << endl;
       if(!ok) {
