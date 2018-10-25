@@ -2,7 +2,9 @@
 // Date: 17/10/2018
 // Revision: 0
 
-
+/**
+  * Stand Alone Accelerator of P2S component, a single run is assumed to completely serialize consecutives bytes
+  */
 
 package bismo
 import fpgatidbits.PlatformWrapper._
@@ -30,10 +32,13 @@ class StandAloneP2SParams(
                              val mrp: MemReqParams
                            ) extends PrintableParam {
 
+  // Input bandwidth equal to output bandwidth
+  Predef.assert( maxInBw * nInElemPerWord == outStreamSize)
+
 
   val suparams = new SerializerUnitParams(
     inPrecision = maxInBw, matrixRows = 1,
-    matrixCols  = 8, staticCounter = false, maxCounterPrec = maxInBw
+    matrixCols  = nInElemPerWord, staticCounter = false, maxCounterPrec = maxInBw
   )
 
   val p2sparams =   new P2SKernelParams(
@@ -64,8 +69,9 @@ class StandAloneP2SParams(
   }
 
 }
+
+// Configuration for a Block strided Request generation, the step is intended for byte-addressable memory (e.g. 8, 16 ...)
 class dmaIF extends Bundle {
-  //val outer_base_addr = UInt(width=32)
   val outer_step = UInt(width=32)
   val outer_count = UInt(width =  32)
   val inner_step = UInt(width = 32)
@@ -97,6 +103,7 @@ class StandAloneP2SAccel(
   //TODO this is for a single run per start
   val start_pulse = io.start & !start_r
   inRg.in.valid := start_pulse
+
   /*
   when(inRg.out.valid){
     printf("[HW: SAccel] Valid Read request addr %d\n", inRg.out.bits.addr)
@@ -115,11 +122,11 @@ class StandAloneP2SAccel(
   //io.memPort(0).memRdReq.bits.numBytes := UInt(myP.maxInBw * myP.nInElemPerWord / 8)
 
   // add PrintableBundleStreamMonitor to print all mem rd req/rsp transactions
-  PrintableBundleStreamMonitor(io.memPort(0).memRdReq, Bool(true), "memRdReq", true)
+  //PrintableBundleStreamMonitor(io.memPort(0).memRdReq, Bool(true), "memRdReq", true)
   //PrintableBundleStreamMonitor(io.memPort(0).memRdRsp, Bool(true), "memRdRsp", true)
-  PrintableBundleStreamMonitor(io.memPort(0).memWrReq , Bool(true), "memWrReq", true)
+  //PrintableBundleStreamMonitor(io.memPort(0).memWrReq , Bool(true), "memWrReq", true)
   //PrintableBundleStreamMonitor(io.memPort(0).memWrDat , Bool(true), "memWrDat", true)
-  PrintableBundleStreamMonitor(io.memPort(0).memWrRsp , Bool(true), "memWrRsp", true)
+  //PrintableBundleStreamMonitor(io.memPort(0).memWrRsp , Bool(true), "memWrRsp", true)
 
 
 /*
@@ -127,9 +134,12 @@ class StandAloneP2SAccel(
     printf("[HW: SAccel] Addr %d with base addr %d \n", inRg.out.bits.addr, p2skrnl.dramBaseSrc)
   }
   */
+
   val inQueue = FPGAQueue(ReadRespFilter(io.memPort(0).memRdRsp),128)
   inQueue <> p2skrnl.inputStream
+
   val regCompletedRdBytes = Reg(init = UInt(0, 32))
+
   val allRead = regCompletedRdBytes === ( io.inDma.inner_count * UInt(myP.maxInBw * myP.nInElemPerWord) )
 
 //  val rdhandshake = (io.memPort(0).memRdRsp.valid & io.memPort(0).memRdRsp.ready)
@@ -154,7 +164,7 @@ class StandAloneP2SAccel(
 
   val outRg = Module(new BlockStridedRqGen( mrp = myP.mrp, writeEn = true )).io
 
-  outRg.in.valid := allRead
+  outRg.in.valid := p2skrnl.done
 
   outRg.in.bits.base := p2skrnl.dramBaseDst
   outRg.in.bits.block_step := io.outDma.outer_step
@@ -166,14 +176,13 @@ class StandAloneP2SAccel(
   outRg.out <> io.memPort(0).memWrReq
   //io.memPort(0).memWrReq.bits.numBytes := UInt(myP.p2sparams.outStreamSize / 8)
 
-  FPGAQueue(p2skrnl.outStream, 256) <>  io.memPort(0).memWrDat
+  FPGAQueue(p2skrnl.outStream, 64) <>  io.memPort(0).memWrDat
 
 
   // completion detection logic
   val regCompletedWrBytes = Reg(init = UInt(0, 32))
 
   val allComplete = (regCompletedWrBytes === io.p2sCtrl.waitCompleteBytes)
-
 
   io.memPort(0).memWrRsp.ready := Bool(true)
   when(io.memPort(0).memWrRsp.valid && !allComplete) {

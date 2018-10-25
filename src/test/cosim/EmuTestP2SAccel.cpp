@@ -8,34 +8,38 @@
 using namespace std;
 #include "platform.h"
 #include "EmuTestP2SAccel.hpp"
+/***************************************************************/
+#include "gemmbitserial/gemmbitserial.hpp"
+#include "gemmbitserial/test/testhelpers.hpp"
 
-// Cosim test for basic FetchStage behavior
+#define FETCH_ADDRALIGN   8
+#define FETCH_SIZEALIGN   8
 
-// number of entries in each BRAM
-#define BRAM_ENTRIES  (1 << 10)
-// number of BRAMs
-#define BRAM_COUNT    4
-
+#define max(x,y) (x > y ? x : y)
+#define FETCH_ALIGN       max(FETCH_ADDRALIGN, FETCH_SIZEALIGN)
+/***************************************************************/
+typedef uint64_t PackedBitGroupType;
 WrapperRegDriver * p;
 EmuTestP2SAccel * dut;
 
-//void bram_write(int sel, int addr, uint64_t data) {
-//  assert(sel >= 0 && sel < BRAM_COUNT);
-//  assert(addr >= 0 && addr < BRAM_ENTRIES);
-//  dut->set_bram_sel(sel);
-//  dut->set_bram_req_addr(addr);
-//  dut->set_bram_req_writeData(data);
-//  dut->set_bram_req_writeEn(1);
-//  dut->set_bram_req_writeEn(0);
-//}
-//
-//uint64_t bram_read(int sel, int addr) {
-//  assert(sel >= 0 && sel < BRAM_COUNT);
-//  assert(addr >= 0 && addr < BRAM_ENTRIES);
-//  dut->set_bram_sel(sel);
-//  dut->set_bram_req_addr(addr);
-//  return dut->get_bram_rsp();
-//}
+
+  // allocate a GEMMContext compliant with the accelerator size
+gemmbitserial::GEMMContext allocGEMMContext(
+    uint64_t lhsRows, uint64_t depth, uint64_t rhsRows,
+    uint64_t lhsBits, uint64_t rhsBits,
+    bool lhsSigned, bool rhsSigned
+  ) {
+    const uint64_t regblock_lhs = 8;
+    const uint64_t regblock_d = FETCH_ALIGN / sizeof(PackedBitGroupType);
+    const uint64_t regblock_rhs = 8;
+    const uint64_t cacheBits = 1;
+
+    return gemmbitserial::allocGEMMContext_base(
+      lhsRows, depth, rhsRows, lhsBits, rhsBits, lhsSigned, rhsSigned,
+      regblock_lhs, regblock_d, regblock_rhs, cacheBits
+    );
+  }
+
 
 void exec_and_wait() {
   dut->set_start(1);
@@ -45,19 +49,9 @@ void exec_and_wait() {
 
 
 void set_up_transfer_singletarget(
-  void * accel_buf, uint32_t nbytes, void * accel_buf_dst
-  /*uint32_t bram_sel, uint32_t bram_base, uint32_t bram_nwrites*/) {
+  void * accel_buf, uint32_t nbytes, void * accel_buf_dst) {
 
 
- /* assert(bram_nwrites == nbytes/8);
-  assert(bram_sel >= 0 && bram_sel < BRAM_COUNT);
-  assert(bram_base >= 0 && ((bram_base + bram_nwrites) < BRAM_ENTRIES));
-  dut->set_csr_bram_id_start(bram_sel);
-  dut->set_csr_bram_id_range(bram_sel);
-  dut->set_csr_bram_addr_base(bram_base);
-  dut->set_csr_tiles_per_row(bram_nwrites);*/
-
-  //dut->set_csr_dram_block_size_bytes(nbytes);
   dut->set_csr_dramBaseAddrSrc((AccelDblReg) accel_buf);
   cout << "[SW] DRAM Base Addr Src" << accel_buf << endl;
   dut->set_csr_dramBaseAddrDst((AccelDblReg) accel_buf_dst );
@@ -78,52 +72,11 @@ void set_up_transfer_singletarget(
   dut->set_outDma_inner_step(8);
   dut->set_outDma_inner_count(8);
   
-}/*
-
-void set_up_transfer_multitarget(void * accel_buf, uint32_t nbytes,
-  uint32_t bram_start, uint32_t bram_idrange, uint32_t bram_base,
-  uint32_t writes_per_bram_turn
-) {
-  dut->set_csr_bram_id_start(bram_start);
-  dut->set_csr_bram_id_range(bram_idrange);
-  dut->set_csr_bram_addr_base(bram_base);
-  dut->set_csr_tiles_per_row(writes_per_bram_turn);
-
-  dut->set_csr_dram_block_size_bytes(nbytes);
-  dut->set_csr_dram_base((AccelDblReg) accel_buf);
-  // this test uses a single block
-  dut->set_csr_dram_block_offset_bytes(0);
-  dut->set_csr_dram_block_count(1);
 }
 
-void memcpy_from_bram(int bram_sel, int bram_base, int nbytes, void *dest) {
-  assert(nbytes % 8 == 0);
-  uint64_t * dest_8b = (uint64_t *) dest;
-  for(int i = 0; i < nbytes/8; i++) {
-    dest_8b[i] = bram_read(bram_sel, bram_base+i);
-  }
-}
+// int memcmp_bs_dram(){
 
-int memcmp_from_bram(int bram_sel, int bram_base, int nbytes, void *cmp) {
-  assert(nbytes % 8 == 0);
-  uint64_t * dest_8b = (uint64_t *) cmp;
-  int ret = 0;
-  for(int i = 0; i < nbytes/8; i++) {
-    if(dest_8b[i] != bram_read(bram_sel, bram_base+i)) {
-      ret = -1;
-      cout << "difference in memcmp_from_bram!" << endl;
-      cout << "expected: " << dest_8b[i];
-      cout << " found: " << bram_read(bram_sel, bram_base+i) << endl;
-    }
-  }
-  return ret;
-}
-
-void zero_bram(int bram_sel) {
-  for(int i = 0; i < BRAM_ENTRIES; i++) {
-    bram_write(bram_sel, i, 0);
-  }
-}*/
+// }
 
 int main()
 {
@@ -137,12 +90,24 @@ int main()
   // TODO set up mask here to exclude other channels
   bool singletarget_dram_OK = true;
   size_t nwords = 8;
-  size_t nbytes = nwords * sizeof(uint64_t);
-  uint32_t target_bram = 1;
-  uint64_t * hostbuf = new uint64_t[nwords];
-  uint64_t * hostbuf2  = new uint64_t[nwords];
-  uint64_t * gold = new uint64_t[nwords];
+  size_t nbytes = nwords * nwords * sizeof(uint8_t);
+
+  uint8_t * hostbuf = new uint8_t[nwords * nwords];
+  uint8_t * hostbuf2  = new uint8_t[nwords * nwords];
+  //uint8_t * gold = new uint8_t[nwords * nwords];
+  uint64_t * hw_res = new uint64_t[nwords * nwords];
   uint64_t mask  = 0x00000000000000FF;
+
+
+  //Try to reproduce the gemm contest to produce golden result
+  gemmbitserial::GEMMContext ctx = allocGEMMContext(
+    nwords, nwords, nwords, nwords, nwords, false, false );
+
+  generateRandomVector(nwords, nwords*nwords, hostbuf);
+
+  ctx.lhs.importRegular(hostbuf);
+  
+/*
   for(int i = 0; i < nwords; i++) {
     hostbuf[i] = i+1070;
     uint64_t sum = 0;
@@ -153,36 +118,55 @@ int main()
     gold[i] = sum;
     cout << gold[i] << ", ";
   }
-  cout << endl;
+  cout << endl;*/
   void * accelbuf = p->allocAccelBuffer(nbytes);
   void * accelbuf2 = p->allocAccelBuffer(nbytes);
 
   p->copyBufferHostToAccel(hostbuf, accelbuf, nbytes);
   //cout << "[SW] Copying data to the accelerator" << endl;
-  set_up_transfer_singletarget(accelbuf, nbytes, accelbuf2);//target_bram, 0, nwords);
+  set_up_transfer_singletarget(accelbuf, nbytes, accelbuf2);
   //cout << "[SW] Set up all the params " << endl;
   exec_and_wait();
   //cout << "[SW] Done :) "<<endl; 
 
   p->copyBufferAccelToHost(accelbuf2, hostbuf2, nbytes );
-  
+  ctx.lhs.printHex();
+
   cout << "[SW] Result collection and comparison" << endl; 
   cout << "Result of Accel: " << endl;
   //cout << hostbuf2[0] << endl;
   for (int i = 0; i < nwords; i++){
-    cout << hostbuf2[i] << " " << endl;
+    //cout << hostbuf2[i] << " " << endl;
     for (int j = 0; j < nwords; j++)
     {
-      cout << "Pos:" << j << " Elem: " << ((hostbuf2[i] & (mask << (j*8)) )>> (j*8)) << "; ";
+      cout << /*"Pos:" <<i << "," <<  j  << ": " <<*/   std::hex <<  static_cast<int>((hostbuf2[i * nwords + j])) << std::dec << ", "; 
+      //((hostbuf2[i] & (mask << (j*8)) )>> (j*8)) << "; ";
     }
     cout << endl;
   }
+
+
+  //cout << "Try to cast in proper way :D " << endl;
+  for (int i = 0; i < nwords; i++){
+    for (int j = 0; j < nwords; j++)
+    {
+      hw_res[i * nwords + j] = hostbuf2[i * nwords + j];
+      //cout << std::hex <<  hw_res[i * nwords + j] << std::dec << ", ";
+    }
+    //cout << endl;
+  }
+
+  int res =  memcmp(hw_res, ctx.lhs.data, nwords * nwords * sizeof(uint64_t));
+  cout << "Comparison result:" << res << endl;
   //singletarget_dram_OK &= (memcmp_from_bram(target_bram, 0, nbytes, hostbuf) == 0);
   //cout << "DRAM to single-target test passed? " << singletarget_dram_OK << endl;
   all_OK &= singletarget_dram_OK;
 
   delete [] hostbuf;
+  delete [] hostbuf2;
   p->deallocAccelBuffer(accelbuf);
+  p->deallocAccelBuffer(accelbuf2);
+
 /*
   // copy data into all BRAMs (in turn) from a single DRAM transfer
   bool multitarget_dram_OK = true;

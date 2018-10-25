@@ -26,6 +26,10 @@ class P2SKernelParams (
   }
 }
 
+/**
+  *
+  * @param actualInBw is a mask to filter the input with the run-time bit-width and rule the internal component behvaior
+  */
 
 class P2SKernelCtrlIO(myP: P2SKernelParams) extends PrintableBundle{
   val dramBaseAddrSrc = UInt(width = 32)
@@ -42,35 +46,42 @@ class P2SKernelCtrlIO(myP: P2SKernelParams) extends PrintableBundle{
 }
 
 class P2SKernel (myP: P2SKernelParams) extends Module {
-  val io = new Bundle{
-      val ctrl = new P2SKernelCtrlIO(myP: P2SKernelParams).asInput()
-      val dramBaseSrc = UInt(OUTPUT, width = 32)
-      val dramBaseDst = UInt(OUTPUT, width = 32)
-      val inputStream = Decoupled(UInt( width = myP.maxInBw * myP.nInElemPerWord)).flip()
-      val outStream = Decoupled(UInt(width = myP.mrp.dataWidth))
-      val start = Bool(INPUT)
-      val done = Bool(OUTPUT)
+  val io = new Bundle {
+    val ctrl = new P2SKernelCtrlIO(myP: P2SKernelParams).asInput()
+    val dramBaseSrc = UInt(OUTPUT, width = 32)
+    val dramBaseDst = UInt(OUTPUT, width = 32)
+    val inputStream = Decoupled(UInt(width = myP.maxInBw * myP.nInElemPerWord)).flip()
+    val outStream = Decoupled(UInt(width = myP.mrp.dataWidth))
+    val start = Bool(INPUT)
+    val done = Bool(OUTPUT)
   }
 
   io.dramBaseDst := io.ctrl.dramBaseAddrDst
   io.dramBaseSrc := io.ctrl.dramBaseAddrSrc
 
-  val operands = Vec.fill(myP.nInElemPerWord){Reg(init = UInt(0, width=myP.maxInBw))}
-  val filteredOps = Vec.fill((myP.nInElemPerWord)){UInt(width=myP.maxInBw)}
+  val operands = Vec.fill(myP.nInElemPerWord) {
+    UInt(width = myP.maxInBw)
+//    Reg(init = UInt(0, width = myP.maxInBw))
+
+  }
+  val filteredOps = Vec.fill((myP.nInElemPerWord)) {
+    UInt(width = myP.maxInBw)
+  }
 
 
-
-  for(i <- 0 until myP.nInElemPerWord) {
+  for (i <- 0 until myP.nInElemPerWord) {
     operands(i) := io.inputStream.bits(myP.maxInBw * (1 + i) - 1, myP.maxInBw * i)
     filteredOps(i) := operands(i) & io.ctrl.actualInBw
   }
 
 
-  val serUnit = Module ( new SerializerUnit(myP.suparams)).io
+  val serUnit = Module(new SerializerUnit(myP.suparams)).io
 
-  serUnit.counterValue := io.ctrl.actualInBw
+  val numericBw = PopCount(io.ctrl.actualInBw)
 
-  for(i <- 0 until myP.nInElemPerWord){
+  serUnit.counterValue := numericBw
+
+  for (i <- 0 until myP.nInElemPerWord) {
     serUnit.input(0)(i) := filteredOps(i)
   }
 
@@ -79,7 +90,15 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
   val sSUIdle :: sSUReady :: sSUProcessing :: Nil = Enum(UInt(), 3)
   val regState = Reg(init = UInt(sSUIdle))
 
-  when(regState === sSUIdle){
+
+  val countToFinish = Reg(init = UInt(myP.outStreamSize, width = log2Up(myP.outStreamSize) + 1) )
+  val endSerialize = countToFinish ===  UInt(0)
+
+  when(serUnit.out.valid) {
+    countToFinish := countToFinish - numericBw
+  }
+
+  when(regState === sSUIdle) {
     serUnit.start := Bool(false)
     serUnit.out.ready := Bool(false)
     when(io.inputStream.valid) {
@@ -88,47 +107,103 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
       regState := sSUProcessing
     }
   }
-  .elsewhen(regState === sSUReady){
-    io.inputStream.ready := Bool(true)
-    serUnit.start := Bool(false)
-    serUnit.out.ready := Bool(false)
-
-    when(io.inputStream.valid){
-      serUnit.start := Bool(true)
-      serUnit.out.ready := Bool(true)
-      regState := sSUProcessing
-    }
-  }.elsewhen(regState === sSUProcessing){
-    io.inputStream.ready := Bool(false)
-    serUnit.start := Bool(true)
-    serUnit.out.ready := Bool(false)
-    //TODO this has to when I've write all the output in a local buffer
-    when(serUnit.out.valid & io.outStream.ready){
-      serUnit.out.ready := Bool(true)
+    .elsewhen(regState === sSUReady) {
+      io.inputStream.ready := Bool(true)
       serUnit.start := Bool(false)
-      //io.inputStream.ready := Bool(true)
-      regState := sSUReady
+      serUnit.out.ready := Bool(false)
+
+      when(io.inputStream.valid & !endSerialize) {
+        //serUnit.start := Bool(true)
+        serUnit.out.ready := Bool(true)
+        regState := sSUProcessing
+      }.otherwise{
+        serUnit.out.ready := Bool(true)
+        regState := sSUIdle
+      }
+    }.elsewhen(regState === sSUProcessing) {
+    when(!endSerialize){
+      io.inputStream.ready := Bool(false)
+      serUnit.start := Bool(true)
+      serUnit.out.ready := Bool(false)
+      //TODO this has to when I've write all the output in a local buffer
+      when(serUnit.out.valid & io.outStream.ready) {
+        serUnit.out.ready := Bool(true)
+        serUnit.start := Bool(true)
+        //io.inputStream.ready := Bool(true)
+        regState := sSUReady
+        }
+    }.otherwise{
+      serUnit.start := Bool(false)
+      regState := sSUIdle
     }
-  }.otherwise{
+  }.otherwise {
     serUnit.start := Bool(false)
     serUnit.out.ready := Bool(false)
     io.inputStream.ready := Bool(false)
 
   }
+  val valid_r = Reg(init = false.B, next = serUnit.out.valid )
+  val valid_pulse =serUnit.out.valid & !valid_r
+
+
+  //TODO: There is smth that I miss in the configurability part of the component on the matrix size
+  val coalescingBuffer = Vec.fill(myP.maxInBw) {
+    Vec.fill(myP.outStreamSize) {
+      Reg(init = UInt(0, width = 1))
+    }
+  }
+  //val coalescingWire = Vec.fill(myP.nInElemPerWord){UInt()}
+  val currentBit = Reg(init = UInt(0, width = myP.maxInBw))
+  val currentBuff = Reg(init = UInt(0, width = log2Up(myP.outStreamSize)))
+
+  //Write enable
+  when(!endSerialize | valid_pulse){
+    for (i <- 0 until myP.nInElemPerWord)
+      coalescingBuffer(currentBit)(UInt(i) + currentBuff) := serUnit.out.bits(0)(i)
+  }.otherwise{
+    for (i <- 0 until myP.nInElemPerWord)
+      coalescingBuffer(currentBit)(UInt(i) + currentBuff) := coalescingBuffer(currentBit)(UInt(i) + currentBuff)
+  }
+
+  when(serUnit.start) {
+    currentBit := currentBit + UInt(1)
+  }
+
+  when(io.inputStream.ready && regState === sSUReady) {
+    currentBuff := currentBuff + UInt(8)
+    currentBit := UInt(0)
+  }
 
 
 
+
+
+  val clscIndex = Reg(init = UInt(0, width = log2Up(myP.maxInBw)))
+
+  when(endSerialize && clscIndex < numericBw) {
+    io.outStream.valid := Bool(true)
+    clscIndex := clscIndex + UInt(1)
+    io.done := Bool(true)
+  }.otherwise{
+    io.outStream.valid := Bool(false)
+    io.done := Bool(false)
+    clscIndex := UInt(0)
+  }
+
+  io.outStream.bits := coalescingBuffer(clscIndex).asUInt()
+
+/*
   val sumVec = Vec.fill(myP.nInElemPerWord/2){UInt()}
 
   for(i <- 0 until myP.nInElemPerWord/2 ) {
     sumVec(i) := filteredOps(i*2) + filteredOps(i*2 + 1 )
-   // printf("[HW: P2SKrnl] Adding %d + %d\n", filteredOps(i), filteredOps(myP.nInElemPerWord - 1 - i) )
+    // printf("[HW: P2SKrnl] Adding %d + %d\n", filteredOps(i), filteredOps(myP.nInElemPerWord - 1 - i) )
 
   }
 
-   io.outStream.bits := sumVec.asUInt()
-
+  io.outStream.bits := sumVec.asUInt()
   io.outStream.valid := serUnit.out.valid
+*/
   //when(io.outStream.valid){
   //  printf("[HW: P2SKrnl] Input valid \n")
   //}

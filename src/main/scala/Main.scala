@@ -249,6 +249,17 @@ object CharacterizeMain {
   }
   val instFxn_BlackBoxCompressor = {p: BlackBoxCompressorParams => Module(new BlackBoxCompressor(p))}
 
+
+    def makeParamSpace_P2SAccel(): Seq[StandAloneP2SParams] = {
+    return for {
+      mbw <- Seq(4,8,16,32)//,64)
+      nxw <- Seq(4,8,16)
+    } yield new StandAloneP2SParams(
+      maxInBw = mbw, nInElemPerWord = nxw, outStreamSize = mbw * nxw, mrp = PYNQZ1Params.toMemReqParams()
+    )
+  }
+  val instFxn_P2SAccel = {p: StandAloneP2SParams => Module(new StandAloneP2SAccel(p,TesterWrapperParams))}
+
   def main(args: Array[String]): Unit = {
     val chName: String = args(0)
     val chPath: String = args(1)
@@ -272,6 +283,8 @@ object CharacterizeMain {
       VivadoSynth.characterizeSpace(makeParamSpace_FetchStage(), instFxn_FetchStage, chPath, chLog, fpgaPart)
     } else if (chName == "CharacterizeBBCompressor"){
       VivadoSynth.characterizeSpace(makeParamSpace_BlackBoxCompressor(), instFxn_BlackBoxCompressor, chPath, chLog, fpgaPart)
+    } else if (chName == "CharacterizeP2SAccel"){
+      VivadoSynth.characterizeSpace(makeParamSpace_P2SAccel(), instFxn_P2SAccel, chPath, chLog, fpgaPart)
     }else {
       println("Unrecognized target for characterization")
     }

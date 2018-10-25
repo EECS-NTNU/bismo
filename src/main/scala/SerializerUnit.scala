@@ -51,6 +51,9 @@ class SerializerUnit(val p : SerializerUnitParams) extends Module{
 
   }
   val end = Bool()
+
+  //TODO: check this also for the static one
+  val startDelayed = io.start //ShiftRegister(io.start,1)
   //STATIC COUNTER, NOT RECONFIGURABLE AT RUN-TIME
   if (p.staticCounter){
     val z = Counter(p.inPrecision)
@@ -77,12 +80,13 @@ class SerializerUnit(val p : SerializerUnitParams) extends Module{
   else {
     val z = Module(new DynamicCounter( new DynamicCounterParams( maxPrecision =  p.maxCounterPrec))).io
     val myCounterReg = Reg(init = UInt(0 , width = p.maxCounterPrec))
-    when(io.start){
+
+    when(startDelayed){
       myCounterReg := io.counterValue
     }
     z.countMax := myCounterReg
 
-    when(io.start && z.currentValue < (myCounterReg - UInt(1)) ||( io.out.ready && z.currentValue === (myCounterReg - UInt(1))) ){
+    when(startDelayed && z.currentValue < (myCounterReg - UInt(1)) ||( io.out.ready && z.currentValue === (myCounterReg - UInt(1))) ){
       z.inc := Bool(true)
     }.otherwise{
       z.inc := Bool(false)
