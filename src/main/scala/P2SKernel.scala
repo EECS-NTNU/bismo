@@ -26,16 +26,12 @@ class P2SKernelParams (
   }
 }
 
-/**
-  *
-  * @param actualInBw is a mask to filter the input with the run-time bit-width and rule the internal component behvaior
-  */
 
 class P2SKernelCtrlIO(myP: P2SKernelParams) extends PrintableBundle{
-  val dramBaseAddrSrc = UInt(width = 32)
-  val dramBaseAddrDst = UInt(width = 32)
-  val matrixRows = UInt(width = 32)
-  val matrixCols = UInt(width = 32)
+  val dramBaseAddrSrc = UInt(width = 32) // ALWAYS the address of the current row
+  val dramBaseAddrDst = UInt(width = 32) // ALWAYS the addres of b0 - curr row
+  val matrixRows = UInt(width = 32)// which number of row currently processing
+  val matrixCols = UInt(width = 32)//how many cols
   val actualInBw = UInt(width = myP.maxInBw)
   val waitCompleteBytes = UInt(width = 32)
 
@@ -53,6 +49,7 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
     val inputStream = Decoupled(UInt(width = myP.maxInBw * myP.nInElemPerWord)).flip()
     val outStream = Decoupled(UInt(width = myP.mrp.dataWidth))
     val start = Bool(INPUT)
+    val multipleExec = Bool(INPUT)
     val done = Bool(OUTPUT)
   }
 
@@ -71,15 +68,14 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
 
   for (i <- 0 until myP.nInElemPerWord) {
     operands(i) := io.inputStream.bits(myP.maxInBw * (1 + i) - 1, myP.maxInBw * i)
-    filteredOps(i) := operands(i) & io.ctrl.actualInBw
+    filteredOps(i) := operands(i)
   }
 
 
   val serUnit = Module(new SerializerUnit(myP.suparams)).io
 
-  val numericBw = PopCount(io.ctrl.actualInBw)
 
-  serUnit.counterValue := numericBw
+  serUnit.counterValue := io.ctrl.actualInBw
 
   for (i <- 0 until myP.nInElemPerWord) {
     serUnit.input(0)(i) := filteredOps(i)
@@ -91,11 +87,16 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
   val regState = Reg(init = UInt(sSUIdle))
 
 
-  val countToFinish = Reg(init = UInt(myP.outStreamSize, width = log2Up(myP.outStreamSize) + 1) )
+  val countToFinish = Reg(init = UInt(0x3F, width = log2Up(myP.outStreamSize) + 1) )
   val endSerialize = countToFinish ===  UInt(0)
 
+  //end as soon as I have completed a number of columns that is required by the user
+  when(io.start){
+    countToFinish := io.ctrl.matrixCols
+  }
+
   when(serUnit.out.valid) {
-    countToFinish := countToFinish - numericBw
+    countToFinish := countToFinish - UInt(8)
   }
 
   when(regState === sSUIdle) {
@@ -156,13 +157,20 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
   val currentBit = Reg(init = UInt(0, width = myP.maxInBw))
   val currentBuff = Reg(init = UInt(0, width = log2Up(myP.outStreamSize)))
 
+  for (i <- 0 until myP.nInElemPerWord)
+    coalescingBuffer(currentBit)(UInt(i) + currentBuff) := coalescingBuffer(currentBit)(UInt(i) + currentBuff)
+
   //Write enable
   when(!endSerialize | valid_pulse){
     for (i <- 0 until myP.nInElemPerWord)
       coalescingBuffer(currentBit)(UInt(i) + currentBuff) := serUnit.out.bits(0)(i)
-  }.otherwise{
-    for (i <- 0 until myP.nInElemPerWord)
-      coalescingBuffer(currentBit)(UInt(i) + currentBuff) := coalescingBuffer(currentBit)(UInt(i) + currentBuff)
+  }
+
+  when(io.start){
+    for(i <- 0 until myP.maxInBw)
+      for (j <- 0 until myP.outStreamSize){
+        coalescingBuffer(i)(j) := UInt(0)
+      }
   }
 
   when(serUnit.start) {
@@ -178,12 +186,16 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
 
 
 
-  val clscIndex = Reg(init = UInt(0, width = log2Up(myP.maxInBw)))
+  val clscIndex = Reg(init = UInt(0, width = log2Up(myP.maxInBw) + 1))
 
-  when(endSerialize && clscIndex < numericBw) {
+  when(endSerialize && clscIndex < (io.ctrl.actualInBw) ) {
     io.outStream.valid := Bool(true)
     clscIndex := clscIndex + UInt(1)
     io.done := Bool(true)
+  }.elsewhen(endSerialize && clscIndex === io.ctrl.actualInBw ){
+    clscIndex := clscIndex
+    io.outStream.valid := Bool(false)
+    io.done := Bool(false)
   }.otherwise{
     io.outStream.valid := Bool(false)
     io.done := Bool(false)

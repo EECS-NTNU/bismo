@@ -34,7 +34,9 @@ class StandAloneP2SParams(
 
   // Input bandwidth equal to output bandwidth
   Predef.assert( maxInBw * nInElemPerWord == outStreamSize)
+  Predef.assert(maxInBw %8 == 0 || nInElemPerWord % 8 == 0)
 
+  val dramWordBytes = maxInBw * nInElemPerWord / 8
 
   val suparams = new SerializerUnitParams(
     inPrecision = maxInBw, matrixRows = 1,
@@ -91,10 +93,9 @@ class StandAloneP2SAccel(
       val done = Bool(OUTPUT)
   }
 
-  val p2skrnl = Module( new P2SKernel(myP.p2sparams)).io
-  p2skrnl.ctrl <> io.p2sCtrl
-  p2skrnl.start := io.start
 
+
+  val colPerWord = io.p2sCtrl.matrixCols * UInt(myP.dramWordBytes)
 
   // instantiate request generator
   val inRg = Module(new BlockStridedRqGen( mrp = myP.mrp, writeEn = false )).io
@@ -104,77 +105,80 @@ class StandAloneP2SAccel(
   val start_pulse = io.start & !start_r
   inRg.in.valid := start_pulse
 
-  /*
-  when(inRg.out.valid){
-    printf("[HW: SAccel] Valid Read request addr %d\n", inRg.out.bits.addr)
-  }
-  */
+
+  val p2skrnl = Module( new P2SKernel(myP.p2sparams)).io
+  p2skrnl.ctrl <> io.p2sCtrl
+  p2skrnl.start := start_pulse
+
+
+  val bitParallelColPerDramWord = (io.p2sCtrl.matrixCols * io.p2sCtrl.actualInBw ) / UInt(myP.maxInBw * myP.nInElemPerWord)
+  val sel_bprl = bitParallelColPerDramWord > UInt(1)
+  val bitPrlCount = Mux(sel_bprl,bitParallelColPerDramWord, UInt(1) )
+
   inRg.in.bits.base :=  p2skrnl.dramBaseSrc
-  inRg.in.bits.block_step := io.inDma.outer_step
-  inRg.in.bits.block_count := io.inDma.outer_count
+  inRg.in.bits.block_step := UInt(1)//io.p2sCtrl.matrixRows * io.p2sCtrl.matrixCols *  UInt(myP.dramWordBytes) // ext param? for multiple rows
 
-  inRg.block_intra_step := io.inDma.inner_step
-  inRg.block_intra_count := io.inDma.inner_count
+  //TODO check this and upper
+  inRg.in.bits.block_count := UInt(1)
+
+  inRg.block_intra_step := UInt(myP.dramWordBytes)
+  inRg.block_intra_count := bitPrlCount // max(col * bw / dram word, 1), should it be an instruction param?
 
 
+  p2skrnl.multipleExec := sel_bprl
   io.memPort(0).memRdReq <> inRg.out
 
-  //io.memPort(0).memRdReq.bits.numBytes := UInt(myP.maxInBw * myP.nInElemPerWord / 8)
 
   // add PrintableBundleStreamMonitor to print all mem rd req/rsp transactions
-  //PrintableBundleStreamMonitor(io.memPort(0).memRdReq, Bool(true), "memRdReq", true)
-  //PrintableBundleStreamMonitor(io.memPort(0).memRdRsp, Bool(true), "memRdRsp", true)
+//  PrintableBundleStreamMonitor(io.memPort(0).memRdReq, Bool(true), "memRdReq", true)
+//  PrintableBundleStreamMonitor(io.memPort(0).memRdRsp, Bool(true), "memRdRsp", true)
   //PrintableBundleStreamMonitor(io.memPort(0).memWrReq , Bool(true), "memWrReq", true)
   //PrintableBundleStreamMonitor(io.memPort(0).memWrDat , Bool(true), "memWrDat", true)
   //PrintableBundleStreamMonitor(io.memPort(0).memWrRsp , Bool(true), "memWrRsp", true)
 
 
-/*
-  when(inRg.out.valid){
-    printf("[HW: SAccel] Addr %d with base addr %d \n", inRg.out.bits.addr, p2skrnl.dramBaseSrc)
-  }
-  */
 
   val inQueue = FPGAQueue(ReadRespFilter(io.memPort(0).memRdRsp),128)
   inQueue <> p2skrnl.inputStream
 
   val regCompletedRdBytes = Reg(init = UInt(0, 32))
 
-  val allRead = regCompletedRdBytes === ( io.inDma.inner_count * UInt(myP.maxInBw * myP.nInElemPerWord) )
+  val allRead = regCompletedRdBytes === ( bitPrlCount * UInt(myP.maxInBw * myP.nInElemPerWord) )
 
 //  val rdhandshake = (io.memPort(0).memRdRsp.valid & io.memPort(0).memRdRsp.ready)
-  val rdhandshake = (inQueue.valid & p2skrnl.inputStream.ready)
+  val rdhandshake = inQueue.valid & p2skrnl.inputStream.ready
 
 
   when(rdhandshake & !allRead){
     regCompletedRdBytes := regCompletedRdBytes + UInt(myP.maxInBw * myP.nInElemPerWord)
   }
 
-/*
-  when(io.memPort(0).memRdRsp.valid){
-    printf("[HW: SAccel] Valid Read Response: %d\n", io.memPort(0).memRdRsp.bits.readData)
-
-  }
-  when(io.memPort(0).memRdRsp.ready && io.memPort(0).memRdRsp.valid ){
-    printf("[HW: SAccel] Read Response Handshake!\n")
-
-  }
-*/
-
 
   val outRg = Module(new BlockStridedRqGen( mrp = myP.mrp, writeEn = true )).io
 
   outRg.in.valid := p2skrnl.done
 
-  outRg.in.bits.base := p2skrnl.dramBaseDst
-  outRg.in.bits.block_step := io.outDma.outer_step
-  outRg.in.bits.block_count := io.outDma.outer_count
 
-  outRg.block_intra_step := io.outDma.inner_step
-  outRg.block_intra_count := io.outDma.inner_count
+  val bsColPerDramWord = io.p2sCtrl.matrixCols / UInt(myP.dramWordBytes)
+  val sel_bs = bsColPerDramWord > UInt(myP.dramWordBytes)
+
+  val stepFactor =  Mux(sel_bs, bsColPerDramWord, UInt(myP.dramWordBytes) )
+  val intStep = io.p2sCtrl.matrixRows * stepFactor
+
+
+  val sel_count = bsColPerDramWord > UInt(1)
+
+  val ext_count = Mux(sel_count, bsColPerDramWord, UInt(1) )
+
+  outRg.in.bits.base := p2skrnl.dramBaseDst // should always been the address of b0 current processed row
+  outRg.in.bits.block_step := UInt(myP.dramWordBytes)
+  outRg.in.bits.block_count := ext_count
+
+  outRg.block_intra_step := intStep
+  outRg.block_intra_count := io.p2sCtrl.actualInBw
 
   outRg.out <> io.memPort(0).memWrReq
-  //io.memPort(0).memWrReq.bits.numBytes := UInt(myP.p2sparams.outStreamSize / 8)
+
 
   FPGAQueue(p2skrnl.outStream, 64) <>  io.memPort(0).memWrDat
 
@@ -182,7 +186,7 @@ class StandAloneP2SAccel(
   // completion detection logic
   val regCompletedWrBytes = Reg(init = UInt(0, 32))
 
-  val allComplete = (regCompletedWrBytes === io.p2sCtrl.waitCompleteBytes)
+  val allComplete = regCompletedWrBytes === io.p2sCtrl.waitCompleteBytes
 
   io.memPort(0).memWrRsp.ready := Bool(true)
   when(io.memPort(0).memWrRsp.valid && !allComplete) {
