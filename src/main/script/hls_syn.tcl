@@ -35,23 +35,39 @@
 
 # quick-and-dirty tcl script for single-file HLS synthesis
 # start reading args from index 2 since vivado HLS also passes -f tclname here
+
 set config_proj_name      [lindex $::argv 2]
 set config_hwsrc          [lindex $::argv 3]
 set config_proj_part      [lindex $::argv 4]
 set config_clkperiod      [lindex $::argv 5]
 set config_toplevelfxn    [lindex $::argv 6]
-set config_incldir        [lindex $::argv 7]
+set config_incldirs       [lindex $::argv 7]
 
 puts "HLS project: $config_proj_name"
 puts "HW source file: $config_hwsrc"
 puts "Part: $config_proj_part"
 puts "Clock period: $config_clkperiod ns"
 puts "Top level function name: $config_toplevelfxn"
-puts "Include directory: $config_incldir"
+puts "Include dirs: $config_incldirs"
+
+proc lmap {listName expr} {
+  upvar $listName list
+  set res [list]
+  foreach _ $list {
+    lappend res [eval $expr]
+  }
+  return $res
+}
+
+set inclDirList [regexp -inline -all -- {\S+} $config_incldirs]
+set includeDirs [lmap inclDirList { format -I%s $_ }]
+
+puts "inclDirList: $inclDirList"
+puts "includeDirs: $includeDirs"
 
 # set up project
 open_project $config_proj_name
-add_files $config_hwsrc -cflags "-std=c++0x -I$config_incldir"
+add_files $config_hwsrc -cflags "-std=c++0x $includeDirs"
 set_top $config_toplevelfxn
 open_solution sol1
 set_part $config_proj_part
