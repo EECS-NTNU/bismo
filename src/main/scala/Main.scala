@@ -35,6 +35,7 @@ import Chisel._
 import sys.process._
 import fpgatidbits.PlatformWrapper._
 import fpgatidbits.TidbitsMakeUtils
+import fpgatidbits.hlstools.TemplatedHLSBlackBox
 
 // Main entry points into the different functionalities provided by this repo.
 // There are four different entry points:
@@ -95,6 +96,23 @@ object ChiselMain {
     val chiselArgs = Array("--backend", "v", "--targetDir", targetDir)
     chiselMain(chiselArgs, () => Module(platformInst(accInst)))
 
+  }
+}
+
+object HLSTemplateWrapperMain {
+  def main(args: Array[String]): Unit = {
+    val hlsComponentName: String = args(0)
+    val targetFile: String = args(1)
+    type HLSComponentInstrFxn = () => TemplatedHLSBlackBox
+    type HLSComponentMap = Map[String, HLSComponentInstrFxn]
+    val hlsComponentMap: HLSComponentMap = Map(
+      "VerifyHLSInstrEncoding" -> {() => new VerifyHLSInstrEncoding()},
+      "ExecInstrGen" -> {() => new ExecInstrGen()},
+      "FetchInstrGen" -> {() => new FetchInstrGen()}
+    )
+    val hlsInstrFxn = hlsComponentMap(hlsComponentName)
+    val hlsComp = Module(hlsInstrFxn())
+    hlsComp.generateTemplateDefines(targetFile)
   }
 }
 

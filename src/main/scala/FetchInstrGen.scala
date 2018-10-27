@@ -36,7 +36,7 @@ import fpgatidbits.streams._
 import fpgatidbits.hlstools.TemplatedHLSBlackBox
 
 // Generators that take in descriptors and generate sequences of BISMO
-// instructions. here for the Execute stage.
+// instructions. here for the Fetch stage.
 // In the case where the matrix multiply workload is predictable (e.g. known
 // shape and size, repeated many times) this saves a tremendous amount of
 // instruction storage and bandwidth.
@@ -44,7 +44,7 @@ import fpgatidbits.hlstools.TemplatedHLSBlackBox
 // Currently, the generators are implemented in Vivado HLS, and are declared
 // as Chisel BlackBox components.
 
-class ExecInstrGen extends TemplatedHLSBlackBox {
+class FetchInstrGen extends TemplatedHLSBlackBox {
   val io = new Bundle {
     val in = Decoupled(UInt(width = 128)).flip
     val out = Decoupled(UInt(width = 128))
@@ -62,5 +62,8 @@ class ExecInstrGen extends TemplatedHLSBlackBox {
   renameClock("clk", "ap_clk")
 
   // no template parameters for HLS
-  val hlsTemplateParams: Map[String, String] = Map()
+  // TODO set and pass parameters properly
+  val hlsTemplateParams: Map[String, String] = Map(
+    "M" -> "2", "K" -> "128", "N" -> "2"
+  )
 }

@@ -38,7 +38,8 @@
 #include <stdint.h>
 #include "BISMOInstruction.hpp"
 
-void FetchInstrGen(
+template <size_t M, size_t K, size_t N>
+void FetchInstrGen_Templated(
   hls::stream<ap_uint<BISMO_MMDESCR_BITS>> & in,
   hls::stream<ap_uint<128>> & out
 ) {
@@ -70,18 +71,15 @@ void FetchInstrGen(
 
   // TODO make these part of HW template:
   const int exec_to_fetch_width_ratio = 1;
-  const int d_m = 2;
-  const int d_k = 128;
-  const int d_n = 2;
   const int first_lhs_id = 0;
-  const int first_rhs_id = d_m;
-  const int bytes_per_lhs_tile = (d_m * d_k) / 8;
-  const int bytes_per_rhs_tile = (d_n * d_k) / 8;
+  const int first_rhs_id = M;
+  const int bytes_per_lhs_tile = (M * K) / 8;
+  const int bytes_per_rhs_tile = (N * K) / 8;
 
   // prepare fetch instruction for LHS matrix
   fetch.bram_addr_base = ins_in.base_l * exec_to_fetch_width_ratio;
   fetch.bram_id_start = first_lhs_id;
-  fetch.bram_id_range = d_m - 1;
+  fetch.bram_id_range = M - 1;
   // how many DRAM data words are copied before the
   // fetch interconnect starts targeting the next BRAM
   fetch.tiles_per_row = ins_in.tiles_k * exec_to_fetch_width_ratio;
@@ -98,7 +96,7 @@ void FetchInstrGen(
   // prepare fetch instruction for RHS matrix
   fetch.bram_addr_base = ins_in.base_r * exec_to_fetch_width_ratio;
   fetch.bram_id_start = first_rhs_id;
-  fetch.bram_id_range = d_n - 1;
+  fetch.bram_id_range = N - 1;
   // how many DRAM data words are copied before the
   // fetch interconnect starts targeting the next BRAM
   fetch.tiles_per_row = ins_in.tiles_k * exec_to_fetch_width_ratio;
@@ -117,4 +115,20 @@ void FetchInstrGen(
   sync.isSendToken = 1;
   sync.chanID = 0;
   out.write(sync.asRaw());
+}
+
+#include "FetchInstrGen_TemplateDefs.hpp"
+void FetchInstrGen(
+  hls::stream<ap_uint<BISMO_MMDESCR_BITS>> & in,
+  hls::stream<ap_uint<128>> & out
+) {
+  #pragma HLS INTERFACE ap_ctrl_none port=return
+  #pragma HLS INTERFACE axis port=out
+  #pragma HLS INTERFACE axis port=in
+
+  FetchInstrGen_Templated<
+    TEMPLATE_PARAM_M, TEMPLATE_PARAM_K, TEMPLATE_PARAM_N
+  >(
+    in, out
+  );
 }

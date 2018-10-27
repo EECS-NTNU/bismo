@@ -35,8 +35,9 @@ import Chisel._
 import fpgatidbits.ocm._
 import fpgatidbits.streams._
 import fpgatidbits.PlatformWrapper._
+import fpgatidbits.hlstools.TemplatedHLSBlackBox
 
-class VerifyHLSInstrEncoding extends BlackBox {
+class VerifyHLSInstrEncoding extends TemplatedHLSBlackBox {
   val io = new Bundle {
     val out = Decoupled(UInt(width = 128))
     val rst_n = Bool(INPUT)
@@ -48,6 +49,9 @@ class VerifyHLSInstrEncoding extends BlackBox {
   // clock needs to be added manually to BlackBox
 	addClock(Driver.implicitClock)
   renameClock("clk", "ap_clk")
+
+  // no template parameters for HLS
+  val hlsTemplateParams: Map[String, String] = Map()
 }
 
 class EmuTestVerifyHLSInstrEncoding(p: PlatformWrapperParams) extends GenericAccelerator(p) {

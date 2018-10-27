@@ -99,7 +99,8 @@ endif
 
 $(BUILD_DIR_HLS)/%:
 	mkdir -p $(BUILD_DIR_HLS) \;
-	cd $(BUILD_DIR_HLS); vivado_hls -f $(HLS_SCRIPT) -tclargs $* $(HLS_INPUT_DIR)/$*.cpp $(HLS_PART) $(HLS_CLK_NS) $* $(HLS_INCL_DIR)
+	$(SBT) $(SBT_FLAGS) "runMain bismo.HLSTemplateWrapperMain $* $(BUILD_DIR_HLS)/$*_TemplateDefs.hpp";
+	cd $(BUILD_DIR_HLS); vivado_hls -f $(HLS_SCRIPT) -tclargs $* $(HLS_INPUT_DIR)/$*.cpp $(HLS_PART) $(HLS_CLK_NS) $* '$(HLS_INCL_DIR) $(BUILD_DIR_HLS)'
 
 # run Vivado HLS to generate Verilog for HLS components
 #$(HLS_VERILOG_DIR)/ExecInstrGen.v:
