@@ -115,7 +115,7 @@ $(BUILD_DIR_HLS)/%:
 EmuTestVerifyHLSInstrEncoding: $(BUILD_DIR_HLS)/VerifyHLSInstrEncoding
 	mkdir -p $(BUILD_DIR)/$@;
 	cp $(BUILD_DIR_HLS)/VerifyHLSInstrEncoding/$(HLS_VERILOG_RPATH)/* $(BUILD_DIR)/$@;
-	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@";
+	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator";
 	cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
@@ -124,7 +124,7 @@ EmuTestVerifyHLSInstrEncoding: $(BUILD_DIR_HLS)/VerifyHLSInstrEncoding
 EmuTestExecInstrGen: $(BUILD_DIR_HLS)/ExecInstrGen
 	mkdir -p $(BUILD_DIR)/$@;
 	cp $(BUILD_DIR_HLS)/ExecInstrGen/$(HLS_VERILOG_RPATH)/* $(BUILD_DIR)/$@;
-	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@";
+	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator";
 	cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
@@ -136,11 +136,11 @@ Test%:
 
 # run hardware-software cosimulation tests
 EmuTest%:
-	mkdir -p $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@"; cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; #cd $(BUILD_DIR)/$@; g++ -std=c++11 -I$(APP_SRC_DIR) *.cpp driver.a -o $@; ./$@
+	mkdir -p $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ cpp"; cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; cd $(BUILD_DIR)/$@; g++ -std=c++11 -I$(APP_SRC_DIR) *.cpp driver.a -o $@; ./$@
 
-# generate cycle-accurate C++ emulator via Verilator
+# generate cycle-accurate C++ emulator for the whole system via Verilator
 $(BUILD_DIR_EMU)/verilator-build.sh:
-	mkdir -p $(BUILD_DIR_EMU); $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain main $(BUILD_DIR_EMU)"
+	mkdir -p $(BUILD_DIR_EMU); $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain main $(BUILD_DIR_EMU) verilator"
 
 # generate emulator executable including software sources
 emu: $(BUILD_DIR_EMU)/verilator-build.sh $(BUILD_DIR_HLS)/ExecInstrGen

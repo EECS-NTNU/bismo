@@ -141,8 +141,15 @@ object EmuLibMain {
   def main(args: Array[String]): Unit = {
     val emuName: String = args(0)
     val emuDir: String = args(1)
+    val mode: String = args(2)
     val accInst: Settings.AccelInstFxn = Settings.emuMap(emuName)
-    TidbitsMakeUtils.makeVerilator(accInst, emuDir)
+    if(mode == "verilator") {
+      TidbitsMakeUtils.makeVerilator(accInst, emuDir)
+    } else if(mode == "cpp") {
+      TidbitsMakeUtils.makeEmulatorLibrary(accInst, emuDir, Seq("--std=c++11"))
+    } else {
+      throw new Exception("Unknown mode for EmuLibMain")
+    }
   }
 }
 
