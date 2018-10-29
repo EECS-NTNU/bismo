@@ -58,7 +58,6 @@ BUILD_DIR_CHARACTERIZE := $(BUILD_DIR)/characterize
 BUILD_DIR_DEPLOY := $(BUILD_DIR)/deploy
 BUILD_DIR_VERILOG := $(BUILD_DIR)/hw/verilog
 BUILD_DIR_EMU := $(BUILD_DIR)/emu
-BUILD_DIR_HLS := $(BUILD_DIR)/hls
 BUILD_DIR_HWDRV := $(BUILD_DIR)/hw/driver
 BUILD_DIR_EMULIB_CPP := $(BUILD_DIR)/hw/cpp_emulib
 VERILOG_SRC_DIR := $(TOP)/src/main/verilog
@@ -69,14 +68,6 @@ ZSH_IN_PATH := $(shell command -v zsh 2> /dev/null)
 CPPTEST_SRC_DIR := $(TOP)/src/test/cosim
 HW_VERILOG := $(BUILD_DIR_VERILOG)/$(PLATFORM)Wrapper.v
 PLATFORM_SCRIPT_DIR := $(TOP)/src/main/script/$(PLATFORM)/target
-# TODO: make the HLS vars and targets more generic
-HLS_SCRIPT := $(TOP)/src/main/script/hls_syn.tcl
-HLS_VERILOG_RPATH := sol1/impl/verilog
-HLS_PROJNAME := hlsproj
-HLS_INPUT_DIR := $(TOP)/src/main/resources/hls
-HLS_PART := xc7z020clg400-1
-HLS_CLK_NS := 5.0
-HLS_INCL_DIR := $(APP_SRC_DIR)
 VIVADOHLS_ROOT ?= $(shell dirname $(shell which vivado_hls))/..
 HLS_SIM_INCL := $(VIVADOHLS_ROOT)/include
 
@@ -97,33 +88,17 @@ ifndef ZSH_IN_PATH
     $(error "zsh not in path; needed by oh-my-xilinx for characterization")
 endif
 
-$(BUILD_DIR_HLS)/%:
-	mkdir -p $(BUILD_DIR_HLS) \;
-	$(SBT) $(SBT_FLAGS) "runMain bismo.HLSTemplateWrapperMain $* $(BUILD_DIR_HLS)/$*_TemplateDefs.hpp";
-	cd $(BUILD_DIR_HLS); vivado_hls -f $(HLS_SCRIPT) -tclargs $* $(HLS_INPUT_DIR)/$*.cpp $(HLS_PART) $(HLS_CLK_NS) $* '$(HLS_INCL_DIR) $(BUILD_DIR_HLS)'
-
-# run Vivado HLS to generate Verilog for HLS components
-#$(HLS_VERILOG_DIR)/ExecInstrGen.v:
-#	mkdir -p $(BUILD_DIR_HLS); cd $(BUILD_DIR_HLS); vivado_hls -f $(HLS_SCRIPT) -tclargs $(HLS_PROJNAME) $(HLS_INPUT) $(HLS_PART) $(HLS_CLK_NS) $(HLS_TOP_NAME) $(HLS_INCL_DIR)
-
-#$(HLS_VERILOG_DIR)/%.v:
-#	mkdir -p $(BUILD_DIR_HLS)/$*;
-#	cd $(BUILD_DIR_HLS)/$*;
-#	vivado_hls -f $(HLS_SCRIPT) -tclargs $(HLS_PROJNAME) $(HLS_INPUT) $(HLS_PART) $(HLS_CLK_NS) $(HLS_TOP_NAME) $(HLS_INCL_DIR)
-
 # hw-sw cosimulation tests with extra HLS dependencies
-EmuTestVerifyHLSInstrEncoding: $(BUILD_DIR_HLS)/VerifyHLSInstrEncoding
+EmuTestVerifyHLSInstrEncoding:
 	mkdir -p $(BUILD_DIR)/$@;
-	cp $(BUILD_DIR_HLS)/VerifyHLSInstrEncoding/$(HLS_VERILOG_RPATH)/* $(BUILD_DIR)/$@;
 	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator";
 	cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
 	cd $(BUILD_DIR)/$@; sh verilator-build.sh -I$(HLS_SIM_INCL); ./VerilatedTesterWrapper
 
-EmuTestExecInstrGen: $(BUILD_DIR_HLS)/ExecInstrGen
+EmuTestExecInstrGen:
 	mkdir -p $(BUILD_DIR)/$@;
-	cp $(BUILD_DIR_HLS)/ExecInstrGen/$(HLS_VERILOG_RPATH)/* $(BUILD_DIR)/$@;
 	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator";
 	cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
@@ -143,9 +118,8 @@ $(BUILD_DIR_EMU)/verilator-build.sh:
 	mkdir -p $(BUILD_DIR_EMU); $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain main $(BUILD_DIR_EMU) verilator"
 
 # generate emulator executable including software sources
-emu: $(BUILD_DIR_EMU)/verilator-build.sh $(BUILD_DIR_HLS)/ExecInstrGen
+emu: $(BUILD_DIR_EMU)/verilator-build.sh
 	cp -r $(APP_SRC_DIR)/* $(BUILD_DIR_EMU)/;
-	cp $(BUILD_DIR_HLS)/ExecInstrGen/$(HLS_VERILOG_RPATH)/* $(BUILD_DIR_EMU)/;
 	cd $(BUILD_DIR_EMU); sh verilator-build.sh -I$(HLS_SIM_INCL); mv VerilatedTesterWrapper emu; ./emu
 
 

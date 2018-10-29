@@ -35,6 +35,7 @@ import Chisel._
 import fpgatidbits.ocm._
 import fpgatidbits.streams._
 import fpgatidbits.PlatformWrapper._
+import fpgatidbits.hlstools.TemplatedHLSBlackBox
 
 class EmuTestExecInstrGen(p: PlatformWrapperParams) extends GenericAccelerator(p) {
   val numMemPorts = 0
@@ -43,7 +44,7 @@ class EmuTestExecInstrGen(p: PlatformWrapperParams) extends GenericAccelerator(p
     val out = Decoupled(UInt(width = 128))
   }
   io.signature := makeDefaultSignature()
-  val bb = Module(new ExecInstrGen()).io
+  val bb = Module(HLSBlackBox(new ExecInstrGen())).io
   bb.rst_n := !this.reset
   bb.out <> io.out
   bb.out.ready := io.out.ready & !Reg(next=io.out.ready)

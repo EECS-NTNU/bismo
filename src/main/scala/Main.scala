@@ -74,6 +74,16 @@ object Settings {
     "EmuTestVerifyHLSInstrEncoding" -> {p => new EmuTestVerifyHLSInstrEncoding(emuP)},
     "EmuTestExecInstrGen" -> {p => new EmuTestExecInstrGen(emuP)}
   )
+
+  def makeHLSDependencies(accInst: AccelInstFxn, targetDir: String) = {
+    val hlsSrcDir = getClass.getResource("/hls").getPath
+    val inclDirs: Seq[String] = Seq(
+      getClass.getResource("/cpp/app").getPath
+    )
+    TidbitsMakeUtils.makeHLSDependencies(
+      accInst, hlsSrcDir, targetDir, inclDirs
+    )
+  }
 }
 
 // call this object's main method to generate Chisel Verilog
@@ -95,24 +105,7 @@ object ChiselMain {
 
     val chiselArgs = Array("--backend", "v", "--targetDir", targetDir)
     chiselMain(chiselArgs, () => Module(platformInst(accInst)))
-
-  }
-}
-
-object HLSTemplateWrapperMain {
-  def main(args: Array[String]): Unit = {
-    val hlsComponentName: String = args(0)
-    val targetFile: String = args(1)
-    type HLSComponentInstrFxn = () => TemplatedHLSBlackBox
-    type HLSComponentMap = Map[String, HLSComponentInstrFxn]
-    val hlsComponentMap: HLSComponentMap = Map(
-      "VerifyHLSInstrEncoding" -> {() => new VerifyHLSInstrEncoding()},
-      "ExecInstrGen" -> {() => new ExecInstrGen()},
-      "FetchInstrGen" -> {() => new FetchInstrGen()}
-    )
-    val hlsInstrFxn = hlsComponentMap(hlsComponentName)
-    val hlsComp = Module(hlsInstrFxn())
-    hlsComp.generateTemplateDefines(targetFile)
+    Settings.makeHLSDependencies(accInst, targetDir)
   }
 }
 
@@ -150,6 +143,7 @@ object EmuLibMain {
     } else {
       throw new Exception("Unknown mode for EmuLibMain")
     }
+    Settings.makeHLSDependencies(accInst, emuDir)
   }
 }
 

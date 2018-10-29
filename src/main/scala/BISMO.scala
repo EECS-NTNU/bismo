@@ -36,6 +36,7 @@ import fpgatidbits.PlatformWrapper._
 import fpgatidbits.dma._
 import fpgatidbits.ocm._
 import fpgatidbits.streams._
+import fpgatidbits.hlstools.TemplatedHLSBlackBox
 
 // This is the top-level source file that cobbles together the stages,
 // controllers and token queues into a BISMO instance.
@@ -287,7 +288,7 @@ class BitSerialMatMulAccel(
   }
 
   // instantiate the instruction generators
-  val igExec = Module(new ExecInstrGen()).io
+  val igExec = Module(HLSBlackBox(new ExecInstrGen())).io
   // wire up reset differently (Vivado HLS BlackBox)
   igExec.rst_n := !this.reset
   // instantiate descriptor queues
