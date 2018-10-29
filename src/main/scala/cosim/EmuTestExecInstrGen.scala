@@ -40,8 +40,8 @@ import fpgatidbits.hlstools.TemplatedHLSBlackBox
 class EmuTestExecInstrGen(p: PlatformWrapperParams) extends GenericAccelerator(p) {
   val numMemPorts = 0
   val io = new GenericAcceleratorIF(numMemPorts, p) {
-    val in = Decoupled(UInt(width = 128)).flip
-    val out = Decoupled(UInt(width = 128))
+    val in = Decoupled(UInt(width = BISMOLimits.descrBits)).flip
+    val out = Decoupled(UInt(width = BISMOLimits.instrBits))
   }
   io.signature := makeDefaultSignature()
   val bb = Module(HLSBlackBox(new ExecInstrGen())).io

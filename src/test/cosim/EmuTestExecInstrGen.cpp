@@ -108,11 +108,15 @@ void resmemcpy2d(
 // write a descriptor into the instruction generator
 void writeDescriptor(SingleMMDescriptor desc) {
   while(t->get_in_ready() != 1);
-  const ap_uint<128> raw = desc.asRaw();
-  t->set_in_bits3(raw(31, 0));
-  t->set_in_bits2(raw(63, 32));
-  t->set_in_bits1(raw(95, 64));
-  t->set_in_bits0(raw(127, 96));
+  const ap_uint<BISMO_MMDESCR_BITS> raw = desc.asRaw();
+  t->set_in_bits6(raw(31, 0));
+  t->set_in_bits5(raw(63, 32));
+  t->set_in_bits4(raw(95, 64));
+  t->set_in_bits3(raw(127, 96));
+  t->set_in_bits2(raw(159, 128));
+  t->set_in_bits1(raw(191, 160));
+  t->set_in_bits0(raw(207, 192));
+  
   t->set_in_valid(1);
   t->set_in_valid(0);
 }
