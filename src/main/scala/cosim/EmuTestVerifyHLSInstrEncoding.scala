@@ -59,7 +59,7 @@ class EmuTestVerifyHLSInstrEncoding(p: PlatformWrapperParams) extends GenericAcc
   val io = new GenericAcceleratorIF(numMemPorts, p) {
     val out = Decoupled(UInt(width = 128))
   }
-  val bb = Module(new VerifyHLSInstrEncoding()).io
+  val bb = Module(HLSBlackBox(new VerifyHLSInstrEncoding())).io
   bb.rst_n := !this.reset
   io.out.bits := bb.out.bits
   io.out.valid := bb.out.valid
