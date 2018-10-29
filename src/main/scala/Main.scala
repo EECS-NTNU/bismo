@@ -72,7 +72,8 @@ object Settings {
     "EmuTestResultStage" -> {p => new EmuTestResultStage(2, emuP)},
     "EmuTestInstrEncoding" -> {p => new EmuTestInstrEncoding(emuP)},
     "EmuTestVerifyHLSInstrEncoding" -> {p => new EmuTestVerifyHLSInstrEncoding(emuP)},
-    "EmuTestExecInstrGen" -> {p => new EmuTestExecInstrGen(emuP)}
+    "EmuTestExecInstrGen" -> {p => new EmuTestExecInstrGen(emuP)},
+    "EmuTestFetchInstrGen" -> {p => new EmuTestFetchInstrGen(emuP)}
   )
 
   def makeHLSDependencies(accInst: AccelInstFxn, targetDir: String) = {

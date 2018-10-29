@@ -105,6 +105,14 @@ EmuTestExecInstrGen:
 	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
 	cd $(BUILD_DIR)/$@; sh verilator-build.sh -I$(HLS_SIM_INCL); ./VerilatedTesterWrapper
 
+EmuTestFetchInstrGen:
+	mkdir -p $(BUILD_DIR)/$@;
+	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator";
+	cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
+	ln -s $(APP_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
+	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
+	cd $(BUILD_DIR)/$@; sh verilator-build.sh -I$(HLS_SIM_INCL); ./VerilatedTesterWrapper
+
 # run Scala/Chisel tests
 Test%:
 	$(SBT) $(SBT_FLAGS) "test-only $@"
