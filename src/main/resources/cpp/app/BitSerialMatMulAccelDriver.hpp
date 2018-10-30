@@ -90,7 +90,7 @@ public:
   }
 
   // write a descriptor into the instruction generator
-  void pushExecDescriptor(SingleMMDescriptor desc) {
+  void pushSingleMMDescriptor(SingleMMDescriptor desc) {
     while(m_accel->get_dsc_ready() != 1);
     const ap_uint<BISMO_MMDESCR_BITS> raw = desc.asRaw();
     m_accel->set_dsc_bits6(raw(31, 0));
@@ -103,17 +103,6 @@ public:
 
     m_accel->set_dsc_valid(1);
     m_accel->set_dsc_valid(0);
-  }
-
-  // push a instruction into the fetch instr.q.
-  void pushFetchInstruction(BISMOInstruction ins) {
-    while(m_accel->get_ins_fetch_ready() != 1);
-    m_accel->set_ins_fetch_bits0(ins(127, 96));
-    m_accel->set_ins_fetch_bits1(ins(95, 64));
-    m_accel->set_ins_fetch_bits2(ins(63, 32));
-    m_accel->set_ins_fetch_bits3(ins(31, 0));
-    m_accel->set_ins_fetch_valid(1);
-    m_accel->set_ins_fetch_valid(0);
   }
 
   // push a instruction into the result instr.q.

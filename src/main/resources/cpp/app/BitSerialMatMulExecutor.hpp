@@ -306,23 +306,7 @@ protected:
   std::vector<uint64_t> m_cached_lhs, m_cached_rhs;
 
   void makeinstr_fetch_run(BISMOFetchRunInstruction r) {
-    if(r.dram_block_size_bytes == r.dram_block_offset_bytes) {
-      while(((r.dram_block_size_bytes * 2) < FETCH_BLOCK_MAX)
-            && r.dram_block_count % 2 == 0) {
-        // merge consecutive blocks to speed up fetch:
-        // one big block instead of several smaller ones
-        r.dram_block_size_bytes *= 2;
-        r.dram_block_offset_bytes *= 2;
-        r.dram_block_count /= 2;
-      }
-    }
-    // count requested fetch bytes for statistics
-    uint32_t fetchPerGroup = r.dram_block_size_bytes * r.dram_block_count;
-    m_bytes_to_fetch += fetchPerGroup;
-    r.targetStage = stgFetch;
-    r.isRunCfg = 1;
-    r.unused0 = 0;
-    m_acc->pushFetchInstruction(r.asRaw());
+    // TODO remove this function when fetchinstrgen migration is complete
   }
 
   void makeinstr_exec_run(BISMOExecRunInstruction r) {
@@ -351,7 +335,7 @@ protected:
   void makeinstr_sync(BISMOTargetStage stg, bool isSend, uint32_t chanID) {
     BISMOInstruction ins = m_acc->make_sync_instr(stg, isSend, chanID);
     if(stg == stgFetch) {
-      m_acc->pushFetchInstruction(ins);
+      // TODO remove once fetch instrgen migration is complete
     } else if(stg == stgExec) {
       // TODO remove once exec instrgen migration is complete
     } else if(stg == stgResult) {
@@ -550,8 +534,10 @@ protected:
           desc.base_r = current_bram_region * rhs_l0_per_bram;
           desc.base_res = 0;
           desc.nbufs_res = 1;
-          m_acc->pushExecDescriptor(desc);
-
+          desc.dram_lhs = fetch_base_lhs;
+          desc.dram_rhs = fetch_base_rhs;
+          desc.dram_res = 0; /*TODO*/
+          m_acc->pushSingleMMDescriptor(desc);
 
           // process the fetched L2 tile
           // exec stage acquires input matrix buffers

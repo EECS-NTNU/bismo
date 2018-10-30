@@ -203,7 +203,6 @@ class BitSerialMatMulAccel(
     // descriptors for instruction generator
     val dsc = Decoupled(UInt(width=BISMOLimits.descrBits)).flip
     // instruction queues
-    val ins_fetch = Decoupled(UInt(width=BISMOLimits.instrBits)).flip
     val ins_res = Decoupled(UInt(width=BISMOLimits.instrBits)).flip
     // command counts in each queue
     val fetch_op_count = UInt(OUTPUT, width = 32)
@@ -289,20 +288,30 @@ class BitSerialMatMulAccel(
 
   // instantiate the instruction generators
   val igExec = Module(HLSBlackBox(new ExecInstrGen())).io
+  val igFetch = Module(HLSBlackBox(new FetchInstrGen(new FetchInstrGenParams(
+    dpaDimLHS = myP.dpaDimLHS, dpaDimCommon = myP.dpaDimCommon,
+    dpaDimRHS = myP.dpaDimRHS
+  )))).io
   // wire up reset differently (Vivado HLS BlackBox)
   igExec.rst_n := !this.reset
+  igFetch.rst_n := !this.reset
   // instantiate descriptor queues
-  val execDscQ = Module(new FPGAQueue(UInt(width = BISMOLimits.descrBits), myP.dscQueueEntries)).io
-  enqPulseGenFromValid(execDscQ.enq, io.dsc)
-  execDscQ.deq <> igExec.in
-  // wire up instruction generator to instruction queue
+  val dscQ = Module(new FPGAQueue(UInt(width = BISMOLimits.descrBits), myP.dscQueueEntries)).io
+  enqPulseGenFromValid(dscQ.enq, io.dsc)
+  // make copies of the descriptor queue output, one for each instrgen
+  StreamCopy(dscQ.deq, igExec.in, igFetch.in)
+  // wire up instruction generator to instruction queues
   // need to use .fromBits due to difference in types (wires/content are the same)
+  // fetch instrgen -> fetch op q
+  fetchOpQ.enq.valid := igFetch.out.valid
+  fetchOpQ.enq.bits := fetchOpQ.enq.bits.fromBits(igFetch.out.bits)
+  igFetch.out.ready := fetchOpQ.enq.ready
+  // exec instrgen -> exec op q
   execOpQ.enq.valid := igExec.out.valid
   execOpQ.enq.bits := execOpQ.enq.bits.fromBits(igExec.out.bits)
   igExec.out.ready := execOpQ.enq.ready
 
   // push from top level into instruction queues
-  enqPulseGenFromValid(fetchOpQ.enq, io.ins_fetch)
   enqPulseGenFromValid(resultOpQ.enq, io.ins_res)
 
   // wire-up: command queues and pulse generators for fetch stage
