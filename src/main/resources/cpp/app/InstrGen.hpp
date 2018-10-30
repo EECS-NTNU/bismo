@@ -48,7 +48,7 @@ void FetchInstrGenSingleMM(
   // fetch RHS matrix
   fetch.targetStage = stgFetch;
   fetch.isRunCfg = 1;
-  fetch.bram_id_start = M-1;
+  fetch.bram_id_start = M;
   fetch.bram_id_range = N-1;
   fetch.bram_addr_base = in.base_r;
   // TODO fetch-exec ratio?
