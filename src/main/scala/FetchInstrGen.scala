@@ -44,7 +44,13 @@ import fpgatidbits.hlstools.TemplatedHLSBlackBox
 // Currently, the generators are implemented in Vivado HLS, and are declared
 // as Chisel BlackBox components.
 
-class FetchInstrGen extends TemplatedHLSBlackBox {
+class FetchInstrGenParams(
+  val dpaDimLHS: Int,
+  val dpaDimCommon: Int,
+  val dpaDimRHS: Int
+)
+
+class FetchInstrGen(val p: FetchInstrGenParams) extends TemplatedHLSBlackBox {
   val io = new Bundle {
     val in = Decoupled(UInt(width = BISMOLimits.descrBits)).flip
     val out = Decoupled(UInt(width = BISMOLimits.instrBits))
@@ -61,9 +67,9 @@ class FetchInstrGen extends TemplatedHLSBlackBox {
 	addClock(Driver.implicitClock)
   renameClock("clk", "ap_clk")
 
-  // no template parameters for HLS
-  // TODO set and pass parameters properly
   val hlsTemplateParams: Map[String, String] = Map(
-    "M" -> "2", "K" -> "128", "N" -> "2"
+    "M" -> p.dpaDimLHS.toString,
+    "K" -> p.dpaDimCommon.toString,
+    "N" -> p.dpaDimRHS.toString
   )
 }
