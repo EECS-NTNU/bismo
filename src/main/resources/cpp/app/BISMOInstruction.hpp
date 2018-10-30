@@ -350,21 +350,28 @@ ostream& operator<<(ostream& os, const BISMOInstruction& dt)
     /*os << dt << endl;
     os.fill('0');*/
     os << "raw " << dt.to_string(16) << std::endl;
-    /*os.fill(' ');
-    os << "targetStage " << dt.sync.targetStage << " runcfg? " << dt.sync.isRunCfg << std::endl;
-    if(dt.sync.isRunCfg == 0) {
-      os << dt.sync;
+    BISMOSyncInstruction sync;
+    sync.fromRaw(dt);
+    os << "targetStage " << sync.targetStage << " runcfg? " << sync.isRunCfg << std::endl;
+    if(sync.isRunCfg == 0) {
+      os << sync;
     } else {
-      if(dt.sync.targetStage == 0) {
-        os << dt.fetch;
-      } else if(dt.sync.targetStage == 1) {
-        os << dt.exec;
-      } else if(dt.sync.targetStage == 2) {
-        os << dt.res;
+      if(sync.targetStage == 0) {
+        BISMOFetchRunInstruction fetch;
+        fetch.fromRaw(dt);
+        os << fetch;
+      } else if(sync.targetStage == 1) {
+        BISMOExecRunInstruction exec;
+        exec.fromRaw(dt);
+        os << exec;
+      } else if(sync.targetStage == 2) {
+        BISMOResultRunInstruction res;
+        res.fromRaw(dt);
+        os << res;
       } else {
         os << "illegal target stage";
       }
-    }*/
+    }
     return os;
 }
 
