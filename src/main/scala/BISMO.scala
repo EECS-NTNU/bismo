@@ -201,7 +201,7 @@ class BitSerialMatMulAccel(
     val exec_enable = Bool(INPUT)
     val result_enable = Bool(INPUT)
     // descriptors for instruction generator
-    val dsc_exec = Decoupled(UInt(width=BISMOLimits.descrBits)).flip
+    val dsc = Decoupled(UInt(width=BISMOLimits.descrBits)).flip
     // instruction queues
     val ins_fetch = Decoupled(UInt(width=BISMOLimits.instrBits)).flip
     val ins_res = Decoupled(UInt(width=BISMOLimits.instrBits)).flip
@@ -293,7 +293,7 @@ class BitSerialMatMulAccel(
   igExec.rst_n := !this.reset
   // instantiate descriptor queues
   val execDscQ = Module(new FPGAQueue(UInt(width = BISMOLimits.descrBits), myP.dscQueueEntries)).io
-  enqPulseGenFromValid(execDscQ.enq, io.dsc_exec)
+  enqPulseGenFromValid(execDscQ.enq, io.dsc)
   execDscQ.deq <> igExec.in
   // wire up instruction generator to instruction queue
   // need to use .fromBits due to difference in types (wires/content are the same)
