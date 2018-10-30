@@ -48,7 +48,7 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
     val dramBaseDst = UInt(OUTPUT, width = 32)
     val inputStream = Decoupled(UInt(width = myP.maxInBw * myP.nInElemPerWord)).flip()
     val outStream = Decoupled(UInt(width = myP.mrp.dataWidth))
-    val start = Bool(INPUT)
+    val start = Bool(INPUT) //ASSUMPTION: Just a pulse to start it
     val multipleExec = Bool(INPUT)
     val done = Bool(OUTPUT)
   }
@@ -56,19 +56,11 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
   io.dramBaseDst := io.ctrl.dramBaseAddrDst
   io.dramBaseSrc := io.ctrl.dramBaseAddrSrc
 
-  val operands = Vec.fill(myP.nInElemPerWord) {
-    UInt(width = myP.maxInBw)
-//    Reg(init = UInt(0, width = myP.maxInBw))
-
-  }
-  val filteredOps = Vec.fill((myP.nInElemPerWord)) {
-    UInt(width = myP.maxInBw)
-  }
+  val operands = Vec.fill(myP.nInElemPerWord) { UInt(width = myP.maxInBw)  }
 
 
   for (i <- 0 until myP.nInElemPerWord) {
     operands(i) := io.inputStream.bits(myP.maxInBw * (1 + i) - 1, myP.maxInBw * i)
-    filteredOps(i) := operands(i)
   }
 
 
@@ -78,7 +70,7 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
   serUnit.counterValue := io.ctrl.actualInBw
 
   for (i <- 0 until myP.nInElemPerWord) {
-    serUnit.input(0)(i) := filteredOps(i)
+    serUnit.input(0)(i) := operands(i)
   }
 
 
@@ -87,36 +79,51 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
   val regState = Reg(init = UInt(sSUIdle))
 
 
-  val countToFinish = Reg(init = UInt(0x3F, width = log2Up(myP.outStreamSize) + 1) )
+  val countToFinish = Reg(init = UInt(0x3F, width = 32 ) )
   val endSerialize = countToFinish ===  UInt(0)
 
+  val filledClscBuff = Reg(init = Bool(false))
+  val restartCompSU = serUnit.out.valid & io.outStream.ready
+
   //end as soon as I have completed a number of columns that is required by the user
+
+  //workaroud for configuration part
+  val regStart = Reg(init = Bool(false), next = io.start)
+
   when(io.start){
-    countToFinish := io.ctrl.matrixCols
+    countToFinish := io.ctrl.matrixCols * io.ctrl.matrixRows
+    //ASSUMPTION: always padded in nInElemPerWord even if fewer bits as Input
+    //while as output padding depends on the number of columns
+    //
+    //If this is wrong then the count to finish has to change accordingly
+
   }
 
+
   when(serUnit.out.valid) {
-    countToFinish := countToFinish - UInt(8)
+    countToFinish := countToFinish - UInt(myP.nInElemPerWord)
   }
 
   when(regState === sSUIdle) {
     serUnit.start := Bool(false)
     serUnit.out.ready := Bool(false)
-    when(io.inputStream.valid) {
+    when(io.inputStream.valid & !filledClscBuff) {
       serUnit.start := Bool(true)
       serUnit.out.ready := Bool(true)
       regState := sSUProcessing
     }
-  }
-    .elsewhen(regState === sSUReady) {
-      io.inputStream.ready := Bool(true)
+  }.elsewhen(regState === sSUReady) {
+      io.inputStream.ready := !filledClscBuff
       serUnit.start := Bool(false)
       serUnit.out.ready := Bool(false)
 
-      when(io.inputStream.valid & !endSerialize) {
+      when(io.inputStream.valid & !endSerialize & !filledClscBuff) {
         //serUnit.start := Bool(true)
         serUnit.out.ready := Bool(true)
         regState := sSUProcessing
+      }.elsewhen(filledClscBuff){
+        serUnit.out.ready := Bool(false)
+        regState := sSUReady
       }.otherwise{
         serUnit.out.ready := Bool(true)
         regState := sSUIdle
@@ -126,8 +133,8 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
       io.inputStream.ready := Bool(false)
       serUnit.start := Bool(true)
       serUnit.out.ready := Bool(false)
-      //TODO this has to when I've write all the output in a local buffer
-      when(serUnit.out.valid & io.outStream.ready) {
+
+      when(restartCompSU) {
         serUnit.out.ready := Bool(true)
         serUnit.start := Bool(true)
         //io.inputStream.ready := Bool(true)
@@ -166,7 +173,9 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
       coalescingBuffer(currentBit)(UInt(i) + currentBuff) := serUnit.out.bits(0)(i)
   }
 
-  when(io.start){
+  //Reinit the buffer just to new transformation
+  val cleanBuff = Bool()
+  when(io.start || cleanBuff ){
     for(i <- 0 until myP.maxInBw)
       for (j <- 0 until myP.outStreamSize){
         coalescingBuffer(i)(j) := UInt(0)
@@ -184,19 +193,31 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
 
 
 
+  when(io.multipleExec && restartCompSU && currentBuff === UInt(myP.outStreamSize - 8)  && !endSerialize){
+    filledClscBuff := Bool(true)
+  }
+
 
 
   val clscIndex = Reg(init = UInt(0, width = log2Up(myP.maxInBw) + 1))
 
-  when(endSerialize && clscIndex < (io.ctrl.actualInBw) ) {
+  // this can make the difference between configurable or not
+  when((endSerialize | filledClscBuff)  && clscIndex < (io.ctrl.actualInBw) ) {
+//  when((endSerialize | filledClscBuff)  && clscIndex < UInt(myP.maxInBw) ) {
+    cleanBuff := Bool(false)
     io.outStream.valid := Bool(true)
     clscIndex := clscIndex + UInt(1)
     io.done := Bool(true)
-  }.elsewhen(endSerialize && clscIndex === io.ctrl.actualInBw ){
+  }.elsewhen((endSerialize | filledClscBuff) && clscIndex === io.ctrl.actualInBw ){
     clscIndex := clscIndex
     io.outStream.valid := Bool(false)
     io.done := Bool(false)
+    filledClscBuff := Bool(false)
+    cleanBuff := Bool(true)
+    //anticipate new input stream
+    //io.inputStream.ready := Bool(true)
   }.otherwise{
+    cleanBuff := Bool(false)
     io.outStream.valid := Bool(false)
     io.done := Bool(false)
     clscIndex := UInt(0)

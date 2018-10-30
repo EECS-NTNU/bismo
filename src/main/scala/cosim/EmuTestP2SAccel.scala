@@ -26,8 +26,8 @@ class EmuTestP2SAccel(
     val start = Bool(INPUT)                   // hold high while running
     val done = Bool(OUTPUT)                   // high when done until start=0
     val csr = new P2SKernelCtrlIO(myP.p2sparams).asInput()
-    val inDma = new dmaIF().asInput()
-    val outDma = new dmaIF().asInput()
+    //val inDma = new dmaIF().asInput()
+//    val outDma = new dmaIF().asInput()
   }
 
   val accel = Module(new StandAloneP2SAccel(myP, p)).io
@@ -41,8 +41,8 @@ class EmuTestP2SAccel(
   //when(io.memPort(0).memRdRsp.valid){
   //  printf("[CO-HW: P2SAlone Read Rsp valid, Data %d\n", io.memPort(0).memRdRsp.bits.readData)
   //}
-  io.inDma <> accel.inDma
-  io.outDma <> accel.outDma
+  //io.inDma <> accel.inDma
+  //io.outDma <> accel.outDma
 
 
   io.signature := makeDefaultSignature()

@@ -14,9 +14,10 @@ using namespace std;
 
 #define FETCH_ADDRALIGN   8
 #define FETCH_SIZEALIGN   8
-
 #define max(x,y) (x > y ? x : y)
 #define FETCH_ALIGN       max(FETCH_ADDRALIGN, FETCH_SIZEALIGN)
+#define MAX_ACCEL_BITWIDTH 8
+
 /***************************************************************/
 typedef uint64_t PackedBitGroupType;
 WrapperRegDriver * p;
@@ -65,8 +66,6 @@ void set_up_transfer_singletarget( void * accel_buf, uint32_t nbytes, void * acc
   dut->set_csr_matrixRows(rows);
   dut->set_csr_matrixCols(cols);
   dut->set_csr_actualInBw(bit_width);
-
-  
   dut->set_csr_waitCompleteBytes(nbytes);
 
 }
@@ -85,13 +84,23 @@ int main()
   size_t nwords = 8;
 
 
-  int32_t ncols = 24;
-  int32_t nrows = 1;
+  int32_t ncols = 128;
+  int32_t nrows = 2;
   size_t nbytes = nrows * ncols * sizeof(uint8_t);
-  uint8_t nbits = 1;
+  uint8_t nbits = 4;
+
+  uint32_t dramWordWidth = 64;
+  uint32_t dramByteWidth = dramWordWidth / 8;
+
+  int32_t mybitwidth = sizeof(uint8_t) * 8;
+  int32_t colPerDramBWidth = ncols / dramByteWidth;
+  //Preventing a zero count
+  int32_t bscolNumber = max(ncols / dramWordWidth, 1);
+  size_t bs_size_bytes = mybitwidth * nrows * colPerDramBWidth;
+
 
   uint8_t * hostbuf = new uint8_t[nrows * ncols];
-  uint8_t * hostbuf2  = new uint8_t[nrows * ncols];
+  uint8_t * hostbuf2  = new uint8_t[bs_size_bytes];
 
   //Try to reproduce the gemm contest to produce golden result
   gemmbitserial::GEMMContext ctx = allocGEMMContext(
@@ -102,29 +111,37 @@ int main()
   ctx.lhs.importRegular(hostbuf);
   
   void * accelbuf = p->allocAccelBuffer(nbytes);
-  void * accelbuf2 = p->allocAccelBuffer(nbytes);
+  void * accelbuf_prova = p->allocAccelBuffer(nbytes);
+  void * accelbuf2 = p->allocAccelBuffer(bs_size_bytes);
 
-  cout << sizeof(uint8_t) << "GNIIIIIIIIIIIIIIIIIIIIIII" << endl;
 
   p->copyBufferHostToAccel(hostbuf, accelbuf, nbytes);
-  set_up_transfer_singletarget(accelbuf, nbytes, accelbuf2, nrows, ncols, 8 );
+  set_up_transfer_singletarget(accelbuf, bs_size_bytes, accelbuf2, nrows, ncols, mybitwidth );
   exec_and_wait();
 
-  p->copyBufferAccelToHost(accelbuf2, hostbuf2, nbytes);
+
+
+  p->copyBufferAccelToHost(accelbuf2, hostbuf2, bs_size_bytes);
   ctx.lhs.printHex();
 
   cout << "[SW] Result collection and comparison" << endl; 
+ 
   cout << "Result of Accel: " << endl;
-  for (int i = 0; i < nrows; i++){
-    for (int j = 0; j < ncols; j++)
-    {
-      cout <<std::hex <<  static_cast<int>((hostbuf2[i * ncols + j])) << std::dec << ", "; 
+  for (int i = 0; i < mybitwidth; i++){
+    for (int j = 0; j < nrows; j++){
+      for(int k = 0; k < bscolNumber; k++)
+      {
+        cout << "Index: " << (i * nrows * bscolNumber + j * bscolNumber + k) << ", ";
+        cout << std::hex << ((uint64_t*)(hostbuf2))[i * nrows * bscolNumber + j * bscolNumber + k] << std::dec << ", "; 
+      }
     }
-    cout << endl;
+    cout << endl; 
   }
 
   cout << endl;
   cout << std::hex << ((uint64_t*)(hostbuf2))[0] << endl;
+  cout << std::hex << ((uint64_t*)(hostbuf2))[1] << endl;
+
 
 
   int res =  memcmp(hostbuf2, ctx.lhs.data, nbits * nrows * ncols / 8 );

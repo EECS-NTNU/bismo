@@ -79,7 +79,7 @@ class SerializerUnit(val p : SerializerUnitParams) extends Module{
   // Same behavior but with a run-time configurable count
   else {
     val z = Module(new DynamicCounter( new DynamicCounterParams( maxPrecision =  p.maxCounterPrec))).io
-    val myCounterReg = Reg(init = UInt(0 , width = p.maxCounterPrec))
+    val myCounterReg = Reg(init = UInt(0xF , width = p.maxCounterPrec))
 
     when(startDelayed){
       myCounterReg := io.counterValue
@@ -92,7 +92,7 @@ class SerializerUnit(val p : SerializerUnitParams) extends Module{
       z.inc := Bool(false)
     }
 
-    when(z.currentValue ===(myCounterReg - UInt(1))){
+    when(z.currentValue === (myCounterReg - UInt(1)) ){
       end := Bool(true)
     }.otherwise{
       end := Bool(false)
