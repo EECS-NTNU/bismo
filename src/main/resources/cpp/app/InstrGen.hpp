@@ -5,6 +5,70 @@
 #include <cassert>
 
 namespace InstrGen {
+
+template <
+  size_t M, size_t K, size_t N
+>
+void FetchInstrGenSingleMM(
+  // desciptor for the MM operation
+  SingleMMDescriptor in,
+  // generated instructions will be placed here
+  std::vector<BISMOInstruction> & out
+) {
+  // TODO handle off-chip matrices
+  // TODO handle multibit
+  // binary matrices only for now
+  assert((in.bits_l == 1 && in.bits_r == 1));
+  BISMOSyncInstruction sync;
+  BISMOFetchRunInstruction fetch;
+  const size_t lhs_tile_bytes = (M*K)/8;
+  const size_t rhs_tile_bytes = (N*K)/8;
+  // acquire buffers
+  sync.targetStage = stgFetch;
+  sync.isRunCfg = 0;
+  sync.isSendToken = 0;
+  sync.chanID = 0;
+  out.push_back(sync.asRaw());
+
+  // fetch LHS matrix
+  fetch.targetStage = stgFetch;
+  fetch.isRunCfg = 1;
+  fetch.bram_id_start = 0;
+  fetch.bram_id_range = M-1;
+  fetch.bram_addr_base = in.base_l;
+  // TODO fetch-exec ratio?
+  fetch.tiles_per_row = in.tiles_k;
+  fetch.dram_base = in.dram_lhs;
+  // TODO fix block calculation here
+  fetch.dram_block_size_bytes = in.tiles_m * in.tiles_k * lhs_tile_bytes;
+  fetch.dram_block_offset_bytes = 0;
+  fetch.dram_block_count = 1;
+  out.push_back(fetch.asRaw());
+
+  // fetch RHS matrix
+  fetch.targetStage = stgFetch;
+  fetch.isRunCfg = 1;
+  fetch.bram_id_start = M-1;
+  fetch.bram_id_range = N-1;
+  fetch.bram_addr_base = in.base_r;
+  // TODO fetch-exec ratio?
+  fetch.tiles_per_row = in.tiles_k;
+  fetch.dram_base = in.dram_rhs;
+  // TODO fix block calculation here
+  fetch.dram_block_size_bytes = in.tiles_n * in.tiles_k * rhs_tile_bytes;
+  fetch.dram_block_offset_bytes = 0;
+  fetch.dram_block_count = 1;
+  out.push_back(fetch.asRaw());
+
+  // release buffers
+  sync.targetStage = stgFetch;
+  sync.isRunCfg = 0;
+  sync.isSendToken = 1;
+  sync.chanID = 0;
+  out.push_back(sync.asRaw());
+}
+
+
 // create the Execute stage instruction stream for a single bit-serial MM
 void ExecInstrGenSingleMM(
   // desciptor for the MM operation
