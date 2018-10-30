@@ -39,7 +39,7 @@ import fpgatidbits.hlstools.TemplatedHLSBlackBox
 
 class VerifyHLSInstrEncoding extends TemplatedHLSBlackBox {
   val io = new Bundle {
-    val out = Decoupled(UInt(width = 128))
+    val out = Decoupled(UInt(width = BISMOLimits.instrBits))
     val rst_n = Bool(INPUT)
     out.bits.setName("out_V_V_TDATA")
     out.valid.setName("out_V_V_TVALID")
@@ -57,7 +57,7 @@ class VerifyHLSInstrEncoding extends TemplatedHLSBlackBox {
 class EmuTestVerifyHLSInstrEncoding(p: PlatformWrapperParams) extends GenericAccelerator(p) {
   val numMemPorts = 0
   val io = new GenericAcceleratorIF(numMemPorts, p) {
-    val out = Decoupled(UInt(width = 128))
+    val out = Decoupled(UInt(width = BISMOLimits.instrBits))
   }
   val bb = Module(HLSBlackBox(new VerifyHLSInstrEncoding())).io
   bb.rst_n := !this.reset

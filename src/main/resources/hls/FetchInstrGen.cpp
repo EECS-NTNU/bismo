@@ -41,7 +41,7 @@
 template <size_t M, size_t K, size_t N>
 void FetchInstrGen_Templated(
   hls::stream<ap_uint<BISMO_MMDESCR_BITS>> & in,
-  hls::stream<ap_uint<128>> & out
+  hls::stream<ap_uint<BISMO_INSTR_BITS>> & out
 ) {
   #pragma HLS INTERFACE ap_ctrl_none port=return
   #pragma HLS INTERFACE axis port=out
@@ -120,7 +120,7 @@ void FetchInstrGen_Templated(
 #include "FetchInstrGen_TemplateDefs.hpp"
 void FetchInstrGen(
   hls::stream<ap_uint<BISMO_MMDESCR_BITS>> & in,
-  hls::stream<ap_uint<128>> & out
+  hls::stream<ap_uint<BISMO_INSTR_BITS>> & out
 ) {
   #pragma HLS INTERFACE ap_ctrl_none port=return
   #pragma HLS INTERFACE axis port=out

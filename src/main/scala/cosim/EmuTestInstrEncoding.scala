@@ -46,7 +46,7 @@ import fpgatidbits.PlatformWrapper._
 class EmuTestInstrEncoding(p: PlatformWrapperParams) extends GenericAccelerator(p) {
   val numMemPorts = 0
   val io = new GenericAcceleratorIF(numMemPorts, p) {
-    val raw_instr_in = UInt(INPUT, width = 128)
+    val raw_instr_in = UInt(INPUT, width = BISMOLimits.instrBits)
     val sync_instr_out = new BISMOSyncInstruction().asOutput()
     val fr_instr_out = new BISMOFetchRunInstruction().asOutput()
     val er_instr_out = new BISMOExecRunInstruction().asOutput()
@@ -54,11 +54,11 @@ class EmuTestInstrEncoding(p: PlatformWrapperParams) extends GenericAccelerator(
   }
   io.signature := makeDefaultSignature()
 
-  // static check to ensure all instrs are 128-bit
-  Predef.assert(io.sync_instr_out.getWidth() == 128)
-  Predef.assert(io.fr_instr_out.getWidth() == 128)
-  Predef.assert(io.er_instr_out.getWidth() == 128)
-  Predef.assert(io.rr_instr_out.getWidth() == 128)
+  // static check to ensure all instr bitwidths are as defined in BISMOLimits
+  Predef.assert(io.sync_instr_out.getWidth() == BISMOLimits.instrBits)
+  Predef.assert(io.fr_instr_out.getWidth() == BISMOLimits.instrBits)
+  Predef.assert(io.er_instr_out.getWidth() == BISMOLimits.instrBits)
+  Predef.assert(io.rr_instr_out.getWidth() == BISMOLimits.instrBits)
 
   // reinterpret raw input as different instructions and give as output
   io.sync_instr_out := io.sync_instr_out.fromBits((io.raw_instr_in))

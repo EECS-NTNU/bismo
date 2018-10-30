@@ -40,7 +40,7 @@
 
 void ExecInstrGen(
   hls::stream<ap_uint<BISMO_MMDESCR_BITS>> & in,
-  hls::stream<ap_uint<128>> & out
+  hls::stream<ap_uint<BISMO_INSTR_BITS>> & out
 ) {
   #pragma HLS INTERFACE ap_ctrl_none port=return
   #pragma HLS INTERFACE axis port=out

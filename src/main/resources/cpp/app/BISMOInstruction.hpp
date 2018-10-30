@@ -18,7 +18,7 @@ enum BISMOTargetStage {
 #define BISMO_LIMIT_MAXSHIFT_BITS   5
 #define BISMO_LIMIT_RESADDR_BITS    1
 #define BISMO_MMDESCR_BITS          208
-
+#define BISMO_INSTR_BITS            128
 
 // NOTE: the ordering of the fields is important and should
 // not be changed without making corresponding changes on the
@@ -35,8 +35,8 @@ struct BISMOSyncInstruction {
   ap_uint<58> unused0;
   ap_uint<64> unused1;
 
-  ap_uint<128> asRaw() {
-    ap_uint<128> ret = 0;
+  ap_uint<BISMO_INSTR_BITS> asRaw() {
+    ap_uint<BISMO_INSTR_BITS> ret = 0;
     ret(1, 0) = targetStage;
     ret(2, 2) = isRunCfg;
     ret(3, 3) = isSendToken;
@@ -46,7 +46,7 @@ struct BISMOSyncInstruction {
     return ret;
   }
 
-  void fromRaw(ap_uint<128> ret) {
+  void fromRaw(ap_uint<BISMO_INSTR_BITS> ret) {
     targetStage = ret(1, 0);
     isRunCfg = ret(2, 2);
     isSendToken = ret(3, 3);
@@ -78,8 +78,8 @@ struct BISMOFetchRunInstruction {
   ap_uint<16> dram_block_count;
   ap_uint<16> tiles_per_row;
 
-  ap_uint<128> asRaw() {
-    ap_uint<128> ret = 0;
+  ap_uint<BISMO_INSTR_BITS> asRaw() {
+    ap_uint<BISMO_INSTR_BITS> ret = 0;
     ret(1, 0) = targetStage;
     ret(2, 2) = isRunCfg;
     ret(5, 3) = unused0;
@@ -94,7 +94,7 @@ struct BISMOFetchRunInstruction {
     return ret;
   }
 
-  void fromRaw(ap_uint<128> ret) {
+  void fromRaw(ap_uint<BISMO_INSTR_BITS> ret) {
     targetStage = ret(1, 0);
     isRunCfg = ret(2, 2);
     unused0 = ret(5, 3);
@@ -137,8 +137,8 @@ struct BISMOExecRunInstruction {
   ap_uint<1> writeEn;
   ap_uint<1> writeAddr;
 
-  ap_uint<128> asRaw() {
-    ap_uint<128> ret = 0;
+  ap_uint<BISMO_INSTR_BITS> asRaw() {
+    ap_uint<BISMO_INSTR_BITS> ret = 0;
     ret(1, 0) = targetStage;
     ret(2, 2) = isRunCfg;
     ret(63, 3) = unused0;
@@ -154,7 +154,7 @@ struct BISMOExecRunInstruction {
     return ret;
   }
 
-  void fromRaw(ap_uint<128> ret) {
+  void fromRaw(ap_uint<BISMO_INSTR_BITS> ret) {
     targetStage = ret(1, 0);
     isRunCfg = ret(2, 2);
     unused0 = ret(63, 3);
@@ -195,8 +195,8 @@ struct BISMOResultRunInstruction {
   ap_uint<16> dram_skip;
   ap_uint<16> waitCompleteBytes; // deprecated, do not use
 
-  ap_uint<128> asRaw() {
-    ap_uint<128> ret = 0;
+  ap_uint<BISMO_INSTR_BITS> asRaw() {
+    ap_uint<BISMO_INSTR_BITS> ret = 0;
     ret(1, 0) = targetStage;
     ret(2, 2) = isRunCfg;
     ret(61, 3) = unused0;
@@ -208,7 +208,7 @@ struct BISMOResultRunInstruction {
     return ret;
   }
 
-  void fromRaw(ap_uint<128> ret) {
+  void fromRaw(ap_uint<BISMO_INSTR_BITS> ret) {
     targetStage = ret(1, 0);
     isRunCfg = ret(2, 2);
     unused0 = ret(61, 3);
@@ -294,8 +294,8 @@ struct SingleMMDescriptor {
 #ifndef __SYNTHESIS__
 #include <iomanip>
 
-typedef ap_uint<128> BISMOInstruction;
-#define EmptyInstruction ap_uint<128>("0", 16)
+typedef ap_uint<BISMO_INSTR_BITS> BISMOInstruction;
+#define EmptyInstruction ap_uint<BISMO_INSTR_BITS>("0", 16)
 
 ostream& operator<<(ostream& os, const BISMOSyncInstruction& dt)
 {

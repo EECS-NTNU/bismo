@@ -46,8 +46,8 @@ import fpgatidbits.hlstools.TemplatedHLSBlackBox
 
 class ExecInstrGen extends TemplatedHLSBlackBox {
   val io = new Bundle {
-    val in = Decoupled(UInt(width = 128)).flip
-    val out = Decoupled(UInt(width = 128))
+    val in = Decoupled(UInt(width = BISMOLimits.descrBits)).flip
+    val out = Decoupled(UInt(width = BISMOLimits.instrBits))
     val rst_n = Bool(INPUT)
     in.bits.setName("in_V_V_TDATA")
     in.valid.setName("in_V_V_TVALID")
