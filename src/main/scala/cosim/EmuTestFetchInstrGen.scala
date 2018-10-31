@@ -45,7 +45,8 @@ class EmuTestFetchInstrGen(p: PlatformWrapperParams) extends GenericAccelerator(
   }
   io.signature := makeDefaultSignature()
   val fetchInstrGenParams = new FetchInstrGenParams(
-    dpaDimLHS = 2, dpaDimCommon = 128, dpaDimRHS = 2
+    dpaDimLHS = 2, dpaDimCommon = 128, dpaDimRHS = 2,
+    execToFetchLeftShift = 2
   )
   val bb = Module(HLSBlackBox(new FetchInstrGen(fetchInstrGenParams))).io
   bb.rst_n := !this.reset

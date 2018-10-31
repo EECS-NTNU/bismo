@@ -7,7 +7,10 @@
 namespace InstrGen {
 
 template <
-  size_t M, size_t K, size_t N
+  // matmul array dimensions: rows, common, cols
+  size_t M, size_t K, size_t N,
+  // exec-to-fetch left-shift ratio: log2(K / fetch width)
+  size_t ETF_S
 >
 void FetchInstrGenSingleMM(
   // desciptor for the MM operation
@@ -35,9 +38,8 @@ void FetchInstrGenSingleMM(
   fetch.isRunCfg = 1;
   fetch.bram_id_start = 0;
   fetch.bram_id_range = M-1;
-  fetch.bram_addr_base = in.base_l;
-  // TODO fetch-exec ratio?
-  fetch.tiles_per_row = in.tiles_k;
+  fetch.bram_addr_base = in.base_l << ETF_S;
+  fetch.tiles_per_row = in.tiles_k << ETF_S;
   fetch.dram_base = in.dram_lhs;
   // TODO fix block calculation here
   fetch.dram_block_size_bytes = in.tiles_m * in.tiles_k * lhs_tile_bytes;
@@ -50,9 +52,8 @@ void FetchInstrGenSingleMM(
   fetch.isRunCfg = 1;
   fetch.bram_id_start = M;
   fetch.bram_id_range = N-1;
-  fetch.bram_addr_base = in.base_r;
-  // TODO fetch-exec ratio?
-  fetch.tiles_per_row = in.tiles_k;
+  fetch.bram_addr_base = in.base_r << ETF_S;
+  fetch.tiles_per_row = in.tiles_k << ETF_S;
   fetch.dram_base = in.dram_rhs;
   // TODO fix block calculation here
   fetch.dram_block_size_bytes = in.tiles_n * in.tiles_k * rhs_tile_bytes;

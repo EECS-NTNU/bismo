@@ -290,7 +290,8 @@ class BitSerialMatMulAccel(
   val igExec = Module(HLSBlackBox(new ExecInstrGen())).io
   val igFetch = Module(HLSBlackBox(new FetchInstrGen(new FetchInstrGenParams(
     dpaDimLHS = myP.dpaDimLHS, dpaDimCommon = myP.dpaDimCommon,
-    dpaDimRHS = myP.dpaDimRHS
+    dpaDimRHS = myP.dpaDimRHS,
+    execToFetchLeftShift = log2Up(myP.dpaDimCommon / myP.mrp.dataWidth)
   )))).io
   // wire up reset differently (Vivado HLS BlackBox)
   igExec.rst_n := !this.reset

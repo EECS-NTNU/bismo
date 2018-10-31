@@ -88,6 +88,7 @@ int main(int argc, char const *argv[]) {
     cout << " M = " << TEMPLATE_PARAM_M;
     cout << " K = " << TEMPLATE_PARAM_K;
     cout << " N = " << TEMPLATE_PARAM_N;
+    cout << " ETF_S = " << TEMPLATE_PARAM_ETF_S;
     cout << endl;
 
     srand(time(NULL));
@@ -131,7 +132,7 @@ int main(int argc, char const *argv[]) {
     dsc.dram_rhs = 0x1000;
     // create golden fetch instr sequence in software
     InstrGen::FetchInstrGenSingleMM<
-      TEMPLATE_PARAM_M, TEMPLATE_PARAM_K, TEMPLATE_PARAM_N
+      TEMPLATE_PARAM_M, TEMPLATE_PARAM_K, TEMPLATE_PARAM_N, TEMPLATE_PARAM_ETF_S
     >(dsc, instrs);
 
     p = initPlatform();

@@ -47,7 +47,8 @@ import fpgatidbits.hlstools.TemplatedHLSBlackBox
 class FetchInstrGenParams(
   val dpaDimLHS: Int,
   val dpaDimCommon: Int,
-  val dpaDimRHS: Int
+  val dpaDimRHS: Int,
+  val execToFetchLeftShift: Int
 )
 
 class FetchInstrGen(val p: FetchInstrGenParams) extends TemplatedHLSBlackBox {
@@ -70,6 +71,7 @@ class FetchInstrGen(val p: FetchInstrGenParams) extends TemplatedHLSBlackBox {
   val hlsTemplateParams: Map[String, String] = Map(
     "M" -> p.dpaDimLHS.toString,
     "K" -> p.dpaDimCommon.toString,
-    "N" -> p.dpaDimRHS.toString
+    "N" -> p.dpaDimRHS.toString,
+    "ETF_S" -> p.execToFetchLeftShift.toString
   )
 }

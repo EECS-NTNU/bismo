@@ -38,7 +38,12 @@
 #include <stdint.h>
 #include "BISMOInstruction.hpp"
 
-template <size_t M, size_t K, size_t N>
+template <
+  // matmul array dimensions: rows, common, cols
+  size_t M, size_t K, size_t N,
+  // exec-to-fetch left-shift ratio: log2(K / fetch width)
+  size_t ETF_S
+>
 void FetchInstrGen_Templated(
   hls::stream<ap_uint<BISMO_MMDESCR_BITS>> & in,
   hls::stream<ap_uint<BISMO_INSTR_BITS>> & out
@@ -69,20 +74,18 @@ void FetchInstrGen_Templated(
   const uint32_t lhs_tiles = ins_in.tiles_m * ins_in.tiles_k;
   const uint32_t rhs_tiles = ins_in.tiles_n * ins_in.tiles_k;
 
-  // TODO make these part of HW template:
-  const int exec_to_fetch_width_ratio = 1;
   const int first_lhs_id = 0;
   const int first_rhs_id = M;
   const int bytes_per_lhs_tile = (M * K) / 8;
   const int bytes_per_rhs_tile = (N * K) / 8;
 
   // prepare fetch instruction for LHS matrix
-  fetch.bram_addr_base = ins_in.base_l * exec_to_fetch_width_ratio;
+  fetch.bram_addr_base = ins_in.base_l << ETF_S;
   fetch.bram_id_start = first_lhs_id;
   fetch.bram_id_range = M - 1;
   // how many DRAM data words are copied before the
   // fetch interconnect starts targeting the next BRAM
-  fetch.tiles_per_row = ins_in.tiles_k * exec_to_fetch_width_ratio;
+  fetch.tiles_per_row = ins_in.tiles_k << ETF_S;
   // DRAM base address for LHS
   fetch.dram_base = ins_in.dram_lhs;
   // bytes to read in each contiguous block
@@ -94,12 +97,12 @@ void FetchInstrGen_Templated(
   out.write(fetch.asRaw());
 
   // prepare fetch instruction for RHS matrix
-  fetch.bram_addr_base = ins_in.base_r * exec_to_fetch_width_ratio;
+  fetch.bram_addr_base = ins_in.base_r << ETF_S;
   fetch.bram_id_start = first_rhs_id;
   fetch.bram_id_range = N - 1;
   // how many DRAM data words are copied before the
   // fetch interconnect starts targeting the next BRAM
-  fetch.tiles_per_row = ins_in.tiles_k * exec_to_fetch_width_ratio;
+  fetch.tiles_per_row = ins_in.tiles_k << ETF_S;
   // DRAM base address for LHS
   fetch.dram_base = ins_in.dram_rhs;
   // bytes to read in each contiguous block
@@ -127,7 +130,8 @@ void FetchInstrGen(
   #pragma HLS INTERFACE axis port=in
 
   FetchInstrGen_Templated<
-    TEMPLATE_PARAM_M, TEMPLATE_PARAM_K, TEMPLATE_PARAM_N
+    TEMPLATE_PARAM_M, TEMPLATE_PARAM_K, TEMPLATE_PARAM_N,
+    TEMPLATE_PARAM_ETF_S
   >(
     in, out
   );
