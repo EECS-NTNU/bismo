@@ -89,7 +89,7 @@ void FetchInstrGen_Templated(
   // DRAM base address for LHS
   fetch.dram_base = ins_in.dram_lhs;
   // bytes to read in each contiguous block
-  fetch.dram_block_size_bytes = lhs_tiles * bytes_per_lhs_tile;
+  fetch.dram_block_size_bytes = lhs_tiles * ins_in.bits_l * bytes_per_lhs_tile;
   // TODO partial matrices will need multiple blocks here
   fetch.dram_block_count = 1;
   fetch.dram_block_offset_bytes = 0;
@@ -106,7 +106,7 @@ void FetchInstrGen_Templated(
   // DRAM base address for LHS
   fetch.dram_base = ins_in.dram_rhs;
   // bytes to read in each contiguous block
-  fetch.dram_block_size_bytes = rhs_tiles * bytes_per_rhs_tile;
+  fetch.dram_block_size_bytes = rhs_tiles * ins_in.bits_r * bytes_per_rhs_tile;
   // TODO partial matrices will need multiple blocks here
   fetch.dram_block_count = 1;
   fetch.dram_block_offset_bytes = 0;

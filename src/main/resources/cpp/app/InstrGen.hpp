@@ -19,9 +19,8 @@ void FetchInstrGenSingleMM(
   std::vector<BISMOInstruction> & out
 ) {
   // TODO handle off-chip matrices
-  // TODO handle multibit
-  // binary matrices only for now
-  assert((in.bits_l == 1 && in.bits_r == 1));
+  // TODO fetch-exec concurrency
+  // TODO no-fetch mode? (if dram addr = -1 just generate sync)
   BISMOSyncInstruction sync;
   BISMOFetchRunInstruction fetch;
   const size_t lhs_tile_bytes = (M*K)/8;
@@ -42,7 +41,7 @@ void FetchInstrGenSingleMM(
   fetch.tiles_per_row = in.tiles_k << ETF_S;
   fetch.dram_base = in.dram_lhs;
   // TODO fix block calculation here
-  fetch.dram_block_size_bytes = in.tiles_m * in.tiles_k * lhs_tile_bytes;
+  fetch.dram_block_size_bytes = in.tiles_m * in.tiles_k * in.bits_l * lhs_tile_bytes;
   fetch.dram_block_offset_bytes = 0;
   fetch.dram_block_count = 1;
   out.push_back(fetch.asRaw());
@@ -56,7 +55,7 @@ void FetchInstrGenSingleMM(
   fetch.tiles_per_row = in.tiles_k << ETF_S;
   fetch.dram_base = in.dram_rhs;
   // TODO fix block calculation here
-  fetch.dram_block_size_bytes = in.tiles_n * in.tiles_k * rhs_tile_bytes;
+  fetch.dram_block_size_bytes = in.tiles_n * in.tiles_k * in.bits_r * rhs_tile_bytes;
   fetch.dram_block_offset_bytes = 0;
   fetch.dram_block_count = 1;
   out.push_back(fetch.asRaw());
