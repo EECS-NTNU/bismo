@@ -529,7 +529,6 @@ protected:
           desc.bits_r = rhs.nbits;
           desc.signed_l = lhs.issigned;
           desc.signed_r = rhs.issigned;
-          // TODO exec_to_fetch_width_ratio adjustment?
           desc.base_l = current_bram_region * lhs_l0_per_bram;
           desc.base_r = current_bram_region * rhs_l0_per_bram;
           desc.base_res = 0;
@@ -538,6 +537,9 @@ protected:
           desc.dram_rhs = fetch_base_rhs;
           desc.dram_res = 0; /*TODO*/
           m_acc->pushSingleMMDescriptor(desc);
+          m_bytes_to_fetch = (desc.bits_l * desc.tiles_m * dpa_y * dpa_z) / 8;
+          m_bytes_to_fetch += (desc.bits_r * desc.tiles_n * dpa_x * dpa_z) / 8;
+          m_bytes_to_fetch *= desc.tiles_k;
 
           // process the fetched L2 tile
           // exec stage acquires input matrix buffers
