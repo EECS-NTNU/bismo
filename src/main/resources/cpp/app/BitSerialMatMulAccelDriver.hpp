@@ -126,7 +126,11 @@ public:
   }
 
   void measure_fclk() {
-    if(m_platform->platformID() != "EmuDriver") {
+    if(m_platform->platformID() == "EmuDriver" || m_platform->platformID() == "VerilatedEmuDriver") {
+      // hardware emulation:
+      // pretend we are running at 200 MHz for performance reporting purposes
+      m_fclk = 200.0;
+    } else {
       uint32_t cc_start = perf_get_cc();
       perf_set_cc_enable(true);
       // sleep for one second of CPU time
