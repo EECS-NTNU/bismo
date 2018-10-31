@@ -105,18 +105,6 @@ public:
     m_accel->set_dsc_valid(0);
   }
 
-  // push a instruction into the result instr.q.
-  void pushResultInstruction(BISMOInstruction ins) {
-    while(m_accel->get_ins_res_ready() != 1);
-    m_accel->set_ins_res_bits0(ins(127, 96));
-    m_accel->set_ins_res_bits1(ins(95, 64));
-    m_accel->set_ins_res_bits2(ins(63, 32));
-    m_accel->set_ins_res_bits3(ins(31, 0));
-    m_accel->set_ins_res_valid(1);
-    m_accel->set_ins_res_valid(0);
-  }
-
-
   size_t get_completed_writes() {
     return (size_t) m_accel->get_completed_writes();
   }

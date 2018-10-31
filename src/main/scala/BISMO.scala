@@ -202,8 +202,6 @@ class BitSerialMatMulAccel(
     val result_enable = Bool(INPUT)
     // descriptors for instruction generator
     val dsc = Decoupled(UInt(width=BISMOLimits.descrBits)).flip
-    // instruction queues
-    val ins_res = Decoupled(UInt(width=BISMOLimits.instrBits)).flip
     // command counts in each queue
     val fetch_op_count = UInt(OUTPUT, width = 32)
     val exec_op_count = UInt(OUTPUT, width = 32)
@@ -293,14 +291,19 @@ class BitSerialMatMulAccel(
     dpaDimRHS = myP.dpaDimRHS,
     execToFetchLeftShift = log2Up(myP.dpaDimCommon / myP.mrp.dataWidth)
   )))).io
+  val igRes = Module(HLSBlackBox(new ResultInstrGen(new ResultInstrGenParams(
+    dpaDimLHS = myP.dpaDimLHS, dpaDimRHS = myP.dpaDimRHS,
+    accWidthBits = myP.accWidth
+  )))).io
   // wire up reset differently (Vivado HLS BlackBox)
   igExec.rst_n := !this.reset
   igFetch.rst_n := !this.reset
+  igRes.rst_n := !this.reset
   // instantiate descriptor queues
   val dscQ = Module(new FPGAQueue(UInt(width = BISMOLimits.descrBits), myP.dscQueueEntries)).io
   enqPulseGenFromValid(dscQ.enq, io.dsc)
   // make copies of the descriptor queue output, one for each instrgen
-  StreamCopy(dscQ.deq, igExec.in, igFetch.in)
+  StreamCopy(dscQ.deq, Seq(igFetch.in, igExec.in, igRes.in))
   // wire up instruction generator to instruction queues
   // need to use .fromBits due to difference in types (wires/content are the same)
   // fetch instrgen -> fetch op q
@@ -311,9 +314,10 @@ class BitSerialMatMulAccel(
   execOpQ.enq.valid := igExec.out.valid
   execOpQ.enq.bits := execOpQ.enq.bits.fromBits(igExec.out.bits)
   igExec.out.ready := execOpQ.enq.ready
-
-  // push from top level into instruction queues
-  enqPulseGenFromValid(resultOpQ.enq, io.ins_res)
+  // result instrgen -> res op q
+  resultOpQ.enq.valid := igRes.out.valid
+  resultOpQ.enq.bits := resultOpQ.enq.bits.fromBits(igRes.out.bits)
+  igRes.out.ready := resultOpQ.enq.ready
 
   // wire-up: command queues and pulse generators for fetch stage
   fetchCtrl.enable := io.fetch_enable
