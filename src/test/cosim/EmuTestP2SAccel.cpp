@@ -77,108 +77,84 @@ int main()
   dut = new EmuTestP2SAccel(p);
 
 
-
-  // copy a block of data to a single target BRAM
-  // TODO set up mask here to exclude other channels
   bool singletarget_dram_OK = true;
-  size_t nwords = 8;
+  int test_count = 2; //a number between 0 and Maximum accel-input bit-width - 1 
+  int initVal = 1;
+  for (int i = initVal; i < test_count; i++)
+  {
+
+    int32_t ncols = 80;//i * i * 8 + 8;
+    int32_t nrows = 1;
+    size_t nbytes = nrows * ncols * sizeof(uint8_t);
+    uint8_t nbits = 3;//i + 1;
+
+    uint32_t dramWordWidth = 64;
+    uint32_t dramByteWidth = dramWordWidth / 8;
+
+    int32_t mybitwidth = sizeof(uint8_t) /*+ i + 1;*/  * 8;
+    int32_t colPerDramBWidth = max(ncols / dramWordWidth, dramByteWidth);
+    //Preventing a zero count
+    int32_t bscolNumber = max(ncols / dramWordWidth, 1);
+    size_t bs_size_bytes = mybitwidth * nrows * colPerDramBWidth;
 
 
-  int32_t ncols = 128;
-  int32_t nrows = 2;
-  size_t nbytes = nrows * ncols * sizeof(uint8_t);
-  uint8_t nbits = 4;
+    uint8_t * hostbuf = new uint8_t[nrows * ncols];
+    uint8_t * hostbuf2  = new uint8_t[bs_size_bytes];
 
-  uint32_t dramWordWidth = 64;
-  uint32_t dramByteWidth = dramWordWidth / 8;
+    //Reproduce the gemm contest to produce golden result
+    gemmbitserial::GEMMContext ctx = allocGEMMContext(
+      nrows, ncols, nrows, nbits, nbits, false, false );
 
-  int32_t mybitwidth = sizeof(uint8_t) * 8;
-  int32_t colPerDramBWidth = ncols / dramByteWidth;
-  //Preventing a zero count
-  int32_t bscolNumber = max(ncols / dramWordWidth, 1);
-  size_t bs_size_bytes = mybitwidth * nrows * colPerDramBWidth;
-
-
-  uint8_t * hostbuf = new uint8_t[nrows * ncols];
-  uint8_t * hostbuf2  = new uint8_t[bs_size_bytes];
-
-  //Try to reproduce the gemm contest to produce golden result
-  gemmbitserial::GEMMContext ctx = allocGEMMContext(
-    nrows, ncols, nrows, nbits, nbits, false, false );
-
-  generateRandomVector(nbits, ncols, hostbuf);
-  printmatrix(hostbuf,nrows, ncols);
-  ctx.lhs.importRegular(hostbuf);
-  
-  void * accelbuf = p->allocAccelBuffer(nbytes);
-  void * accelbuf_prova = p->allocAccelBuffer(nbytes);
-  void * accelbuf2 = p->allocAccelBuffer(bs_size_bytes);
+    generateRandomVector(nbits, ncols, hostbuf);
+    printmatrix(hostbuf,nrows, ncols);
+    ctx.lhs.importRegular(hostbuf);
+    
+    void * accelbuf = p->allocAccelBuffer(nbytes);
+    void * accelbuf_prova = p->allocAccelBuffer(nbytes);
+    void * accelbuf2 = p->allocAccelBuffer(bs_size_bytes);
 
 
-  p->copyBufferHostToAccel(hostbuf, accelbuf, nbytes);
-  set_up_transfer_singletarget(accelbuf, bs_size_bytes, accelbuf2, nrows, ncols, mybitwidth );
-  exec_and_wait();
+    p->copyBufferHostToAccel(hostbuf, accelbuf, nbytes);
+    set_up_transfer_singletarget(accelbuf, bs_size_bytes, accelbuf2, nrows, ncols, mybitwidth );
+    exec_and_wait();
 
 
 
-  p->copyBufferAccelToHost(accelbuf2, hostbuf2, bs_size_bytes);
-  ctx.lhs.printHex();
+    p->copyBufferAccelToHost(accelbuf2, hostbuf2, bs_size_bytes);
+    ctx.lhs.printHex();
 
-  cout << "[SW] Result collection and comparison" << endl; 
- 
-  cout << "Result of Accel: " << endl;
-  for (int i = 0; i < mybitwidth; i++){
-    for (int j = 0; j < nrows; j++){
-      for(int k = 0; k < bscolNumber; k++)
-      {
-        cout << "Index: " << (i * nrows * bscolNumber + j * bscolNumber + k) << ", ";
-        cout << std::hex << ((uint64_t*)(hostbuf2))[i * nrows * bscolNumber + j * bscolNumber + k] << std::dec << ", "; 
+    cout << "[SW] Result collection and comparison" << endl; 
+   
+    cout << "Result of Accel: " << endl;
+    for (int i = 0; i < mybitwidth; i++){
+      for (int j = 0; j < nrows; j++){
+        for(int k = 0; k < bscolNumber; k++)
+        {
+          cout << "Index: " << (i * nrows * bscolNumber + j * bscolNumber + k) << ", ";
+          cout << std::hex << ((uint64_t*)(hostbuf2))[i * nrows * bscolNumber + j * bscolNumber + k] << std::dec << ", "; 
+        }
       }
+      cout << endl; 
     }
-    cout << endl; 
+
+    cout << endl;
+    cout << std::hex << ((uint64_t*)(hostbuf2))[0] << endl;
+    cout << std::hex << ((uint64_t*)(hostbuf2))[1] << endl;
+
+
+
+    int res =  memcmp(hostbuf2, ctx.lhs.data, nbits * nrows * ncols / 8 );
+    cout << "Comparison result:" << res << endl;
+    //singletarget_dram_OK &= (memcmp_from_bram(target_bram, 0, nbytes, hostbuf) == 0);
+    //cout << "DRAM to single-target test passed? " << singletarget_dram_OK << endl;
+    all_OK &= !res;
+
+    delete [] hostbuf;
+    delete [] hostbuf2;
+    p->deallocAccelBuffer(accelbuf);
+    p->deallocAccelBuffer(accelbuf2);
+
   }
-
-  cout << endl;
-  cout << std::hex << ((uint64_t*)(hostbuf2))[0] << endl;
-  cout << std::hex << ((uint64_t*)(hostbuf2))[1] << endl;
-
-
-
-  int res =  memcmp(hostbuf2, ctx.lhs.data, nbits * nrows * ncols / 8 );
-  cout << "Comparison result:" << res << endl;
-  //singletarget_dram_OK &= (memcmp_from_bram(target_bram, 0, nbytes, hostbuf) == 0);
-  //cout << "DRAM to single-target test passed? " << singletarget_dram_OK << endl;
-  all_OK &= !res;
-
-  delete [] hostbuf;
-  delete [] hostbuf2;
-  p->deallocAccelBuffer(accelbuf);
-  p->deallocAccelBuffer(accelbuf2);
-
-/*
-  // copy data into all BRAMs (in turn) from a single DRAM transfer
-  bool multitarget_dram_OK = true;
-  size_t nwords_per_bram = 16;
-  size_t nbytes_per_bram = nwords_per_bram * sizeof(uint64_t);
-  nwords = nwords_per_bram * BRAM_COUNT;
-  nbytes = nwords * sizeof(uint64_t);
-  hostbuf = new uint64_t[nwords];
-  for(int i = 0; i < nwords; i++) {
-    hostbuf[i] = i+10;
-  }
-  accelbuf = p->allocAccelBuffer(nbytes);
-  p->copyBufferHostToAccel(hostbuf, accelbuf, nbytes);
-  set_up_transfer_multitarget(accelbuf, nbytes, 0, BRAM_COUNT-1, 0, nwords_per_bram);
-  exec_and_wait();
-  for(int i = 0; i < BRAM_COUNT; i++) {
-    multitarget_dram_OK &= (memcmp_from_bram(i, 0, nbytes_per_bram, &hostbuf[i * nwords_per_bram]) == 0);
-  }
-  cout << "DRAM to multi-target test passed? " << multitarget_dram_OK << endl;
-  all_OK &= multitarget_dram_OK;
-
-  delete [] hostbuf;
-  p->deallocAccelBuffer(accelbuf);
-*/
 
   delete dut;
   deinitPlatform(p);

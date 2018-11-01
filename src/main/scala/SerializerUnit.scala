@@ -92,7 +92,7 @@ class SerializerUnit(val p : SerializerUnitParams) extends Module{
       z.inc := Bool(false)
     }
 
-    when(z.currentValue === (myCounterReg - UInt(1)) ){
+    when(z.currentValue === (myCounterReg - UInt(1)) ||  z.currentValue === myCounterReg){
       end := Bool(true)
     }.otherwise{
       end := Bool(false)

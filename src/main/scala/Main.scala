@@ -252,10 +252,12 @@ object CharacterizeMain {
 
     def makeParamSpace_P2SAccel(): Seq[StandAloneP2SParams] = {
     return for {
-      mbw <- Seq(4,8,16,32)//,64)
-      nxw <- Seq(4,8,16)
+      mbw <- Seq(4, 8, 16, 32, 64)
+      nxw <- Seq(64/mbw, 128/mbw, 512/mbw)
+      static <- Seq(false, true)
     } yield new StandAloneP2SParams(
-      maxInBw = mbw, nInElemPerWord = nxw, outStreamSize = mbw * nxw, mrp = PYNQZ1Params.toMemReqParams()
+      maxInBw = mbw, nInElemPerWord = nxw, outStreamSize = mbw * nxw, mrp = PYNQZ1Params.toMemReqParams(),
+      staticCntr = static
     )
   }
   val instFxn_P2SAccel = {p: StandAloneP2SParams => Module(new StandAloneP2SAccel(p,TesterWrapperParams))}

@@ -85,17 +85,21 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
   val filledClscBuff = Reg(init = Bool(false))
   val restartCompSU = serUnit.out.valid & io.outStream.ready
 
-  //end as soon as I have completed a number of columns that is required by the user
+  //end as soon as I have completed a number of streams that is required by the user
 
-  //workaroud for configuration part
-  val regStart = Reg(init = Bool(false), next = io.start)
 
   when(io.start){
     countToFinish := io.ctrl.matrixCols * io.ctrl.matrixRows
     //ASSUMPTION: always padded in nInElemPerWord even if fewer bits as Input
     //while as output padding depends on the number of columns
     //
-    //If this is wrong then the count to finish has to change accordingly
+    //ATTENTION!!!!
+    //If this is wrong then the count to finish has to change accordingly, namely subtract actual in bw instead of N
+
+    //ATTENTION!!!!
+    //If we allow less cols than 8 we should use this
+    //val sel_count = io.ctrl.matrixCols * io.ctrl.matrixRows >  UInt(myP.nInElemPerWord)
+    //countToFinish := Mux(sel_count,io.ctrl.matrixCols * io.ctrl.matrixRows ,UInt(myP.nInElemPerWord))
 
   }
 
@@ -118,7 +122,6 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
       serUnit.out.ready := Bool(false)
 
       when(io.inputStream.valid & !endSerialize & !filledClscBuff) {
-        //serUnit.start := Bool(true)
         serUnit.out.ready := Bool(true)
         regState := sSUProcessing
       }.elsewhen(filledClscBuff){
@@ -137,7 +140,6 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
       when(restartCompSU) {
         serUnit.out.ready := Bool(true)
         serUnit.start := Bool(true)
-        //io.inputStream.ready := Bool(true)
         regState := sSUReady
         }
     }.otherwise{
@@ -154,13 +156,13 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
   val valid_pulse =serUnit.out.valid & !valid_r
 
 
-  //TODO: There is smth that I miss in the configurability part of the component on the matrix size
+  //TODO: There is smth that I miss in the configurability part of the component on the matrix size?
   val coalescingBuffer = Vec.fill(myP.maxInBw) {
     Vec.fill(myP.outStreamSize) {
       Reg(init = UInt(0, width = 1))
     }
   }
-  //val coalescingWire = Vec.fill(myP.nInElemPerWord){UInt()}
+
   val currentBit = Reg(init = UInt(0, width = myP.maxInBw))
   val currentBuff = Reg(init = UInt(0, width = log2Up(myP.outStreamSize)))
 
@@ -201,7 +203,7 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
 
   val clscIndex = Reg(init = UInt(0, width = log2Up(myP.maxInBw) + 1))
 
-  // this can make the difference between configurable or not
+  // this can make the difference between configurable or not in output the stream
   when((endSerialize | filledClscBuff)  && clscIndex < (io.ctrl.actualInBw) ) {
 //  when((endSerialize | filledClscBuff)  && clscIndex < UInt(myP.maxInBw) ) {
     cleanBuff := Bool(false)
@@ -214,8 +216,6 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
     io.done := Bool(false)
     filledClscBuff := Bool(false)
     cleanBuff := Bool(true)
-    //anticipate new input stream
-    //io.inputStream.ready := Bool(true)
   }.otherwise{
     cleanBuff := Bool(false)
     io.outStream.valid := Bool(false)
@@ -225,26 +225,5 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
 
   io.outStream.bits := coalescingBuffer(clscIndex).asUInt()
 
-/*
-  val sumVec = Vec.fill(myP.nInElemPerWord/2){UInt()}
-
-  for(i <- 0 until myP.nInElemPerWord/2 ) {
-    sumVec(i) := filteredOps(i*2) + filteredOps(i*2 + 1 )
-    // printf("[HW: P2SKrnl] Adding %d + %d\n", filteredOps(i), filteredOps(myP.nInElemPerWord - 1 - i) )
-
-  }
-
-  io.outStream.bits := sumVec.asUInt()
-  io.outStream.valid := serUnit.out.valid
-*/
-  //when(io.outStream.valid){
-  //  printf("[HW: P2SKrnl] Input valid \n")
-  //}
-/*
-  when(io.outStream.valid){
-      printf("[HW: P2SKrnl] Output valid Data %d\n", io.outStream.bits)
-
-  }
-*/
 
 }
