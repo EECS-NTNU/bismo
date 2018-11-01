@@ -111,21 +111,17 @@ bool test_multibit_onchip_onetile(
   WrapperRegDriver * platform, BitSerialMatMulAccelDriver * acc
 ) {
   bool all_OK = true;
-  vector<size_t> cols_div_factor {2, 4, 8};
-  vector<size_t> bits {2};
+  vector<size_t> bits {2, 3};
   const size_t memsize = acc->hwcfg().lhsEntriesPerMem;
   for(auto & lbits: bits) {
     for(auto & rbits: bits) {
-      for(auto & col_div : cols_div_factor) {
-        all_OK &= test(
-          "multibit_onchip_onetile_coldiv" + to_string(col_div) + "_"
-          + to_string(lbits) + "bx" + to_string(rbits) + "b",
-          platform, acc,
-          acc->hwcfg().dpaDimLHS, acc->hwcfg().dpaDimRHS,
-          acc->hwcfg().dpaDimCommon * memsize / (lbits * rbits * col_div),
-          lbits, rbits
-        );
-      }
+      all_OK &= test(
+        "multibit_onchip_onetile_" + to_string(lbits) + "bx" + to_string(rbits) + "b",
+        platform, acc,
+        acc->hwcfg().dpaDimLHS, acc->hwcfg().dpaDimRHS,
+        acc->hwcfg().dpaDimCommon * memsize / (lbits * rbits * 2),
+        lbits, rbits
+      );
     }
   }
 
