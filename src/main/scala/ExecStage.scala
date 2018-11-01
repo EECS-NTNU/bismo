@@ -200,7 +200,8 @@ class ExecStage(val myP: ExecStageParams) extends Module {
   // wire up the generated sequence into the BRAM address ports, and returned
   // read data into the DPA inputs
   for(i <- 0 to myP.getM()-1) {
-    io.tilemem.lhs_req(i).addr := seqgen.seq.bits + (io.csr.lhsOffset)
+    val adjustedLHSOffset = io.csr.lhsOffset << log2Ceil(myP.tileMemAddrUnit)
+    io.tilemem.lhs_req(i).addr := seqgen.seq.bits + adjustedLHSOffset
     io.tilemem.lhs_req(i).writeEn := Bool(false)
     dpa.a(i) := io.tilemem.lhs_rsp(i).readData
     //printf("Read data from BRAM %d = %x\n", UInt(i), io.tilemem.lhs_rsp(i).readData)
@@ -210,7 +211,8 @@ class ExecStage(val myP: ExecStageParams) extends Module {
     }*/
   }
   for(i <- 0 to myP.getN()-1) {
-    io.tilemem.rhs_req(i).addr := seqgen.seq.bits + (io.csr.rhsOffset)
+    val adjustedRHSOffset = io.csr.rhsOffset << log2Ceil(myP.tileMemAddrUnit)
+    io.tilemem.rhs_req(i).addr := seqgen.seq.bits + adjustedRHSOffset
     io.tilemem.rhs_req(i).writeEn := Bool(false)
     dpa.b(i) := io.tilemem.rhs_rsp(i).readData
     /*when(seqgen.seq.valid) {
