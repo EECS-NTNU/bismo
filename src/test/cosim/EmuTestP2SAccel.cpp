@@ -17,6 +17,11 @@ using namespace std;
 #define max(x,y) (x > y ? x : y)
 #define FETCH_ALIGN       max(FETCH_ADDRALIGN, FETCH_SIZEALIGN)
 #define MAX_ACCEL_BITWIDTH 8
+#define BASECOLUMNS 128 // Basic number of columns to tes, always multiple of the word
+#define BASEROWS 4 // Basic number of rows to test
+#define DRAMWORDBIT 64 //Memory word bits
+#define INIT_TEST_VALUE 0
+#define MAX_TEST_VALUE 7 // a number between 0 and maximum bit-width - 1
 
 /***************************************************************/
 typedef uint64_t PackedBitGroupType;
@@ -51,23 +56,29 @@ gemmbitserial::GEMMContext allocGEMMContext(
 
 
 void exec_and_wait() {
+  for (int i = 0; i < 3000; i++);
   dut->set_start(1);
-  while(dut->get_done() != 1);
+  dut->set_ackqueue_ready(false);
+  while(dut->get_ackqueue_valid() != 1);
   dut->set_start(0);
+  dut->set_ackqueue_ready(true);
+  dut->set_ackqueue_ready(false);
+
 }
 
 
 void set_up_transfer_singletarget( void * accel_buf, uint32_t nbytes, void * accel_buf_dst, uint32_t rows,  uint32_t cols,  uint32_t bit_width) {
 
-
-  dut->set_csr_dramBaseAddrSrc((AccelDblReg) accel_buf);
-  cout << "[SW] DRAM Base Addr Src" << accel_buf << endl;
-  dut->set_csr_dramBaseAddrDst((AccelDblReg) accel_buf_dst );
-  dut->set_csr_matrixRows(rows);
-  dut->set_csr_matrixCols(cols);
-  dut->set_csr_actualInBw(bit_width);
-  dut->set_csr_waitCompleteBytes(nbytes);
-
+  
+  dut->set_cmdqueue_bits_dramBaseAddrSrc((AccelDblReg) accel_buf);
+  // cout << "[SW] DRAM Base Addr Src" << accel_buf << endl;
+  dut->set_cmdqueue_bits_dramBaseAddrDst((AccelDblReg) accel_buf_dst );
+  dut->set_cmdqueue_bits_matrixRows(rows);
+  dut->set_cmdqueue_bits_matrixColsGroup(cols);
+  dut->set_cmdqueue_bits_actualPrecision(bit_width);
+  dut->set_cmdqueue_bits_waitCompleteBytes(nbytes);
+  dut->set_cmdqueue_valid(true);
+  dut->set_cmdqueue_valid(false);
 }
 
 int main()
@@ -78,24 +89,25 @@ int main()
 
 
   bool singletarget_dram_OK = true;
-  int test_count = 2; //a number between 0 and Maximum accel-input bit-width - 1 
-  int initVal = 1;
+  int test_count = MAX_TEST_VALUE; //a number between 0 and Maximum accel-input bit-width - 1 
+  int initVal = INIT_TEST_VALUE;
   for (int i = initVal; i < test_count; i++)
   {
 
-    int32_t ncols = 80;//i * i * 8 + 8;
-    int32_t nrows = 1;
+    int32_t ncols = BASECOLUMNS * (i + 1);
+    int32_t nrows = BASEROWS * (i+1) ;
     size_t nbytes = nrows * ncols * sizeof(uint8_t);
-    uint8_t nbits = 3;//i + 1;
+    uint8_t nbits = 1 * (i+1);
 
-    uint32_t dramWordWidth = 64;
+    uint32_t dramWordWidth = DRAMWORDBIT;
     uint32_t dramByteWidth = dramWordWidth / 8;
 
-    int32_t mybitwidth = sizeof(uint8_t) /*+ i + 1;*/  * 8;
-    int32_t colPerDramBWidth = max(ncols / dramWordWidth, dramByteWidth);
+    int32_t mybitwidth = sizeof(uint8_t) * 8;
+    int32_t container_szie = sizeof(uint8_t) * 8;
+    int32_t colPerDramBWidth = ncols / dramWordWidth;
     //Preventing a zero count
-    int32_t bscolNumber = max(ncols / dramWordWidth, 1);
-    size_t bs_size_bytes = mybitwidth * nrows * colPerDramBWidth;
+    int32_t bscolNumber = ncols /dramWordWidth;
+    size_t bs_size_bytes = mybitwidth * nrows * ncols/dramByteWidth;
 
 
     uint8_t * hostbuf = new uint8_t[nrows * ncols];
@@ -103,19 +115,18 @@ int main()
 
     //Reproduce the gemm contest to produce golden result
     gemmbitserial::GEMMContext ctx = allocGEMMContext(
-      nrows, ncols, nrows, nbits, nbits, false, false );
+      nrows, ncols, nrows, mybitwidth, mybitwidth, false, false );
 
     generateRandomVector(nbits, ncols, hostbuf);
     printmatrix(hostbuf,nrows, ncols);
     ctx.lhs.importRegular(hostbuf);
     
     void * accelbuf = p->allocAccelBuffer(nbytes);
-    void * accelbuf_prova = p->allocAccelBuffer(nbytes);
     void * accelbuf2 = p->allocAccelBuffer(bs_size_bytes);
 
 
     p->copyBufferHostToAccel(hostbuf, accelbuf, nbytes);
-    set_up_transfer_singletarget(accelbuf, bs_size_bytes, accelbuf2, nrows, ncols, mybitwidth );
+    set_up_transfer_singletarget(accelbuf, bs_size_bytes, accelbuf2, nrows, colPerDramBWidth , mybitwidth );
     exec_and_wait();
 
 
@@ -123,16 +134,21 @@ int main()
     p->copyBufferAccelToHost(accelbuf2, hostbuf2, bs_size_bytes);
     ctx.lhs.printHex();
 
+    cout << "[SW] Matrix rows: " << nrows << ", columns: " << ncols << ", bit-width: " << endl;
     cout << "[SW] Result collection and comparison" << endl; 
    
     cout << "Result of Accel: " << endl;
     for (int i = 0; i < mybitwidth; i++){
       for (int j = 0; j < nrows; j++){
-        for(int k = 0; k < bscolNumber; k++)
+        // for(int k = 0; k < bscolNumber; k++)
         {
-          cout << "Index: " << (i * nrows * bscolNumber + j * bscolNumber + k) << ", ";
-          cout << std::hex << ((uint64_t*)(hostbuf2))[i * nrows * bscolNumber + j * bscolNumber + k] << std::dec << ", "; 
+          // cout << "Index: " << (i * nrows * bscolNumber + j * bscolNumber + k) << ", ";
+          cout << "Index: " << (i * nrows + j) << ", ";
+          // cout << std::hex << ((uint64_t*)(hostbuf2))[i * nrows * bscolNumber + j * bscolNumber + k] << std::dec << ", "; 
+          cout << std::hex << ((uint64_t*)(hostbuf2))[i * nrows + j] << std::dec << ", "; 
+
         }
+        // scout << endl;
       }
       cout << endl; 
     }
@@ -154,7 +170,7 @@ int main()
     p->deallocAccelBuffer(accelbuf);
     p->deallocAccelBuffer(accelbuf2);
 
-  }
+ }
 
   delete dut;
   deinitPlatform(p);

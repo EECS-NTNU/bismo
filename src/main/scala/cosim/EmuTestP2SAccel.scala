@@ -25,13 +25,17 @@ class EmuTestP2SAccel(
     // base control signals
     val start = Bool(INPUT)                   // hold high while running
     val done = Bool(OUTPUT)                   // high when done until start=0
-    val csr = new P2SKernelCtrlIO(myP.p2sparams).asInput()
+    val cmdqueue = Decoupled(new P2SCmdIO(myP.p2sparams)).flip
+    val ackqueue = Decoupled(Bool())
   }
 
   val accel = Module(new StandAloneP2SAccel(myP, p)).io
-  accel.start := io.start
-  io.done := accel.done
-  accel.p2sCtrl <> io.csr
+
+
+  FPGAQueue(io.cmdqueue,256) <> accel.p2sCmd
+  val start_r = Reg(init = Bool(false), next = io.start)
+  accel.p2sCmd.valid := io.start & !start_r
+  FPGAQueue(accel.ack,256) <> io.ackqueue
   io.memPort(0) <> accel.memPort(0)
   /*when(io.memPort(0).memRdReq.valid){
     printf("[CO-HW: P2SAlone Received valid request addr %d \n", io.memPort(0).memRdReq.bits.addr )
