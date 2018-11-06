@@ -256,7 +256,7 @@ object CharacterizeMain {
       nxw <- Seq(64/mbw, 128/mbw)
       staticCntr <- Seq(false, true)
       staticUnroll <- if(staticCntr)Seq(false) else Seq(true,false)
-      unrfactor <- if(staticCntr) Seq(1) else Seq(mbw)///4, mbw/2, mbw)
+      unrfactor <- if(staticCntr & !staticUnroll) Seq(1) else Seq(mbw/4, mbw/2, mbw)
     } yield new StandAloneP2SParams(
       maxInBw = mbw, nInElemPerWord = nxw, outStreamSize = mbw * nxw, mrp = PYNQZ1Params.toMemReqParams(),
       staticCntr = staticCntr, staticSUUnroll = staticUnroll, unrSU = unrfactor
