@@ -20,6 +20,8 @@ class StandAloneP2SParams(
                              val nInElemPerWord : Int,
                              val outStreamSize : Int,
                              val staticCntr : Boolean = false,
+                             val staticSUUnroll : Boolean = false,
+                             val unrSU : Int = 1,
                              val mrp: MemReqParams
                            ) extends PrintableParam {
 
@@ -31,7 +33,9 @@ class StandAloneP2SParams(
 
   val suparams = new SerializerUnitParams(
     inPrecision = maxInBw, matrixRows = 1,
-    matrixCols  = nInElemPerWord, staticCounter = staticCntr, maxCounterPrec = maxInBw
+    matrixCols  = nInElemPerWord, staticCounter = staticCntr,
+    maxCounterPrec = maxInBw, staticUnrolling = staticSUUnroll,
+    unrollingFactor = unrSU
   )
 
   val p2sparams =   new P2SKernelParams(
@@ -40,14 +44,15 @@ class StandAloneP2SParams(
     suparams = suparams
   )
   def headersAsList(): List[String] = {
-    return suparams.headersAsList() ++ List(
-      "M-axInBw", "N-InElemPerWord", "O-utStreamSize", "StatiCounter"
+    return List(
+      "M-axInBw", "N-InElemPerWord", "O-utStreamSize", "SU-StatiCounter", "SU-Static Unroll", "SU-Unrolling factor"
     )
   }
 
   def contentAsList(): List[String] = {
-    return suparams.contentAsList()++ List(
-      maxInBw, nInElemPerWord,outStreamSize,staticCntr
+    return List(
+      maxInBw, nInElemPerWord,outStreamSize,staticCntr,
+      staticSUUnroll,unrSU
     ).map(_.toString)
   }
 }

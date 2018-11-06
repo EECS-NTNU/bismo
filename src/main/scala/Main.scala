@@ -79,7 +79,7 @@ object Settings {
     "EmuTestExecStage" -> {p => new EmuTestExecStage(emuP)},
     "EmuTestFetchStage" -> {p => new EmuTestFetchStage(2, 2, emuP)},
     "EmuTestResultStage" -> {p => new EmuTestResultStage(2, emuP)},
-    "EmuTestP2SAccel" -> {p => new EmuTestP2SAccel(8, 8, 64, emuP)}
+    "EmuTestP2SAccel" -> {p => new EmuTestP2SAccel(8, 8, 64, 2, true, emuP)}
 
   )
 }
@@ -253,11 +253,13 @@ object CharacterizeMain {
     def makeParamSpace_P2SAccel(): Seq[StandAloneP2SParams] = {
     return for {
       mbw <- Seq(4, 8, 16, 32, 64)
-      nxw <- Seq(64/mbw, 128/mbw, 512/mbw)
-      static <- Seq(false, true)
+      nxw <- Seq(64/mbw, 128/mbw)
+      staticCntr <- Seq(false, true)
+      staticUnroll <- if(staticCntr)Seq(false) else Seq(true,false)
+      unrfactor <- if(staticCntr) Seq(1) else Seq(mbw)///4, mbw/2, mbw)
     } yield new StandAloneP2SParams(
       maxInBw = mbw, nInElemPerWord = nxw, outStreamSize = mbw * nxw, mrp = PYNQZ1Params.toMemReqParams(),
-      staticCntr = static
+      staticCntr = staticCntr, staticSUUnroll = staticUnroll, unrSU = unrfactor
     )
   }
   val instFxn_P2SAccel = {p: StandAloneP2SParams => Module(new StandAloneP2SAccel(p,TesterWrapperParams))}

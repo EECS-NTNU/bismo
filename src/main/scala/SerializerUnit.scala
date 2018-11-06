@@ -13,6 +13,8 @@ class SerializerUnitParams(
                             val matrixRows : Int = 8,
                             val matrixCols : Int = 8,
                             val staticCounter : Boolean = false,
+                            val staticUnrolling : Boolean = false,
+                            val unrollingFactor : Int = 1, // unrolling in the input precision dimension
                             val maxCounterPrec : Int = 32
                             // how many pair of bits concatenate
                             //val clusterFactor : Int = 0
@@ -24,6 +26,11 @@ class SerializerUnitParams(
   // TODO useful to concatenate signals? The != from 1 is to prevent that
   //Predef.assert( (outVectorSize != 0 && outVectorSize != 1) )
 
+  //If not static unroll then single bit serializing per clock cyle otherwise multi-bit serialization of multiple of input precision
+  Predef.assert(if(staticCounter) unrollingFactor == 1 else true)
+  Predef.assert(if(staticUnrolling) unrollingFactor <= inPrecision else true)
+  Predef.assert(if(staticUnrolling)inPrecision % unrollingFactor == 0 else true)
+
   def headersAsList(): List[String] = {
     return List("InputBitPrecision", "MatrixRows", "MatrixColumns", "staticCounter", "maxCounterPrec" )
   }
@@ -32,6 +39,7 @@ class SerializerUnitParams(
     return List(inPrecision, matrixRows, matrixCols, staticCounter , maxCounterPrec).map(_.toString)
   }
 }
+//TODO update this docs for multi-bit serialization
 /** Unit that outputs each clock cycle a bit of each elem of the input matrix
   * @param input a vector of m x n representing the input matrix
   * @param counterValue how much bit of the input should serialize, its value determine the bit-index of the single elem
@@ -47,15 +55,45 @@ class SerializerUnit(val p : SerializerUnitParams) extends Module{
     //TODO Digit serializer i.e.: width != 1
     //ASSUMPTION: this decoupled use a different convention: valid end the serialization of the bit-width
     //          whenever the ready signal is high the SU will restart the serialization of the input
-    val out = Decoupled(Vec.fill(p.matrixRows){Vec.fill(p.matrixCols){UInt(OUTPUT, width = 1)}})
+    val out = Decoupled(Vec.fill(p.matrixRows){Vec.fill(p.matrixCols){Vec.fill(p.unrollingFactor){UInt(OUTPUT, width = 1)}}})
 
   }
   val end = Bool()
 
-  //TODO: check this also for the static one
-  val startDelayed = io.start //ShiftRegister(io.start,1)
+
+//STATIC UNROLLING FOR MULTI-BIT SERIALIZATION  with dynamic maximum count but with static increment
+  if(p.staticUnrolling && !p.staticCounter){
+    val myCounterReg = Reg(init = UInt(0x0 , width = p.maxCounterPrec))
+    val currCount = Reg(init = UInt(0, width = p.maxCounterPrec))
+
+    //not sure about this
+    myCounterReg := io.counterValue
+
+
+    //TODO check if better incrementing this way or multiplying in the index
+    when(io.start && currCount < (myCounterReg - UInt(p.unrollingFactor))){
+      currCount := currCount + UInt(p.unrollingFactor)
+    }.elsewhen(io.out.ready && (currCount === (myCounterReg - UInt(p.unrollingFactor)) ||  currCount === myCounterReg) ){
+      currCount := UInt(0)
+    }.otherwise{
+      currCount := currCount
+    }
+
+    when(currCount === (myCounterReg - UInt(p.unrollingFactor)) ||  currCount === myCounterReg){
+      end := Bool(true)
+    }.otherwise{
+      end := Bool(false)
+    }
+
+    for(i <- 0 until p.matrixRows)
+      for(j <- 0 until p.matrixCols)
+        for(k <- 0 until p.unrollingFactor)
+          io.out.bits(i)(j)(k) := io.input(i)(j)(UInt(k) + currCount )
+
+
+  }
   //STATIC COUNTER, NOT RECONFIGURABLE AT RUN-TIME
-  if (p.staticCounter){
+  else if (p.staticCounter){
     val z = Counter(p.inPrecision)
     when(io.start && z.value < UInt(p.inPrecision-1) ||( io.out.ready && z.value === UInt(p.inPrecision - 1)) ){
       z.inc()
@@ -81,12 +119,12 @@ class SerializerUnit(val p : SerializerUnitParams) extends Module{
     val z = Module(new DynamicCounter( new DynamicCounterParams( maxPrecision =  p.maxCounterPrec))).io
     val myCounterReg = Reg(init = UInt(0xF , width = p.maxCounterPrec))
 
-    when(startDelayed){
+    when(io.start){
       myCounterReg := io.counterValue
     }
     z.countMax := myCounterReg
 
-    when(startDelayed && z.currentValue < (myCounterReg - UInt(1)) ||( io.out.ready && z.currentValue === (myCounterReg - UInt(1))) ){
+    when(io.start && z.currentValue < (myCounterReg - UInt(1)) ||( io.out.ready && z.currentValue === (myCounterReg - UInt(1))) ){
       z.inc := Bool(true)
     }.otherwise{
       z.inc := Bool(false)

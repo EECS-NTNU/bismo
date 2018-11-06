@@ -18,11 +18,20 @@ class P2SKernelParams (
                         val suparams: SerializerUnitParams
 ) extends PrintableParam {
 
+  //The rolling should be less or equal then the maximum input bit-width and a divisor of it
+  val precRolling = suparams.unrollingFactor
+  //if static counter the unroll should be equal to 1
+  Predef.assert((suparams.staticCounter && precRolling == 1 )|| !suparams.staticCounter)
+  Predef.assert(precRolling <= maxInBw)
+  Predef.assert(maxInBw % precRolling == 0)
+
+  val writingUnit : Int = precRolling
+
  def headersAsList(): List[String] = {
-   return List("M","N","O")
+   return List("M","N","O", "R")
  }
  def contentAsList() : List[String] = {
-    return List(maxInBw,nInElemPerWord,outStreamSize).map(_.toString)
+    return List(maxInBw, nInElemPerWord, outStreamSize, precRolling).map(_.toString)
   }
 }
 
@@ -63,7 +72,7 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
     }
   }
 
-  val currentWriteBit = Reg(init = UInt(0, width = myP.maxInBw))
+  val currentWriteBit = Reg(init = UInt(0, width = myP.maxInBw + 1) )
   val currentWriteBuff = Reg(init = UInt(0, width = log2Up(myP.outStreamSize) + 1))
   val clscIndex = Reg(init = UInt(0, width = log2Up(myP.maxInBw) + 1))
   val filledClscBuff = Reg(init = Bool(false))
@@ -102,10 +111,10 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
       writeEnable := Bool(false)
       cleanBuff := Bool(false)
       serUnit.out.ready := Bool(true)
-      when(currentWriteBuff === UInt(myP.outStreamSize - 8)){//filled clsc buff
+      when(currentWriteBuff === UInt(myP.outStreamSize - myP.nInElemPerWord)){//filled clsc buff
         regState := sEmptyCoalescing
       }.elsewhen(io.inputStream.valid){ // go on processing
-        currentWriteBuff := currentWriteBuff + UInt(8)
+        currentWriteBuff := currentWriteBuff + UInt(myP.nInElemPerWord)
         currentWriteBit := UInt(0)
         io.inputStream.ready := Bool(true)
         writeEnable := Bool(true)
@@ -116,8 +125,11 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
       io.inputStream.ready := Bool(false)
       serUnit.out.ready := Bool(false)
       serUnit.start := Bool(true)
+//      when(currentWriteBit + UInt(myP.writingUnit) < io.actualPrecision){
+
       when(currentWriteBit < io.actualPrecision){
-        currentWriteBit := currentWriteBit + UInt(1)
+//        currentWriteBit := currentWriteBit + UInt(1)
+        currentWriteBit := currentWriteBit + UInt(myP.writingUnit)
         writeEnable := Bool(true)
 
       }.otherwise{
@@ -168,9 +180,11 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
 
   //Write-clean coalescing buff
   when(writeEnable){
-    for (i <- 0 until myP.nInElemPerWord)
-      coalescingBuffer(currentWriteBit)(UInt(i) + currentWriteBuff) := serUnit.out.bits(0)(i)
-
+    for(j <- 0 until myP.writingUnit)
+      for (i <- 0 until myP.nInElemPerWord) {
+        //        coalescingBuffer(UInt(j))(UInt(i) + currentWriteBuff) := serUnit.out.bits(0)(i)(j,j)
+        coalescingBuffer(currentWriteBit + UInt(j))(UInt(i) + currentWriteBuff) := serUnit.out.bits(0)(i)(j)
+      }
   }.elsewhen(cleanBuff){
 
     for(i <- 0 until myP.maxInBw)
@@ -178,156 +192,15 @@ class P2SKernel (myP: P2SKernelParams) extends Module {
         coalescingBuffer(i)(j) := UInt(0)
       }
   }.otherwise{
-    for (i <- 0 until myP.nInElemPerWord)
-      coalescingBuffer(currentWriteBit)(UInt(i) + currentWriteBuff) := coalescingBuffer(currentWriteBit)(UInt(i) + currentWriteBuff)
-  }
-/*
-  for (i <- 0 until myP.nInElemPerWord)
-    coalescingBuffer(currentWriteBit)(UInt(i) + currentWriteBuff) := coalescingBuffer(currentWriteBit)(UInt(i) + currentWriteBuff)
 
-  //Write enable
-  when(!endSerialize | valid_pulse){
-    for (i <- 0 until myP.nInElemPerWord)
-      coalescingBuffer(currentWriteBit)(UInt(i) + currentWriteBuff) := serUnit.out.bits(0)(i)
-  }
-
-  when(io.start || cleanBuff ){
     for(i <- 0 until myP.maxInBw)
       for (j <- 0 until myP.outStreamSize){
-        coalescingBuffer(i)(j) := UInt(0)
+        coalescingBuffer(i)(j) := coalescingBuffer(i)(j)
       }
+//    for (i <- 0 until myP.nInElemPerWord)
+//      for(j <- 0 until myP.writingUnit)
+//        coalescingBuffer(currentWriteBit + UInt(j) )(UInt(i) + currentWriteBuff) := coalescingBuffer(currentWriteBit + UInt(j) )(UInt(i) + currentWriteBuff)
   }
-*/
-/*
-
-  val countToFinish = Reg(init = UInt(0x3F, width = 32 ) )
-  val endSerialize = countToFinish ===  UInt(0)
-
-
-  val restartCompSU = serUnit.out.valid & io.outStream.ready
-
-
-
-  //end as soon as I have completed a number of streams that is required by the user
-
-
-  when(io.start){
-    countToFinish := io.ctrl.matrixCols * io.ctrl.matrixRows
-  }
-
-
-  when(serUnit.out.valid) {
-    countToFinish := countToFinish - UInt(myP.nInElemPerWord)
-  }
-
-  when(regState === sSUIdle) {
-    serUnit.start := Bool(false)
-    serUnit.out.ready := Bool(false)
-    when(io.inputStream.valid & !filledClscBuff) {
-      serUnit.start := Bool(true)
-      serUnit.out.ready := Bool(true)
-      regState := sSUProcessing
-    }
-  }.elsewhen(regState === sSUReady) {
-      io.inputStream.ready := !filledClscBuff
-      serUnit.start := Bool(false)
-      serUnit.out.ready := Bool(false)
-
-      when(io.inputStream.valid & !endSerialize & !filledClscBuff) {
-        serUnit.out.ready := Bool(true)
-        regState := sSUProcessing
-      }.elsewhen(filledClscBuff){
-        serUnit.out.ready := Bool(false)
-        regState := sSUReady
-      }.otherwise{
-        serUnit.out.ready := Bool(true)
-        regState := sSUIdle
-      }
-    }.elsewhen(regState === sSUProcessing) {
-    when(!endSerialize){
-      io.inputStream.ready := Bool(false)
-      serUnit.start := Bool(true)
-      serUnit.out.ready := Bool(false)
-
-      when(restartCompSU) {
-        serUnit.out.ready := Bool(true)
-        serUnit.start := Bool(true)
-        regState := sSUReady
-        }
-    }.otherwise{
-      serUnit.start := Bool(false)
-      regState := sSUIdle
-    }
-  }.otherwise {
-    serUnit.start := Bool(false)
-    serUnit.out.ready := Bool(false)
-    io.inputStream.ready := Bool(false)
-
-  }
-  val valid_r = Reg(init = false.B, next = serUnit.out.valid )
-  val valid_pulse =serUnit.out.valid & !valid_r
-
-
-  //TODO: There is smth that I miss in the configurability part of the component on the matrix size?
-
-  //Reinit the buffer just to new transformation
-  val cleanBuff = Bool()
-
-  for (i <- 0 until myP.nInElemPerWord)
-    coalescingBuffer(currentWriteBit)(UInt(i) + currentWriteBuff) := coalescingBuffer(currentWriteBit)(UInt(i) + currentWriteBuff)
-
-  val valid_pulse_delayed = ShiftRegister(valid_pulse, 1)
-  //Write enable
-  when(!endSerialize | valid_pulse){
-    for (i <- 0 until myP.nInElemPerWord)
-      coalescingBuffer(currentWriteBit)(UInt(i) + currentWriteBuff) := serUnit.out.bits(0)(i)
-  }
-
-
-  when(io.start || cleanBuff ){
-    for(i <- 0 until myP.maxInBw)
-      for (j <- 0 until myP.outStreamSize){
-        coalescingBuffer(i)(j) := UInt(0)
-      }
-  }
-
-  when(serUnit.start) {
-    currentWriteBit := currentWriteBit + UInt(1)
-  }
-
-  when(io.inputStream.ready && regState === sSUReady) {
-    currentWriteBuff := currentWriteBuff + UInt(8)
-    currentWriteBit := UInt(0)
-  }
-
-
-
-  when(io.multipleExec && restartCompSU && currentWriteBuff === UInt(myP.outStreamSize - 8)  && !endSerialize){
-    filledClscBuff := Bool(true)
-  }
-
-
-
-  // this can make the difference between configurable or not in output the stream
-  when((endSerialize | filledClscBuff)  && clscIndex < (io.ctrl.actualPrecision) ) {
-//  when((endSerialize | filledClscBuff)  && clscIndex < UInt(myP.maxInBw) ) {
-    cleanBuff := Bool(false)
-    io.outStream.valid := Bool(true)
-    clscIndex := clscIndex + UInt(1)
-    io.done := Bool(true)
-  }.elsewhen((endSerialize | filledClscBuff) && clscIndex === io.ctrl.actualPrecision ){
-    clscIndex := clscIndex
-    io.outStream.valid := Bool(false)
-    io.done := Bool(false)
-    filledClscBuff := Bool(false)
-    cleanBuff := io.multipleExec
-  }.otherwise{
-    cleanBuff := Bool(false)
-    io.outStream.valid := Bool(false)
-    io.done := Bool(false)
-    clscIndex := UInt(0)
-  }*/
-
 
   io.outStream.bits := coalescingBuffer(clscIndex).asUInt()
 
