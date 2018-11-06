@@ -17,8 +17,8 @@ using namespace std;
 #define max(x,y) (x > y ? x : y)
 #define FETCH_ALIGN       max(FETCH_ADDRALIGN, FETCH_SIZEALIGN)
 #define MAX_ACCEL_BITWIDTH 8
-#define BASECOLUMNS 64 // Basic number of columns to tes, always multiple of the word
-#define BASEROWS 1 // Basic number of rows to test
+#define BASECOLUMNS 512 // Basic number of columns to tes, always multiple of the word
+#define BASEROWS 8 // Basic number of rows to test
 #define DRAMWORDBIT 64 //Memory word bits
 #define INIT_TEST_VALUE 0
 #define MAX_TEST_VALUE 7 // a number between 0 and maximum bit-width - 1

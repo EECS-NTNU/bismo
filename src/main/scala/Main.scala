@@ -254,9 +254,9 @@ object CharacterizeMain {
     return for {
       mbw <- Seq(4, 8, 16, 32, 64)
       nxw <- Seq(64/mbw, 128/mbw)
-      staticCntr <- Seq(false, true)
-      staticUnroll <- if(staticCntr)Seq(false) else Seq(true,false)
-      unrfactor <- if(staticCntr & !staticUnroll) Seq(1) else Seq(mbw/4, mbw/2, mbw)
+      staticCntr <- Seq(false) // true for static non configurable serializing unit
+      staticUnroll <- Seq(true) // false one bit per cc serializing
+      unrfactor <- Seq(mbw/4, mbw/2, mbw) //if false or static counter ensure this to be equal to 1
     } yield new StandAloneP2SParams(
       maxInBw = mbw, nInElemPerWord = nxw, outStreamSize = mbw * nxw, mrp = PYNQZ1Params.toMemReqParams(),
       staticCntr = staticCntr, staticSUUnroll = staticUnroll, unrSU = unrfactor

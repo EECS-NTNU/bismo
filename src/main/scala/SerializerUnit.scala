@@ -27,10 +27,11 @@ class SerializerUnitParams(
   //Predef.assert( (outVectorSize != 0 && outVectorSize != 1) )
 
   //If not static unroll then single bit serializing per clock cyle otherwise multi-bit serialization of multiple of input precision
-  Predef.assert(if(staticCounter) unrollingFactor == 1 else true)
+  Predef.assert(if(staticCounter && !staticUnrolling) unrollingFactor == 1 else true)
   Predef.assert(if(staticUnrolling) unrollingFactor <= inPrecision else true)
   Predef.assert(if(staticUnrolling)inPrecision % unrollingFactor == 0 else true)
 
+  val actualBitwidth : Int = if(staticCounter && !staticUnrolling) 1 else unrollingFactor
   def headersAsList(): List[String] = {
     return List("InputBitPrecision", "MatrixRows", "MatrixColumns", "staticCounter", "maxCounterPrec" )
   }
@@ -55,7 +56,7 @@ class SerializerUnit(val p : SerializerUnitParams) extends Module{
     //TODO Digit serializer i.e.: width != 1
     //ASSUMPTION: this decoupled use a different convention: valid end the serialization of the bit-width
     //          whenever the ready signal is high the SU will restart the serialization of the input
-    val out = Decoupled(Vec.fill(p.matrixRows){Vec.fill(p.matrixCols){Vec.fill(p.unrollingFactor){UInt(OUTPUT, width = 1)}}})
+    val out = Decoupled(Vec.fill(p.matrixRows){Vec.fill(p.matrixCols){Vec.fill(p.actualBitwidth){UInt(OUTPUT, width = 1)}}})
 
   }
   val end = Bool()

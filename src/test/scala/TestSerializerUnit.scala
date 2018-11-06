@@ -43,10 +43,10 @@ class TestSerializerUnit extends JUnitSuite {
             poke(dut.io.input(i)(j), scala.math.BigInt.apply(a(i)(j)))
         step(1)
         poke(dut.io.start, true)
-        for(k <- 0  until in_len/cycles2Complete) {
+        for(k <- 0  until in_len/*/cycles2Complete*/) {
           for (i <- 0 until rows)
             for (j <- 0 until cols)
-              expect(dut.io.out.bits(i)(j)(k), RosettaTestHelpers.extractBitPos(a(i)(j),k,in_len))
+              expect(dut.io.out.bits(i)(j)(0), RosettaTestHelpers.extractBitPos(a(i)(j),k,in_len))
           step(1)
         }
         poke(dut.io.out.ready, true)
@@ -69,7 +69,7 @@ class TestSerializerUnit extends JUnitSuite {
       // function that instantiates the Module to be tested
       val p = new SerializerUnitParams(
         inPrecision = inPrecision, matrixRows = rows, matrixCols = cols, staticCounter = static, maxCounterPrec = countWidth,
-          staticUnrolling = true, unrollingFactor = inPrecision/2
+          staticUnrolling = false, unrollingFactor = 2//inPrecision/2
       )
       def testModuleInstFxn = () => { Module(new SerializerUnit(p)) }
       // function that instantiates the Tester to test the Module
