@@ -9,6 +9,7 @@ import Chisel._
 import fpgatidbits.ocm._
 import fpgatidbits.streams._
 import fpgatidbits.dma._
+import fpgatidbits.math.Counter
 
 class P2SKernelParams(
   val maxInBw: Int = 8,
@@ -31,6 +32,88 @@ class P2SKernelParams(
   }
   def contentAsList(): List[String] = {
     return List(maxInBw, nInElemPerWord, outStreamSize, precRolling).map(_.toString)
+  }
+}
+
+class P2SKernel_Slow(myP: P2SKernelParams) extends Module {
+  val io = new Bundle {
+    // actual precision of the input bit-parallel matrix, <= maxInBw
+    // this field must be able to represent maxInBw, hence the +1
+    val actualPrecision = UInt(INPUT, width = log2Up(myP.maxInBw) + 1)
+    val inputStream = Decoupled(UInt(width = myP.maxInBw * myP.nInElemPerWord)).flip()
+    val outStream = Decoupled(UInt(width = myP.mrp.dataWidth))
+  }
+  val doBitShift = Bool()
+  doBitShift := Bool(false)
+  val currentBit = Module(new Counter(log2Up(myP.maxInBw) + 1)).io
+  currentBit.nsteps := io.actualPrecision
+  currentBit.enable := doBitShift
+
+  val currentGroup = Module(new Counter(log2Up(myP.maxInBw) + 1)).io
+  currentGroup.nsteps := UInt(myP.outStreamSize / myP.nInElemPerWord)
+  currentGroup.enable := Bool(false)
+
+  val shifters = Vec.fill(myP.nInElemPerWord) {
+    Module(new ParallelInSerialOut(parWidth = myP.maxInBw, serWidth = 1)).io
+  }
+
+  for(i <- 0 until myP.nInElemPerWord) {
+    // copy bits from input stream when valid and ready
+    shifters(i).parWrEn := io.inputStream.fire()
+    shifters(i).parIn := io.inputStream.bits((i+1) * myP.maxInBw - 1, i * myP.maxInBw)
+    shifters(i).shiftEn := doBitShift
+    // serial input is unused
+    shifters(i).serIn := UInt(0)
+  }
+  val currentBitData = Cat(shifters.map(_.serOut))
+  // write buffer for coalescing
+  val writeBuffers = Vec.fill(myP.maxInBw) {
+    Module(new SerialInParallelOut(parWidth = myP.outStreamSize, serWidth = myP.nInElemPerWord)).io
+  }
+  for(i <- 0 until myP.maxInBw) {
+    writeBuffers(i).shiftEn := Bool(false)
+    writeBuffers(i).serIn := currentBitData
+  }
+  val currentWriteBuffer = writeBuffers(currentBit.current)
+
+  io.inputStream.ready := Bool(false)
+  io.outStream.valid := Bool(false)
+
+  io.outStream.bits := currentWriteBuffer.parOut
+
+  val sRead :: sShift :: sWrite :: Nil = Enum(UInt(), 3)
+  val regState = Reg(init = UInt(sRead))
+
+  switch(regState) {
+    is(sRead) {
+      io.inputStream.ready := Bool(true)
+      when(io.inputStream.valid) {
+        regState := sShift
+      }
+    }
+
+    is(sShift) {
+      doBitShift := Bool(true)
+      currentWriteBuffer.shiftEn := Bool(true)
+      when(currentBit.full) {
+        currentGroup.enable := Bool(true)
+        when(currentGroup.full) {
+          regState := sWrite
+        } .otherwise {
+          regState := sRead
+        }
+      }
+    }
+
+    is(sWrite) {
+      io.outStream.valid := Bool(true)
+      when(io.outStream.ready) {
+        currentBit.enable := Bool(true)
+        when(currentBit.full) {
+          regState := sRead
+        }
+      }
+    }
   }
 }
 
