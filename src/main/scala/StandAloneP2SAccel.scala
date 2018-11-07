@@ -125,12 +125,15 @@ class StandAloneP2SAccel(
     }
     is(sGenReads) {
       readRg.in.valid := Bool(true)
-      regState := sGenWrites
-
+      when(readRg.in.ready) {
+        regState := sGenWrites
+      }
     }
     is(sGenWrites) {
       writeRg.in.valid := Bool(true)
-      regState := sWaitComplete
+      when(writeRg.in.ready) {
+        regState := sWaitComplete
+      }
     }
     is(sWaitComplete) {
       when(writeComplete) {
@@ -140,10 +143,10 @@ class StandAloneP2SAccel(
     is(sGenAck) {
       io.ack.valid := Bool(true)
       io.ack.bits := Bool(true)
-      regState := sIdle
-      regCompletedWrBytes := UInt(0)
+      when(io.ack.ready) {
+        regState := sIdle
+      }
     }
-
   }
 
   readRg.in.bits.base := io.p2sCmd.bits.dramBaseAddrSrc
