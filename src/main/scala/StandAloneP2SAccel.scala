@@ -15,13 +15,13 @@ import fpgatidbits.streams.{ PrintableBundle, PrintableBundleStreamMonitor, Read
 
 // parameters that control the accelerator instantiation
 class StandAloneP2SParams(
-  val maxInBw: Int,
-  val nInElemPerWord: Int,
-  val outStreamSize: Int,
-  val staticCntr: Boolean = false,
-  val staticSUUnroll: Boolean = false,
-  val unrSU: Int = 1,
-  val mrp: MemReqParams) extends PrintableParam {
+    val maxInBw: Int,
+    val nInElemPerWord: Int,
+    val outStreamSize: Int,
+    val staticCntr: Boolean = false,
+    val staticSUUnroll: Boolean = false,
+    val unrSU: Int = 1,
+    val mrp: MemReqParams) extends PrintableParam {
 
   // Input bandwidth equal to output bandwidth
   Predef.assert(maxInBw * nInElemPerWord == outStreamSize)
@@ -69,12 +69,15 @@ class P2SCmdIO(myP: P2SKernelParams) extends PrintableBundle {
 
   override def cloneType(): this.type =
     new P2SCmdIO(myP).asInstanceOf[this.type]
-  val printfStr = "DRAM base src addr: %d, dst addr: %d, Matrix size: %d, %d, with current precision of %d\n"
-  val printfElems = { () ⇒ Seq(dramBaseAddrSrc, dramBaseAddrDst, matrixRows, matrixColsGroup, actualPrecision) }
+  val printfStr = "DRAM {src: %x, dst: %x} matrix {rows %d, colgroups %d, bits %d} waitCompleteBytes %d\n"
+  val printfElems = { () ⇒ Seq(
+    dramBaseAddrSrc, dramBaseAddrDst, matrixRows, matrixColsGroup,
+    actualPrecision, waitCompleteBytes
+  ) }
 }
 
 class StandAloneP2SAccel(
-  val myP: StandAloneP2SParams, p: PlatformWrapperParams) extends Module() { //GenericAccelerator(p) {
+    val myP: StandAloneP2SParams, p: PlatformWrapperParams) extends Module() { //GenericAccelerator(p) {
   val numMemPorts = 1
   val io = new GenericAcceleratorIF(numMemPorts, p) {
     val p2sCmd = Decoupled(new P2SCmdIO(myP.p2sparams)).flip()
@@ -157,7 +160,7 @@ class StandAloneP2SAccel(
 
   FPGAQueue(ReadRespFilter(io.memPort(0).memRdRsp), 256) <> p2skrnl.inputStream
 
-/*****************************DEBUG PRINT********************************************/
+  /*****************************DEBUG PRINT********************************************/
   // add PrintableBundleStreamMonitor to print all mem rd req/rsp transactions
   //  PrintableBundleStreamMonitor(io.memPort(0).memRdReq, Bool(true), "memRdReq", true)
   //  PrintableBundleStreamMonitor(io.memPort(0).memRdRsp, Bool(true), "memRdRsp", true)
