@@ -66,7 +66,8 @@ class P2SCmdIO(myP: P2SKernelParams) extends PrintableBundle {
   // one column group = maxInBw * nInElemPerWord elements
   val matrixColsGroup = UInt(width = 32)
   // actual precision of the input bit-parallel matrix, <= maxInBw
-  val actualPrecision = UInt(width = myP.maxInBw)
+  // this field must be able to represent maxInBw, hence the +1
+  val actualPrecision = UInt(width = log2Up(myP.maxInBw) + 1)
   // total size of destination (bit serial) matrix in bytes
   val waitCompleteBytes = UInt(width = 32)
 

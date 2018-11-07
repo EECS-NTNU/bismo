@@ -36,7 +36,9 @@ class P2SKernelParams(
 
 class P2SKernel(myP: P2SKernelParams) extends Module {
   val io = new Bundle {
-    val actualPrecision = UInt(INPUT, width = myP.maxInBw)
+    // actual precision of the input bit-parallel matrix, <= maxInBw
+    // this field must be able to represent maxInBw, hence the +1
+    val actualPrecision = UInt(INPUT, width = log2Up(myP.maxInBw) + 1)
     val inputStream = Decoupled(UInt(width = myP.maxInBw * myP.nInElemPerWord)).flip()
     val outStream = Decoupled(UInt(width = myP.mrp.dataWidth))
   }
