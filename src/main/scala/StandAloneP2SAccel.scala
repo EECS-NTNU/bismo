@@ -83,24 +83,22 @@ class StandAloneP2SAccel(
     val p2sCmd = Decoupled(new P2SCmdIO(myP.p2sparams)).flip()
     val ack = Decoupled(Bool())
   }
+  // register the p2sCmd currently being processed
+  val regCmd = Reg(outType = io.p2sCmd.bits)
 
-  val start = Bool()
-  val done = Bool()
-
-  // instantiate request generator
+  // instantiate the actual P2SKernel and request generators
   val readRg = Module(new BlockStridedRqGen(mrp = myP.mrp, writeEn = false)).io
   val writeRg = Module(new BlockStridedRqGen(mrp = myP.mrp, writeEn = true)).io
-
   val p2skrnl = Module(new P2SKernel(myP.p2sparams)).io
-  p2skrnl.actualPrecision := io.p2sCmd.bits.actualPrecision
+  p2skrnl.actualPrecision := regCmd.actualPrecision
 
   // write completion detection logic
   val regCompletedWrBytes = Reg(init = UInt(0, 32))
-  //ATTENTION: this should be a multiple of 8
-  val writeComplete = regCompletedWrBytes === io.p2sCmd.bits.waitCompleteBytes
+  // note: waitCompleteBytes must be a multiple of mrp.dataWidth in bytes
+  val writeComplete = (regCompletedWrBytes === regCmd.waitCompleteBytes)
   io.memPort(0).memWrRsp.ready := Bool(true)
-  // TODO: this needs to take burst width into account, if any
   when(io.memPort(0).memWrRsp.fire()) {
+    // TODO: this needs to take burst width into account, if any
     regCompletedWrBytes := regCompletedWrBytes + UInt(myP.mrp.dataWidth / 8)
   }
 
@@ -120,6 +118,7 @@ class StandAloneP2SAccel(
       regCompletedWrBytes := UInt(0)
       io.p2sCmd.ready := Bool(true)
       when(io.p2sCmd.valid) {
+        regCmd := io.p2sCmd.bits
         regState := sGenReads
       }
     }
@@ -149,19 +148,19 @@ class StandAloneP2SAccel(
     }
   }
 
-  readRg.in.bits.base := io.p2sCmd.bits.dramBaseAddrSrc
+  readRg.in.bits.base := regCmd.dramBaseAddrSrc
 
-  readRg.in.bits.block_step := io.p2sCmd.bits.matrixColsGroup * io.p2sCmd.bits.actualPrecision * UInt(myP.dramWordBytes)
+  readRg.in.bits.block_step := regCmd.matrixColsGroup * regCmd.actualPrecision * UInt(myP.dramWordBytes)
 
   //continuous run? or just single row?
-  readRg.in.bits.block_count := io.p2sCmd.bits.matrixRows
+  readRg.in.bits.block_count := regCmd.matrixRows
   //  inRg.in.bits.block_count := UInt(1)
 
   readRg.block_intra_step := UInt(myP.dramWordBytes)
-  readRg.block_intra_count := io.p2sCmd.bits.matrixColsGroup * io.p2sCmd.bits.actualPrecision
+  readRg.block_intra_count := regCmd.matrixColsGroup * regCmd.actualPrecision
 
   io.memPort(0).memRdReq <> readRg.out
-
+  // TODO Davide: why are these queues 256 elements? can they be smaller?
   FPGAQueue(ReadRespFilter(io.memPort(0).memRdRsp), 256) <> p2skrnl.inputStream
 
   /*****************************DEBUG PRINT********************************************/
@@ -175,12 +174,12 @@ class StandAloneP2SAccel(
   //PrintableBundleStreamMonitor(io.memPort(0).memWrDat , Bool(true), "memWrDat", true)
   //PrintableBundleStreamMonitor(io.memPort(0).memWrRsp , Bool(true), "memWrRsp", true)
 
-  writeRg.in.bits.base := io.p2sCmd.bits.dramBaseAddrDst
+  writeRg.in.bits.base := regCmd.dramBaseAddrDst
   writeRg.in.bits.block_step := UInt(myP.dramWordBytes)
-  writeRg.in.bits.block_count := io.p2sCmd.bits.matrixColsGroup * io.p2sCmd.bits.matrixRows
+  writeRg.in.bits.block_count := regCmd.matrixColsGroup * regCmd.matrixRows
 
-  writeRg.block_intra_step := io.p2sCmd.bits.matrixColsGroup * io.p2sCmd.bits.matrixRows * UInt(myP.dramWordBytes)
-  writeRg.block_intra_count := io.p2sCmd.bits.actualPrecision
+  writeRg.block_intra_step := regCmd.matrixColsGroup * regCmd.matrixRows * UInt(myP.dramWordBytes)
+  writeRg.block_intra_count := regCmd.actualPrecision
 
   val outAddrQueue = FPGAQueue(writeRg.out, 256)
   outAddrQueue <> io.memPort(0).memWrReq
