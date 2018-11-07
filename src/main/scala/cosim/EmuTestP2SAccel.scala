@@ -25,6 +25,7 @@ class EmuTestP2SAccel(
   }
 
   val accel = Module(new StandAloneP2SAccel(myP, p)).io
+  io.memPort(0) <> accel.memPort(0)
 
   // instantiate and connect cmd and ack queues
   val cmdQ = Module(new FPGAQueue(io.cmdqueue.bits, 16)).io
