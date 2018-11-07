@@ -29,6 +29,10 @@ class StandAloneP2SParams(
 
   val dramWordBytes = maxInBw * nInElemPerWord / 8
 
+  // number of columns given to the StandAloneP2SAccel must be an integer multiple
+  // of p2sAlign. in other words, this is the "number of columns in a group".
+  val p2sAlign = maxInBw * nInElemPerWord
+
   val suparams = new SerializerUnitParams(
     inPrecision = maxInBw, matrixRows = 1,
     matrixCols = nInElemPerWord, staticCounter = staticCntr,
@@ -52,11 +56,18 @@ class StandAloneP2SParams(
 }
 
 class P2SCmdIO(myP: P2SKernelParams) extends PrintableBundle {
+  // DRAM base address for source (bit parallel) matrix
   val dramBaseAddrSrc = UInt(width = 32)
+  // DRAM base address for destination (bit serial) matrix
   val dramBaseAddrDst = UInt(width = 32)
+  // number of matrix rows
   val matrixRows = UInt(width = 32)
-  val matrixColsGroup = UInt(width = 32) //how many columns groups, should always be %64 == 0
+  // number of matrix column groups
+  // one column group = maxInBw * nInElemPerWord elements
+  val matrixColsGroup = UInt(width = 32)
+  // actual precision of the input bit-parallel matrix, <= maxInBw
   val actualPrecision = UInt(width = myP.maxInBw)
+  // total size of destination (bit serial) matrix in bytes
   val waitCompleteBytes = UInt(width = 32)
 
   override def cloneType(): this.type =
@@ -141,15 +152,17 @@ class StandAloneP2SAccel(
   }
 
   readRg.in.bits.base := regCmd.dramBaseAddrSrc
-
   readRg.in.bits.block_step := regCmd.matrixColsGroup * regCmd.actualPrecision * UInt(myP.dramWordBytes)
-
   //continuous run? or just single row?
   readRg.in.bits.block_count := regCmd.matrixRows
   //  inRg.in.bits.block_count := UInt(1)
 
   readRg.block_intra_step := UInt(myP.dramWordBytes)
-  readRg.block_intra_count := regCmd.matrixColsGroup * regCmd.actualPrecision
+  // number of steps within block = number of DRAM words per row
+  // = (number of column groups) * (elements per group) / (elements per DRAM word)
+  // since elements per group = maxInBw * elements per word:
+  // = number of column groups * maxInBw
+  readRg.block_intra_count := regCmd.matrixColsGroup * UInt(myP.maxInBw)
 
   io.memPort(0).memRdReq <> readRg.out
   // TODO Davide: why are these queues 256 elements? can they be smaller?
