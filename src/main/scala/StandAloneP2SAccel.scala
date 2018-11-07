@@ -93,7 +93,7 @@ class StandAloneP2SAccel(
   // instantiate the actual P2SKernel and request generators
   val readRg = Module(new BlockStridedRqGen(mrp = myP.mrp, writeEn = false)).io
   val writeRg = Module(new BlockStridedRqGen(mrp = myP.mrp, writeEn = true)).io
-  val p2skrnl = Module(new P2SKernel(myP.p2sparams)).io
+  val p2skrnl = Module(new P2SKernel_Slow(myP.p2sparams)).io
   p2skrnl.actualPrecision := regCmd.actualPrecision
 
   // write completion detection logic
