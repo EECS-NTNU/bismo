@@ -99,9 +99,9 @@ class StandAloneP2SAccel(
   //ATTENTION: this should be a multiple of 8
   val writeComplete = regCompletedWrBytes === io.p2sCmd.bits.waitCompleteBytes
   io.memPort(0).memWrRsp.ready := Bool(true)
-  when(io.memPort(0).memWrRsp.valid && !writeComplete) {
-    regCompletedWrBytes := regCompletedWrBytes + UInt(myP.p2sparams.outStreamSize / 8)
-
+  // TODO: this needs to take burst width into account, if any
+  when(io.memPort(0).memWrRsp.fire()) {
+    regCompletedWrBytes := regCompletedWrBytes + UInt(myP.mrp.dataWidth / 8)
   }
 
   // FSM logic for control for starting the P2S processing
@@ -117,6 +117,7 @@ class StandAloneP2SAccel(
 
   switch(regState) {
     is(sIdle) {
+      regCompletedWrBytes := UInt(0)
       io.p2sCmd.ready := Bool(true)
       when(io.p2sCmd.valid) {
         regState := sGenReads
