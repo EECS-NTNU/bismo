@@ -128,7 +128,9 @@ object EmuLibMain {
     val emuDir: String = args(1)
     val accInst: Settings.AccelInstFxn = Settings.emuMap(emuName)
     TidbitsMakeUtils.makeEmulatorLibrary(
-      accInst, emuDir, Seq("--std=c++11", "-DDEBUG"), Seq("--vcd"))
+      accInst, emuDir, Seq("--std=c++11"))
+      // use the following to enable VCD dumps from cosim tests:
+      //accInst, emuDir, Seq("--std=c++11", "-DDEBUG"), Seq("--vcd"))
   }
 }
 
