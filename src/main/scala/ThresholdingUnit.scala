@@ -12,25 +12,25 @@ import fpgatidbits.ocm._
 //TODO Should we handle a quantization vector per element fo the matrix, thus a MxNxT matrix?
 
 class ThresholdingUnitParams(
-    // building block params
-    val thBBParams: ThresholdingBuildingBlockParams,
-    // input bit precision
-    val inputBitPrecision: Int = 32,
-    // maximum output bit precision
-    val maxOutputBitPrecision: Int = 4,
-    //Dm number of rows in the input/output matrix
-    val matrixRows: Int,
-    //Dn number of columns in the input/output matrix
-    val matrixColumns: Int,
-    // threshold memory depth (how many entries, address space)
-    val thresholdMemDepth: Int,
-    // unrolling factor
-    //unrolling in the dimension of the popcount thus the parallel thresholds
-    val unrollingFactorOutputPrecision: Int = 16,
-    //unrolling factor for the input matrix rows
-    val unrollingFactorRows: Int = 1,
-    //unrolling factor for the columns of the input matrix
-    val unrollingFactorColumns: Int = 1) extends PrintableParam {
+  // building block params
+  val thBBParams: ThresholdingBuildingBlockParams,
+  // input bit precision
+  val inputBitPrecision: Int = 32,
+  // maximum output bit precision
+  val maxOutputBitPrecision: Int = 4,
+  //Dm number of rows in the input/output matrix
+  val matrixRows: Int,
+  //Dn number of columns in the input/output matrix
+  val matrixColumns: Int,
+  // threshold memory depth (how many entries, address space)
+  val thresholdMemDepth: Int,
+  // unrolling factor
+  //unrolling in the dimension of the popcount thus the parallel thresholds
+  val unrollingFactorOutputPrecision: Int = 16,
+  //unrolling factor for the input matrix rows
+  val unrollingFactorRows: Int = 1,
+  //unrolling factor for the columns of the input matrix
+  val unrollingFactorColumns: Int = 1) extends PrintableParam {
 
   //check parameters consistency
   //TODO support to Row Roll

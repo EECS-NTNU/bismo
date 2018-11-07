@@ -47,7 +47,7 @@ import Chisel._
 // 0 1 2 3 10 12 14
 
 class MultiSeqGenParams(
-    val w: Int, val a: Int) extends PrintableParam {
+  val w: Int, val a: Int) extends PrintableParam {
   def headersAsList(): List[String] = {
     return List("datawidth", "countwidth")
   }

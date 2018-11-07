@@ -62,10 +62,10 @@ class ControllerCmd(inChannels: Int, outChannels: Int) extends Bundle {
 // base class for all stage controllers, taking in a stream of commands and
 // individually executing each while respecting shared resource access locks.
 class BaseController[Ts <: Bundle](
-    inChannels: Int, // number of input sync channels
-    outChannels: Int, // number of output sync channels
-    genStageO: ⇒ Ts // gentype for stage output
-    ) extends Module {
+  inChannels: Int, // number of input sync channels
+  outChannels: Int, // number of output sync channels
+  genStageO: ⇒ Ts // gentype for stage output
+) extends Module {
   val io = new Bundle {
     // command queue input
     val op = Decoupled(new ControllerCmd(inChannels, outChannels)).flip
@@ -159,17 +159,13 @@ class BaseController[Ts <: Bundle](
 
 // derived classes for each type of controller.
 class FetchController(val myP: FetchStageParams) extends BaseController(
-  genStageO = new FetchStageCtrlIO(myP), inChannels = 1, outChannels = 1
-) {}
+  genStageO = new FetchStageCtrlIO(myP), inChannels = 1, outChannels = 1) {}
 
 class ExecController(val myP: ExecStageParams) extends BaseController(
-  genStageO = new ExecStageCtrlIO(myP), inChannels = 2, outChannels = 2
-) {}
+  genStageO = new ExecStageCtrlIO(myP), inChannels = 2, outChannels = 2) {}
 
 class ResultController(val myP: ResultStageParams) extends BaseController(
-  genStageO = new ResultStageCtrlIO(myP), inChannels = 1, outChannels = 1
-) {}
+  genStageO = new ResultStageCtrlIO(myP), inChannels = 1, outChannels = 1) {}
 
 class ThresholdingController(val myP: ThrStageParams) extends BaseController(
-  genStageO = new ThrStageCtrlIO(myP), inChannels = 2, outChannels = 2
-) {}
+  genStageO = new ThrStageCtrlIO(myP), inChannels = 2, outChannels = 2) {}

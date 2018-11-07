@@ -15,13 +15,13 @@ import fpgatidbits.streams.{ PrintableBundle, PrintableBundleStreamMonitor, Read
 
 // parameters that control the accelerator instantiation
 class StandAloneP2SParams(
-    val maxInBw: Int,
-    val nInElemPerWord: Int,
-    val outStreamSize: Int,
-    val staticCntr: Boolean = false,
-    val staticSUUnroll: Boolean = false,
-    val unrSU: Int = 1,
-    val mrp: MemReqParams) extends PrintableParam {
+  val maxInBw: Int,
+  val nInElemPerWord: Int,
+  val outStreamSize: Int,
+  val staticCntr: Boolean = false,
+  val staticSUUnroll: Boolean = false,
+  val unrSU: Int = 1,
+  val mrp: MemReqParams) extends PrintableParam {
 
   // Input bandwidth equal to output bandwidth
   Predef.assert(maxInBw * nInElemPerWord == outStreamSize)
@@ -33,25 +33,21 @@ class StandAloneP2SParams(
     inPrecision = maxInBw, matrixRows = 1,
     matrixCols = nInElemPerWord, staticCounter = staticCntr,
     maxCounterPrec = maxInBw, staticUnrolling = staticSUUnroll,
-    unrollingFactor = unrSU
-  )
+    unrollingFactor = unrSU)
 
   val p2sparams = new P2SKernelParams(
     maxInBw = maxInBw, nInElemPerWord = nInElemPerWord,
     outStreamSize = outStreamSize, mrp = mrp,
-    suparams = suparams
-  )
+    suparams = suparams)
   def headersAsList(): List[String] = {
     return List(
-      "M-axInBw", "N-InElemPerWord", "O-utStreamSize", "SU-StatiCounter", "SU-Static Unroll", "SU-Unrolling factor"
-    )
+      "M-axInBw", "N-InElemPerWord", "O-utStreamSize", "SU-StatiCounter", "SU-Static Unroll", "SU-Unrolling factor")
   }
 
   def contentAsList(): List[String] = {
     return List(
       maxInBw, nInElemPerWord, outStreamSize, staticCntr,
-      staticSUUnroll, unrSU
-    ).map(_.toString)
+      staticSUUnroll, unrSU).map(_.toString)
   }
 }
 
@@ -78,7 +74,7 @@ class P2SCmdIO(myP: P2SKernelParams) extends PrintableBundle {
 }
 
 class StandAloneP2SAccel(
-    val myP: StandAloneP2SParams, p: PlatformWrapperParams) extends Module() { //GenericAccelerator(p) {
+  val myP: StandAloneP2SParams, p: PlatformWrapperParams) extends Module() { //GenericAccelerator(p) {
   val numMemPorts = 1
   val io = new GenericAcceleratorIF(numMemPorts, p) {
     val p2sCmd = Decoupled(new P2SCmdIO(myP.p2sparams)).flip()
@@ -161,7 +157,7 @@ class StandAloneP2SAccel(
 
   FPGAQueue(ReadRespFilter(io.memPort(0).memRdRsp), 256) <> p2skrnl.inputStream
 
-  /*****************************DEBUG PRINT********************************************/
+/*****************************DEBUG PRINT********************************************/
   // add PrintableBundleStreamMonitor to print all mem rd req/rsp transactions
   //  PrintableBundleStreamMonitor(io.memPort(0).memRdReq, Bool(true), "memRdReq", true)
   //  PrintableBundleStreamMonitor(io.memPort(0).memRdRsp, Bool(true), "memRdRsp", true)

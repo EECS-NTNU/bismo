@@ -41,20 +41,20 @@ import fpgatidbits.PlatformWrapper._
 // SequenceGenerators to pull data from BRAMs into the compute array
 
 class ExecStageParams(
-    // parameters for the DotProductArray
-    val dpaParams: DotProductArrayParams,
-    // number of L0 tiles that can be stored on-chip for LHS and RHS matrices
-    val lhsTileMem: Int,
-    val rhsTileMem: Int,
-    // how much to increment the tile mem address to go to next tile (due to
-    // asymmetric BRAM between fetch/execute)
-    val tileMemAddrUnit: Int,
-    // levels of registers before (on address input) and after (on data output)
-    // of each tile memory BRAM
-    val bramInRegs: Int = 1,
-    val bramOutRegs: Int = 1,
-    // number of entries in the result mem
-    val resEntriesPerMem: Int = 2) extends PrintableParam {
+  // parameters for the DotProductArray
+  val dpaParams: DotProductArrayParams,
+  // number of L0 tiles that can be stored on-chip for LHS and RHS matrices
+  val lhsTileMem: Int,
+  val rhsTileMem: Int,
+  // how much to increment the tile mem address to go to next tile (due to
+  // asymmetric BRAM between fetch/execute)
+  val tileMemAddrUnit: Int,
+  // levels of registers before (on address input) and after (on data output)
+  // of each tile memory BRAM
+  val bramInRegs: Int = 1,
+  val bramOutRegs: Int = 1,
+  // number of entries in the result mem
+  val resEntriesPerMem: Int = 2) extends PrintableParam {
   def headersAsList(): List[String] = {
     return dpaParams.headersAsList() ++ List("lhsTileMem", "rhsTileMem")
   }
@@ -133,8 +133,7 @@ class ExecStageCtrlIO(myP: ExecStageParams) extends PrintableBundle {
   val printfStr = "(offs lhs/rhs = %d/%d, ntiles = %d, << %d, w? %d/%d)\n"
   val printfElems = { () ⇒
     Seq(
-      lhsOffset, rhsOffset, numTiles, shiftAmount, writeEn, writeAddr
-    )
+      lhsOffset, rhsOffset, numTiles, shiftAmount, writeEn, writeAddr)
   }
 }
 
@@ -162,8 +161,7 @@ class ExecStageResMemIO(myP: ExecStageParams) extends Bundle {
   val req = Vec.fill(myP.getM()) {
     Vec.fill(myP.getN()) {
       new OCMRequest(
-        myP.getResBitWidth(), log2Up(myP.resEntriesPerMem)
-      ).asOutput
+        myP.getResBitWidth(), log2Up(myP.resEntriesPerMem)).asOutput
     }
   }
 

@@ -38,12 +38,11 @@ import fpgatidbits.streams._
 import fpgatidbits.PlatformWrapper._
 
 class EmuTestFetchStage(
-    nLHS: Int, nRHS: Int, p: PlatformWrapperParams) extends GenericAccelerator(p) {
+  nLHS: Int, nRHS: Int, p: PlatformWrapperParams) extends GenericAccelerator(p) {
   val numMemPorts = 1
   val myP = new FetchStageParams(
     numLHSMems = nLHS, numRHSMems = nRHS,
-    numAddrBits = 10, mrp = PYNQZ1Params.toMemReqParams(), bramWrLat = 2
-  )
+    numAddrBits = 10, mrp = PYNQZ1Params.toMemReqParams(), bramWrLat = 2)
   val io = new GenericAcceleratorIF(numMemPorts, p) {
     // base control signals
     val start = Bool(INPUT) // hold high while running
@@ -59,8 +58,7 @@ class EmuTestFetchStage(
   val brams = Vec.fill(myP.numNodes) {
     Module(new PipelinedDualPortBRAM(
       addrBits = myP.numAddrBits, dataBits = myP.mrp.dataWidth,
-      regIn = 1, regOut = 1
-    )).io
+      regIn = 1, regOut = 1)).io
   }
 
   val fetch = Module(new FetchStage(myP)).io

@@ -12,10 +12,10 @@ import Chisel._
 // use it for regular binary operands here.
 
 class BlackBoxCompressorParams(
-    val N: Int, // bitwidth of compressor inputs
-    val D: Int // number of pipeline registers, subject to
-    // compressor tree depth. set to -1 for maximum.
-    ) extends PrintableParam {
+  val N: Int, // bitwidth of compressor inputs
+  val D: Int // number of pipeline registers, subject to
+// compressor tree depth. set to -1 for maximum.
+) extends PrintableParam {
   def headersAsList(): List[String] = {
     return List("Dk", "BBCompressorLatency")
   }
@@ -51,20 +51,19 @@ class BlackBoxCompressor(p: BlackBoxCompressorParams) extends Module {
   }
   val inst = Module(new mac(
     BB_WA = outputbits, BB_N = p.N, BB_WD = 1, BB_WC = 1,
-    BB_D = p.getLatency()
-  )).io
+    BB_D = p.getLatency())).io
   inst.a := UInt(0)
   inst <> io
 }
 
 // actual BlackBox that instantiates the VHDL unit
 class mac(
-    BB_WA: Int, // result precision
-    BB_N: Int, // number of elements in dot product
-    BB_WD: Int, // input operand 1 precision
-    BB_WC: Int, // input operand 2 precision
-    BB_D: Int // optional pipeline regs to add
-    ) extends BlackBox {
+  BB_WA: Int, // result precision
+  BB_N: Int, // number of elements in dot product
+  BB_WD: Int, // input operand 1 precision
+  BB_WC: Int, // input operand 2 precision
+  BB_D: Int // optional pipeline regs to add
+) extends BlackBox {
   val io = new Bundle {
     // accumulator input is unused
     val a = Bits(INPUT, width = BB_WA)

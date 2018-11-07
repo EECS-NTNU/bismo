@@ -11,11 +11,11 @@ import fpgatidbits.streams._
 import fpgatidbits.dma._
 
 class P2SKernelParams(
-    val maxInBw: Int = 8,
-    val nInElemPerWord: Int = 8,
-    val outStreamSize: Int = 64,
-    val mrp: MemReqParams,
-    val suparams: SerializerUnitParams) extends PrintableParam {
+  val maxInBw: Int = 8,
+  val nInElemPerWord: Int = 8,
+  val outStreamSize: Int = 64,
+  val mrp: MemReqParams,
+  val suparams: SerializerUnitParams) extends PrintableParam {
 
   //The rolling should be less or equal then the maximum input bit-width and a divisor of it
   val precRolling = suparams.unrollingFactor

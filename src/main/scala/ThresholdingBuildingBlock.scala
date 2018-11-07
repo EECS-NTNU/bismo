@@ -5,12 +5,12 @@ package bismo
 import Chisel._
 
 class ThresholdingBuildingBlockParams(
-    //input precision, how many bits
-    val inPrecision: Int = 32,
-    // how many input- threshold the unit should perform in parallel
-    val popcountUnroll: Int = 1,
-    //output bit precision
-    val outPrecision: Int = 1) extends PrintableParam {
+  //input precision, how many bits
+  val inPrecision: Int = 32,
+  // how many input- threshold the unit should perform in parallel
+  val popcountUnroll: Int = 1,
+  //output bit precision
+  val outPrecision: Int = 1) extends PrintableParam {
 
   //check parameters consistency for full unroll
   //Predef.assert(popcountUnroll == (scala.math.pow(2,outPrecision).toInt - 1) )

@@ -52,12 +52,12 @@ abstract class PrintableParam() {
 
 // bundled up numbers/results from characteriation
 class CharacterizeResult(
-    val lut: Int,
-    val reg: Int,
-    val dsp: Int,
-    val bram: Int,
-    val target_ns: Double,
-    val fmax_mhz: Double) extends PrintableParam {
+  val lut: Int,
+  val reg: Int,
+  val dsp: Int,
+  val bram: Int,
+  val target_ns: Double,
+  val fmax_mhz: Double) extends PrintableParam {
   def printSummary() = {
     println(s"$lut LUTs, $reg FFs, $bram BRAMs, $dsp DSP slices, $fmax_mhz MHz")
   }
@@ -77,8 +77,7 @@ object VivadoSynth {
     "PYNQZ1" -> "xc7z020clg400-1",
     "ZC706" -> "xc7z045ffg900-2",
     "TULKU115" -> "xcku115-flvb2104-2-e",
-    "VU9P" -> "xcvu9p-flgb2104-2-i"
-  )
+    "VU9P" -> "xcvu9p-flgb2104-2-i")
   // given an instantiation function instFxn that generates a Chisel module
   // from parameters p, return the FPGA synthesis results
   def characterizePoint[Tp <: PrintableParam, Tm <: Module](
@@ -86,7 +85,7 @@ object VivadoSynth {
     instFxn: Tp ⇒ Tm, // function that instantiates module from parameters
     path: String, // directory to create Vivado proj in
     fpgaPart: String // FPGA part to run characterization for
-    ): CharacterizeResult = {
+  ): CharacterizeResult = {
     val args = Array[String]("--backend", "v", "--targetDir", path)
     println("Now exploring design point with parameters:")
     println(p.headersAsList().mkString("\t"))
@@ -96,8 +95,7 @@ object VivadoSynth {
     val topModuleName: String = instFxn(p).getClass.getSimpleName
     // run Nachiket Kapre's quick synthesis-and-characterization scripts
     var ret: CharacterizeResult = new CharacterizeResult(
-      lut = 0, reg = 0, bram = 0, dsp = 0, target_ns = 0, fmax_mhz = 0
-    )
+      lut = 0, reg = 0, bram = 0, dsp = 0, target_ns = 0, fmax_mhz = 0)
     try {
       val compile_res = Process(s"vivadocompile.sh $topModuleName clk $fpgaPart", new File(path)).!!
       val result_res = Process(s"cat results_$topModuleName/res.txt", new File(path)).!!
@@ -116,8 +114,7 @@ object VivadoSynth {
       ret = new CharacterizeResult(
         lut = luts_fields(1).toInt, reg = regs_fields(1).toInt,
         bram = bram_fields(1).toInt,
-        dsp = dsps_fields(1).toInt, target_ns = req_ns, fmax_mhz = fmax_mhz
-      )
+        dsp = dsps_fields(1).toInt, target_ns = req_ns, fmax_mhz = fmax_mhz)
     } catch {
       case _: Throwable ⇒ println("Characterization ERROR: something went wrong. Synthesis failed, probably out of resources")
     }

@@ -74,7 +74,7 @@ include platforms/$(PLATFORM).mk
 
 # note that all targets are phony targets, no proper dependency tracking
 .PHONY: hw_verilog emulib hw_driver hw_vivadoproj bitfile hw sw all rsync test
-.PHONY: resmodel characterize check_vivado
+.PHONY: resmodel characterize check_vivado pretty
 
 check_vivado:
 ifndef VIVADO_IN_PATH
@@ -135,3 +135,11 @@ rsync:
 # remove everything that is built
 clean:
 	rm -rf $(BUILD_DIR)
+
+# download scalariform
+scalariform.jar:
+	wget https://github.com/scala-ide/scalariform/releases/download/0.2.6/scalariform.jar
+
+# format source code with scalariform
+pretty: scalariform.jar
+	java -jar scalariform.jar --recurse src/main/scala

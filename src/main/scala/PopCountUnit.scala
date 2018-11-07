@@ -39,9 +39,9 @@ import Chisel._
 //set_property STEPS.SYNTH_DESIGN.ARGS.RETIMING true [get_runs synth_1]
 
 class PopCountUnitParams(
-    val numInputBits: Int, // popcount bits per cycle
-    val extraPipelineRegs: Int = 0 // extra I/O registers for retiming
-    ) extends PrintableParam {
+  val numInputBits: Int, // popcount bits per cycle
+  val extraPipelineRegs: Int = 0 // extra I/O registers for retiming
+) extends PrintableParam {
   def headersAsList(): List[String] = {
     return List("PopCWidth", "PopCLatency")
   }
@@ -116,7 +116,7 @@ class PopCount36to6() extends Module {
 }
 
 class PopCountUnit(
-    val p: PopCountUnitParams) extends Module {
+  val p: PopCountUnitParams) extends Module {
   val io = new Bundle {
     // input vector
     val in = Bits(INPUT, width = p.numInputBits)

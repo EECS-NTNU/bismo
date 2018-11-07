@@ -50,7 +50,7 @@ class BlockStridedRqDescriptor(mrp: MemReqParams) extends Bundle {
 }
 
 class BlockStridedRqGen(
-    mrp: MemReqParams, writeEn: Boolean, chanID: Int = 0) extends Module {
+  mrp: MemReqParams, writeEn: Boolean, chanID: Int = 0) extends Module {
   val io = new Bundle {
     val block_intra_step = UInt(INPUT, width = mrp.addrWidth)
     val block_intra_count = UInt(INPUT, width = mrp.addrWidth)
@@ -63,12 +63,10 @@ class BlockStridedRqGen(
   // while the inner_sh traverses within the block.
 
   val outer_sg = Module(new MultiSeqGen(new MultiSeqGenParams(
-    w = mrp.addrWidth, a = mrp.addrWidth
-  ))).io
+    w = mrp.addrWidth, a = mrp.addrWidth))).io
 
   val inner_sg = Module(new MultiSeqGen(new MultiSeqGenParams(
-    w = mrp.addrWidth, a = mrp.addrWidth
-  ))).io
+    w = mrp.addrWidth, a = mrp.addrWidth))).io
 
   outer_sg.in.valid := io.in.valid
   /*when(io.in.valid){

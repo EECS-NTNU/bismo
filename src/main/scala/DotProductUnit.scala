@@ -39,27 +39,26 @@ import Chisel._
 // structurally, it is a AND-popcount-shift-accumulate datapath.
 
 class DotProductUnitParams(
-    // popcount module input width (bits per cycle)
-    val pcParams: PopCountUnitParams,
-    // width of accumulator register
-    val accWidth: Int,
-    // maximum number of shift steps
-    val maxShiftSteps: Int,
-    // do not instantiate the shift stage
-    val noShifter: Boolean = false,
-    // do not instantiate the negate stage
-    val noNegate: Boolean = false,
-    // extra pipeline regs for retiming
-    val extraPipelineRegs: Int = 0,
-    // use an optimized VHDL compressor generator
-    val useVhdlCompressor: Boolean = true,
-    // number of regs for the VHDL compressor (if used)
-    // -1 gives maximum pipelining (= compressor tree depth)
-    val vhdlCompressorRegs: Int = -1) extends PrintableParam {
+  // popcount module input width (bits per cycle)
+  val pcParams: PopCountUnitParams,
+  // width of accumulator register
+  val accWidth: Int,
+  // maximum number of shift steps
+  val maxShiftSteps: Int,
+  // do not instantiate the shift stage
+  val noShifter: Boolean = false,
+  // do not instantiate the negate stage
+  val noNegate: Boolean = false,
+  // extra pipeline regs for retiming
+  val extraPipelineRegs: Int = 0,
+  // use an optimized VHDL compressor generator
+  val useVhdlCompressor: Boolean = true,
+  // number of regs for the VHDL compressor (if used)
+  // -1 gives maximum pipelining (= compressor tree depth)
+  val vhdlCompressorRegs: Int = -1) extends PrintableParam {
   // parameters for BlackBoxCompressor (if any)
   val bbCompParams = new BlackBoxCompressorParams(
-    N = pcParams.numInputBits, D = vhdlCompressorRegs
-  )
+    N = pcParams.numInputBits, D = vhdlCompressorRegs)
   // internal pipeline registers inside DPU
   val myLatency = if (useVhdlCompressor) {
     5 + bbCompParams.getLatency() + extraPipelineRegs

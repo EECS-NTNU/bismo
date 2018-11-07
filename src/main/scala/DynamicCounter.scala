@@ -7,7 +7,7 @@ import Chisel._
 
 // Counter that dynamically counts till the count max value
 class DynamicCounterParams(
-    val maxPrecision: Int = 32) extends PrintableParam {
+  val maxPrecision: Int = 32) extends PrintableParam {
 
   def headersAsList(): List[String] = {
     return List("MaxInputBitPrecision")

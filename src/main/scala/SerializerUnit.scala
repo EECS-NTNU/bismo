@@ -6,17 +6,17 @@ package bismo
 import Chisel._
 
 class SerializerUnitParams(
-    //input precision, how many bits
-    //ASSUMING always power of two
-    val inPrecision: Int = 32,
-    val matrixRows: Int = 8,
-    val matrixCols: Int = 8,
-    val staticCounter: Boolean = false,
-    val staticUnrolling: Boolean = false,
-    val unrollingFactor: Int = 1, // unrolling in the input precision dimension
-    val maxCounterPrec: Int = 32 // how many pair of bits concatenate
-    //val clusterFactor : Int = 0
-    ) extends PrintableParam {
+  //input precision, how many bits
+  //ASSUMING always power of two
+  val inPrecision: Int = 32,
+  val matrixRows: Int = 8,
+  val matrixCols: Int = 8,
+  val staticCounter: Boolean = false,
+  val staticUnrolling: Boolean = false,
+  val unrollingFactor: Int = 1, // unrolling in the input precision dimension
+  val maxCounterPrec: Int = 32 // how many pair of bits concatenate
+//val clusterFactor : Int = 0
+) extends PrintableParam {
 
   //val outBitWidth : Int = scala.math.pow(2,clusterFactor).toInt
   //val outVectorSize : Int = if(clusterFactor == 0) inPrecision else inPrecision / outBitWidth

@@ -42,12 +42,12 @@ import fpgatidbits.PlatformWrapper._
 // the other stages are doing their thing.
 
 class FetchStageParams(
-    val numLHSMems: Int, // number of LHS memories
-    val numRHSMems: Int, // number of RHS memories
-    val numAddrBits: Int, // number of bits for address inside target memory
-    val mrp: MemReqParams, // memory request params for platform
-    val bramWrLat: Int = 1 // number of cycles until data written to BRAM
-    ) extends PrintableParam {
+  val numLHSMems: Int, // number of LHS memories
+  val numRHSMems: Int, // number of RHS memories
+  val numAddrBits: Int, // number of bits for address inside target memory
+  val mrp: MemReqParams, // memory request params for platform
+  val bramWrLat: Int = 1 // number of cycles until data written to BRAM
+) extends PrintableParam {
   def headersAsList(): List[String] = {
     return List("nodes", "rd_width")
   }

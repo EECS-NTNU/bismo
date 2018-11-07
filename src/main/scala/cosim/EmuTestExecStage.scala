@@ -45,10 +45,7 @@ class EmuTestExecStage(p: PlatformWrapperParams) extends GenericAccelerator(p) {
     dpaParams = new DotProductArrayParams(
       dpuParams = new DotProductUnitParams(
         pcParams = new PopCountUnitParams(numInputBits = 64),
-        accWidth = 32, maxShiftSteps = 16
-      ), m = 2, n = 2
-    ), lhsTileMem = 1024, rhsTileMem = 1024, tileMemAddrUnit = 1
-  )
+        accWidth = 32, maxShiftSteps = 16), m = 2, n = 2), lhsTileMem = 1024, rhsTileMem = 1024, tileMemAddrUnit = 1)
   val io = new GenericAcceleratorIF(numMemPorts, p) {
     // base control signals
     val start = Bool(INPUT) // hold high while running
@@ -83,22 +80,19 @@ class EmuTestExecStage(p: PlatformWrapperParams) extends GenericAccelerator(p) {
   val tilemem_lhs = Vec.fill(myP.getM()) {
     Module(new PipelinedDualPortBRAM(
       addrBits = log2Up(myP.lhsTileMem), dataBits = myP.getK(),
-      regIn = myP.bramInRegs, regOut = myP.bramOutRegs
-    )).io
+      regIn = myP.bramInRegs, regOut = myP.bramOutRegs)).io
   }
   val tilemem_rhs = Vec.fill(myP.getN()) {
     Module(new PipelinedDualPortBRAM(
       addrBits = log2Up(myP.rhsTileMem), dataBits = myP.getK(),
-      regIn = myP.bramInRegs, regOut = myP.bramOutRegs
-    )).io
+      regIn = myP.bramInRegs, regOut = myP.bramOutRegs)).io
   }
   // instantiate the result memory
   val resmem = Vec.fill(myP.getM()) {
     Vec.fill(myP.getN()) {
       Module(new PipelinedDualPortBRAM(
         addrBits = log2Up(myP.resEntriesPerMem), dataBits = myP.getResBitWidth(),
-        regIn = 0, regOut = 0
-      )).io
+        regIn = 0, regOut = 0)).io
     }
   }
   // wire up direct access to tile mems

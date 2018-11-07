@@ -37,13 +37,13 @@ import Chisel._
 // computing/accumulating a bit-serial matrix multiplication every cycle.
 
 class DotProductArrayParams(
-    // parameters for each DotProductUnit
-    val dpuParams: DotProductUnitParams,
-    // dot product array dimensions
-    val m: Int, // rows of left-hand-side matrix (LHS) per cycle
-    val n: Int, // cols of right-hand-side matrix (RHS) per cycle
-    // extra register levels in broadcast interconnect
-    val extraPipelineRegs: Int = 0) extends PrintableParam {
+  // parameters for each DotProductUnit
+  val dpuParams: DotProductUnitParams,
+  // dot product array dimensions
+  val m: Int, // rows of left-hand-side matrix (LHS) per cycle
+  val n: Int, // cols of right-hand-side matrix (RHS) per cycle
+  // extra register levels in broadcast interconnect
+  val extraPipelineRegs: Int = 0) extends PrintableParam {
   // latency of instantiated DPUs
   val dpuLatency: Int = dpuParams.getLatency()
   // contributed latency of DPA due to interconnect pipelining

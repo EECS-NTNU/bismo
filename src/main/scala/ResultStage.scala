@@ -45,17 +45,17 @@ import fpgatidbits.PlatformWrapper._
 // will jump to the next address determined by the runtime matrix size.
 
 class ResultStageParams(
-    val accWidth: Int, // accumulator width in bits
-    // DPA dimensions
-    val dpa_rhs: Int,
-    val dpa_lhs: Int,
-    val mrp: MemReqParams, // memory request params for platform
-    // read latency for result memory
-    val resMemReadLatency: Int,
-    // whether to transpose accumulator order while writing
-    val transpose: Boolean = true,
-    // number of entries in the result mem
-    val resEntriesPerMem: Int = 2) extends PrintableParam {
+  val accWidth: Int, // accumulator width in bits
+  // DPA dimensions
+  val dpa_rhs: Int,
+  val dpa_lhs: Int,
+  val mrp: MemReqParams, // memory request params for platform
+  // read latency for result memory
+  val resMemReadLatency: Int,
+  // whether to transpose accumulator order while writing
+  val transpose: Boolean = true,
+  // number of entries in the result mem
+  val resEntriesPerMem: Int = 2) extends PrintableParam {
   def headersAsList(): List[String] = {
     return List("DRAM_wr", "dpa_rhs", "dpa_lhs", "accWidth")
   }
@@ -137,12 +137,10 @@ class ResultStage(val myP: ResultStageParams) extends Module {
 
   // instantiate downsizer
   val ds = Module(new StreamResizer(
-    inWidth = myP.getTotalAccBits(), outWidth = myP.mrp.dataWidth
-  )).io
+    inWidth = myP.getTotalAccBits(), outWidth = myP.mrp.dataWidth)).io
   // instantiate request generator
   val rg = Module(new BlockStridedRqGen(
-    mrp = myP.mrp, writeEn = true
-  )).io
+    mrp = myP.mrp, writeEn = true)).io
 
   // wire up resmem_req
   for {

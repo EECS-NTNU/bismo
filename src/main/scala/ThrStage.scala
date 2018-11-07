@@ -8,12 +8,12 @@ import fpgatidbits.ocm._
 import fpgatidbits.streams._
 
 class ThrStageParams(
-    // building block params
-    val thuParams: ThresholdingUnitParams,
-    // threshold memory depth (how many entries, address space)
-    val thresholdMemDepth: Int,
-    val inputMemAddr: Int,
-    val resMemAddr: Int) extends PrintableParam {
+  // building block params
+  val thuParams: ThresholdingUnitParams,
+  // threshold memory depth (how many entries, address space)
+  val thresholdMemDepth: Int,
+  val inputMemAddr: Int,
+  val resMemAddr: Int) extends PrintableParam {
 
   //how many threshold
   val thresholdNumber: Int = scala.math.pow(2, thuParams.maxOutputBitPrecision).toInt - 1
@@ -106,8 +106,7 @@ class ThrTileMemIO(myP: ThrStageParams) extends Bundle {
 class ThrStageResMemIO(myP: ThrStageParams) extends Bundle {
   val req = Vec.fill(myP.getRows()) {
     new OCMRequest(
-      myP.getResBitWidth() * myP.getCols(), log2Up(myP.resMemAddr)
-    ).asOutput
+      myP.getResBitWidth() * myP.getCols(), log2Up(myP.resMemAddr)).asOutput
   }
 
   override def cloneType: this.type =
