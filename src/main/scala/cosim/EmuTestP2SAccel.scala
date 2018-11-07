@@ -19,26 +19,38 @@ class EmuTestP2SAccel(
     mrp = PYNQZ1Params.toMemReqParams())
 
   val io = new GenericAcceleratorIF(numMemPorts, p) {
-    // base control signals
-    val start = Bool(INPUT) // hold high while running
-    val done = Bool(OUTPUT) // high when done until start=0
+    val enable = Bool(INPUT)
     val cmdqueue = Decoupled(new P2SCmdIO(myP.p2sparams)).flip
     val ackqueue = Decoupled(Bool())
   }
 
   val accel = Module(new StandAloneP2SAccel(myP, p)).io
 
-  FPGAQueue(io.cmdqueue, 256) <> accel.p2sCmd
-  val start_r = Reg(init = Bool(false), next = io.start)
-  accel.p2sCmd.valid := io.start & !start_r
-  FPGAQueue(accel.ack, 256) <> io.ackqueue
-  io.memPort(0) <> accel.memPort(0)
-  /*when(io.memPort(0).memRdReq.valid){
-    printf("[CO-HW: P2SAlone Received valid request addr %d \n", io.memPort(0).memRdReq.bits.addr )
-  }*/
-  //when(io.memPort(0).memRdRsp.valid){
-  //  printf("[CO-HW: P2SAlone Read Rsp valid, Data %d\n", io.memPort(0).memRdRsp.bits.readData)
-  //}
+  // instantiate and connect cmd and ack queues
+  val cmdQ = Module(new FPGAQueue(io.cmdqueue.bits, 16)).io
+  val ackQ = Module(new FPGAQueue(io.ackqueue.bits, 16)).io
+  io.cmdqueue <> cmdQ.enq
+  cmdQ.deq <> accel.p2sCmd
+  accel.ack <> ackQ.enq
+  ackQ.deq <> io.ackqueue
+
+  // for the accelerator-facing side of the cmd and ack queues,
+  // only enable transactions if io.enable is set
+  accel.p2sCmd.valid := cmdQ.deq.valid & io.enable
+  cmdQ.deq.ready := accel.p2sCmd.ready & io.enable
+  accel.ack.ready := ackQ.enq.ready & io.enable
+  ackQ.enq.valid := accel.ack.valid & io.enable
+
+  // for the CPU-facing side of the cmd and ack queues,
+  // rewire valid/ready with pulse generators to ensure single
+  // enqueue/dequeue from the CPU
+  cmdQ.enq.valid := io.cmdqueue.valid & !Reg(next=io.cmdqueue.valid)
+  ackQ.deq.ready := io.ackqueue.ready & !Reg(next=io.ackqueue.ready)
+
+  // debug
+  PrintableBundleStreamMonitor(accel.p2sCmd, Bool(true), "p2sCmd", true)
+  PrintableBundleStreamMonitor(accel.memPort(0).memRdReq, Bool(true), "memRdReq", true)
+  PrintableBundleStreamMonitor(accel.memPort(0).memRdRsp, Bool(true), "memRdRsp", true)
 
   io.signature := makeDefaultSignature()
 }
