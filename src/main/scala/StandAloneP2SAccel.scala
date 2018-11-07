@@ -51,14 +51,6 @@ class StandAloneP2SParams(
   }
 }
 
-// Configuration for a Block strided Request generation, the step is intended for byte-addressable memory (e.g. 8, 16 ...)
-class dmaIF extends Bundle {
-  val outer_step = UInt(width = 32)
-  val outer_count = UInt(width = 32)
-  val inner_step = UInt(width = 32)
-  val inner_count = UInt(width = 32)
-}
-
 class P2SCmdIO(myP: P2SKernelParams) extends PrintableBundle {
   val dramBaseAddrSrc = UInt(width = 32)
   val dramBaseAddrDst = UInt(width = 32)
@@ -187,40 +179,4 @@ class StandAloneP2SAccel(
 
   val dataQueue = FPGAQueue(p2skrnl.outStream, 256)
   dataQueue <> io.memPort(0).memWrDat
-
-  /* //Sync addr-data writes
-  val addrDataValid =  dataQueue.valid && outAddrQueue.valid
-  val addrDataValidReg = Reg(init = Bool(false))
-//TODO: check on the ready stuff
-  when(addrDataValid & !addrDataValidReg & io.memPort(0).memWrReq.ready){
-    io.memPort(0).memWrDat.valid := Bool(false)
-    io.memPort(0).memWrReq.valid := Bool(true)
-    dataQueue.ready := Bool(false)
-    outAddrQueue.ready := Bool(true)
-    addrDataValidReg := Bool(true)
-  }.elsewhen(addrDataValidReg & io.memPort(0).memWrDat.ready){
-    io.memPort(0).memWrDat.valid := Bool(true)
-    io.memPort(0).memWrReq.valid := Bool(false)
-    dataQueue.ready := Bool(true)
-    outAddrQueue.ready := Bool(false)
-    addrDataValidReg := Bool(false)
-  }.otherwise{
-    io.memPort(0).memWrDat.valid := Bool(false)
-    io.memPort(0).memWrReq.valid := Bool(false)
-    dataQueue.ready := Bool(false)
-    outAddrQueue.ready := Bool(false)
-
-  }
-
-
-
-  //Reinit logic
-  when(ShiftRegister(done,10) & ShiftRegister(!start, 5)) {
-    regCompletedWrBytes := UInt(0)
-    //regCompletedRdBytes := UInt(0)
-    int_offset := UInt(0)
-  }
-
-  done := writeComplete & start
-*/
 }
