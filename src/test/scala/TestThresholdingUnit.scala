@@ -33,8 +33,7 @@ class TestThresholdingUnit extends JUnitSuite {
       val negVal = false
       val negTh = false
 
-
-      for(i <- 1 to num_seqs) {
+      for (i ← 1 to num_seqs) {
 
         val a = RosettaTestHelpers.randomIntMatrix(m, n, in_len, negVal)
         println("Matrix a")
@@ -45,16 +44,14 @@ class TestThresholdingUnit extends JUnitSuite {
         val golden = RosettaTestHelpers.quantizeMatrix(a, th)
         println("Matrix GOld")
 
-
-
         printMatrix(golden)
         //TODO generalize in the clock cycle to wait
-        for(i<-0 until m)
-          for(j <- 0 until n)
-            poke(dut.io.inputMatrix.bits.i(i)(j), scala.math.BigInt.apply(a(i)(j)) )
+        for (i ← 0 until m)
+          for (j ← 0 until n)
+            poke(dut.io.inputMatrix.bits.i(i)(j), scala.math.BigInt.apply(a(i)(j)))
         poke(dut.io.inputMatrix.valid, true)
-        for(i<- 0 until m)
-          for(j<- 0 until thNumber)
+        for (i ← 0 until m)
+          for (j ← 0 until thNumber)
             poke(dut.io.thInterf.thresholdData(i)(j), scala.math.BigInt.apply(th(i)(j)))
         step(1)
         poke(dut.io.inputMatrix.valid, false)
@@ -63,47 +60,45 @@ class TestThresholdingUnit extends JUnitSuite {
         //step(dut.p.thresholdLatency)
         //step(1)
         //step(1)
-        for(i<-0 until m)
-          for(j<- 0 until n)
-          expect(dut.io.outputMatrix.bits.o(i)(j), scala.math.BigInt.apply(golden(i)(j)) )
+        for (i ← 0 until m)
+          for (j ← 0 until n)
+            expect(dut.io.outputMatrix.bits.o(i)(j), scala.math.BigInt.apply(golden(i)(j)))
         //expect(dut.io.outputMatrix.valid, true
         expect(dut.io.outputMatrix.valid, true)
         step(1)
 
       }
-      
+
     }
 
     // Chisel arguments to pass to chiselMainTest
     def testArgs = RosettaTestHelpers.stdArgs
 
-    for{
-      inPrecision <- 16 to 16
-      maxOutPrecision <- 3 to 3
-      rowsDM <- 8 to 8
-      columnsDN <- 8 to 8
-      thDepth <- 8 to 8 // MY WORRIES: should it be equal to the row of the matrix?
-      unrollingBB <- 1 to 1
-      unrollingRows <- 8 to 8
-      unrollingCols <- 8 to 8
+    for {
+      inPrecision ← 16 to 16
+      maxOutPrecision ← 3 to 3
+      rowsDM ← 8 to 8
+      columnsDN ← 8 to 8
+      thDepth ← 8 to 8 // MY WORRIES: should it be equal to the row of the matrix?
+      unrollingBB ← 1 to 1
+      unrollingRows ← 8 to 8
+      unrollingCols ← 8 to 8
     } {
-      val thBBParams = new ThresholdingBuildingBlockParams(	inPrecision = inPrecision, popcountUnroll = unrollingBB,  outPrecision = maxOutPrecision)
+      val thBBParams = new ThresholdingBuildingBlockParams(inPrecision = inPrecision, popcountUnroll = unrollingBB, outPrecision = maxOutPrecision)
       // function that instantiates the Module to be tested
-      val p = new ThresholdingUnitParams(thBBParams, inPrecision, maxOutPrecision, rowsDM , columnsDN, thDepth, unrollingBB, unrollingRows, unrollingCols)
-      def testModuleInstFxn = () => { Module(new ThresholdingUnit(p)) }
+      val p = new ThresholdingUnitParams(thBBParams, inPrecision, maxOutPrecision, rowsDM, columnsDN, thDepth, unrollingBB, unrollingRows, unrollingCols)
+      def testModuleInstFxn = () ⇒ { Module(new ThresholdingUnit(p)) }
       // function that instantiates the Tester to test the Module
-      def testTesterInstFxn = (dut: ThresholdingUnit) => new ThresholdingUnitTester(dut)
+      def testTesterInstFxn = (dut: ThresholdingUnit) ⇒ new ThresholdingUnitTester(dut)
 
       // actually run the test
       chiselMainTest(
         testArgs,
         testModuleInstFxn
       ) {
-        testTesterInstFxn
-      }
+          testTesterInstFxn
+        }
     }
-    
-
 
   }
 }

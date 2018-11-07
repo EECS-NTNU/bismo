@@ -41,21 +41,20 @@ import fpgatidbits.PlatformWrapper._
 // SequenceGenerators to pull data from BRAMs into the compute array
 
 class ExecStageParams(
-  // parameters for the DotProductArray
-  val dpaParams: DotProductArrayParams,
-  // number of L0 tiles that can be stored on-chip for LHS and RHS matrices
-  val lhsTileMem: Int,
-  val rhsTileMem: Int,
-  // how much to increment the tile mem address to go to next tile (due to
-  // asymmetric BRAM between fetch/execute)
-  val tileMemAddrUnit: Int,
-  // levels of registers before (on address input) and after (on data output)
-  // of each tile memory BRAM
-  val bramInRegs: Int = 1,
-  val bramOutRegs: Int = 1,
-  // number of entries in the result mem
-  val resEntriesPerMem: Int = 2
-) extends PrintableParam {
+    // parameters for the DotProductArray
+    val dpaParams: DotProductArrayParams,
+    // number of L0 tiles that can be stored on-chip for LHS and RHS matrices
+    val lhsTileMem: Int,
+    val rhsTileMem: Int,
+    // how much to increment the tile mem address to go to next tile (due to
+    // asymmetric BRAM between fetch/execute)
+    val tileMemAddrUnit: Int,
+    // levels of registers before (on address input) and after (on data output)
+    // of each tile memory BRAM
+    val bramInRegs: Int = 1,
+    val bramOutRegs: Int = 1,
+    // number of entries in the result mem
+    val resEntriesPerMem: Int = 2) extends PrintableParam {
   def headersAsList(): List[String] = {
     return dpaParams.headersAsList() ++ List("lhsTileMem", "rhsTileMem")
   }
@@ -114,11 +113,11 @@ class ExecStageCfgIO() extends Bundle {
 
 // interface towards controller for the execute stage
 class ExecStageCtrlIO(myP: ExecStageParams) extends PrintableBundle {
-  val lhsOffset = UInt(width = 32)   // start offset for LHS tiles
-  val rhsOffset = UInt(width = 32)   // start offset for RHS tiles
-  val numTiles = UInt(width = 32)    // num of L0 tiles to execute
+  val lhsOffset = UInt(width = 32) // start offset for LHS tiles
+  val rhsOffset = UInt(width = 32) // start offset for RHS tiles
+  val numTiles = UInt(width = 32) // num of L0 tiles to execute
   // how much left shift to use
-  val shiftAmount = UInt(width = log2Up(myP.dpaParams.dpuParams.maxShiftSteps+1))
+  val shiftAmount = UInt(width = log2Up(myP.dpaParams.dpuParams.maxShiftSteps + 1))
   // negate during accumulation
   val negate = Bool()
   // clear accumulators prior to first accumulation
@@ -132,9 +131,11 @@ class ExecStageCtrlIO(myP: ExecStageParams) extends PrintableBundle {
     new ExecStageCtrlIO(myP).asInstanceOf[this.type]
 
   val printfStr = "(offs lhs/rhs = %d/%d, ntiles = %d, << %d, w? %d/%d)\n"
-  val printfElems = {() =>  Seq(
-    lhsOffset, rhsOffset, numTiles, shiftAmount, writeEn, writeAddr
-  )}
+  val printfElems = { () ⇒
+    Seq(
+      lhsOffset, rhsOffset, numTiles, shiftAmount, writeEn, writeAddr
+    )
+  }
 }
 
 // interface towards tile memories (LHS/RHS BRAMs)
@@ -158,11 +159,13 @@ class ExecStageTileMemIO(myP: ExecStageParams) extends Bundle {
 
 // interface towards result stage
 class ExecStageResMemIO(myP: ExecStageParams) extends Bundle {
-  val req = Vec.fill(myP.getM()) { Vec.fill(myP.getN()) {
-    new OCMRequest(
-      myP.getResBitWidth(), log2Up(myP.resEntriesPerMem)
-    ).asOutput
-  }}
+  val req = Vec.fill(myP.getM()) {
+    Vec.fill(myP.getN()) {
+      new OCMRequest(
+        myP.getResBitWidth(), log2Up(myP.resEntriesPerMem)
+      ).asOutput
+    }
+  }
 
   override def cloneType: this.type =
     new ExecStageResMemIO(myP).asInstanceOf[this.type]
@@ -171,8 +174,8 @@ class ExecStageResMemIO(myP: ExecStageParams) extends Bundle {
 class ExecStage(val myP: ExecStageParams) extends Module {
   val io = new Bundle {
     // base control signals
-    val start = Bool(INPUT)                   // hold high while running
-    val done = Bool(OUTPUT)                   // high when done until start=0
+    val start = Bool(INPUT) // hold high while running
+    val done = Bool(OUTPUT) // high when done until start=0
     val cfg = new ExecStageCfgIO()
     val csr = new ExecStageCtrlIO(myP).asInput
     val tilemem = new ExecStageTileMemIO(myP)
@@ -199,7 +202,7 @@ class ExecStage(val myP: ExecStageParams) extends Module {
 
   // wire up the generated sequence into the BRAM address ports, and returned
   // read data into the DPA inputs
-  for(i <- 0 to myP.getM()-1) {
+  for (i ← 0 to myP.getM() - 1) {
     io.tilemem.lhs_req(i).addr := seqgen.seq.bits + (io.csr.lhsOffset)
     io.tilemem.lhs_req(i).writeEn := Bool(false)
     dpa.a(i) := io.tilemem.lhs_rsp(i).readData
@@ -209,7 +212,7 @@ class ExecStage(val myP: ExecStageParams) extends Module {
       printf("Seqgen: %d offset: %d\n", seqgen.seq.bits, io.csr.lhsOffset)
     }*/
   }
-  for(i <- 0 to myP.getN()-1) {
+  for (i ← 0 to myP.getN() - 1) {
     io.tilemem.rhs_req(i).addr := seqgen.seq.bits + (io.csr.rhsOffset)
     io.tilemem.rhs_req(i).writeEn := Bool(false)
     dpa.b(i) := io.tilemem.rhs_rsp(i).readData
@@ -231,19 +234,19 @@ class ExecStage(val myP: ExecStageParams) extends Module {
   // generated here.
   when(io.csr.clear_before_first_accumulation) {
     // set clear_acc to 1 for the very first cycle
-    dpa.clear_acc := read_complete & !Reg(next=read_complete)
-  } .otherwise {
+    dpa.clear_acc := read_complete & !Reg(next = read_complete)
+  }.otherwise {
     dpa.clear_acc := Bool(false)
   }
 
   // generate result memory write signal
   val time_to_write = myP.dpaLatency + myP.myLatency_read
   val do_write = ShiftRegister(io.start & seqgen.finished & io.csr.writeEn, time_to_write)
-  val do_write_pulse = do_write & !Reg(next=do_write)
+  val do_write_pulse = do_write & !Reg(next = do_write)
   // wire up DPA accumulators to resmem write ports
   for {
-    i <- 0 until myP.getM()
-    j <- 0 until myP.getN()
+    i ← 0 until myP.getM()
+    j ← 0 until myP.getN()
   } {
     io.res.req(i)(j).writeData := dpa.out(i)(j)
     io.res.req(i)(j).addr := io.csr.writeAddr

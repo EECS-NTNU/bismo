@@ -38,8 +38,7 @@ import fpgatidbits.streams._
 import fpgatidbits.PlatformWrapper._
 
 class EmuTestFetchStage(
-  nLHS: Int, nRHS: Int, p: PlatformWrapperParams
-) extends GenericAccelerator(p) {
+    nLHS: Int, nRHS: Int, p: PlatformWrapperParams) extends GenericAccelerator(p) {
   val numMemPorts = 1
   val myP = new FetchStageParams(
     numLHSMems = nLHS, numRHSMems = nRHS,
@@ -47,8 +46,8 @@ class EmuTestFetchStage(
   )
   val io = new GenericAcceleratorIF(numMemPorts, p) {
     // base control signals
-    val start = Bool(INPUT)                   // hold high while running
-    val done = Bool(OUTPUT)                   // high when done until start=0
+    val start = Bool(INPUT) // hold high while running
+    val done = Bool(OUTPUT) // high when done until start=0
     val perf = new FetchStagePerfIO(myP)
     val csr = new FetchStageCtrlIO(myP).asInput
     val bram_sel = UInt(INPUT, width = 32)
@@ -69,12 +68,12 @@ class EmuTestFetchStage(
   io.done := fetch.done
   fetch.csr <> io.csr
   fetch.perf <> io.perf
-  for(i <- 0 until myP.numLHSMems) {
+  for (i ← 0 until myP.numLHSMems) {
     brams(i).ports(0).req <> io.bram_req
     brams(i).ports(0).req.writeEn := (io.bram_sel === UInt(i)) & io.bram_req.writeEn
     brams(i).ports(1).req <> fetch.bram.lhs_req(i)
   }
-  for(i <- 0 until myP.numRHSMems) {
+  for (i ← 0 until myP.numRHSMems) {
     val o = i + myP.numLHSMems
     brams(o).ports(0).req <> io.bram_req
     brams(o).ports(0).req.writeEn := (io.bram_sel === UInt(o)) & io.bram_req.writeEn
@@ -86,7 +85,7 @@ class EmuTestFetchStage(
   io.memPort(0).memRdRsp <> fetch.dram.rd_rsp
 
   // write ports are unused -- plug them to prevent Vivado synth errors
-  for(i <- 0 until numMemPorts) {
+  for (i ← 0 until numMemPorts) {
     plugMemWritePort(i)
   }
 }

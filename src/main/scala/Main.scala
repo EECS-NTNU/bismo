@@ -44,7 +44,7 @@ import fpgatidbits.TidbitsMakeUtils
 // - CharacterizeMain to characterize FPGA resource usage of components
 
 object Settings {
-  type AccelInstFxn = PlatformWrapperParams => GenericAccelerator
+  type AccelInstFxn = PlatformWrapperParams ⇒ GenericAccelerator
   type AccelMap = Map[String, AccelInstFxn]
 
   val myInstParams = new BitSerialMatMulParams(
@@ -55,11 +55,11 @@ object Settings {
     cmdQueueEntries = 256
   )
   val myInstFxn: AccelInstFxn = {
-    (p: PlatformWrapperParams) => new BitSerialMatMulAccel(myInstParams, p)
+    (p: PlatformWrapperParams) ⇒ new BitSerialMatMulAccel(myInstParams, p)
   }
 
   def makeInstFxn(myP: BitSerialMatMulParams): AccelInstFxn = {
-    return {(p: PlatformWrapperParams) => new BitSerialMatMulAccel(myP, p)}
+    return { (p: PlatformWrapperParams) ⇒ new BitSerialMatMulAccel(myP, p) }
   }
 
   // instantiate smaller accelerator for emu for faster testing
@@ -72,14 +72,14 @@ object Settings {
   val emuP = TesterWrapperParams
   val emuMap: AccelMap = Map(
     // "main" is the emulator for the default target
-    "main" -> {p => new BitSerialMatMulAccel(emuInstParams, emuP)},
+    "main" -> { p ⇒ new BitSerialMatMulAccel(emuInstParams, emuP) },
     // HW-SW cosimulation tests
     // for these tests (EmuTest*) the same name is assumed to be the cpp file
     // that defines the software part of the test under test/cosim
-    "EmuTestExecStage" -> {p => new EmuTestExecStage(emuP)},
-    "EmuTestFetchStage" -> {p => new EmuTestFetchStage(2, 2, emuP)},
-    "EmuTestResultStage" -> {p => new EmuTestResultStage(2, emuP)},
-    "EmuTestP2SAccel" -> {p => new EmuTestP2SAccel(8, 8, 64, 2, true, emuP)}
+    "EmuTestExecStage" -> { p ⇒ new EmuTestExecStage(emuP) },
+    "EmuTestFetchStage" -> { p ⇒ new EmuTestFetchStage(2, 2, emuP) },
+    "EmuTestResultStage" -> { p ⇒ new EmuTestResultStage(2, emuP) },
+    "EmuTestP2SAccel" -> { p ⇒ new EmuTestP2SAccel(8, 8, 64, 2, true, emuP) }
 
   )
 }
@@ -103,7 +103,7 @@ object ChiselMain {
     val platformInst = TidbitsMakeUtils.platformMap(platformName)
 
     val chiselArgs = Array("--backend", "v", "--targetDir", targetDir)
-    chiselMain(chiselArgs, () => Module(platformInst(accInst)))
+    chiselMain(chiselArgs, () ⇒ Module(platformInst(accInst)))
 
   }
 }
@@ -145,11 +145,11 @@ object EmuLibMain {
 object CharacterizeMain {
   def makeParamSpace_DPA(): Seq[DotProductArrayParams] = {
     val spatial_dim = 1 to 8
-    val popcount_dim = for(i <- 4 to 8) yield (1 << i)
+    val popcount_dim = for (i ← 4 to 8) yield (1 << i)
     val ret = for {
-      m <- spatial_dim
-      n <- spatial_dim
-      k <- popcount_dim
+      m ← spatial_dim
+      n ← spatial_dim
+      k ← popcount_dim
     } yield new DotProductArrayParams(
       m = m, n = n, dpuParams = new DotProductUnitParams(
         maxShiftSteps = 16, accWidth = 32, pcParams = new PopCountUnitParams(
@@ -158,111 +158,110 @@ object CharacterizeMain {
       )
     )
     // (m, n) resource-wise equivalent, so keep half the cases to avoid duplicates
-    return ret.filter(x => (x.m >= x.n))
+    return ret.filter(x ⇒ (x.m >= x.n))
   }
-  val instFxn_DPA = {p: DotProductArrayParams => Module(new DotProductArray(p))}
+  val instFxn_DPA = { p: DotProductArrayParams ⇒ Module(new DotProductArray(p)) }
 
   def makeParamSpace_PC(): Seq[PopCountUnitParams] = {
-    return for{
-      extra_regs <- 0 to 1
-      i <- for(i <- 5 to 10) yield (1 << i)
+    return for {
+      extra_regs ← 0 to 1
+      i ← for (i ← 5 to 10) yield (1 << i)
     } yield new PopCountUnitParams(
-      numInputBits=i, extraPipelineRegs = extra_regs
+      numInputBits = i, extraPipelineRegs = extra_regs
     )
   }
-  val instFxn_PC = {p: PopCountUnitParams => Module(new PopCountUnit(p))}
+  val instFxn_PC = { p: PopCountUnitParams ⇒ Module(new PopCountUnit(p)) }
 
   def makeParamSpace_DPU(): Seq[DotProductUnitParams] = {
     val noshift = Seq(false, true)
     val noneg = Seq(false, true)
-    return for{
-      popc <- for(i <- 5 to 10) yield (1 << i)
-      ns <- noshift
-      nn <- noneg
-      extra_regs_pc <- 0 to 1
-      extra_regs_dpu <- 0 to 1
+    return for {
+      popc ← for (i ← 5 to 10) yield (1 << i)
+      ns ← noshift
+      nn ← noneg
+      extra_regs_pc ← 0 to 1
+      extra_regs_dpu ← 0 to 1
     } yield new DotProductUnitParams(
       pcParams = new PopCountUnitParams(
-        numInputBits=popc, extraPipelineRegs = extra_regs_pc
+        numInputBits = popc, extraPipelineRegs = extra_regs_pc
       ),
       noShifter = ns, noNegate = nn, accWidth = 32, maxShiftSteps = 16,
       extraPipelineRegs = extra_regs_dpu
     )
   }
-  val instFxn_DPU = {p: DotProductUnitParams => Module(new DotProductUnit(p))}
+  val instFxn_DPU = { p: DotProductUnitParams ⇒ Module(new DotProductUnit(p)) }
 
   def makeParamSpace_Main(): Seq[BitSerialMatMulParams] = {
     return for {
-      lhs <- for(i <- 1 to 5) yield (2*i)
-      rhs <- for(i <- 1 to 5) yield (2*i)
-      z <- 64 to 64
-      lmem <- 1024 to 1024
-      rmem <- 1024 to 1024
+      lhs ← for (i ← 1 to 5) yield (2 * i)
+      rhs ← for (i ← 1 to 5) yield (2 * i)
+      z ← 64 to 64
+      lmem ← 1024 to 1024
+      rmem ← 1024 to 1024
     } yield new BitSerialMatMulParams(
       dpaDimLHS = lhs, dpaDimRHS = rhs, dpaDimCommon = z,
       lhsEntriesPerMem = lmem, rhsEntriesPerMem = rmem,
       mrp = PYNQZ1Params.toMemReqParams()
     )
   }
-  val instFxn_Main = {p: BitSerialMatMulParams => Module(new BitSerialMatMulAccel(p, PYNQZ1Params))}
+  val instFxn_Main = { p: BitSerialMatMulParams ⇒ Module(new BitSerialMatMulAccel(p, PYNQZ1Params)) }
 
   def makeParamSpace_ResultStage(): Seq[ResultStageParams] = {
     return for {
-      wc <- 1 to 1
-      sd <- for(i <- 1 to 5) yield (2*i)
+      wc ← 1 to 1
+      sd ← for (i ← 1 to 5) yield (2 * i)
     } yield new ResultStageParams(
       accWidth = 32, dpa_rhs = sd, dpa_lhs = sd,
       mrp = PYNQZ1Params.toMemReqParams(), resMemReadLatency = 0
     )
   }
-  val instFxn_ResultStage = {p: ResultStageParams => Module(new ResultStage(p))}
+  val instFxn_ResultStage = { p: ResultStageParams ⇒ Module(new ResultStage(p)) }
 
   def makeParamSpace_ResultBuf(): Seq[ResultBufParams] = {
     return for {
-      a <- 1 to 4
-      d <- Seq(16, 32, 64)
-      r <- Seq(0, 1)
+      a ← 1 to 4
+      d ← Seq(16, 32, 64)
+      r ← Seq(0, 1)
     } yield new ResultBufParams(
       addrBits = a, dataBits = d, regIn = r, regOut = r
     )
   }
-  val instFxn_ResultBuf = {p: ResultBufParams => Module(new ResultBuf(p))}
+  val instFxn_ResultBuf = { p: ResultBufParams ⇒ Module(new ResultBuf(p)) }
 
   def makeParamSpace_FetchStage(): Seq[FetchStageParams] = {
     return for {
-      c <- 1 to 4
-      n <- for(i <- 1 to 8) yield c*i
+      c ← 1 to 4
+      n ← for (i ← 1 to 8) yield c * i
     } yield new FetchStageParams(
       numLHSMems = n, numRHSMems = n,
       numAddrBits = 10, mrp = PYNQZ1Params.toMemReqParams()
     )
   }
-  val instFxn_FetchStage = {p: FetchStageParams => Module(new FetchStage(p))}
+  val instFxn_FetchStage = { p: FetchStageParams ⇒ Module(new FetchStage(p)) }
 
   def makeParamSpace_BlackBoxCompressor(): Seq[BlackBoxCompressorParams] = {
     return for {
-      n <- for(i <- 8 to 8) yield 1 << i
-      d <- 5 to 5
+      n ← for (i ← 8 to 8) yield 1 << i
+      d ← 5 to 5
     } yield new BlackBoxCompressorParams(
       N = n, D = d
     )
   }
-  val instFxn_BlackBoxCompressor = {p: BlackBoxCompressorParams => Module(new BlackBoxCompressor(p))}
+  val instFxn_BlackBoxCompressor = { p: BlackBoxCompressorParams ⇒ Module(new BlackBoxCompressor(p)) }
 
-
-    def makeParamSpace_P2SAccel(): Seq[StandAloneP2SParams] = {
+  def makeParamSpace_P2SAccel(): Seq[StandAloneP2SParams] = {
     return for {
-      mbw <- Seq(4, 8, 16, 32, 64)
-      nxw <- Seq(64/mbw, 128/mbw)
-      staticCntr <- Seq(false) // true for static non configurable serializing unit
-      staticUnroll <- Seq(true) // false one bit per cc serializing
-      unrfactor <- Seq(mbw/4, mbw/2, mbw) //if false or static counter ensure this to be equal to 1
+      mbw ← Seq(4, 8, 16, 32, 64)
+      nxw ← Seq(64 / mbw, 128 / mbw)
+      staticCntr ← Seq(false) // true for static non configurable serializing unit
+      staticUnroll ← Seq(true) // false one bit per cc serializing
+      unrfactor ← Seq(mbw / 4, mbw / 2, mbw) //if false or static counter ensure this to be equal to 1
     } yield new StandAloneP2SParams(
       maxInBw = mbw, nInElemPerWord = nxw, outStreamSize = mbw * nxw, mrp = PYNQZ1Params.toMemReqParams(),
       staticCntr = staticCntr, staticSUUnroll = staticUnroll, unrSU = unrfactor
     )
   }
-  val instFxn_P2SAccel = {p: StandAloneP2SParams => Module(new StandAloneP2SAccel(p,TesterWrapperParams))}
+  val instFxn_P2SAccel = { p: StandAloneP2SParams ⇒ Module(new StandAloneP2SAccel(p, TesterWrapperParams)) }
 
   def main(args: Array[String]): Unit = {
     val chName: String = args(0)
@@ -271,25 +270,25 @@ object CharacterizeMain {
     val chLog = chName + ".log"
     val fpgaPart: String = VivadoSynth.fpgaPartMap(platform)
 
-    if(chName == "CharacterizePC") {
+    if (chName == "CharacterizePC") {
       VivadoSynth.characterizeSpace(makeParamSpace_PC(), instFxn_PC, chPath, chLog, fpgaPart)
-    } else if(chName == "CharacterizeDPU") {
+    } else if (chName == "CharacterizeDPU") {
       VivadoSynth.characterizeSpace(makeParamSpace_DPU(), instFxn_DPU, chPath, chLog, fpgaPart)
-    } else if(chName == "CharacterizeDPA") {
+    } else if (chName == "CharacterizeDPA") {
       VivadoSynth.characterizeSpace(makeParamSpace_DPA(), instFxn_DPA, chPath, chLog, fpgaPart)
-    } else if(chName == "CharacterizeMain") {
+    } else if (chName == "CharacterizeMain") {
       VivadoSynth.characterizeSpace(makeParamSpace_Main(), instFxn_Main, chPath, chLog, fpgaPart)
-    } else if(chName == "CharacterizeResultStage") {
+    } else if (chName == "CharacterizeResultStage") {
       VivadoSynth.characterizeSpace(makeParamSpace_ResultStage(), instFxn_ResultStage, chPath, chLog, fpgaPart)
-    } else if(chName == "CharacterizeResultBuf") {
+    } else if (chName == "CharacterizeResultBuf") {
       VivadoSynth.characterizeSpace(makeParamSpace_ResultBuf(), instFxn_ResultBuf, chPath, chLog, fpgaPart)
-    } else if(chName == "CharacterizeFetchStage") {
+    } else if (chName == "CharacterizeFetchStage") {
       VivadoSynth.characterizeSpace(makeParamSpace_FetchStage(), instFxn_FetchStage, chPath, chLog, fpgaPart)
-    } else if (chName == "CharacterizeBBCompressor"){
+    } else if (chName == "CharacterizeBBCompressor") {
       VivadoSynth.characterizeSpace(makeParamSpace_BlackBoxCompressor(), instFxn_BlackBoxCompressor, chPath, chLog, fpgaPart)
-    } else if (chName == "CharacterizeP2SAccel"){
+    } else if (chName == "CharacterizeP2SAccel") {
       VivadoSynth.characterizeSpace(makeParamSpace_P2SAccel(), instFxn_P2SAccel, chPath, chLog, fpgaPart)
-    }else {
+    } else {
       println("Unrecognized target for characterization")
     }
   }
@@ -306,14 +305,14 @@ object DriverMain {
   }
 
   def fileCopyBulk(fromDir: String, toDir: String, fileNames: Seq[String]) = {
-    for(f <- fileNames)
+    for (f ← fileNames)
       fileCopy(s"$fromDir/$f", s"$toDir/$f")
   }
 
   def main(args: Array[String]): Unit = {
     val platformName: String = args(0)
     val targetDir: String = args(1)
-    val drvSrcDir:  String = args(2)
+    val drvSrcDir: String = args(2)
     // instantiate the wrapper accelerator
     val accInst = Settings.myInstFxn
     val platformInst = TidbitsMakeUtils.platformMap(platformName)

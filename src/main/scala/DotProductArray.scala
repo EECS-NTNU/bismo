@@ -37,14 +37,13 @@ import Chisel._
 // computing/accumulating a bit-serial matrix multiplication every cycle.
 
 class DotProductArrayParams(
-  // parameters for each DotProductUnit
-  val dpuParams: DotProductUnitParams,
-  // dot product array dimensions
-  val m: Int, // rows of left-hand-side matrix (LHS) per cycle
-  val n: Int, // cols of right-hand-side matrix (RHS) per cycle
-  // extra register levels in broadcast interconnect
-  val extraPipelineRegs: Int = 0
-) extends PrintableParam {
+    // parameters for each DotProductUnit
+    val dpuParams: DotProductUnitParams,
+    // dot product array dimensions
+    val m: Int, // rows of left-hand-side matrix (LHS) per cycle
+    val n: Int, // cols of right-hand-side matrix (RHS) per cycle
+    // extra register levels in broadcast interconnect
+    val extraPipelineRegs: Int = 0) extends PrintableParam {
   // latency of instantiated DPUs
   val dpuLatency: Int = dpuParams.getLatency()
   // contributed latency of DPA due to interconnect pipelining
@@ -65,7 +64,7 @@ class DotProductArray(val p: DotProductArrayParams) extends Module {
   val io = new Bundle {
     // inputs broadcasted to each DPU
     val valid = Bool(INPUT)
-    val shiftAmount = UInt(INPUT, width = log2Up(p.dpuParams.maxShiftSteps+1))
+    val shiftAmount = UInt(INPUT, width = log2Up(p.dpuParams.maxShiftSteps + 1))
     val negate = Bool(INPUT)
     val clear_acc = Bool(INPUT)
     // DPU bit inputs, connected appropriately to 2D array
@@ -76,13 +75,15 @@ class DotProductArray(val p: DotProductArrayParams) extends Module {
   }
 
   // instantiate the array of DPUs
-  val dpu = Vec.fill(p.m) { Vec.fill(p.n) {
-    Module(new DotProductUnit(p.dpuParams)).io
-  } }
+  val dpu = Vec.fill(p.m) {
+    Vec.fill(p.n) {
+      Module(new DotProductUnit(p.dpuParams)).io
+    }
+  }
 
   // connect the array of DPUs to the inputs
-  for(i <- 0 to p.m-1) {
-    for(j <- 0 to p.n-1) {
+  for (i ← 0 to p.m - 1) {
+    for (j ← 0 to p.n - 1) {
       // common broadcast inputs
       dpu(i)(j).in.valid := ShiftRegister(io.valid, p.myLatency)
       dpu(i)(j).in.bits.shiftAmount := ShiftRegister(io.shiftAmount, p.myLatency)

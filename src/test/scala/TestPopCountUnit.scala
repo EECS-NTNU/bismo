@@ -53,7 +53,7 @@ class PopCountUnitTester(c: PopCountUnit) extends Tester(c) {
     poke(c.io.in, scala.math.BigInt.apply(test_seq_str, 2))
     step(1)
     poke(c.io.in, scala.math.BigInt.apply("0" * seq_len, 2))
-    for(i <- 0 until latency-2) {
+    for (i ← 0 until latency - 2) {
       step(1)
       peek(c.io.out)
     }
@@ -69,32 +69,33 @@ class PopCountUnitTester(c: PopCountUnit) extends Tester(c) {
   cleanTest("0" * seq_len, 0)
   cleanTest("1" * seq_len, seq_len)
 
-
-  for (seq_cnq <- 1 to num_seqs) {
+  for (seq_cnq ← 1 to num_seqs) {
     val test_seq = RosettaTestHelpers.randomIntVector(seq_len, 1, false)
-    cleanTest(test_seq.mkString, test_seq.reduce(_+_))
+    cleanTest(test_seq.mkString, test_seq.reduce(_ + _))
   }
 }
 
 class TestPopCountUnit extends JUnitSuite {
   @Test def PopCountModuleTest {
-    for(b <- 4 to 10) {
+    for (b ← 4 to 10) {
       // Chisel arguments to pass to chiselMainTest
       def testArgs = RosettaTestHelpers.stdArgs
       // function that instantiates the Module to be tested
-      def testModuleInstFxn = () => { Module(new PopCountUnit(
-        new PopCountUnitParams(numInputBits=1 << b)
-      )) }
+      def testModuleInstFxn = () ⇒ {
+        Module(new PopCountUnit(
+          new PopCountUnitParams(numInputBits = 1 << b)
+        ))
+      }
       // function that instantiates the Tester to test the Module
-      def testTesterInstFxn = (c: PopCountUnit) => new PopCountUnitTester(c)
+      def testTesterInstFxn = (c: PopCountUnit) ⇒ new PopCountUnitTester(c)
 
       // actually run the test
       chiselMainTest(
         testArgs,
         testModuleInstFxn
       ) {
-        testTesterInstFxn
-      }
+          testTesterInstFxn
+        }
     }
   }
 }

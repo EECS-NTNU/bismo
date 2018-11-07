@@ -50,8 +50,7 @@ class BlockStridedRqDescriptor(mrp: MemReqParams) extends Bundle {
 }
 
 class BlockStridedRqGen(
-  mrp: MemReqParams, writeEn: Boolean, chanID: Int = 0
-) extends Module {
+    mrp: MemReqParams, writeEn: Boolean, chanID: Int = 0) extends Module {
   val io = new Bundle {
     val block_intra_step = UInt(INPUT, width = mrp.addrWidth)
     val block_intra_count = UInt(INPUT, width = mrp.addrWidth)
@@ -95,7 +94,7 @@ class BlockStridedRqGen(
   io.out.bits.addr := inner_seq.bits
   io.out.bits.numBytes := io.block_intra_step
   io.out.bits.metaData := UInt(0)
-/*
+  /*
   when(inner_seq.valid){
     printf("[HW: 2D Req gen] Out valid\n")
   }*/

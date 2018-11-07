@@ -39,39 +39,38 @@ import Chisel._
 // structurally, it is a AND-popcount-shift-accumulate datapath.
 
 class DotProductUnitParams(
-  // popcount module input width (bits per cycle)
-  val pcParams: PopCountUnitParams,
-  // width of accumulator register
-  val accWidth: Int,
-  // maximum number of shift steps
-  val maxShiftSteps: Int,
-  // do not instantiate the shift stage
-  val noShifter: Boolean = false,
-  // do not instantiate the negate stage
-  val noNegate: Boolean = false,
-  // extra pipeline regs for retiming
-  val extraPipelineRegs: Int = 0,
-  // use an optimized VHDL compressor generator
-  val useVhdlCompressor: Boolean = true,
-  // number of regs for the VHDL compressor (if used)
-  // -1 gives maximum pipelining (= compressor tree depth)
-  val vhdlCompressorRegs: Int = -1
-) extends PrintableParam {
+    // popcount module input width (bits per cycle)
+    val pcParams: PopCountUnitParams,
+    // width of accumulator register
+    val accWidth: Int,
+    // maximum number of shift steps
+    val maxShiftSteps: Int,
+    // do not instantiate the shift stage
+    val noShifter: Boolean = false,
+    // do not instantiate the negate stage
+    val noNegate: Boolean = false,
+    // extra pipeline regs for retiming
+    val extraPipelineRegs: Int = 0,
+    // use an optimized VHDL compressor generator
+    val useVhdlCompressor: Boolean = true,
+    // number of regs for the VHDL compressor (if used)
+    // -1 gives maximum pipelining (= compressor tree depth)
+    val vhdlCompressorRegs: Int = -1) extends PrintableParam {
   // parameters for BlackBoxCompressor (if any)
   val bbCompParams = new BlackBoxCompressorParams(
     N = pcParams.numInputBits, D = vhdlCompressorRegs
   )
   // internal pipeline registers inside DPU
-  val myLatency = if(useVhdlCompressor){
+  val myLatency = if (useVhdlCompressor) {
     5 + bbCompParams.getLatency() + extraPipelineRegs
   } else {
     6 + extraPipelineRegs
   }
   // latency of instantiated PopCountUnit
-  val popcountLatency: Int = if(useVhdlCompressor){0} else {pcParams.getLatency()}
+  val popcountLatency: Int = if (useVhdlCompressor) { 0 } else { pcParams.getLatency() }
   // return total latency
   def getLatency(): Int = {
-    if(useVhdlCompressor) {
+    if (useVhdlCompressor) {
       return myLatency
     } else {
       return myLatency + popcountLatency
@@ -91,7 +90,7 @@ class DotProductStage0(p: DotProductUnitParams) extends Bundle {
   val a = Bits(width = p.pcParams.numInputBits)
   val b = Bits(width = p.pcParams.numInputBits)
   // number of steps to left shift result by before accumulation
-  val shiftAmount = UInt(width = log2Up(p.maxShiftSteps+1))
+  val shiftAmount = UInt(width = log2Up(p.maxShiftSteps + 1))
   // whether to negate result before accumulation
   val negate = Bool()
   // whether to clear the accumulator before adding the new result
@@ -118,7 +117,7 @@ class DotProductStage1(p: DotProductUnitParams) extends Bundle {
 
 class DotProductStage2(p: DotProductUnitParams) extends Bundle {
   // result of popcount
-  val popcountResult = UInt(width = log2Up(p.pcParams.numInputBits+1))
+  val popcountResult = UInt(width = log2Up(p.pcParams.numInputBits + 1))
   // number of steps to left shift result by before accumulation
   val shiftAmount = UInt(width = log2Up(p.maxShiftSteps))
   // whether to negate result before accumulation
@@ -176,13 +175,13 @@ class DotProductUnit(val p: DotProductUnitParams) extends Module {
     val compLatency = p.bbCompParams.getLatency()
     compressor.io.c := regStage0_b.a
     compressor.io.d := regStage0_b.b
-    stage2.popcountResult :=  compressor.io.r
+    stage2.popcountResult := compressor.io.r
     // need extra delays on pass-through parts due to pipelined compressor
     stage2.shiftAmount := ShiftRegister(regStage0_b.shiftAmount, compLatency)
     stage2.negate := ShiftRegister(regStage0_b.negate, compLatency)
     stage2.clear_acc := ShiftRegister(regStage0_b.clear_acc, compLatency)
     intermediate_valid := ShiftRegister(regStage0_v, compLatency)
-  } else{
+  } else {
     // instantiate the popcount unit
     val modPopCount = Module(new PopCountUnit(p.pcParams))
     //when(io.in.valid) { printf("DPU operands are %x and %x\n", io.in.bits.a, io.in.bits.b) }
@@ -218,7 +217,7 @@ class DotProductUnit(val p: DotProductUnitParams) extends Module {
 
   // pipeline stage 3: shift
   val stage3 = (new DotProductStage3(p)).asDirectionless
-  if(p.noShifter) {
+  if (p.noShifter) {
     stage3.shiftResult := regStage2_b.popcountResult
   } else {
     stage3.shiftResult := regStage2_b.popcountResult << regStage2_b.shiftAmount
@@ -232,7 +231,7 @@ class DotProductUnit(val p: DotProductUnitParams) extends Module {
   // pipeline stage 4: negate
   val stage4 = (new DotProductStage4(p)).asDirectionless
   val shiftRes = regStage3_b.shiftResult
-  if(p.noNegate) {
+  if (p.noNegate) {
     stage4.negateResult := shiftRes
   } else {
     stage4.negateResult := Mux(regStage3_b.negate, -shiftRes, shiftRes)
@@ -247,7 +246,7 @@ class DotProductUnit(val p: DotProductUnitParams) extends Module {
   when(regStage4_v) {
     when(regStage4_b.clear_acc) {
       regAcc := regStage4_b.negateResult
-    } .otherwise {
+    }.otherwise {
       regAcc := regAcc + regStage4_b.negateResult
     }
   }

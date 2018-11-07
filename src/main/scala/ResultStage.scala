@@ -45,18 +45,17 @@ import fpgatidbits.PlatformWrapper._
 // will jump to the next address determined by the runtime matrix size.
 
 class ResultStageParams(
-  val accWidth: Int,      // accumulator width in bits
-  // DPA dimensions
-  val dpa_rhs: Int,
-  val dpa_lhs: Int,
-  val mrp: MemReqParams,  // memory request params for platform
-  // read latency for result memory
-  val resMemReadLatency: Int,
-  // whether to transpose accumulator order while writing
-  val transpose: Boolean = true,
-  // number of entries in the result mem
-  val resEntriesPerMem: Int = 2
-) extends PrintableParam {
+    val accWidth: Int, // accumulator width in bits
+    // DPA dimensions
+    val dpa_rhs: Int,
+    val dpa_lhs: Int,
+    val mrp: MemReqParams, // memory request params for platform
+    // read latency for result memory
+    val resMemReadLatency: Int,
+    // whether to transpose accumulator order while writing
+    val transpose: Boolean = true,
+    // number of entries in the result mem
+    val resEntriesPerMem: Int = 2) extends PrintableParam {
   def headersAsList(): List[String] = {
     return List("DRAM_wr", "dpa_rhs", "dpa_lhs", "accWidth")
   }
@@ -117,17 +116,21 @@ class ResultStageDRAMIO(myP: ResultStageParams) extends Bundle {
 class ResultStage(val myP: ResultStageParams) extends Module {
   val io = new Bundle {
     // base control signals
-    val start = Bool(INPUT)                   // hold high while running
-    val done = Bool(OUTPUT)                   // high when done until start=0
+    val start = Bool(INPUT) // hold high while running
+    val done = Bool(OUTPUT) // high when done until start=0
     val csr = new ResultStageCtrlIO(myP).asInput
     val dram = new ResultStageDRAMIO(myP)
     // interface towards result memory
-    val resmem_req = Vec.fill(myP.dpa_lhs) { Vec.fill(myP.dpa_rhs) {
-      new OCMRequest(myP.accWidth, log2Up(myP.resEntriesPerMem)).asOutput
-    }}
-    val resmem_rsp = Vec.fill(myP.dpa_lhs) { Vec.fill(myP.dpa_rhs) {
-      new OCMResponse(myP.accWidth).asInput
-    }}
+    val resmem_req = Vec.fill(myP.dpa_lhs) {
+      Vec.fill(myP.dpa_rhs) {
+        new OCMRequest(myP.accWidth, log2Up(myP.resEntriesPerMem)).asOutput
+      }
+    }
+    val resmem_rsp = Vec.fill(myP.dpa_lhs) {
+      Vec.fill(myP.dpa_rhs) {
+        new OCMResponse(myP.accWidth).asInput
+      }
+    }
   }
   // TODO add burst support, single beat for now
   val bytesPerBeat: Int = myP.mrp.dataWidth / 8
@@ -143,8 +146,8 @@ class ResultStage(val myP: ResultStageParams) extends Module {
 
   // wire up resmem_req
   for {
-    i <- 0 until myP.dpa_lhs
-    j <- 0 until myP.dpa_rhs
+    i ← 0 until myP.dpa_lhs
+    j ← 0 until myP.dpa_rhs
   } {
     io.resmem_req(i)(j).addr := io.csr.resmem_addr
     io.resmem_req(i)(j).writeEn := Bool(false)
@@ -152,8 +155,8 @@ class ResultStage(val myP: ResultStageParams) extends Module {
 
   // wire up downsizer
   val accseq = for {
-    j <- 0 until myP.getNumRows()
-    i <- 0 until myP.dpa_lhs
+    j ← 0 until myP.getNumRows()
+    i ← 0 until myP.dpa_lhs
   } yield io.resmem_rsp(i)(j).readData
   val allacc = Cat(accseq.reverse)
   ds.in.bits := allacc
@@ -168,7 +171,7 @@ class ResultStage(val myP: ResultStageParams) extends Module {
   rg.in.bits.block_count := UInt(myP.getNumRows())
   // TODO fix if we introduce bursts here
   rg.block_intra_step := UInt(bytesPerBeat)
-  rg.block_intra_count := UInt(myP.getRowAccBits() / (8*bytesPerBeat))
+  rg.block_intra_count := UInt(myP.getRowAccBits() / (8 * bytesPerBeat))
 
   rg.out <> io.dram.wr_req
 
@@ -187,44 +190,44 @@ class ResultStage(val myP: ResultStageParams) extends Module {
   io.done := Bool(false)
 
   switch(regState) {
-      is(sIdle) {
-        when(io.start) {
-          when(io.csr.waitComplete) {
-            regState := sWaitComplete
-          } .otherwise {
-            ds.in.valid := Bool(true)
-            rg.in.valid := Bool(true)
-            when(ds.in.ready & !rg.in.ready) {
-              regState := sWaitRG
-            } .elsewhen (!ds.in.ready & rg.in.ready) {
-              regState := sWaitDS
-            } .elsewhen (ds.in.ready & rg.in.ready) {
-              regState := sFinished
-            }
+    is(sIdle) {
+      when(io.start) {
+        when(io.csr.waitComplete) {
+          regState := sWaitComplete
+        }.otherwise {
+          ds.in.valid := Bool(true)
+          rg.in.valid := Bool(true)
+          when(ds.in.ready & !rg.in.ready) {
+            regState := sWaitRG
+          }.elsewhen(!ds.in.ready & rg.in.ready) {
+            regState := sWaitDS
+          }.elsewhen(ds.in.ready & rg.in.ready) {
+            regState := sFinished
           }
         }
       }
+    }
 
-      is(sWaitDS) {
-        // downsizer is busy but request generator is done
-        ds.in.valid := Bool(true)
-        when(ds.in.ready) { regState := sFinished }
-      }
+    is(sWaitDS) {
+      // downsizer is busy but request generator is done
+      ds.in.valid := Bool(true)
+      when(ds.in.ready) { regState := sFinished }
+    }
 
-      is(sWaitRG) {
-        // downsizer is done but request generator busy
-        rg.in.valid := Bool(true)
-        when(rg.in.ready) { regState := sFinished }
-      }
+    is(sWaitRG) {
+      // downsizer is done but request generator busy
+      rg.in.valid := Bool(true)
+      when(rg.in.ready) { regState := sFinished }
+    }
 
-      is(sWaitComplete) {
-        when(allComplete) { regState := sFinished }
-      }
+    is(sWaitComplete) {
+      when(allComplete) { regState := sFinished }
+    }
 
-      is(sFinished) {
-        io.done := Bool(true)
-        when(!io.start) {regState := sIdle}
-      }
+    is(sFinished) {
+      io.done := Bool(true)
+      when(!io.start) { regState := sIdle }
+    }
   }
   // debug:
   // uncomment to print issued write requests and data in emulation

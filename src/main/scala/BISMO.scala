@@ -61,26 +61,25 @@ class BitSerialMatMulHWCfg(bitsPerField: Int) extends Bundle {
 
 // parameters that control the accelerator instantiation
 class BitSerialMatMulParams(
-  val dpaDimLHS: Int,
-  val dpaDimRHS: Int,
-  val dpaDimCommon: Int,
-  val lhsEntriesPerMem: Int,
-  val rhsEntriesPerMem: Int,
-  val mrp: MemReqParams,
-  val resEntriesPerMem: Int = 2,
-  val bramPipelineBefore: Int = 1,
-  val bramPipelineAfter: Int = 1,
-  val extraRegs_DPA: Int = 0,
-  val extraRegs_DPU: Int = 0,
-  val extraRegs_PC: Int = 0,
-  val accWidth: Int = 32,
-  val maxShiftSteps: Int = 16,
-  val cmdQueueEntries: Int = 16,
-  // do not instantiate the shift stage
-  val noShifter: Boolean = false,
-  // do not instantiate the negate stage
-  val noNegate: Boolean = false
-) extends PrintableParam {
+    val dpaDimLHS: Int,
+    val dpaDimRHS: Int,
+    val dpaDimCommon: Int,
+    val lhsEntriesPerMem: Int,
+    val rhsEntriesPerMem: Int,
+    val mrp: MemReqParams,
+    val resEntriesPerMem: Int = 2,
+    val bramPipelineBefore: Int = 1,
+    val bramPipelineAfter: Int = 1,
+    val extraRegs_DPA: Int = 0,
+    val extraRegs_DPU: Int = 0,
+    val extraRegs_PC: Int = 0,
+    val accWidth: Int = 32,
+    val maxShiftSteps: Int = 16,
+    val cmdQueueEntries: Int = 16,
+    // do not instantiate the shift stage
+    val noShifter: Boolean = false,
+    // do not instantiate the negate stage
+    val noNegate: Boolean = false) extends PrintableParam {
   def estimateResources() = {
     import Math.ceil
     val a_dpu = 2.04
@@ -91,11 +90,11 @@ class BitSerialMatMulParams(
     val bram_array = ceil(dpaDimCommon / 32) * (dpaDimLHS * ceil(lhsEntriesPerMem / 1024) + dpaDimRHS * ceil(rhsEntriesPerMem / 1024))
     val binops_per_cycle = 2 * dpaDimLHS * dpaDimRHS * dpaDimCommon
     val tops_per_sec_200MHz = (binops_per_cycle * 200) / 1000000.0
-     println("Resource predictions from cost model")
-     println("=====================================")
-     println(s"DPA LUT: $lut_array")
-     println(s"DPA BRAM: $bram_array")
-     println(s"TOPS at 200 MHz: $tops_per_sec_200MHz")
+    println("Resource predictions from cost model")
+    println("=====================================")
+    println(s"DPA LUT: $lut_array")
+    println(s"DPA BRAM: $bram_array")
+    println(s"TOPS at 200 MHz: $tops_per_sec_200MHz")
   }
 
   def headersAsList(): List[String] = {
@@ -182,9 +181,8 @@ class BitSerialMatMulPerf(myP: BitSerialMatMulParams) extends Bundle {
 }
 
 class BitSerialMatMulAccel(
-  val myP: BitSerialMatMulParams, p: PlatformWrapperParams
-) extends GenericAccelerator(p) {
-    val numMemPorts = 1
+    val myP: BitSerialMatMulParams, p: PlatformWrapperParams) extends GenericAccelerator(p) {
+  val numMemPorts = 1
   val io = new GenericAcceleratorIF(numMemPorts, p) {
     // enable/disable execution for each stage
     val fetch_enable = Bool(INPUT)
@@ -244,12 +242,14 @@ class BitSerialMatMulAccel(
   // TODO ResultStage actually assumes this memory can be read with zero
   // latency but current impl has latency of 1. this will cause bugs if reading
   // two different addresses in consecutive cycles.
-  val resmem = Vec.fill(myP.dpaDimLHS) { Vec.fill(myP.dpaDimRHS) {
-    Module(new PipelinedDualPortBRAM(
-      addrBits = log2Up(myP.resEntriesPerMem), dataBits = myP.accWidth,
-      regIn = 0, regOut = 0
-    )).io
-  }}
+  val resmem = Vec.fill(myP.dpaDimLHS) {
+    Vec.fill(myP.dpaDimRHS) {
+      Module(new PipelinedDualPortBRAM(
+        addrBits = log2Up(myP.resEntriesPerMem), dataBits = myP.accWidth,
+        regIn = 0, regOut = 0
+      )).io
+    }
+  }
 
   // instantiate synchronization token FIFOs
   val syncFetchExec_free = Module(new FPGAQueue(Bool(), 8)).io
@@ -259,7 +259,7 @@ class BitSerialMatMulAccel(
 
   // helper function to wire-up DecoupledIO to DecoupledIO with pulse generator
   def enqPulseGenFromValid[T <: Data](enq: DecoupledIO[T], vld: DecoupledIO[T]) = {
-    enq.valid := vld.valid & !Reg(next=vld.valid)
+    enq.valid := vld.valid & !Reg(next = vld.valid)
     enq.bits := vld.bits
     vld.ready := enq.ready
   }
@@ -307,13 +307,13 @@ class BitSerialMatMulAccel(
   // wire-up: BRAM ports (fetch and exec stages)
   // port 0 used by fetch stage for writes
   // port 1 used by execute stage for reads
-  for(m <- 0 until myP.dpaDimLHS) {
+  for (m ← 0 until myP.dpaDimLHS) {
     tilemem_lhs(m).ports(0).req := fetchStage.bram.lhs_req(m)
     tilemem_lhs(m).ports(1).req := execStage.tilemem.lhs_req(m)
     execStage.tilemem.lhs_rsp(m) := tilemem_lhs(m).ports(1).rsp
     //when(tilemem_lhs(m).ports(0).req.writeEn) { printf("LHS BRAM %d write: addr %d data %x\n", UInt(m), tilemem_lhs(m).ports(0).req.addr, tilemem_lhs(m).ports(0).req.writeData) }
   }
-  for(m <- 0 until myP.dpaDimRHS) {
+  for (m ← 0 until myP.dpaDimRHS) {
     tilemem_rhs(m).ports(0).req := fetchStage.bram.rhs_req(m)
     tilemem_rhs(m).ports(1).req := execStage.tilemem.rhs_req(m)
     execStage.tilemem.rhs_rsp(m) := tilemem_rhs(m).ports(1).rsp
@@ -332,9 +332,9 @@ class BitSerialMatMulAccel(
   syncExecResult_filled.deq <> resultCtrl.sync_in(0)
 
   // wire-up: result memory (exec and result stages)
-  for{
-    m <- 0 until myP.dpaDimLHS
-    n <- 0 until myP.dpaDimRHS
+  for {
+    m ← 0 until myP.dpaDimLHS
+    n ← 0 until myP.dpaDimRHS
   } {
     resmem(m)(n).ports(0).req := execStage.res.req(m)(n)
     resmem(m)(n).ports(1).req := resultStage.resmem_req(m)(n)
@@ -354,8 +354,8 @@ class BitSerialMatMulAccel(
   io.perf.cc := regCC
   // reset cycle counter on rising edge of cc_enable
   when(io.perf.cc_enable & !regCCEnablePrev) { regCC := UInt(0) }
-  // increment cycle counter while cc_enable is high
-  .elsewhen(io.perf.cc_enable & regCCEnablePrev) { regCC := regCC + UInt(1) }
+    // increment cycle counter while cc_enable is high
+    .elsewhen(io.perf.cc_enable & regCCEnablePrev) { regCC := regCC + UInt(1) }
 
   fetchCtrl.perf.start := io.perf.cc_enable
   execCtrl.perf.start := io.perf.cc_enable
@@ -377,11 +377,10 @@ class BitSerialMatMulAccel(
 }
 
 class ResultBufParams(
-  val addrBits: Int,
-  val dataBits: Int,
-  val regIn: Int,
-  val regOut: Int
-) extends PrintableParam {
+    val addrBits: Int,
+    val dataBits: Int,
+    val regIn: Int,
+    val regOut: Int) extends PrintableParam {
   def headersAsList(): List[String] = {
     return List(
       "addBits", "dataBits", "regIn", "regOut"
