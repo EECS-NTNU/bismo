@@ -85,7 +85,8 @@ class StandAloneP2SAccel(
   val numMemPorts = 1
   val io = new GenericAcceleratorIF(numMemPorts, p) {
     val p2sCmd = Decoupled(new P2SCmdIO(myP.p2sparams)).flip()
-    val ack = Decoupled(Bool())
+    // clock cycle count for each command is returned on completion
+    val ack = Decoupled(UInt(width = 32))
   }
   // register the p2sCmd currently being processed
   val regCmd = Reg(outType = io.p2sCmd.bits)
@@ -115,11 +116,18 @@ class StandAloneP2SAccel(
   readRg.in.valid := Bool(false)
   writeRg.in.valid := Bool(false)
   io.ack.valid := Bool(false)
-  io.ack.bits := Bool(false)
+
+  // cycle counter for performance measurements
+  val regCycleCount = Reg(init = UInt(0, width = 32))
+  when(regState != sIdle) {
+    regCycleCount := regCycleCount + UInt(1)
+  }
+  io.ack.bits := regCycleCount
 
   switch(regState) {
     is(sIdle) {
       regCompletedWrBytes := UInt(0)
+      regCycleCount := UInt(0)
       io.p2sCmd.ready := Bool(true)
       when(io.p2sCmd.valid) {
         regCmd := io.p2sCmd.bits
@@ -145,7 +153,6 @@ class StandAloneP2SAccel(
     }
     is(sGenAck) {
       io.ack.valid := Bool(true)
-      io.ack.bits := Bool(true)
       when(io.ack.ready) {
         regState := sIdle
       }

@@ -21,7 +21,7 @@ class EmuTestP2SAccel(
   val io = new GenericAcceleratorIF(numMemPorts, p) {
     val enable = Bool(INPUT)
     val cmdqueue = Decoupled(new P2SCmdIO(myP.p2sparams)).flip
-    val ackqueue = Decoupled(Bool())
+    val ackqueue = Decoupled(UInt(width = 32))
   }
 
   val accel = Module(new StandAloneP2SAccel(myP, p)).io
