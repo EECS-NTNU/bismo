@@ -65,7 +65,7 @@ class P2SKernel_Slow(myP: P2SKernelParams) extends Module {
     // serial input is unused
     shifters(i).serIn := UInt(0)
   }
-  val currentBitData = Cat(shifters.map(_.serOut))
+  val currentBitData = Cat(shifters.map(_.serOut).reverse)
   // write buffer for coalescing
   val writeBuffers = Vec.fill(myP.maxInBw) {
     Module(new SerialInParallelOut(parWidth = myP.outStreamSize, serWidth = myP.nInElemPerWord)).io
