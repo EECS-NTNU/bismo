@@ -152,18 +152,20 @@ class StandAloneP2SAccel(
     }
   }
 
-  readRg.in.bits.base := regCmd.dramBaseAddrSrc
-  readRg.in.bits.block_step := regCmd.matrixColsGroup * regCmd.actualPrecision * UInt(myP.dramWordBytes)
-  //continuous run? or just single row?
-  readRg.in.bits.block_count := regCmd.matrixRows
-  //  inRg.in.bits.block_count := UInt(1)
-
   readRg.block_intra_step := UInt(myP.dramWordBytes)
   // number of steps within block = number of DRAM words per row
   // = (number of column groups) * (elements per group) / (elements per DRAM word)
   // since elements per group = maxInBw * elements per word:
   // = number of column groups * maxInBw
   readRg.block_intra_count := regCmd.matrixColsGroup * UInt(myP.maxInBw)
+
+  // at the moment reads are actually on a single continuous block, so the
+  // block-inter step here is simply the product of block-intra step and count
+  readRg.in.bits.base := regCmd.dramBaseAddrSrc
+  readRg.in.bits.block_step := regCmd.matrixColsGroup * UInt(myP.maxInBw) * UInt(myP.dramWordBytes)
+  //continuous run? or just single row?
+  readRg.in.bits.block_count := regCmd.matrixRows
+  //  inRg.in.bits.block_count := UInt(1)
 
   io.memPort(0).memRdReq <> readRg.out
   // TODO Davide: why are these queues 256 elements? can they be smaller?
