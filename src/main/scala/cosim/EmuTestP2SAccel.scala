@@ -48,10 +48,5 @@ class EmuTestP2SAccel(
   cmdQ.enq.valid := io.cmdqueue.valid & !Reg(next=io.cmdqueue.valid)
   ackQ.deq.ready := io.ackqueue.ready & !Reg(next=io.ackqueue.ready)
 
-  // debug
-  PrintableBundleStreamMonitor(accel.p2sCmd, Bool(true), "p2sCmd", true)
-  PrintableBundleStreamMonitor(accel.memPort(0).memRdReq, Bool(true), "memRdReq", true)
-  PrintableBundleStreamMonitor(accel.memPort(0).memRdRsp, Bool(true), "memRdRsp", true)
-
   io.signature := makeDefaultSignature()
 }
