@@ -23,30 +23,30 @@ class TestSerializerUnit extends JUnitSuite {
       // number of bits for the input data
       val in_len = dut.p.inPrecision
       val rolling = dut.p.unrollingFactor
-      val cycles2Complete = in_len /rolling
+      val cycles2Complete = in_len / rolling
 
-      for(i <- 1 to num_seqs) {
+      for (i ← 1 to num_seqs) {
 
-        if(!dut.p.staticCounter){
+        if (!dut.p.staticCounter) {
           poke(dut.io.counterValue, scala.math.BigInt.apply(in_len))
-        }else{
+        } else {
           poke(dut.io.counterValue, scala.math.BigInt.apply(0))
         }
 
         val neg = r.nextBoolean()
-        val a = RosettaTestHelpers.randomIntMatrix(rows,cols,in_len, neg)
+        val a = RosettaTestHelpers.randomIntMatrix(rows, cols, in_len, neg)
         println("Matrix a")
         printMatrix(a)
         poke(dut.io.out.ready, false)
-        for(i <- 0 until rows)
-          for( j <- 0 until cols)
+        for (i ← 0 until rows)
+          for (j ← 0 until cols)
             poke(dut.io.input(i)(j), scala.math.BigInt.apply(a(i)(j)))
         step(1)
         poke(dut.io.start, true)
-        for(k <- 0  until in_len/*/cycles2Complete*/) {
-          for (i <- 0 until rows)
-            for (j <- 0 until cols)
-              expect(dut.io.out.bits(i)(j)(0), RosettaTestHelpers.extractBitPos(a(i)(j),k,in_len))
+        for (k ← 0 until in_len /*/cycles2Complete*/ ) {
+          for (i ← 0 until rows)
+            for (j ← 0 until cols)
+              expect(dut.io.out.bits(i)(j)(0), RosettaTestHelpers.extractBitPos(a(i)(j), k, in_len))
           step(1)
         }
         poke(dut.io.out.ready, true)
@@ -58,33 +58,31 @@ class TestSerializerUnit extends JUnitSuite {
     // Chisel arguments to pass to chiselMainTest
     def testArgs = RosettaTestHelpers.stdArgs
 
-    for{
-      inPrecision <- 16 to 16
-      rows <- 1 to 1
-      cols <- 8 to 8
-      static <- List(false)
-      countWidth <- 16 to 16
+    for {
+      inPrecision ← 16 to 16
+      rows ← 1 to 1
+      cols ← 8 to 8
+      static ← List(false)
+      countWidth ← 16 to 16
 
     } {
       // function that instantiates the Module to be tested
       val p = new SerializerUnitParams(
         inPrecision = inPrecision, matrixRows = rows, matrixCols = cols, staticCounter = static, maxCounterPrec = countWidth,
-          staticUnrolling = false, unrollingFactor = 2//inPrecision/2
+        staticUnrolling = false, unrollingFactor = 2 //inPrecision/2
       )
-      def testModuleInstFxn = () => { Module(new SerializerUnit(p)) }
+      def testModuleInstFxn = () ⇒ { Module(new SerializerUnit(p)) }
       // function that instantiates the Tester to test the Module
-      def testTesterInstFxn = (dut: SerializerUnit) => new SerializerUnitTester(dut)
+      def testTesterInstFxn = (dut: SerializerUnit) ⇒ new SerializerUnitTester(dut)
 
       // actually run the test
       chiselMainTest(
         testArgs,
         testModuleInstFxn
       ) {
-        testTesterInstFxn
-      }
+          testTesterInstFxn
+        }
     }
-
-
 
   }
 }

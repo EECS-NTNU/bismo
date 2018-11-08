@@ -50,12 +50,12 @@ class FetchInterconnectTester(c: FetchInterconnect) extends Tester(c) {
   val maxaddr = (1 << c.myP.numAddrBits) - 1
 
   def randomNoValidWait(max: Int = num_nodes + 1) = {
-    val numNoValidCycles = r.nextInt(max+1)
+    val numNoValidCycles = r.nextInt(max + 1)
     poke(c.io.in.valid, 0)
-    for(cyc <- 0 until numNoValidCycles) {
+    for (cyc ← 0 until numNoValidCycles) {
       step(1)
       // all write enables should be zero
-      c.io.node_out.map(x => expect(x.writeEn, 0))
+      c.io.node_out.map(x ⇒ expect(x.writeEn, 0))
     }
   }
 
@@ -64,29 +64,29 @@ class FetchInterconnectTester(c: FetchInterconnect) extends Tester(c) {
     golden_id: Seq[Int],
     golden_addr: Seq[Int],
     golden_data: Seq[BigInt]) =
-  {
-    for(n <- 0 until num_nodes) {
-      if(golden_valid(n) == 1 && n == golden_id(n)) {
-        expect(c.io.node_out(n).writeEn, 1)
-        expect(c.io.node_out(n).addr, golden_addr(n))
-        expect(c.io.node_out(n).writeData, golden_data(n))
-      } else {
-        expect(c.io.node_out(n).writeEn, 0)
+    {
+      for (n ← 0 until num_nodes) {
+        if (golden_valid(n) == 1 && n == golden_id(n)) {
+          expect(c.io.node_out(n).writeEn, 1)
+          expect(c.io.node_out(n).addr, golden_addr(n))
+          expect(c.io.node_out(n).writeData, golden_data(n))
+        } else {
+          expect(c.io.node_out(n).writeEn, 0)
+        }
       }
     }
-  }
 
   randomNoValidWait()
-  var exp_valid = (1 to num_nodes).map(x => 0).toList
-  var exp_id = (1 to num_nodes).map(x => 0).toList
-  var exp_addr = (1 to num_nodes).map(x => 0).toList
-  var exp_data = (1 to num_nodes).map(x => BigInt(0)).toList
+  var exp_valid = (1 to num_nodes).map(x ⇒ 0).toList
+  var exp_id = (1 to num_nodes).map(x ⇒ 0).toList
+  var exp_addr = (1 to num_nodes).map(x ⇒ 0).toList
+  var exp_data = (1 to num_nodes).map(x ⇒ BigInt(0)).toList
 
-  for(i <- 1 to num_writes) {
+  for (i ← 1 to num_writes) {
     val test_data = RosettaTestHelpers.randomIntVector(dbits, 1, false)
     val test_data_bigint = scala.math.BigInt.apply(test_data.mkString, 2)
-    val test_id = r.nextInt(num_nodes+1)
-    val test_addr = r.nextInt(maxaddr+1)
+    val test_id = r.nextInt(num_nodes + 1)
+    val test_addr = r.nextInt(maxaddr + 1)
     poke(c.io.in.bits.data, test_data_bigint)
     poke(c.io.in.bits.id, test_id)
     poke(c.io.in.bits.addr, test_addr)
@@ -98,7 +98,7 @@ class FetchInterconnectTester(c: FetchInterconnect) extends Tester(c) {
     exp_data = List(test_data_bigint) ++ exp_data.dropRight(1)
     step(1)
     poke(c.io.in.valid, 0)
-    for(ws <- 0 to test_id) {
+    for (ws ← 0 to test_id) {
       checkNodeMemStatus(exp_valid, exp_id, exp_addr, exp_data)
       exp_valid = List(0) ++ exp_valid.dropRight(1)
       exp_id = List(test_id) ++ exp_id.dropRight(1)
@@ -114,21 +114,23 @@ class TestFetchInterconnect extends JUnitSuite {
     // Chisel arguments to pass to chiselMainTest
     def testArgs = RosettaTestHelpers.stdArgs
     // function that instantiates the Module to be tested
-    def testModuleInstFxn = () => { Module(new FetchInterconnect(
-      new FetchStageParams(
-        numLHSMems = 5, numRHSMems = 5,
-        numAddrBits = 10, mrp = PYNQZ1Params.toMemReqParams()
-      )
-    )) }
+    def testModuleInstFxn = () ⇒ {
+      Module(new FetchInterconnect(
+        new FetchStageParams(
+          numLHSMems = 5, numRHSMems = 5,
+          numAddrBits = 10, mrp = PYNQZ1Params.toMemReqParams()
+        )
+      ))
+    }
     // function that instantiates the Tester to test the Module
-    def testTesterInstFxn = (c: FetchInterconnect) => new FetchInterconnectTester(c)
+    def testTesterInstFxn = (c: FetchInterconnect) ⇒ new FetchInterconnectTester(c)
 
     // actually run the test
     chiselMainTest(
       testArgs,
       testModuleInstFxn
     ) {
-      testTesterInstFxn
-    }
+        testTesterInstFxn
+      }
   }
 }

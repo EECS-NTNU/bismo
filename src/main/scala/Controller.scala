@@ -62,9 +62,9 @@ class ControllerCmd(inChannels: Int, outChannels: Int) extends Bundle {
 // base class for all stage controllers, taking in a stream of commands and
 // individually executing each while respecting shared resource access locks.
 class BaseController[Ts <: Bundle](
-  inChannels: Int,          // number of input sync channels
-  outChannels: Int,         // number of output sync channels
-  genStageO: => Ts          // gentype for stage output
+  inChannels: Int, // number of input sync channels
+  outChannels: Int, // number of output sync channels
+  genStageO: ⇒ Ts // gentype for stage output
 ) extends Module {
   val io = new Bundle {
     // command queue input
@@ -93,8 +93,8 @@ class BaseController[Ts <: Bundle](
   io.runcfg.ready := Bool(false)
   io.start := Bool(false)
   io.stageO := io.runcfg.bits
-  for(i <- 0 until inChannels) { io.sync_in(i).ready := Bool(false) }
-  for(i <- 0 until outChannels) {
+  for (i ← 0 until inChannels) { io.sync_in(i).ready := Bool(false) }
+  for (i ← 0 until outChannels) {
     io.sync_out(i).valid := Bool(false)
     io.sync_out(i).bits := Bool(false)
   }
@@ -112,9 +112,9 @@ class BaseController[Ts <: Bundle](
         // "peek" into the new command:
         when(io.op.bits.opcode === Opcodes.opRun && io.runcfg.valid && !io.done) {
           regState := sRun
-        } .elsewhen(io.op.bits.opcode === Opcodes.opSendToken) {
+        }.elsewhen(io.op.bits.opcode === Opcodes.opSendToken) {
           regState := sSend
-        } .elsewhen(io.op.bits.opcode === Opcodes.opReceiveToken) {
+        }.elsewhen(io.op.bits.opcode === Opcodes.opReceiveToken) {
           regState := sReceive
         }
       }
@@ -159,17 +159,13 @@ class BaseController[Ts <: Bundle](
 
 // derived classes for each type of controller.
 class FetchController(val myP: FetchStageParams) extends BaseController(
-  genStageO = new FetchStageCtrlIO(myP), inChannels = 1, outChannels = 1
-){ }
+  genStageO = new FetchStageCtrlIO(myP), inChannels = 1, outChannels = 1) {}
 
 class ExecController(val myP: ExecStageParams) extends BaseController(
-  genStageO = new ExecStageCtrlIO(myP), inChannels = 2, outChannels = 2
-){ }
+  genStageO = new ExecStageCtrlIO(myP), inChannels = 2, outChannels = 2) {}
 
 class ResultController(val myP: ResultStageParams) extends BaseController(
-  genStageO = new ResultStageCtrlIO(myP), inChannels = 1, outChannels = 1
-){ }
+  genStageO = new ResultStageCtrlIO(myP), inChannels = 1, outChannels = 1) {}
 
 class ThresholdingController(val myP: ThrStageParams) extends BaseController(
-  genStageO = new ThrStageCtrlIO(myP), inChannels =  2, outChannels = 2
-){ }
+  genStageO = new ThrStageCtrlIO(myP), inChannels = 2, outChannels = 2) {}

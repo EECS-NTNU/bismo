@@ -42,6 +42,8 @@ URI = $($(PLATFORM)_URI)
 M ?= 8
 K ?= 256
 N ?= 8
+O ?= 64
+F ?= true
 OVERLAY_CFG = $(M)x$(K)x$(N)
 
 # other project settings
@@ -74,7 +76,7 @@ include platforms/$(PLATFORM).mk
 
 # note that all targets are phony targets, no proper dependency tracking
 .PHONY: hw_verilog emulib hw_driver hw_vivadoproj bitfile hw sw all rsync test
-.PHONY: resmodel characterize check_vivado
+.PHONY: resmodel characterize check_vivado pretty p2saccel
 
 check_vivado:
 ifndef VIVADO_IN_PATH
@@ -90,13 +92,17 @@ endif
 Test%:
 	$(SBT) $(SBT_FLAGS) "test-only $@"
 
+# run hardware-software cosimulation tests (in debug mode with waveform dump)
+DebugEmuTest%:
+	mkdir -p $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain EmuTest$* $(BUILD_DIR)/$@ 1"; cp -r $(CPPTEST_SRC_DIR)/EmuTest$*.cpp $(BUILD_DIR)/$@; cp -r $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@; cd $(BUILD_DIR)/$@; g++ -std=c++11 -DDEBUG *.cpp driver.a -o $@; ./$@
+
 # run hardware-software cosimulation tests
 EmuTest%:
-	mkdir -p $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@"; cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; cp -r $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@; cd $(BUILD_DIR)/$@; g++ -std=c++11 -DDEBUG *.cpp driver.a -o $@; ./$@
+	mkdir -p $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ 0"; cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; cp -r $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@; cd $(BUILD_DIR)/$@; g++ -std=c++11 *.cpp driver.a -o $@; ./$@
 
 # generate cycle-accurate C++ emulator driver lib
 $(BUILD_DIR_EMU)/driver.a:
-	mkdir -p $(BUILD_DIR_EMU); $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain main $(BUILD_DIR_EMU)"
+	mkdir -p $(BUILD_DIR_EMU); $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain main $(BUILD_DIR_EMU) 0"
 
 # generate emulator executable including software sources
 emu: $(BUILD_DIR_EMU)/driver.a
@@ -121,12 +127,20 @@ $(HW_VERILOG):
 resmodel:
 	$(SBT) $(SBT_FLAGS) "runMain bismo.ResModelMain $(PLATFORM) $(BUILD_DIR_VERILOG) $M $K $N"
 
+p2s:
+	$(SBT) $(SBT_FLAGS) "runMain bismo.P2SMain $(PLATFORM) $(BUILD_DIR_VERILOG) $M $N $O $F"
+
+p2ssw: EmuTestP2SAccel sw
+	cp -r $(BUILD_DIR)/EmuTestP2SAccel $(BUILD_DIR)/deploy
+
 # copy scripts to the deployment folder
 script:
 	cp $(PLATFORM_SCRIPT_DIR)/* $(BUILD_DIR_DEPLOY)/
 
 # get everything ready to copy onto the platform and create a deployment folder
 all: hw sw script
+
+p2saccel:hw p2ssw script 
 
 # use rsync to synchronize contents of the deployment folder onto the platform
 rsync:
@@ -135,3 +149,11 @@ rsync:
 # remove everything that is built
 clean:
 	rm -rf $(BUILD_DIR)
+
+# download scalariform
+scalariform.jar:
+	wget https://github.com/scala-ide/scalariform/releases/download/0.2.6/scalariform.jar
+
+# format source code with scalariform
+pretty: scalariform.jar
+	java -jar scalariform.jar --recurse src/main/scala

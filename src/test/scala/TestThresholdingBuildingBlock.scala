@@ -27,13 +27,13 @@ class TestThresholdingBuildingBlock extends JUnitSuite {
       val thNeg = false
       //TODO: there is a problem with negative numbers and 2c2 representation
 
-      for(i <- 1 to num_seqs) {
+      for (i ← 1 to num_seqs) {
 
-        val a = RosettaTestHelpers.randomIntMatrix(rows, cols,  in_len, inNeg)
+        val a = RosettaTestHelpers.randomIntMatrix(rows, cols, in_len, inNeg)
         println("Matrix a")
         printMatrix(a)
 
-        val th = RosettaTestHelpers.randomIntMatrix(rows, scala.math.pow(2,out_len).toInt -1 , in_len, thNeg)
+        val th = RosettaTestHelpers.randomIntMatrix(rows, scala.math.pow(2, out_len).toInt - 1, in_len, thNeg)
         println("matrrix th")
         printMatrix(th)
         val golden = RosettaTestHelpers.quantizeMatrix(a, th)
@@ -41,18 +41,18 @@ class TestThresholdingBuildingBlock extends JUnitSuite {
         println("Matrix GOld")
         printMatrix(golden)
         //feed inputs
-        for(i <- 0 until rows){
-          for(curr_col <- 0 until cols) {
-            for (j <- 0 until unroll_factor) {
+        for (i ← 0 until rows) {
+          for (curr_col ← 0 until cols) {
+            for (j ← 0 until unroll_factor) {
               poke(dut.io.inVector(j), scala.math.BigInt.apply(a(i)(curr_col)))
               poke(dut.io.thVector(j), scala.math.BigInt.apply(th(i)(j)))
-              println("Row:"+i+" Col:" + curr_col + "Threshold: " + j)
+              println("Row:" + i + " Col:" + curr_col + "Threshold: " + j)
               //println(scala.math.BigInt.apply(a(i)(curr_col)).toString(2) + " " + scala.math.BigInt.apply(th(i)(j)).toString(2))
             }
             step(1)
 
             //expect right comparison and clear on every cycle
-            println("Golden value: " + golden(i)(curr_col) )
+            println("Golden value: " + golden(i)(curr_col))
             expect(dut.io.outValue, golden(i)(curr_col))
             poke(dut.io.clearAcc, true)
           }
@@ -65,27 +65,25 @@ class TestThresholdingBuildingBlock extends JUnitSuite {
     // Chisel arguments to pass to chiselMainTest
     def testArgs = RosettaTestHelpers.stdArgs
 
-    for{
-      inPrecision <- 16 to 16
-      outPrecision <- 2 to 2
-      unrolling <- 3 to 3
+    for {
+      inPrecision ← 16 to 16
+      outPrecision ← 2 to 2
+      unrolling ← 3 to 3
     } {
       // function that instantiates the Module to be tested
       val p = new ThresholdingBuildingBlockParams(inPrecision, unrolling, outPrecision)
-      def testModuleInstFxn = () => { Module(new ThresholdingBuildingBlock(p)) }
+      def testModuleInstFxn = () ⇒ { Module(new ThresholdingBuildingBlock(p)) }
       // function that instantiates the Tester to test the Module
-      def testTesterInstFxn = (dut: ThresholdingBuildingBlock) => new ThresholdingBuildingBlockTester(dut)
+      def testTesterInstFxn = (dut: ThresholdingBuildingBlock) ⇒ new ThresholdingBuildingBlockTester(dut)
 
       // actually run the test
       chiselMainTest(
         testArgs,
         testModuleInstFxn
       ) {
-        testTesterInstFxn
-      }
+          testTesterInstFxn
+        }
     }
-    
-
 
   }
 }
