@@ -77,7 +77,7 @@ object Settings {
     "EmuTestExecStage" -> { p ⇒ new EmuTestExecStage(emuP) },
     "EmuTestFetchStage" -> { p ⇒ new EmuTestFetchStage(2, 2, emuP) },
     "EmuTestResultStage" -> { p ⇒ new EmuTestResultStage(2, emuP) },
-    "EmuTestP2SAccel" -> { p ⇒ new EmuTestP2SAccel(8, 8, 64, 2, true, emuP) })
+    "EmuTestP2SAccel" -> { p ⇒ new EmuTestP2SAccel(8, 8, 64, true, emuP) })
 }
 
 // call this object's main method to generate Chisel Verilog
@@ -240,12 +240,10 @@ object CharacterizeMain {
     return for {
       mbw ← Seq(4, 8, 16, 32, 64)
       nxw ← Seq(64 / mbw, 128 / mbw)
-      staticCntr ← Seq(false) // true for static non configurable serializing unit
-      staticUnroll ← Seq(true) // false one bit per cc serializing
-      unrfactor ← Seq(mbw / 4, mbw / 2, mbw) //if false or static counter ensure this to be equal to 1
+      fast ← Seq(false, true)
     } yield new StandAloneP2SParams(
       maxInBw = mbw, nInElemPerWord = nxw, outStreamSize = mbw * nxw, mrp = PYNQZ1Params.toMemReqParams(),
-      staticCntr = staticCntr, staticSUUnroll = staticUnroll, unrSU = unrfactor)
+      fastMode = fast)
   }
   val instFxn_P2SAccel = { p: StandAloneP2SParams ⇒ Module(new StandAloneP2SAccel(p, TesterWrapperParams)) }
 

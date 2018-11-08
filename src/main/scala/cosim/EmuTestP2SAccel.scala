@@ -11,12 +11,11 @@ import fpgatidbits.streams._
 import fpgatidbits.PlatformWrapper._
 
 class EmuTestP2SAccel(
-  m: Int, n: Int, o: Int, r: Int, unroll: Boolean, p: PlatformWrapperParams) extends GenericAccelerator(p) {
+  m: Int, n: Int, o: Int, fast: Boolean, p: PlatformWrapperParams) extends GenericAccelerator(p) {
   val numMemPorts = 1
   // parameters for accelerator instance
   val myP = new StandAloneP2SParams(maxInBw = m, nInElemPerWord = n, outStreamSize = o,
-    staticSUUnroll = unroll, unrSU = m / r,
-    mrp = PYNQZ1Params.toMemReqParams())
+    fastMode = fast, mrp = PYNQZ1Params.toMemReqParams())
 
   val io = new GenericAcceleratorIF(numMemPorts, p) {
     val enable = Bool(INPUT)

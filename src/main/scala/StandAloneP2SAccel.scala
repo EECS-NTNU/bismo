@@ -18,9 +18,7 @@ class StandAloneP2SParams(
     val maxInBw: Int,
     val nInElemPerWord: Int,
     val outStreamSize: Int,
-    val staticCntr: Boolean = false,
-    val staticSUUnroll: Boolean = false,
-    val unrSU: Int = 1,
+    val fastMode: Boolean = true,
     val mrp: MemReqParams) extends PrintableParam {
 
   // Input bandwidth equal to output bandwidth
@@ -33,25 +31,18 @@ class StandAloneP2SParams(
   // of p2sAlign. in other words, this is the "number of columns in a group".
   val p2sAlign = maxInBw * nInElemPerWord
 
-  val suparams = new SerializerUnitParams(
-    inPrecision = maxInBw, matrixRows = 1,
-    matrixCols = nInElemPerWord, staticCounter = staticCntr,
-    maxCounterPrec = maxInBw, staticUnrolling = staticSUUnroll,
-    unrollingFactor = unrSU)
-
   val p2sparams = new P2SKernelParams(
     maxInBw = maxInBw, nInElemPerWord = nInElemPerWord,
-    outStreamSize = outStreamSize, mrp = mrp,
-    suparams = suparams)
+    outStreamSize = outStreamSize, mrp = mrp)
   def headersAsList(): List[String] = {
     return List(
-      "M-axInBw", "N-InElemPerWord", "O-utStreamSize", "SU-StatiCounter", "SU-Static Unroll", "SU-Unrolling factor")
+      "M-axInBw", "N-InElemPerWord", "O-utStreamSize", "F-astMode")
   }
 
   def contentAsList(): List[String] = {
     return List(
-      maxInBw, nInElemPerWord, outStreamSize, staticCntr,
-      staticSUUnroll, unrSU).map(_.toString)
+      maxInBw, nInElemPerWord, outStreamSize, fastMode
+    ).map(_.toString)
   }
 }
 
@@ -94,7 +85,10 @@ class StandAloneP2SAccel(
   // instantiate the actual P2SKernel and request generators
   val readRg = Module(new BlockStridedRqGen(mrp = myP.mrp, writeEn = false)).io
   val writeRg = Module(new BlockStridedRqGen(mrp = myP.mrp, writeEn = true)).io
-  val p2skrnl = Module(new P2SKernel_Slow(myP.p2sparams)).io
+  val p2skrnl = Module(
+    if(myP.fastMode) { new P2SKernel_Fast(myP.p2sparams) }
+    else { new P2SKernel_Slow(myP.p2sparams) }
+  ).io
   p2skrnl.actualPrecision := regCmd.actualPrecision
 
   // write completion detection logic
