@@ -62,9 +62,9 @@ int main()
   bool all_OK = true;
   p = initPlatform();
   dut = new EmuTestP2SAccel(p);
-  vector<size_t> test_colgroups {1, 2 ,4};
-  vector<size_t> test_rows {1};
-  vector<size_t> test_bits {2, 3};
+  vector<size_t> test_colgroups {1, 2, 3};
+  vector<size_t> test_rows {1, 2, 3};
+  vector<size_t> test_bits {1, 2, 3};
   // required to be able to compute golden vectors with gemmbitserial
   assert(P2S_ALIGN % 64 == 0);
   // TODO check that max bit precision is set to 8 for the HW,
@@ -77,6 +77,8 @@ int main()
         BitSerialMatrix bsm = BitSerialMatrix::alloc(
           bits, rows, cols, false, 1, P2S_ALIGN
         );
+        cout << "Now running test: ";
+        bsm.printSummary();
         // requested col count is already divisible by alignment
         // so #aligned cols should be the same as #cols
         assert(bsm.ncols_a == cols);
@@ -103,6 +105,13 @@ int main()
         p->copyBufferAccelToHost(hw_dst, hw_res, nbytes_bitser);
         int memcmpres = memcmp(hw_res, bsm.data, nbytes_bitser);
         cout << "memcmp result " << memcmpres << endl;
+        if(memcmpres != 0) {
+          cout << "expected: " << endl;
+          bsm.printHex();
+          cout << "found: " << endl;
+          memcpy(bsm.data, hw_res, nbytes_bitser);
+          bsm.printHex();
+        }
         all_OK &= (memcmpres == 0);
         delete [] bpm;
         delete [] hw_res;
@@ -114,6 +123,12 @@ int main()
 
   delete dut;
   deinitPlatform(p);
+
+  if(all_OK) {
+    cout << "All tests passed" << endl;
+  } else {
+    cout << "Some tests failed" << endl;
+  }
 
   return all_OK ? 0 : -1;
 }
