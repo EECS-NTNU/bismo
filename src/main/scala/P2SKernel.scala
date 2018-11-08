@@ -117,6 +117,73 @@ class P2SKernel_Slow(myP: P2SKernelParams) extends Module {
   }
 }
 
+
+class P2SKernel_Fast(myP: P2SKernelParams) extends Module {
+  val io = new Bundle {
+    // actual precision of the input bit-parallel matrix, <= maxInBw
+    // this field must be able to represent maxInBw, hence the +1
+    val actualPrecision = UInt(INPUT, width = log2Up(myP.maxInBw) + 1)
+    val inputStream = Decoupled(UInt(width = myP.maxInBw * myP.nInElemPerWord)).flip()
+    val outStream = Decoupled(UInt(width = myP.mrp.dataWidth))
+  }
+  val currentBit = Module(new Counter(log2Up(myP.maxInBw) + 1)).io
+  currentBit.nsteps := io.actualPrecision
+  currentBit.enable := Bool(false)
+
+  val currentGroup = Module(new Counter(log2Up(myP.maxInBw) + 1)).io
+  currentGroup.nsteps := UInt(myP.outStreamSize / myP.nInElemPerWord)
+  currentGroup.enable := Bool(false)
+
+  val bitpar_elems = Vec.tabulate(myP.nInElemPerWord) {
+    i: Int => io.inputStream.bits((i+1) * myP.maxInBw - 1, i * myP.maxInBw)
+  }
+
+  // write buffers for coalescing
+  val writeBuffers = Vec.fill(myP.maxInBw) {
+    Module(new SerialInParallelOut(parWidth = myP.outStreamSize, serWidth = myP.nInElemPerWord)).io
+  }
+
+  for(i <- 0 until myP.maxInBw) {
+    writeBuffers(i).shiftEn := io.inputStream.fire()
+    val currentBitData = Cat(bitpar_elems.map(_(i)).reverse)
+    writeBuffers(i).serIn := currentBitData
+  }
+
+  val currentWriteBuffer = writeBuffers(currentBit.current)
+
+  io.inputStream.ready := Bool(false)
+  io.outStream.valid := Bool(false)
+
+  io.outStream.bits := currentWriteBuffer.parOut
+
+  val sRead :: sWrite :: Nil = Enum(UInt(), 2)
+  val regState = Reg(init = UInt(sRead))
+
+  switch(regState) {
+    is(sRead) {
+      io.inputStream.ready := Bool(true)
+      when(io.inputStream.valid) {
+        currentGroup.enable := Bool(true)
+        when(currentGroup.full) {
+          regState := sWrite
+        } .otherwise {
+          regState := sRead
+        }
+      }
+    }
+
+    is(sWrite) {
+      io.outStream.valid := Bool(true)
+      when(io.outStream.ready) {
+        currentBit.enable := Bool(true)
+        when(currentBit.full) {
+          regState := sRead
+        }
+      }
+    }
+  }
+}
+
 class P2SKernel(myP: P2SKernelParams) extends Module {
   val io = new Bundle {
     // actual precision of the input bit-parallel matrix, <= maxInBw
