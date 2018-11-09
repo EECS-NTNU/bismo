@@ -69,6 +69,8 @@ VIVADO_IN_PATH := $(shell command -v vivado 2> /dev/null)
 ZSH_IN_PATH := $(shell command -v zsh 2> /dev/null)
 CPPTEST_SRC_DIR := $(TOP)/src/test/cosim
 HW_VERILOG := $(BUILD_DIR_VERILOG)/$(PLATFORM)Wrapper.v
+HW_TO_SYNTH ?= $(HW_VERILOG)
+HW_SW_DRIVER ?= BitSerialMatMulAccel.hpp
 PLATFORM_SCRIPT_DIR := $(TOP)/src/main/script/$(PLATFORM)/target
 
 # platform-specific Makefile include for bitfile synthesis
@@ -117,6 +119,9 @@ hw_driver: $(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp
 
 $(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp:
 	mkdir -p "$(BUILD_DIR_HWDRV)"; $(SBT) $(SBT_FLAGS) "runMain bismo.DriverMain $(PLATFORM) $(BUILD_DIR_HWDRV) $(TIDBITS_REGDRV_ROOT)"
+#driver for the p2s
+$(BUILD_DIR_HWDRV)/EmuTestP2SAccel.hpp:
+	mkdir -p "$(BUILD_DIR_HWDRV)";$(SBT) $(SBT_FLAGS) "runMain bismo.P2SDriverMain $(PLATFORM) $(BUILD_DIR_HWDRV) $(TIDBITS_REGDRV_ROOT)"
 
 # generate Verilog for the Chisel accelerator
 hw_verilog: $(HW_VERILOG)
@@ -126,12 +131,12 @@ $(HW_VERILOG):
 
 resmodel:
 	$(SBT) $(SBT_FLAGS) "runMain bismo.ResModelMain $(PLATFORM) $(BUILD_DIR_VERILOG) $M $K $N"
-
+#generate for p2s
 p2s:
 	$(SBT) $(SBT_FLAGS) "runMain bismo.P2SMain $(PLATFORM) $(BUILD_DIR_VERILOG) $M $N $O $F"
-
-p2ssw: EmuTestP2SAccel sw
-	cp -r $(BUILD_DIR)/EmuTestP2SAccel $(BUILD_DIR)/deploy
+#generate the drivers and copy into the deploy
+p2ssw: $(BUILD_DIR_HWDRV)/EmuTestP2SAccel.hpp
+	mkdir -p $(BUILD_DIR_DEPLOY); cp $(BUILD_DIR_HWDRV)/* $(BUILD_DIR_DEPLOY)/; cp -r $(CPPTEST_SRC_DIR)/EmuTestP2SAccel.cpp $(BUILD_DIR_DEPLOY)/; cp -r $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR_DEPLOY)/
 
 # copy scripts to the deployment folder
 script:

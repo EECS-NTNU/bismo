@@ -169,7 +169,7 @@ class StandAloneP2SAccel(
 
   io.memPort(0).memRdReq <> readRg.out
   // TODO Davide: why are these queues 256 elements? can they be smaller?
-  FPGAQueue(ReadRespFilter(io.memPort(0).memRdRsp), 256) <> p2skrnl.inputStream
+  FPGAQueue(ReadRespFilter(io.memPort(0).memRdRsp), 64) <> p2skrnl.inputStream
 
 /*****************************DEBUG PRINT********************************************/
   // add PrintableBundleStreamMonitor to print all mem rd req/rsp transactions
@@ -189,11 +189,11 @@ class StandAloneP2SAccel(
   writeRg.block_intra_step := regCmd.matrixColsGroup * regCmd.matrixRows * UInt(myP.dramWordBytes)
   writeRg.block_intra_count := regCmd.actualPrecision
 
-  val outAddrQueue = FPGAQueue(writeRg.out, 256)
+  val outAddrQueue = FPGAQueue(writeRg.out, 64)
   outAddrQueue <> io.memPort(0).memWrReq
   io.memPort(0).memWrReq.bits.numBytes := UInt(myP.dramWordBytes)
 
-  val dataQueue = FPGAQueue(p2skrnl.outStream, 256)
+  val dataQueue = FPGAQueue(p2skrnl.outStream, 64)
 
   dataQueue <> io.memPort(0).memWrDat
 }
