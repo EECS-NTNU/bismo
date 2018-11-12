@@ -36,24 +36,10 @@
 # Not all frequencies are supported due to how the PLLs work, the actual
 # set frequency will be displayed.
 
-CLK_BASE=/sys/devices/soc0/amba/f8007000.devcfg
-#CLK_BASE=/sys/devices/amba.1/f8007000.devcfg
-CLK_NAME="fclk0"
-#CLK_NAME="FPGA0"
-FCLK0_BASE=$CLK_BASE/fclk/$CLK_NAME
 
-
-if [ ! -f $FCLK0_BASE ]; then
-  echo $CLK_NAME > $CLK_BASE/fclk_export
-fi
-
-PREV_FREQ=$(cat $FCLK0_BASE/set_rate)
+CLK=$1
 echo "Prev frequency was $PREV_FREQ"
+PREV_FREQ="sudo python3 -c \"from pynq.ps import Clocks; import sys; sys.stdout.write(Clocks.fclk0_mhz)\""
 
-echo "$1""000000" > $FCLK0_BASE/round_rate
-ROUND_RES=$(cat $FCLK0_BASE/round_rate)
-set $ROUND_RES
-
-echo "Setting frequency to $3"
-
-echo $3 > $FCLK0_BASE/set_rate
+echo "Setting frequency to $CLK"
+sudo python3 -c "from pynq.ps import Clocks; Clocks.fclk0_mhz = $CLK; print(Clocks.fclk0_mhz)"
