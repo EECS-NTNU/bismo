@@ -19,7 +19,9 @@ using namespace gemmbitserial;
 #define P2S_ALIGN 64
 // TODO Yaman: consider exposing from generated header file
 #define MAX_ACCEL_BITWIDTH 8
-#define PLATFORM "PYNQZ1" //"U96" 
+#define PLATFORM "PYNQZ1" //"U96"
+#define AVG_BENCHMARK 1 
+#define REPETITIONS 30
 
 WrapperRegDriver * p;
 EmuTestP2SAccel * dut;
@@ -79,8 +81,16 @@ int main()
   auto working = std::chrono::system_clock::now();
   std::time_t working_time = std::chrono::system_clock::to_time_t(working);
   ofstream logger;
+
   logger.open ("benchmark.log");
-  logger << "Benchmarking results of P2S at" << std::ctime(&working_time) << "s\n";
+  logger << "Benchmarking results of P2S at" << std::ctime(&working_time) << "\n";
+  logger << "Bits\tRows\tColumns\t" << PLATFORM << "-PS[ns]\t"; 
+
+  if(AVG_BENCHMARK) {
+    logger << PLATFORM << "-PS-AVG-" << REPETITIONS << " [ns]\t"; 
+  }
+
+  logger << PLATFORM << "-PL[cc]\n";
 
   for(auto & colgroups : test_colgroups) {
     for(auto & rows : test_rows) {
@@ -89,7 +99,6 @@ int main()
         BitSerialMatrix bsm = BitSerialMatrix::alloc(
           bits, rows, cols, false, 1, P2S_ALIGN
         );
-        logger << "Bits\tRows\tColumns\t" << PLATFORM << "-PS[ns]\t" << PLATFORM << "-PL[cc]\n";
         logger << bits << "\t" << rows << "\t" << cols << "\t";
         cout << "[New test"<< endl << endl;
         cout << "Now running test: ";
@@ -101,13 +110,28 @@ int main()
         // generate a random matrix of desired shape and bits
         generateRandomVector(bits, rows * cols, bpm);
         // convert to bit-serial format in software
+
+
+        //BENCHMARKING
         auto start = std::chrono::system_clock::now();
         bsm.importRegular(bpm);
         auto end = std::chrono::system_clock::now();
-        double nseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(end -start).count();
-        std::time_t end_time = std::chrono::system_clock::to_time_t(end);
-        std::cout << "Software elapsed time: " << nseconds<< "ns\n";
+        double nseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+        std::cout << "Software elapsed time: " << nseconds << "ns\n";
         logger << nseconds << "\t";
+
+        if(AVG_BENCHMARK){
+          auto start_rep = std::chrono::system_clock::now();
+          for (int i = 0; i < REPETITIONS; i++)
+          {
+            bsm.importRegular(bpm);
+          }
+          auto end_rep = std::chrono::system_clock::now();
+          double nseconds_rep = std::chrono::duration_cast<std::chrono::nanoseconds>(end_rep - start_rep).count() / (double) REPETITIONS;
+          std::cout << "Software average elapsed time: " << nseconds_rep << "ns for" << REPETITIONS << "times \n";
+          logger << nseconds_rep << "\t";
+        }
+
         // now do the same in hardware
         // compute buffer sizes
         size_t nbytes_bitpar = rows * cols * sizeof(uint8_t);

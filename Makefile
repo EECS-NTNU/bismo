@@ -78,7 +78,7 @@ include platforms/$(PLATFORM).mk
 
 # note that all targets are phony targets, no proper dependency tracking
 .PHONY: hw_verilog emulib hw_driver hw_vivadoproj bitfile hw sw all rsync test
-.PHONY: resmodel characterize check_vivado pretty p2saccel
+.PHONY: resmodel characterize check_vivado pretty p2saccel benchmark
 
 check_vivado:
 ifndef VIVADO_IN_PATH
@@ -150,6 +150,8 @@ p2saccel:hw p2ssw script
 # use rsync to synchronize contents of the deployment folder onto the platform
 rsync:
 	rsync -avz $(BUILD_DIR_DEPLOY) $(URI)
+benchmark:
+	rsync $(URI)/deploy/benchmark.log $(TOP)/benchmark.log
 
 # remove everything that is built
 clean:
