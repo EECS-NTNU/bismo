@@ -7,7 +7,7 @@ VIVADO_SYNTH_SCRIPT := $(TOP)/src/main/script/$(PLATFORM)/host/synth-vivado-proj
 # create a new Vivado project
 hw_vivadoproj: $(BITFILE_PRJDIR)/bitfile_synth.xpr
 
-$(BITFILE_PRJDIR)/bitfile_synth.xpr: $(HW_TO_SYNTH)
+$(BITFILE_PRJDIR)/bitfile_synth.xpr: $(HW_VERILOG)
 	vivado -mode $(VIVADO_MODE) -source $(VIVADO_PROJ_SCRIPT) -tclargs $(TOP) $(HW_VERILOG) $(BITFILE_PRJNAME) $(BITFILE_PRJDIR) $(FREQ_MHZ)
 
 # launch Vivado in GUI mode with created project
@@ -25,5 +25,5 @@ hw: $(GEN_BITFILE_PATH)
 	mkdir -p $(BUILD_DIR_DEPLOY); cp $(GEN_BITFILE_PATH) $(BUILD_DIR_DEPLOY)/bismo.bit; cp $(BITFILE_PRJDIR)/bismo.tcl $(BUILD_DIR_DEPLOY)/bismo.tcl
 
 # copy all user sources and driver sources to the deployment folder
-sw: $(BUILD_DIR_HWDRV)/$(HW_SW_DRIVER)
+sw: $(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp
 	mkdir -p $(BUILD_DIR_DEPLOY); cp $(BUILD_DIR_HWDRV)/* $(BUILD_DIR_DEPLOY)/; cp -r $(APP_SRC_DIR)/* $(BUILD_DIR_DEPLOY)/
