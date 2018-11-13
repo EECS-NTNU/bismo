@@ -56,6 +56,7 @@ TIDBITS_REGDRV_ROOT ?= $(TIDBITS_ROOT)/src/main/resources/cpp/platform-wrapper-r
 export OHMYXILINX := $(TOP)/oh-my-xilinx
 export PATH := $(PATH):$(OHMYXILINX)
 BUILD_DIR ?= $(TOP)/build/$(OVERLAY_CFG)/$(PLATFORM)
+BUILD_DIR_CLEAN ?= $(TOP)/build/$(OVERLAY_CFG)
 BUILD_DIR_CHARACTERIZE := $(BUILD_DIR)/characterize
 BUILD_DIR_DEPLOY := $(BUILD_DIR)/deploy
 BUILD_DIR_VERILOG := $(BUILD_DIR)/hw/verilog
@@ -155,7 +156,7 @@ benchmark:
 
 # remove everything that is built
 clean:
-	rm -rf $(BUILD_DIR)/..
+	rm -rf $(BUILD_DIR_CLEAN)
 # remove everthing for that platform
 cleanplat:
 	rm -rf $(BUILD_DIR)

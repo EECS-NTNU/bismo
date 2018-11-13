@@ -77,7 +77,8 @@ object VivadoSynth {
     "PYNQZ1" -> "xc7z020clg400-1",
     "ZC706" -> "xc7z045ffg900-2",
     "TULKU115" -> "xcku115-flvb2104-2-e",
-    "VU9P" -> "xcvu9p-flgb2104-2-i")
+    "VU9P" -> "xcvu9p-flgb2104-2-i",
+    "PYNQU96" -> "xczu3eg-sbva484-1-i")
   // given an instantiation function instFxn that generates a Chisel module
   // from parameters p, return the FPGA synthesis results
   def characterizePoint[Tp <: PrintableParam, Tm <: Module](
