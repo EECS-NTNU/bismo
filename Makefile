@@ -55,7 +55,7 @@ TIDBITS_ROOT ?= $(TOP)/fpga-tidbits
 TIDBITS_REGDRV_ROOT ?= $(TIDBITS_ROOT)/src/main/resources/cpp/platform-wrapper-regdriver
 export OHMYXILINX := $(TOP)/oh-my-xilinx
 export PATH := $(PATH):$(OHMYXILINX)
-BUILD_DIR ?= $(TOP)/build/$(OVERLAY_CFG)
+BUILD_DIR ?= $(TOP)/build/$(OVERLAY_CFG)/$(PLATFORM)
 BUILD_DIR_CHARACTERIZE := $(BUILD_DIR)/characterize
 BUILD_DIR_DEPLOY := $(BUILD_DIR)/deploy
 BUILD_DIR_VERILOG := $(BUILD_DIR)/hw/verilog
@@ -151,12 +151,14 @@ p2saccel:hw p2ssw script
 rsync:
 	rsync -avz $(BUILD_DIR_DEPLOY) $(URI)
 benchmark:
-	rsync $(URI)/deploy/benchmark.log $(TOP)/benchmark.log
+	rsync $(URI)/deploy/benchmark* $(TOP)/
 
 # remove everything that is built
 clean:
+	rm -rf $(BUILD_DIR)/..
+# remove everthing for that platform
+cleanplat:
 	rm -rf $(BUILD_DIR)
-
 # download scalariform
 scalariform.jar:
 	wget https://github.com/scala-ide/scalariform/releases/download/0.2.6/scalariform.jar

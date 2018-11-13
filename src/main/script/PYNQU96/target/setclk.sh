@@ -37,9 +37,12 @@
 # set frequency will be displayed.
 
 
-CLK=$1
-echo "Prev frequency was $PREV_FREQ"
-PREV_FREQ="sudo python3 -c \"from pynq.ps import Clocks; import sys; sys.stdout.write(Clocks.fclk0_mhz)\""
+CLK_FREQ=$1
+CLK_NAME = fclk2_mhz
 
-echo "Setting frequency to $CLK"
-sudo python3 -c "from pynq.ps import Clocks; Clocks.fclk0_mhz = $CLK; print(Clocks.fclk0_mhz)"
+echo "Prev frequency was $PREV_FREQ"
+PREV_FREQ=sudo python3 -c "from pynq.ps import Clocks; import sys; sys.stdout.write(str(Clocks.$CLK_NAME))"
+echo $PREV_FREQ
+
+echo "Setting frequency to $CLK_FREQ"
+sudo python3 -c "from pynq.ps import Clocks; Clocks.$CLK_NAME = $CLK_FREQ; print(Clocks.$CLK_NAME)"
