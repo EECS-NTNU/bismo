@@ -22,6 +22,7 @@ class EmuTestP2SAccel(
     val cmdqueue = Decoupled(new P2SCmdIO(myP.p2sparams)).flip
     val ackqueue = Decoupled(UInt(width = 32))
     val momRd = new StreamMonitorOutIF()
+    val momWrRq = new StreamMonitorOutIF()
     val momWr = new StreamMonitorOutIF()
     val momRdRq = new StreamMonitorOutIF()
   }
@@ -49,10 +50,10 @@ class EmuTestP2SAccel(
   // enqueue/dequeue from the CPU
   cmdQ.enq.valid := io.cmdqueue.valid & !Reg(next = io.cmdqueue.valid)
   ackQ.deq.ready := io.ackqueue.ready & !Reg(next = io.ackqueue.ready)
-  io.momRd := StreamMonitor(io.memPort(0).memRdRsp,io.enable)
-  io.momRdRq := StreamMonitor(io.memPort(0).memRdReq,io.enable)
-  io.momWr := StreamMonitor(io.memPort(0).memWrRsp,io.enable)
-
+  io.momRd := StreamMonitor(io.memPort(0).memRdRsp, io.enable)
+  io.momRdRq := StreamMonitor(io.memPort(0).memRdReq, io.enable)
+  io.momWr := StreamMonitor(io.memPort(0).memWrRsp, io.enable)
+  io.momWrRq := StreamMonitor(io.memPort(0).memWrReq, io.enable)
 
   io.signature := makeDefaultSignature()
 }

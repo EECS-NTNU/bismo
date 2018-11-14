@@ -14,7 +14,7 @@ import Chisel._
 class BlackBoxCompressorParams(
   val N: Int, // bitwidth of compressor inputs
   val D: Int, // number of pipeline registers, subject to
-  val WD: Int =  1, // input operand 1 precision
+  val WD: Int = 1, // input operand 1 precision
   val WC: Int = 1 // input operand 2 precision
 // compressor tree depth. set to -1 for maximum.
 ) extends PrintableParam {

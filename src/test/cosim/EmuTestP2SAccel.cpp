@@ -77,9 +77,9 @@ int main(int argc, char * argv [])
   bool all_OK = true;
   p = initPlatform();
   dut = new EmuTestP2SAccel(p);
-  vector<size_t> test_colgroups {1};//, 2, 3};//, 8, 9, 10, 18, 20};
-  vector<size_t> test_rows {1};//, 2, 3};//, 4, 5, 6, 7, 8, 9, 10, 11, 12, 20};
-  vector<size_t> test_bits {1};//, 2, 3, 4, 5, 6, 7};
+  vector<size_t> test_colgroups {20};//, 2, 3};//, 8, 9, 10, 18, 20};
+  vector<size_t> test_rows {20};//, 2, 3};//, 4, 5, 6, 7, 8, 9, 10, 11, 12, 20};
+  vector<size_t> test_bits {7};//, 2, 3, 4, 5, 6, 7};
   // required to be able to compute golden vectors with gemmbitserial
   assert(P2S_ALIGN % 64 == 0);
   // TODO check that max bit precision is set to 8 for the HW,
@@ -167,6 +167,11 @@ int main(int argc, char * argv [])
         cout << "Write respons ch active cc: " << dut->get_momWr_activeCycles() << endl;
         cout << "Write respons ch noVbutR cc: " << dut->get_momWr_noValidButReady() << endl;
         cout << "Write respons ch noRbutV cc: " << dut->get_momWr_noReadyButValid() << endl;
+        cout << endl;
+        cout << "Write request ch tot cc: " << dut->get_momWrRq_totalCycles() << endl;
+        cout << "Write request ch active cc: " << dut->get_momWrRq_activeCycles() << endl;
+        cout << "Write request ch noVbutR cc: " << dut->get_momWrRq_noValidButReady() << endl;
+        cout << "Write request ch noRbutV cc: " << dut->get_momWrRq_noReadyButValid() << endl;
 
 
         logger << cycles << "\t" << cycles/frequency*1000 << "\t" << PLATFORM << "\n";
