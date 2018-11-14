@@ -257,8 +257,10 @@ object CharacterizeMain {
     return for {
       n ← for (i ← 8 to 8) yield 1 << i
       d ← 5 to 5
+      aw <- Seq(1, 2, 4, 8, 16)
+      bw <- aw
     } yield new BlackBoxCompressorParams(
-      N = n, D = d)
+      N = n, D = d, WD = aw, WC = bw)
   }
   val instFxn_BlackBoxCompressor = { p: BlackBoxCompressorParams ⇒ Module(new BlackBoxCompressor(p)) }
 

@@ -13,7 +13,9 @@ import Chisel._
 
 class BlackBoxCompressorParams(
   val N: Int, // bitwidth of compressor inputs
-  val D: Int // number of pipeline registers, subject to
+  val D: Int, // number of pipeline registers, subject to
+  val WD: Int =  1, // input operand 1 precision
+  val WC: Int = 1 // input operand 2 precision
 // compressor tree depth. set to -1 for maximum.
 ) extends PrintableParam {
   def headersAsList(): List[String] = {
@@ -50,7 +52,7 @@ class BlackBoxCompressor(p: BlackBoxCompressorParams) extends Module {
     val r = Bits(OUTPUT, width = outputbits)
   }
   val inst = Module(new mac(
-    BB_WA = outputbits, BB_N = p.N, BB_WD = 1, BB_WC = 1,
+    BB_WA = outputbits, BB_N = p.N, BB_WD = p.WD, BB_WC = p.WC,
     BB_D = p.getLatency())).io
   inst.a := UInt(0)
   inst <> io

@@ -38,7 +38,7 @@
 
 
 CLK_FREQ=$1
-CLK_NAME = fclk2_mhz
+CLK_NAME=fclk2_mhz
 
 echo "Prev frequency was $PREV_FREQ"
 PREV_FREQ=sudo python3 -c "from pynq.ps import Clocks; import sys; sys.stdout.write(str(Clocks.$CLK_NAME))"
