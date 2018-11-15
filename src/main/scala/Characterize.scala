@@ -107,17 +107,16 @@ object VivadoSynth {
       val dsps_fields = result_lines(2).split('=').map(_.trim)
       val bram_fields = result_lines(3).split('=').map(_.trim)
       val slack_fields = result_lines(4).split('=').map(_.trim)
-
-      val slack_ns: Double = slack_fields(1).toDouble
+      val slack_ns: Double = if(slack_fields.length <= 1) 0 else slack_fields(1).toDouble
       val req_ns: Double = 2.0 // TODO should pull from vivadocompile.xdc
-      val fmax_mhz: Double = 1000.0 / (req_ns - slack_ns)
+      val fmax_mhz: Double = if(slack_fields.length <= 1) 0 else 1000.0 / (req_ns - slack_ns)
 
       ret = new CharacterizeResult(
         lut = luts_fields(1).toInt, reg = regs_fields(1).toInt,
         bram = bram_fields(1).toInt,
         dsp = dsps_fields(1).toInt, target_ns = req_ns, fmax_mhz = fmax_mhz)
     } catch {
-      case _: Throwable ⇒ println("Characterization ERROR: something went wrong. Synthesis failed, probably out of resources")
+      case error : Throwable ⇒ println("Characterization ERROR: something went wrong. Synthesis failed, probably out of resources")
     }
 
     println("Results for parameters:")
