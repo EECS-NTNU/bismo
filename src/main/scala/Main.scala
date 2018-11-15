@@ -255,11 +255,12 @@ object CharacterizeMain {
 
   def makeParamSpace_BlackBoxCompressor(): Seq[BlackBoxCompressorParams] = {
     return for {
-      n ← for (i ← 8 to 8) yield 1 << i
-      d ← 5 to 5
+      n ← for (i ← 2 to 8) yield 1 << i
+      d ← 0 to 5
       aw <- Seq(1, 2, 4, 8, 16)
+      bw <- Seq(1, 2, 4, 8, 16)
     } yield new BlackBoxCompressorParams(
-      N = n, D = d, WD = aw, WC = aw)
+      N = n, D = d, WD = aw, WC = bw)
   }
   val instFxn_BlackBoxCompressor = { p: BlackBoxCompressorParams ⇒ Module(new BlackBoxCompressor(p)) }
 
