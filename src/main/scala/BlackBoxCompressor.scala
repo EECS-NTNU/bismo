@@ -19,11 +19,11 @@ class BlackBoxCompressorParams(
 // compressor tree depth. set to -1 for maximum.
 ) extends PrintableParam {
   def headersAsList(): List[String] = {
-    return List("Dk", "BBCompressorLatency")
+    return List("Dk", "WA", "WB", "BBCompressorLatency")
   }
 
   def contentAsList(): List[String] = {
-    return List(N, getLatency()).map(_.toString)
+    return List(N, WD, WC, getLatency()).map(_.toString)
   }
 
   // current compressor tree depth generated for a few values of N.
