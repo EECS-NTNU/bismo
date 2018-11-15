@@ -77,9 +77,9 @@ int main(int argc, char * argv [])
   bool all_OK = true;
   p = initPlatform();
   dut = new EmuTestP2SAccel(p);
-  vector<size_t> test_colgroups {20};//, 2, 3};//, 8, 9, 10, 18, 20};
-  vector<size_t> test_rows {20};//, 2, 3};//, 4, 5, 6, 7, 8, 9, 10, 11, 12, 20};
-  vector<size_t> test_bits {7};//, 2, 3, 4, 5, 6, 7};
+  vector<size_t> test_colgroups {1 2, 3, 8, 9, 10, 18, 20};
+  vector<size_t> test_rows {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 20};
+  vector<size_t> test_bits {1, 2, 3, 4, 5, 6, 7};
   // required to be able to compute golden vectors with gemmbitserial
   assert(P2S_ALIGN % 64 == 0);
   // TODO check that max bit precision is set to 8 for the HW,
@@ -124,7 +124,7 @@ int main(int argc, char * argv [])
         auto end = std::chrono::system_clock::now();
         double nseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
         std::cout << "Software elapsed time: " << nseconds << "ns\n";
-        logger << nseconds << "\t";
+        logger << std::fixed << nseconds << std::scientific << "\t";
 
         if(AVG_BENCHMARK){
           auto start_rep = std::chrono::system_clock::now();
@@ -134,8 +134,8 @@ int main(int argc, char * argv [])
           }
           auto end_rep = std::chrono::system_clock::now();
           double nseconds_rep = std::chrono::duration_cast<std::chrono::nanoseconds>(end_rep - start_rep).count() / (double) REPETITIONS;
-          std::cout << "Software average elapsed time: " << nseconds_rep << "ns for" << REPETITIONS << "times \n";
-          logger << nseconds_rep << "\t";
+          std::cout << "Software average elapsed time: " << std::fixed << nseconds_rep << std::scientific << "ns for" << REPETITIONS << "times \n";
+          logger << std::fixed << nseconds_rep << std::scientific << "\t";
         }
 
         // now do the same in hardware
@@ -153,25 +153,25 @@ int main(int argc, char * argv [])
         uint32_t cycles = exec_and_wait();
         cout << "Took " << cycles << " clock cycles" << endl;
 
-        cout << "Read respons ch tot cc: " << dut->get_momRd_totalCycles() << endl;
-        cout << "Read respons ch active cc: " << dut->get_momRd_activeCycles() << endl;
-        cout << "Read respons ch noVbutR cc: " << dut->get_momRd_noValidButReady() << endl;
-        cout << "Read respons ch noRbutV cc: " << dut->get_momRd_noReadyButValid() << endl;
-        cout << endl;
-        cout << "Read request ch tot cc: " << dut->get_momRdRq_totalCycles() << endl;
-        cout << "Read request ch active cc: " << dut->get_momRdRq_activeCycles() << endl;
-        cout << "Read request ch noVbutR cc: " << dut->get_momRdRq_noValidButReady() << endl;
-        cout << "Read request ch noRbutV cc: " << dut->get_momRdRq_noReadyButValid() << endl;
-        cout << endl;
-        cout << "Write respons ch tot cc: " << dut->get_momWr_totalCycles() << endl;
-        cout << "Write respons ch active cc: " << dut->get_momWr_activeCycles() << endl;
-        cout << "Write respons ch noVbutR cc: " << dut->get_momWr_noValidButReady() << endl;
-        cout << "Write respons ch noRbutV cc: " << dut->get_momWr_noReadyButValid() << endl;
-        cout << endl;
-        cout << "Write request ch tot cc: " << dut->get_momWrRq_totalCycles() << endl;
-        cout << "Write request ch active cc: " << dut->get_momWrRq_activeCycles() << endl;
-        cout << "Write request ch noVbutR cc: " << dut->get_momWrRq_noValidButReady() << endl;
-        cout << "Write request ch noRbutV cc: " << dut->get_momWrRq_noReadyButValid() << endl;
+        // cout << "Read respons ch tot cc: " << dut->get_momRd_totalCycles() << endl;
+        // cout << "Read respons ch active cc: " << dut->get_momRd_activeCycles() << endl;
+        // cout << "Read respons ch noVbutR cc: " << dut->get_momRd_noValidButReady() << endl;
+        // cout << "Read respons ch noRbutV cc: " << dut->get_momRd_noReadyButValid() << endl;
+        // cout << endl;
+        // cout << "Read request ch tot cc: " << dut->get_momRdRq_totalCycles() << endl;
+        // cout << "Read request ch active cc: " << dut->get_momRdRq_activeCycles() << endl;
+        // cout << "Read request ch noVbutR cc: " << dut->get_momRdRq_noValidButReady() << endl;
+        // cout << "Read request ch noRbutV cc: " << dut->get_momRdRq_noReadyButValid() << endl;
+        // cout << endl;
+        // cout << "Write respons ch tot cc: " << dut->get_momWr_totalCycles() << endl;
+        // cout << "Write respons ch active cc: " << dut->get_momWr_activeCycles() << endl;
+        // cout << "Write respons ch noVbutR cc: " << dut->get_momWr_noValidButReady() << endl;
+        // cout << "Write respons ch noRbutV cc: " << dut->get_momWr_noReadyButValid() << endl;
+        // cout << endl;
+        // cout << "Write request ch tot cc: " << dut->get_momWrRq_totalCycles() << endl;
+        // cout << "Write request ch active cc: " << dut->get_momWrRq_activeCycles() << endl;
+        // cout << "Write request ch noVbutR cc: " << dut->get_momWrRq_noValidButReady() << endl;
+        // cout << "Write request ch noRbutV cc: " << dut->get_momWrRq_noReadyButValid() << endl;
 
 
         logger << cycles << "\t" << cycles/frequency*1000 << "\t" << PLATFORM << "\n";
@@ -210,7 +210,7 @@ int main(int argc, char * argv [])
   double seconds_main = std::chrono::duration<double>(end_main - start_main).count();
   std::time_t start_main_time = std::chrono::system_clock::to_time_t(start_main);
   std::time_t end_main_time = std::chrono::system_clock::to_time_t(end_main);
-  std::cout << "Exect started: " << std::ctime(&start_main_time) << "ends  at "<< std::ctime(&end_main_time);
+  std::cout << "Execution started: " << std::ctime(&start_main_time) << "ends  at "<< std::ctime(&end_main_time);
   std::cout << "\nSoftware elapsed time: " << seconds_main << "s\n";
   return all_OK ? 0 : -1;
 }
