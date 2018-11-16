@@ -95,3 +95,22 @@ class mac(
     io.r := ShiftRegister(PopCount(io.c & io.d), BB_D)
   }
 }
+
+
+// Chisel Module wrapper around generated compressor
+class CharacterizationBBCompressor(p: BlackBoxCompressorParams) extends Module {
+  def outputbits = log2Up(p.N) + 1
+  val io = new Bundle {
+    val c = Bits(INPUT, width = p.N)
+    val d = Bits(INPUT, width = p.N)
+    val r = Bits(OUTPUT, width = outputbits)
+  }
+  val inst = Module(new BlackBoxCompressor(p)).io
+
+  val cReg = Reg(next=io.c)
+  inst.c := cReg
+  val dReg = Reg(next=io.d)
+  inst.d := dReg
+  val rReg = Reg(next=inst.r)
+  io.r := rReg
+}

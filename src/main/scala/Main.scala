@@ -262,7 +262,10 @@ object CharacterizeMain {
     } yield new BlackBoxCompressorParams(
       N = n, D = d, WD = aw, WC = bw)
   }
+
   val instFxn_BlackBoxCompressor = { p: BlackBoxCompressorParams ⇒ Module(new BlackBoxCompressor(p)) }
+
+  val instFxn_BBC = { p: BlackBoxCompressorParams ⇒ Module(new CharacterizationBBCompressor(p)) }
 
   def makeParamSpace_P2SAccel(): Seq[StandAloneP2SParams] = {
     return for {
@@ -298,6 +301,8 @@ object CharacterizeMain {
       VivadoSynth.characterizeSpace(makeParamSpace_FetchStage(), instFxn_FetchStage, chPath, chLog, fpgaPart)
     } else if (chName == "CharacterizeBBCompressor") {
       VivadoSynth.characterizeSpace(makeParamSpace_BlackBoxCompressor(), instFxn_BlackBoxCompressor, chPath, chLog, fpgaPart)
+    }else if (chName == "CharacterizeBBC"){
+      VivadoSynth.characterizeSpace(makeParamSpace_BlackBoxCompressor(), instFxn_BBC, chPath, chLog, fpgaPart)
     } else if (chName == "CharacterizeP2SAccel") {
       VivadoSynth.characterizeSpace(makeParamSpace_P2SAccel(), instFxn_P2SAccel, chPath, chLog, fpgaPart)
     } else {
