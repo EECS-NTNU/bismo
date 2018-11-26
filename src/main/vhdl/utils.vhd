@@ -154,8 +154,8 @@ package body utils is
 
   function "+"(av, bv : natural_vector) return natural_vector is
     constant N   : natural                      := MAXIMUM(av'length, bv'length);
-    constant aa  : natural_vector(N-1 downto 0) := (N-1 downto av'length => 0) & av;
-    constant bb  : natural_vector(N-1 downto 0) := (N-1 downto bv'length => 0) & bv;
+    constant aa  : natural_vector(N   downto 0) := (N downto av'length => 0) & av;
+    constant bb  : natural_vector(N   downto 0) := (N downto bv'length => 0) & bv;
     variable res : natural_vector(N-1 downto 0);
   begin
     for i in res'range loop

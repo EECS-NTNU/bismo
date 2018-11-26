@@ -232,11 +232,11 @@ package body counters is
     end function pop;
 
     function "<="(av, bv : natural_vector) return boolean is
-      constant N   : natural                      := MAXIMUM(av'length, bv'length);
-      constant aa  : natural_vector(N-1 downto 0) := (N-1 downto av'length => 0) & av;
-      constant bb  : natural_vector(N-1 downto 0) := (N-1 downto bv'length => 0) & bv;
+      constant N   : natural                    := MAXIMUM(av'length, bv'length);
+      constant aa  : natural_vector(N downto 0) := (N downto av'length => 0) & av;
+      constant bb  : natural_vector(N downto 0) := (N downto bv'length => 0) & bv;
     begin
-      for i in aa'range loop
+      for i in N-1 downto 0 loop
         if aa(i) > bb(i) then
           return  false;
         end if;
@@ -393,7 +393,7 @@ package body counters is
       tn := count(res_buf(0 to res_ptr-1), -cnt.tag-1);
       if tn /= 0 then
         inlen := inlen + tn * cnt.luts;
-        write(l, tn, RIGHT, 3);
+        write(l, integer'image(tn), RIGHT, 3);
         write(l, string'("x "));
         write(l, to_string(cnt), RIGHT, 22);
         writeline(output, l);
@@ -405,7 +405,7 @@ package body counters is
     write(l, to_string(primaries)&HT&" -> "&integer'image(sum(primaries)));
     writeline(output, l);
     write(l, string'("Total Levels:"));
-    write(l, levels, RIGHT, 3);
+    write(l, integer'image(levels), RIGHT, 3);
     writeline(output, l);
     write(l, string'("Result: "));
     write(l, to_string(height_cur)&HT&" -> "&integer'image(sum(height_cur)));

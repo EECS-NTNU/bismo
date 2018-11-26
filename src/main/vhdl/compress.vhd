@@ -265,22 +265,36 @@ begin
       genBuf : if TAG = STAGE_BUF generate
         constant L : positive := count(S(0 to i), -STAGE_BUF-1);
         constant N : positive := S(i+1); 
+	constant R : boolean := (L*DEPTH/D) > ((L-1)*DEPTH/D);
       begin
           genStage: for j in 1 to N generate
-            genReg: if (L*DEPTH/D) > ((L-1)*DEPTH/D) generate
-              process(clk)
-              begin
-                if rising_edge(clk) then
-                    if rst = '1' then
-                        nn(S(i+2*j + 1 )) <= '0';
-                     else
-                        nn(S(i+2*j + 1 )) <= nn(S(i+2*j));
-                     end if ;
-                end if;
-              end process;
+            genReg: if R generate
+-- !!! The Vivado synthesis is running extremely long for a behavioral
+--	description of these registers within the compressor. It really hurts
+--	badly for DEPTH > 1 and D > 5.
+--     Things turn a lot nicer if we just instantiate the register. This
+--	is a very frustrating tool deficiency if not even a bug.
+--              process(clk)
+--              begin
+--                if rising_edge(clk) then
+--                  if rst = '1' then
+--                    nn(S(i+2*j+1)) <= '0';
+--                  else
+--                    nn(S(i+2*j+1)) <= nn(S(i+2*j));
+--                  end if ;
+--                end if;
+--              end process;
+		ff : FDRE
+		  port map (
+		    Q  => nn(S(i+2*j+1)),
+		    C  => clk,
+		    CE => '1',
+		    R  => rst,
+		    D  => nn(S(i+2*j))
+		  );
             end generate genReg;
-            genComb: if (L*DEPTH/D) = ((L-1)*DEPTH/D) generate 
-              nn(S(i+2*j + 1 )) <= nn(S(i+2*j));
+            genComb: if not R generate 
+              nn(S(i+2*j+1)) <= nn(S(i+2*j));
             end generate genComb;
                
           end generate genStage;
