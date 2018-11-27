@@ -255,10 +255,10 @@ object CharacterizeMain {
 
   def makeParamSpace_BlackBoxCompressor(): Seq[BlackBoxCompressorParams] = {
     return for {
-      n ← for (i ← 2 to 8) yield 1 << i
-      d ← 0 to 5
-      aw <- Seq(1, 2, 4, 8, 16)
-      bw <- Seq(1, 2, 4, 8, 16)
+      n ← for (i ← 6 to 9) yield 1 << i
+      d ← 0 to 0
+      aw <- Seq(1, 2, 3)// 2, 4, 8, 16)
+      bw <- Seq(1, 2, 3)// 2, 4, 8, 16)
     } yield new BlackBoxCompressorParams(
       N = n, D = d, WD = aw, WC = bw)
   }
@@ -269,7 +269,7 @@ object CharacterizeMain {
 
   def makeParamSpace_P2SAccel(): Seq[StandAloneP2SParams] = {
     return for {
-      mbw ← Seq(8, 4, 8, 16, 32, 64)
+      mbw ← Seq(4, 8, 16, 32, 64)
       nxw ← Seq(64 / mbw, 128 / mbw)
       fast ← Seq(false, true)
     } yield new StandAloneP2SParams(
