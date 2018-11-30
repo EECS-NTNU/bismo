@@ -255,9 +255,9 @@ object CharacterizeMain {
 
   def makeParamSpace_BlackBoxCompressor(): Seq[BlackBoxCompressorParams] = {
     return for {
-      n ← for (i ← 6 to 9) yield 1 << i
+      n ← for (i ← 6 to 8) yield 1 << i
       d ← 0 to 0
-      aw <- Seq(1, 2, 3)// 2, 4, 8, 16)
+      aw <- Seq(2, 3)// 2, 4, 8, 16)
       bw <- Seq(1, 2, 3)// 2, 4, 8, 16)
     } yield new BlackBoxCompressorParams(
       N = n, D = d, WD = aw, WC = bw)
