@@ -94,6 +94,7 @@ class BitSerialMatMulParams(
       "dpaLHS", "dpaRHS", "dpaCommon", "lhsMem", "rhsMem", "DRAM_rd", "DRAM_wr",
       "noShifter", "noNegate", "extraRegDPA", "extraRegDPU", "extraRegPC", "thrMem", "MaxQuantDim", "QuantFolding", "StaticSerialization"
     )
+  }
   def estimateResources() = {
     import Math.ceil
     val a_dpu = 2.04
