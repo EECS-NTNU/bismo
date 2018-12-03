@@ -85,9 +85,11 @@ class BitSerialMatMulParams(
   val noNegate: Boolean = false,
   val thrEntriesPerMem: Int = 128,
   val maxQuantDim : Int = 4,
-  val quantFolding: Int = 0,
+  val quantFolding: Int = 15,
   val staticSerial: Boolean = false,
-  val debugLevel: Int = 4 // Debug Levels: 0 info, 1 debug, 2 moderate, 3 failure 
+  val p2sAccelParams: StandAloneP2SParams = new StandAloneP2SParams(maxInBw = 8, nInElemPerWord = 8, outStreamSize = 64,
+    fastMode = true, mrp = PYNQZ1Params.toMemReqParams())
+  //val debugLevel: Int = 4 // Debug Levels: 0 info, 1 debug, 2 moderate, 3 failure 
 ) extends PrintableParam {
   def headersAsList(): List[String] = {
     return List(
@@ -211,7 +213,7 @@ class BitSerialMatMulPerf(myP: BitSerialMatMulParams) extends Bundle {
 
 class BitSerialMatMulAccel(
   val myP: BitSerialMatMulParams, p: PlatformWrapperParams) extends GenericAccelerator(p) {
-  val numMemPorts = 1
+  val numMemPorts = 2
   val io = new GenericAcceleratorIF(numMemPorts, p) {
     // enable/disable execution for each stage
     val fetch_enable = Bool(INPUT)
@@ -244,8 +246,36 @@ class BitSerialMatMulAccel(
     val inMemory_thr_addr = UInt(INPUT, width = log2Up(myP.thrEntriesPerMem))
     val inMemory_thr_data = UInt(INPUT, width = myP.accWidth)
     val inMemory_thr_write = Bool(INPUT)
+
+    val enable = Bool(INPUT)
+    val cmdqueue = Decoupled(new P2SCmdIO(myP.p2sAccelParams.p2sparams)).flip
+    val ackqueue = Decoupled(UInt(width = 32))
   }
 
+  /*** Parallel to Serial Accelerator***/
+  val p2saccel = Module(new StandAloneP2SAccel(myP.p2sAccelParams, p)).io
+  io.memPort(1) <> p2saccel.memPort(0)
+  // instantiate and connect cmd and ack queues
+  val cmdQ = Module(new FPGAQueue(io.cmdqueue.bits, 16)).io
+  val ackQ = Module(new FPGAQueue(io.ackqueue.bits, 16)).io
+  io.cmdqueue <> cmdQ.enq
+  cmdQ.deq <> p2saccel.p2sCmd
+  p2saccel.ack <> ackQ.enq
+  ackQ.deq <> io.ackqueue
+
+  // for the accelerator-facing side of the cmd and ack queues,
+  // only enable transactions if io.enable is set
+  p2saccel.p2sCmd.valid := cmdQ.deq.valid & io.enable
+  cmdQ.deq.ready := p2saccel.p2sCmd.ready & io.enable
+  p2saccel.ack.ready := ackQ.enq.ready & io.enable
+  ackQ.enq.valid := p2saccel.ack.valid & io.enable
+
+  // for the CPU-facing side of the cmd and ack queues,
+  // rewire valid/ready with pulse generators to ensure single
+  // enqueue/dequeue from the CPU
+  cmdQ.enq.valid := io.cmdqueue.valid & !Reg(next = io.cmdqueue.valid)
+  ackQ.deq.ready := io.ackqueue.ready & !Reg(next = io.ackqueue.ready)
+  /*** End p2s***/
   io.hw := myP.asHWCfgBundle(32)
   // instantiate accelerator stages
   val fetchStage = Module(new FetchStage(myP.fetchStageParams)).io
