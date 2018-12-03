@@ -228,7 +228,7 @@ class ThrStage(val myP: ThrStageParams) extends Module {
   for(i <- 0 until myP.getUnrollRows())
     for(j <- 0 until myP.getUnrollCols()){
       io.res.req(i)(j).writeEn := thu.outputMatrix.valid
-      io.res.req(i)(j).addr := UInt(0)
+      io.res.req(i)(j).addr := io.ctrl.writeAddr
       io.res.req(i)(j).writeData := thu.outputMatrix.bits.o(i)(j)//UInt(0, width = myP.getResBitWidth() * myP.getCols()) | (thu.outputMatrix.bits.o(i)(j) << j)
     }
 

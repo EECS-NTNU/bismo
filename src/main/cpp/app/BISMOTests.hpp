@@ -133,6 +133,7 @@ bool test(
   generateRandomVector(nbits_rhs, nrows_rhs*ncols, rhs);
   generateRandomVector(4, nrows_lhs * ncols_ths, ths_bs);
   printmatrix(ths_bs, nrows_lhs, ncols_ths );
+  // printmatrix(lhs, nrows_lhs, ncols );
 
 /**************************** THS transfer ****************************/
   
@@ -162,12 +163,49 @@ bool test(
   );
   ctx.lhs.importRegular(lhs);
   ctx.rhs.importRegular(rhs);
+  // ctx.lhs.printHex();
+  // ctx.rhs.printHex();
+  // cout << "GNOOOOOOOOOOOOO" << endl;
   gemmBitSerial(ctx);
   int32_t * accel_res = new int32_t[nrows_lhs*nrows_rhs];
 
   BitSerialMatMulExecutor * runner = new BitSerialMatMulExecutor(
     ctx, acc, platform
   );
+
+  /**************************** P2S ****************************/
+  size_t nbytes_bitser_lhs = (nbits_lhs * nrows_lhs * ncols) / 8;
+  size_t nbytes_bitser_rhs = (nbits_rhs * nrows_rhs * ncols) / 8;
+  size_t nbytes_bitpar_lhs = nrows_lhs * ncols * sizeof(uint8_t);
+  size_t nbytes_bitpar_rhs = nrows_rhs * ncols * sizeof(uint8_t);
+
+  void * hw_src = platform->allocAccelBuffer(nbytes_bitpar_lhs);
+  void * hw_dst = platform->allocAccelBuffer(nbytes_bitser_lhs);
+  platform->copyBufferHostToAccel(lhs, hw_src, nbytes_bitpar_lhs);
+  acc->setup_p2s(hw_src, nbytes_bitser_lhs, hw_dst, nrows_lhs, ncols, nbits_lhs);
+  uint32_t cycles = acc->p2s_exec_and_wait();
+  uint8_t * hw_res_lhs = new uint8_t[nbytes_bitser_lhs];
+  platform->copyBufferAccelToHost(hw_dst, hw_res_lhs, nbytes_bitser_lhs);
+  int memcmpres = memcmp(hw_res_lhs, ctx.lhs.data, nbytes_bitser_lhs);
+  cout << "Serialize first took " << cycles << " with result =" << memcmpres << endl;
+
+  //delete
+  delete [] hw_res_lhs;
+
+  //second one
+
+  platform->copyBufferHostToAccel(rhs, hw_src, nbytes_bitpar_rhs);
+  acc->setup_p2s(hw_src, nbytes_bitser_rhs, hw_dst, nrows_rhs, ncols, nbits_rhs);
+  cycles = acc->p2s_exec_and_wait();
+  uint8_t * hw_res_rhs = new uint8_t[nbytes_bitser_rhs];
+  platform->copyBufferAccelToHost(hw_dst, hw_res_rhs, nbytes_bitser_rhs);
+  memcmpres = memcmp(hw_res_rhs, ctx.rhs.data, nbytes_bitser_rhs);
+  cout << "Serialize second took " << cycles << " with result =" << memcmpres << endl;
+
+    //delete
+  delete [] hw_res_rhs;
+  /**************************** END ****************************/
+
   runner->setLHS(ctx.lhs);
   runner->setRHS(ctx.rhs);
   runner->run();

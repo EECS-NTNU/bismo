@@ -110,6 +110,12 @@ public:
     }
   }
 
+  void setP2S(size_t rows, size_t cols, uint8_t * bpm){
+    size_t nbytes_bitpar = rows * cols * sizeof(uint8_t);
+    void * hw_src = m_platform->allocAccelBuffer(nbytes_bitpar);
+    m_platform->copyBufferHostToAccel(bpm, hw_src, nbytes_bitpar);
+  }
+
 /*******************************************
 //TODO: Should update here for ths?
 *******************************************/
@@ -793,7 +799,7 @@ void fill_thr_runcfg() {
               if(z_l2 == z_l2_per_matrix - 1) {
                 // finishing a stripe: release result buffer from exec
                 makeinstr_exec_sync_putthrbuffer();
-                // result stage: acquire result buffer
+                // thr stage: acquire result buffer
                 makeinstr_thr_sync_getexecbuffer();
                 /***************** THRESHOLDING CONFIGURATION *****************/
 
@@ -802,12 +808,19 @@ void fill_thr_runcfg() {
                 thrc.thrOffset = 0;
                 thrc.runTimeThrNumber = (65535);//(1 << (std::pow(2,m_acc->hwcfg().maxQuantDim)-1)) - 1 );// m_acc->hwcfg().maxQuantDim;
                 thrc.writeEn = true;
-                thrc.writeAddr = 0;
-                makeinstr_thr_sync_getresultbuffer();
-                makeinstr_thr_sync_putresultbuffer();
+                thrc.writeAddr = current_resmem_region;
+                //result release buffer
                 makeinstr_result_sync_putthrbuffer();
-                makeinstr_result_sync_getthrbuffer();
+                //thr stage get result buffer
+                makeinstr_thr_sync_getresultbuffer();                
                 makeinstr_thr_run(thrc);
+                //thr release exec buffer
+                makeinstr_thr_sync_putexecbuffer();
+                //thr release result buffer
+                makeinstr_thr_sync_putresultbuffer();
+
+                //result get exec buff
+                makeinstr_result_sync_getthrbuffer();
                 /***************** END *****************/
                             // generate result
                 ResultRunCfg rrc;
@@ -820,7 +833,7 @@ void fill_thr_runcfg() {
                 rrc.waitComplete = false;
                 rrc.waitCompleteBytes = 0;
                 makeinstr_result_run(rrc);
-                makeinstr_thr_sync_putexecbuffer();
+               // makeinstr_thr_sync_putexecbuffer();
                 // use next resmem region for next time
                 current_resmem_region = current_resmem_region < resmem_regions-1 ? current_resmem_region + 1 : 0;
               }
