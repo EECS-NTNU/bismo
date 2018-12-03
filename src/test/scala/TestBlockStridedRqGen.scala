@@ -58,10 +58,10 @@ class BlockStridedRqGenTester(c: BlockStridedRqGen) extends Tester(c) {
   poke(c.io.in.valid, 0)
 
   poke(c.io.out.ready, 1)
-  for(b <- 0 until nblocks) {
-    for(i <- 0 until block_size) {
-      while(peek(c.io.out.valid) != 1) { step(1) }
-      expect(c.io.out.bits.addr, base_offs + block_offs*b + i*intra_step)
+  for (b ← 0 until nblocks) {
+    for (i ← 0 until block_size) {
+      while (peek(c.io.out.valid) != 1) { step(1) }
+      expect(c.io.out.bits.addr, base_offs + block_offs * b + i * intra_step)
       expect(c.io.out.bits.numBytes, intra_step)
       expect(c.io.out.bits.isWrite, 1)
       step(1)
@@ -74,18 +74,20 @@ class TestBlockStridedRqGen extends JUnitSuite {
     // Chisel arguments to pass to chiselMainTest
     def testArgs = RosettaTestHelpers.stdArgs
     // function that instantiates the Module to be tested
-    def testModuleInstFxn = () => { Module(new BlockStridedRqGen(
-      PYNQZ1Params.toMemReqParams(), true, 0
-    )) }
+    def testModuleInstFxn = () ⇒ {
+      Module(new BlockStridedRqGen(
+        PYNQZ1Params.toMemReqParams(), true, 0
+      ))
+    }
     // function that instantiates the Tester to test the Module
-    def testTesterInstFxn = (c: BlockStridedRqGen) => new BlockStridedRqGenTester(c)
+    def testTesterInstFxn = (c: BlockStridedRqGen) ⇒ new BlockStridedRqGenTester(c)
 
     // actually run the test
     chiselMainTest(
       testArgs,
       testModuleInstFxn
     ) {
-      testTesterInstFxn
-    }
+        testTesterInstFxn
+      }
   }
 }

@@ -56,12 +56,12 @@ class TestDotProductArray extends JUnitSuite {
       // helper fuctions for more concise tests
       // wait up to <latency> cycles with valid=0 to create pipeline bubbles
       def randomNoValidWait(max: Int = latency) = {
-        val numNoValidCycles = r.nextInt(max+1)
+        val numNoValidCycles = r.nextInt(max + 1)
         poke(c.io.valid, 0)
         step(numNoValidCycles)
       }
 
-      for(i <- 1 to num_seqs) {
+      for (i ← 1 to num_seqs) {
         // generate two random int matrices a[m_test][k_test] and b[n_test][k_test] s.t.
         // m_test % m = 0, n_test % n = 0, k_test % pc_len = 0
         val seq_len = 1 + r.nextInt(17)
@@ -71,8 +71,8 @@ class TestDotProductArray extends JUnitSuite {
         val n_test = n
         // precision in bits, each between 1 and max_shift/2 bits
         // such that their sum won't be greater than max_shift
-        val precA = 1 + r.nextInt(max_shift/2)
-        val precB = 1 + r.nextInt(max_shift/2)
+        val precA = 1 + r.nextInt(max_shift / 2)
+        val precB = 1 + r.nextInt(max_shift / 2)
         assert(precA + precB <= max_shift)
         // produce random binary test vectors and golden result
         val negA = r.nextBoolean
@@ -81,29 +81,29 @@ class TestDotProductArray extends JUnitSuite {
         val b = RosettaTestHelpers.randomIntMatrix(m_test, k_test, precB, negB)
         val golden = RosettaTestHelpers.matrixProduct(a, b)
         // iterate over each combination of bit positions for bit serial
-        for(bitA <- 0 to precA-1) {
-          val negbitA = negA & (bitA == precA-1)
-          for(bitB <- 0 to precB-1) {
+        for (bitA ← 0 to precA - 1) {
+          val negbitA = negA & (bitA == precA - 1)
+          for (bitB ← 0 to precB - 1) {
             // enable negation if combination of bit positions is negative
-            val negbitB = negB & (bitB == precB-1)
-            val doNeg = if(negbitA ^ negbitB) 1 else 0
+            val negbitB = negB & (bitB == precB - 1)
+            val doNeg = if (negbitA ^ negbitB) 1 else 0
             poke(c.io.negate, doNeg)
             // shift is equal to sum of current bit positions
-            poke(c.io.shiftAmount, bitA+bitB)
-            for(j <- 0 to seq_len-1) {
+            poke(c.io.shiftAmount, bitA + bitB)
+            for (j ← 0 to seq_len - 1) {
               // set clear bit only on the very first iteration
-              val doClear = if(j == 0 & bitA == 0 & bitB == 0) 1 else 0
+              val doClear = if (j == 0 & bitA == 0 & bitB == 0) 1 else 0
               poke(c.io.clear_acc, doClear)
               // insert stimulus for left-hand-side matrix tile
-              for(i_m <- 0 to m-1) {
+              for (i_m ← 0 to m - 1) {
                 val seqA_bs = RosettaTestHelpers.intVectorToBitSerial(a(i_m), precA)
-                val curA = seqA_bs(bitA).slice(j*pc_len, (j+1)*pc_len)
+                val curA = seqA_bs(bitA).slice(j * pc_len, (j + 1) * pc_len)
                 poke(c.io.a(i_m), scala.math.BigInt.apply(curA.mkString, 2))
               }
               // insert stimulus for right-hand-side matrix tile
-              for(i_n <- 0 to n-1) {
+              for (i_n ← 0 to n - 1) {
                 val seqB_bs = RosettaTestHelpers.intVectorToBitSerial(b(i_n), precB)
-                val curB = seqB_bs(bitB).slice(j*pc_len, (j+1)*pc_len)
+                val curB = seqB_bs(bitB).slice(j * pc_len, (j + 1) * pc_len)
                 poke(c.io.b(i_n), scala.math.BigInt.apply(curB.mkString, 2))
               }
               poke(c.io.valid, 1)
@@ -116,10 +116,10 @@ class TestDotProductArray extends JUnitSuite {
         // remove valid input in next cycle
         poke(c.io.valid, 0)
         // wait until all inputs are processed
-        step(latency-1)
+        step(latency - 1)
         // check produced matrix against golden result
-        for(i_m <- 0 to m-1) {
-          for(i_n <- 0 to n-1) {
+        for (i_m ← 0 to m - 1) {
+          for (i_n ← 0 to n - 1) {
             expect(c.io.out(i_m)(i_n), golden(i_m)(i_n))
           }
         }
@@ -132,16 +132,16 @@ class TestDotProductArray extends JUnitSuite {
     val pPC = new PopCountUnitParams(36)
     val pDP = new DotProductUnitParams(pPC, 32, 16)
     val p = new DotProductArrayParams(pDP, 4, 4, 0)
-    def testModuleInstFxn = () => { Module(new DotProductArray(p)) }
+    def testModuleInstFxn = () ⇒ { Module(new DotProductArray(p)) }
     // function that instantiates the Tester to test the Module
-    def testTesterInstFxn = (c: DotProductArray) => new DotProductArrayTester(c)
+    def testTesterInstFxn = (c: DotProductArray) ⇒ new DotProductArrayTester(c)
 
     // actually run the test
     chiselMainTest(
       testArgs,
       testModuleInstFxn
     ) {
-      testTesterInstFxn
-    }
+        testTesterInstFxn
+      }
   }
 }

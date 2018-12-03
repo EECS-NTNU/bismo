@@ -42,6 +42,8 @@ URI = $($(PLATFORM)_URI)
 M ?= 8
 K ?= 256
 N ?= 8
+O ?= 64
+F ?= true
 OVERLAY_CFG = $(M)x$(K)x$(N)
 
 # other project settings
@@ -53,7 +55,8 @@ TIDBITS_ROOT ?= $(TOP)/fpga-tidbits
 TIDBITS_REGDRV_ROOT ?= $(TIDBITS_ROOT)/src/main/resources/cpp/platform-wrapper-regdriver
 export OHMYXILINX := $(TOP)/oh-my-xilinx
 export PATH := $(PATH):$(OHMYXILINX)
-BUILD_DIR ?= $(TOP)/build/$(OVERLAY_CFG)
+BUILD_DIR ?= $(TOP)/build/$(OVERLAY_CFG)/$(PLATFORM)
+BUILD_DIR_CLEAN ?= $(TOP)/build/$(OVERLAY_CFG)
 BUILD_DIR_CHARACTERIZE := $(BUILD_DIR)/characterize
 BUILD_DIR_DEPLOY := $(BUILD_DIR)/deploy
 BUILD_DIR_VERILOG := $(BUILD_DIR)/hw/verilog
@@ -61,20 +64,22 @@ BUILD_DIR_EMU := $(BUILD_DIR)/emu
 BUILD_DIR_HWDRV := $(BUILD_DIR)/hw/driver
 BUILD_DIR_EMULIB_CPP := $(BUILD_DIR)/hw/cpp_emulib
 VERILOG_SRC_DIR := $(TOP)/src/main/verilog
+VHDL_SRC_DIR := $(TOP)/src/main/vhdl
 APP_SRC_DIR := $(TOP)/src/main/cpp/app
-VIVADO_PROJ_SCRIPT := $(TOP)/src/main/script/$(PLATFORM)/host/make-vivado-project.tcl
-VIVADO_SYNTH_SCRIPT := $(TOP)/src/main/script/$(PLATFORM)/host/synth-vivado-project.tcl
-PLATFORM_SCRIPT_DIR := $(TOP)/src/main/script/$(PLATFORM)/target
-HW_VERILOG := $(BUILD_DIR_VERILOG)/$(PLATFORM)Wrapper.v
-BITFILE_PRJNAME := bitfile_synth
-BITFILE_PRJDIR := $(BUILD_DIR)/bitfile_synth
-GEN_BITFILE_PATH := $(BITFILE_PRJDIR)/$(BITFILE_PRJNAME).runs/impl_1/procsys_wrapper.bit
 VIVADO_IN_PATH := $(shell command -v vivado 2> /dev/null)
 ZSH_IN_PATH := $(shell command -v zsh 2> /dev/null)
 CPPTEST_SRC_DIR := $(TOP)/src/test/cosim
+HW_VERILOG := $(BUILD_DIR_VERILOG)/$(PLATFORM)Wrapper.v
+HW_TO_SYNTH ?= $(HW_VERILOG)
+HW_SW_DRIVER ?= BitSerialMatMulAccel.hpp
+PLATFORM_SCRIPT_DIR := $(TOP)/src/main/script/$(PLATFORM)/target
+
+# platform-specific Makefile include for bitfile synthesis
+include platforms/$(PLATFORM).mk
 
 # note that all targets are phony targets, no proper dependency tracking
-.PHONY: hw_verilog emulib hw_driver hw_vivadoproj bitfile hw sw all rsync test characterize check_vivado
+.PHONY: hw_verilog emulib hw_driver hw_vivadoproj bitfile hw sw all rsync test
+.PHONY: resmodel characterize check_vivado pretty p2saccel benchmark
 
 check_vivado:
 ifndef VIVADO_IN_PATH
@@ -90,13 +95,17 @@ endif
 Test%:
 	$(SBT) $(SBT_FLAGS) "test-only $@"
 
+# run hardware-software cosimulation tests (in debug mode with waveform dump)
+DebugEmuTest%:
+	mkdir -p $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain EmuTest$* $(BUILD_DIR)/$@ 1"; cp -r $(CPPTEST_SRC_DIR)/EmuTest$*.cpp $(BUILD_DIR)/$@; cp -r $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@; cd $(BUILD_DIR)/$@; g++ -std=c++11 -DDEBUG *.cpp driver.a -o $@; ./$@
+
 # run hardware-software cosimulation tests
 EmuTest%:
-	mkdir -p $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@"; cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; cd $(BUILD_DIR)/$@; g++ -std=c++11 *.cpp driver.a -o $@; ./$@
+	mkdir -p $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ 0"; cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; cp -r $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@; cd $(BUILD_DIR)/$@; g++ -std=c++11 *.cpp driver.a -o $@; ./$@
 
 # generate cycle-accurate C++ emulator driver lib
 $(BUILD_DIR_EMU)/driver.a:
-	mkdir -p $(BUILD_DIR_EMU); $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain main $(BUILD_DIR_EMU)"
+	mkdir -p $(BUILD_DIR_EMU); $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain main $(BUILD_DIR_EMU) 0"
 
 # generate emulator executable including software sources
 emu: $(BUILD_DIR_EMU)/driver.a
@@ -104,7 +113,16 @@ emu: $(BUILD_DIR_EMU)/driver.a
 
 # run resource/Fmax characterization
 Characterize%:
-	mkdir -p $(BUILD_DIR)/$@; cp $(VERILOG_SRC_DIR)/*.v $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.CharacterizeMain $@ $(BUILD_DIR)/$@ $(PLATFORM)"
+	mkdir -p $(BUILD_DIR)/$@; cp $(VERILOG_SRC_DIR)/*.v $(BUILD_DIR)/$@; cp $(VHDL_SRC_DIR)/*.vhd $(BUILD_DIR)/$@;$(SBT) $(SBT_FLAGS) "runMain bismo.CharacterizeMain $@ $(BUILD_DIR)/$@ $(PLATFORM)"
+
+# generate register driver for the Chisel accelerator
+hw_driver: $(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp
+
+$(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp:
+	mkdir -p "$(BUILD_DIR_HWDRV)"; $(SBT) $(SBT_FLAGS) "runMain bismo.DriverMain $(PLATFORM) $(BUILD_DIR_HWDRV) $(TIDBITS_REGDRV_ROOT)"
+#driver for the p2s
+$(BUILD_DIR_HWDRV)/EmuTestP2SAccel.hpp:
+	mkdir -p "$(BUILD_DIR_HWDRV)";$(SBT) $(SBT_FLAGS) "runMain bismo.P2SDriverMain $(PLATFORM) $(BUILD_DIR_HWDRV) $(TIDBITS_REGDRV_ROOT)"
 
 # generate Verilog for the Chisel accelerator
 hw_verilog: $(HW_VERILOG)
@@ -112,47 +130,40 @@ hw_verilog: $(HW_VERILOG)
 $(HW_VERILOG):
 	$(SBT) $(SBT_FLAGS) "runMain bismo.ChiselMain $(PLATFORM) $(BUILD_DIR_VERILOG) $M $K $N"
 
-# generate register driver for the Chisel accelerator
-hw_driver: $(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp
-
-$(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp:
-	mkdir -p "$(BUILD_DIR_HWDRV)"; $(SBT) $(SBT_FLAGS) "runMain bismo.DriverMain $(PLATFORM) $(BUILD_DIR_HWDRV) $(TIDBITS_REGDRV_ROOT)"
-
-# create a new Vivado project
-hw_vivadoproj: $(BITFILE_PRJDIR)/bitfile_synth.xpr
-
-$(BITFILE_PRJDIR)/bitfile_synth.xpr: $(HW_VERILOG)
-	vivado -mode $(VIVADO_MODE) -source $(VIVADO_PROJ_SCRIPT) -tclargs $(TOP) $(HW_VERILOG) $(BITFILE_PRJNAME) $(BITFILE_PRJDIR) $(FREQ_MHZ)
-
-# launch Vivado in GUI mode with created project
-launch_vivado_gui: $(BITFILE_PRJDIR)/bitfile_synth.xpr
-	vivado -mode gui $(BITFILE_PRJDIR)/$(BITFILE_PRJNAME).xpr
-
-# run bitfile synthesis for the Vivado project
-bitfile: $(GEN_BITFILE_PATH)
-
-$(GEN_BITFILE_PATH): $(BITFILE_PRJDIR)/bitfile_synth.xpr
-	vivado -mode $(VIVADO_MODE) -source $(VIVADO_SYNTH_SCRIPT) -tclargs $(BITFILE_PRJDIR)/$(BITFILE_PRJNAME).xpr
-
-# copy bitfile to the deployment folder, make an empty tcl script for bitfile loader
-hw: $(GEN_BITFILE_PATH)
-	mkdir -p $(BUILD_DIR_DEPLOY); cp $(GEN_BITFILE_PATH) $(BUILD_DIR_DEPLOY)/bismo.bit; touch $(BUILD_DIR_DEPLOY)/bismo.tcl
-
-# copy all user sources and driver sources to the deployment folder
-sw: $(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp
-	mkdir -p $(BUILD_DIR_DEPLOY); cp $(BUILD_DIR_HWDRV)/* $(BUILD_DIR_DEPLOY)/; cp -r $(APP_SRC_DIR)/* $(BUILD_DIR_DEPLOY)/
+resmodel:
+	$(SBT) $(SBT_FLAGS) "runMain bismo.ResModelMain $(PLATFORM) $(BUILD_DIR_VERILOG) $M $K $N"
+#generate for p2s
+p2s:
+	$(SBT) $(SBT_FLAGS) "runMain bismo.P2SMain $(PLATFORM) $(BUILD_DIR_VERILOG) $M $N $O $F"
+#generate the drivers and copy into the deploy
+p2ssw: $(BUILD_DIR_HWDRV)/EmuTestP2SAccel.hpp
+	mkdir -p $(BUILD_DIR_DEPLOY); cp $(BUILD_DIR_HWDRV)/* $(BUILD_DIR_DEPLOY)/; cp -r $(CPPTEST_SRC_DIR)/EmuTestP2SAccel.cpp $(BUILD_DIR_DEPLOY)/; cp -r $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR_DEPLOY)/
 
 # copy scripts to the deployment folder
 script:
 	cp $(PLATFORM_SCRIPT_DIR)/* $(BUILD_DIR_DEPLOY)/
 
-# get everything ready to copy onto the platform
+# get everything ready to copy onto the platform and create a deployment folder
 all: hw sw script
+
+p2saccel:hw p2ssw script 
 
 # use rsync to synchronize contents of the deployment folder onto the platform
 rsync:
 	rsync -avz $(BUILD_DIR_DEPLOY) $(URI)
+benchmark:
+	rsync $(URI)/deploy/benchmark* $(TOP)/
 
 # remove everything that is built
 clean:
+	rm -rf $(BUILD_DIR_CLEAN)
+# remove everthing for that platform
+cleanplat:
 	rm -rf $(BUILD_DIR)
+# download scalariform
+scalariform.jar:
+	wget https://github.com/scala-ide/scalariform/releases/download/0.2.6/scalariform.jar
+
+# format source code with scalariform
+pretty: scalariform.jar
+	java -jar scalariform.jar --recurse src/main/scala

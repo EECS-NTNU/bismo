@@ -10,25 +10,23 @@ import fpgatidbits.ocm._
 import fpgatidbits.streams._
 import fpgatidbits.PlatformWrapper._
 
-
 // standalone, accelerator-wrapped version of Parallel2BSStage
 // this provides the hardware side for EmuTestParallel2BSStage
 class EmuTestP2BSStage(
-                       mRows: Int, mCols: Int,  inBits: Int,  memLatency: Int, countBw: Int, p: PlatformWrapperParams)
-  extends GenericAccelerator(p){
+  mRows: Int, mCols: Int, inBits: Int, memLatency: Int, countBw: Int, p: PlatformWrapperParams)
+  extends GenericAccelerator(p) {
   val numMemPorts = 0
   // parameters for accelerator instance
   val myP = new Parallel2BSStageParams(
-    suParams = new SerializerUnitParams ( inPrecision = inBits, matrixRows = mRows, matrixCols = mCols,
+    suParams = new SerializerUnitParams(inPrecision = inBits, matrixRows = mRows, matrixCols = mCols,
       staticCounter = false, maxCounterPrec = countBw),
-    thMemDepth  = 8, bsMemDepth = inBits,
-    thMemLatency = memLatency, bramInRegs= memLatency, bramOutRegs = memLatency
-  )
+    thMemDepth = 8, bsMemDepth = inBits,
+    thMemLatency = memLatency, bramInRegs = memLatency, bramOutRegs = memLatency)
 
   val io = new GenericAcceleratorIF(numMemPorts, p) {
     // base control signals
-    val start = Bool(INPUT)                   // hold high while running
-    val done = Bool(OUTPUT)                   // high when done until start=0
+    val start = Bool(INPUT) // hold high while running
+    val done = Bool(OUTPUT) // high when done until start=0
     val cfg = new Parallel2BSStageCfgIO()
     val ctrl = new Parallel2BSStageCtrlIO(myP).asInput
     // write access to input matrix tile memory
@@ -44,7 +42,6 @@ class EmuTestP2BSStage(
     val resmem_data = UInt(OUTPUT, width = myP.getCols())
   }
 
-
   val rmm = Module(new Parallel2BSStage(myP)).io
   rmm.cfg <> io.cfg
   rmm.ctrl <> io.ctrl
@@ -54,23 +51,22 @@ class EmuTestP2BSStage(
   // correct version. here the signature is regenerated from the current date.
   io.signature := makeDefaultSignature()
 
-  val inMemory_thr = Vec.fill(myP.getRows()) { Vec.fill(myP.getCols()){
-    Module(new PipelinedDualPortBRAM(
-      addrBits = log2Up(myP.thMemDepth), dataBits = myP.getInBits(),
-      regIn = myP.bramInRegs, regOut = myP.bramOutRegs
-    )).io
-  }}
-
-
-  val resmem = Vec.fill(myP.getRows()) { Module(new PipelinedDualPortBRAM(
-      addrBits = log2Up(myP.bsMemDepth), dataBits = myP.getCols(),
-      regIn = 0, regOut = 0
-    )).io
+  val inMemory_thr = Vec.fill(myP.getRows()) {
+    Vec.fill(myP.getCols()) {
+      Module(new PipelinedDualPortBRAM(
+        addrBits = log2Up(myP.thMemDepth), dataBits = myP.getInBits(),
+        regIn = myP.bramInRegs, regOut = myP.bramOutRegs)).io
+    }
   }
 
+  val resmem = Vec.fill(myP.getRows()) {
+    Module(new PipelinedDualPortBRAM(
+      addrBits = log2Up(myP.bsMemDepth), dataBits = myP.getCols(),
+      regIn = 0, regOut = 0)).io
+  }
 
-  for(i <- 0 until myP.getRows())
-    for(j <- 0 until myP.getCols()){
+  for (i <- 0 until myP.getRows())
+    for (j <- 0 until myP.getCols()) {
       inMemory_thr(i)(j).ports(0).req.addr := io.inMemory_thr_addr
       inMemory_thr(i)(j).ports(0).req.writeData := io.inMemory_thr_data
       val myWriteEn = (io.inMemory_thr_sel_r === UInt(i) && io.inMemory_thr_sel_c === UInt(j)) & io.inMemory_thr_write
@@ -83,11 +79,11 @@ class EmuTestP2BSStage(
     }
 
   // wire-up: result memory
-  for(i <- 0 until myP.getRows()) {
-      resmem(i).ports(0).req <> rmm.res.req(i)
-      resmem(i).ports(1).req.addr := io.resmem_addr_e
-      resmem(i).ports(1).req.writeEn := Bool(false)
-    }
+  for (i <- 0 until myP.getRows()) {
+    resmem(i).ports(0).req <> rmm.res.req(i)
+    resmem(i).ports(1).req.addr := io.resmem_addr_e
+    resmem(i).ports(1).req.writeEn := Bool(false)
+  }
   /*for( i <- 0 until myP.getRows()){
     when(resmem(i).ports(0).req.writeEn){
       printf("[CO-HW]Writing to row: %d, elem: %d, address: %d\n", UInt(i), resmem(i).ports(0).req.writeData, resmem(i).ports(0).req.addr)

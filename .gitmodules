@@ -6,4 +6,4 @@
 	url = https://bitbucket.org/maltanar/oh-my-xilinx.git
 [submodule "fpga-tidbits"]
 	path = fpga-tidbits
-	url = https://gitenterprise.xilinx.com/yamanu/xilinx-fpga-tidbits.git
+	url = https://github.com/maltanar/fpga-tidbits.git

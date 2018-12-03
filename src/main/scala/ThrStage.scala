@@ -8,6 +8,7 @@ import fpgatidbits.ocm._
 import fpgatidbits.streams._
 
 class ThrStageParams(
+<<<<<<< HEAD
                       // building block params
                       val thuParams : ThresholdingUnitParams,
                       // threshold memory depth (how many entries, address space)
@@ -28,42 +29,57 @@ class ThrStageParams(
   val thresholdMemWidth : Int = thuParams.inputBitPrecision * maxThresholdNumber
 
   val thresholdLatency : Int = maxThresholdNumber - thuParams.unrollingFactorOutputPrecision
+=======
+  // building block params
+  val thuParams: ThresholdingUnitParams,
+  // threshold memory depth (how many entries, address space)
+  val thresholdMemDepth: Int,
+  val inputMemAddr: Int,
+  val resMemAddr: Int) extends PrintableParam {
+
+  //how many threshold
+  val thresholdNumber: Int = scala.math.pow(2, thuParams.maxOutputBitPrecision).toInt - 1
+  // threshold memory width (how many output bits)
+
+  val thresholdMemWidth: Int = thuParams.inputBitPrecision * thresholdNumber
+
+  val thresholdLatency: Int = thresholdNumber - thuParams.unrollingFactorOutputPrecision
+>>>>>>> feature/p2s-stdalone
 
   //M of DPA
-  def getUnrollRows() : Int = {
+  def getUnrollRows(): Int = {
     return thuParams.unrollingFactorRows
   }
   def getRows(): Int = {
-  return thuParams.matrixRows
+    return thuParams.matrixRows
   }
   //K of DPA
-  def getInBits() : Int = {
+  def getInBits(): Int = {
     return thuParams.inputBitPrecision
   }
   //ASSUMPTION: No rolling in the columns
-  def getCols() : Int = {
+  def getCols(): Int = {
     return thuParams.matrixColumns
   }
   //ASSUMPTION: No rolling in the columns
-  def getUnrollCols() : Int = {
+  def getUnrollCols(): Int = {
     return thuParams.unrollingFactorColumns
   }
 
-  def getResBitWidth() : Int = {
+  def getResBitWidth(): Int = {
     return thuParams.maxOutputBitPrecision
   }
   def getThUnroll() : Int = {
     return  thuParams.unrollingFactorOutputPrecision
   }
   def headersAsList(): List[String] = {
-    return thuParams.headersAsList() ++  List("thresholdMemDepth", "thresholdMemWidth")
+    return thuParams.headersAsList() ++ List("thresholdMemDepth", "thresholdMemWidth")
   }
 
   def contentAsList(): List[String] = {
     return thuParams.contentAsList() ++ List(thresholdMemDepth, thresholdMemWidth).map(_.toString)
   }
 }
-
 
 // interface to hardware config available to software
 class ThrStageCfgIO() extends Bundle {
@@ -89,11 +105,11 @@ class ThrStageCtrlIO(myP: ThrStageParams) extends PrintableBundle {
     new ThrStageCtrlIO(myP).asInstanceOf[this.type]
 
   val printfStr = "(offs lhs/rhs = %d/%d, ntiles = %d, << %d, w? %d/%d)\n"
-  val printfElems = {() =>  Seq(
-    //lhsOffset, rhsOffset, numTiles, shiftAmount, writeEn, writeAddr
-  )}
+  val printfElems = { () ⇒
+    Seq( //lhsOffset, rhsOffset, numTiles, shiftAmount, writeEn, writeAddr
+    )
+  }
 }
-
 
 // interface towards tile memories (LHS(Thresholds)/RHS(Activation) BRAMs)
 class ThrStageTileMemIO(myP: ThrStageParams) extends Bundle {
@@ -119,16 +135,21 @@ class ThrStageTileMemIO(myP: ThrStageParams) extends Bundle {
 class ThrStageResMemIO(myP: ThrStageParams) extends Bundle {
   val req = Vec.fill(myP.getUnrollRows()) { Vec.fill(myP.getUnrollCols()){
     new OCMRequest(
+<<<<<<< HEAD
       myP.getResBitWidth(), log2Up(myP.resMemDepth)
     ).asOutput
   }}
+=======
+      myP.getResBitWidth() * myP.getCols(), log2Up(myP.resMemAddr)).asOutput
+  }
+>>>>>>> feature/p2s-stdalone
 
   override def cloneType: this.type =
     new ThrStageResMemIO(myP).asInstanceOf[this.type]
 }
 
-class ThrStage(val myP: ThrStageParams) extends Module{
-  val io = new Bundle{
+class ThrStage(val myP: ThrStageParams) extends Module {
+  val io = new Bundle {
     val start = Bool(INPUT) // hold high while running
     val done = Bool(OUTPUT) // high when done until start=0
     val cfg = new ThrStageCfgIO()
@@ -137,6 +158,10 @@ class ThrStage(val myP: ThrStageParams) extends Module{
     val inMemory = new ThrStageTileMemIO(myP)
   }
 
+<<<<<<< HEAD
+=======
+  //TODO: ASSUMPTION: fetch from the bram the whole matrix and then start
+>>>>>>> feature/p2s-stdalone
 
   val thu = Module(new ThresholdingUnit(myP.thuParams)).io
   //ASSUMING THIS PARAM
@@ -147,12 +172,18 @@ class ThrStage(val myP: ThrStageParams) extends Module{
   thu.thInterf.thresholdCount := io.ctrl.runTimeThrNumber
 
   seqgen.init := UInt(0)
+<<<<<<< HEAD
   seqgen.count := thTile
   seqgen.step := UInt(1, width = myP.maxThresholdNumber)
+=======
+  seqgen.count := UInt(myP.getUnrollRows()) //io.csr.numTiles
+  seqgen.step := UInt(1) //UInt(myP.tileMemAddrUnit)
+>>>>>>> feature/p2s-stdalone
   seqgen.start := io.start
   seqgen.seq.ready := Bool(true)
 
   //never write into that memory
+<<<<<<< HEAD
   for(i <- 0 until myP.getUnrollRows())
     for(j <- 0 until myP.getUnrollCols()){
       io.inMemory.act_req(i)(j).writeEn := Bool(false)
@@ -203,11 +234,33 @@ class ThrStage(val myP: ThrStageParams) extends Module{
 
   thu.inputMatrix.valid := ShiftRegister(start_pulse, myP.activationMemoryLatency-1)
 
+=======
+  for (i ← 0 until myP.getUnrollRows()) {
+    io.inMemory.act_req(i).writeEn := Bool(false)
+    io.inMemory.act_req(i).writeData := UInt(0)
+    io.inMemory.act_req(i).addr := UInt(i)
+    io.inMemory.thr_req(i).writeEn := Bool(false)
+    io.inMemory.thr_req(i).writeData := UInt(0)
+    io.inMemory.thr_req(i).addr := UInt(i)
+  }
+
+  //ASSUMING that my data are available as long as I need
+  //Not convinced at all
+  for (i ← 0 until myP.getUnrollRows()) {
+    for (j ← 0 until myP.getUnrollCols()) {
+      thu.inputMatrix.bits.i(i)(j) := io.inMemory.act_rsp(i).readData(myP.getInBits() * (1 + j) - 1, myP.getInBits() * j)
+    }
+    for (j ← 0 until myP.thresholdNumber)
+      thu.thInterf.thresholdData(i)(j) := io.inMemory.thr_rsp(i).readData(myP.getInBits() * (1 + j) - 1, myP.getInBits() * j)
+  }
+
+>>>>>>> feature/p2s-stdalone
   //time to write is the latency of the unit + time to write all the outputs
   //TODO this is not at run time.... so if less thresholds with a rolled version I waste some cycles in this way
   val time_to_write = myP.thuParams.getLatency()
   //TODO: this is time to respond for the Data BRAM
   val end = ShiftRegister(thu.outputMatrix.valid, time_to_write)
+<<<<<<< HEAD
   val end_r = Reg(init = false.B, next = end)
   val end_pulse = end & !end_r
   io.done := (end_pulse | end_r)
@@ -231,6 +284,15 @@ class ThrStage(val myP: ThrStageParams) extends Module{
       io.res.req(i)(j).writeEn := thu.outputMatrix.valid
       io.res.req(i)(j).addr := UInt(0)
       io.res.req(i)(j).writeData := thu.outputMatrix.bits.o(i)(j)//UInt(0, width = myP.getResBitWidth() * myP.getCols()) | (thu.outputMatrix.bits.o(i)(j) << j)
+=======
+  io.done := end
+
+  for (i ← 0 until myP.getRows())
+    for (j ← 0 until myP.getCols()) {
+      io.res.req(i).writeEn := thu.outputMatrix.valid
+      io.res.req(i).addr := UInt(i)
+      io.res.req(i).writeData := UInt(0, width = myP.getResBitWidth() * myP.getCols()) | (thu.outputMatrix.bits.o(i)(j) << j)
+>>>>>>> feature/p2s-stdalone
     }
 
 }

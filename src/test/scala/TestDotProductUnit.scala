@@ -53,7 +53,7 @@ class TestDotProductUnit extends JUnitSuite {
       // helper fuctions for more concise tests
       // wait up to <latency> cycles with valid=0 to create pipeline bubbles
       def randomNoValidWait(max: Int = latency) = {
-        val numNoValidCycles = r.nextInt(max+1)
+        val numNoValidCycles = r.nextInt(max + 1)
         poke(c.io.in.valid, 0)
         step(numNoValidCycles)
       }
@@ -71,7 +71,7 @@ class TestDotProductUnit extends JUnitSuite {
         step(1)
         poke(c.io.in.bits.clear_acc, 0)
         poke(c.io.in.valid, 0)
-        if(waitUntilCleared) {
+        if (waitUntilCleared) {
           step(latency)
         }
       }
@@ -84,12 +84,12 @@ class TestDotProductUnit extends JUnitSuite {
 
       // TODO combine all into single test with controllable param. ranges
       // test 1: binary, unsigned vectors that fit into popCountWidth
-      for(i <- 1 to num_seqs) {
+      for (i ← 1 to num_seqs) {
         // clear accumulator between runs
         clearAcc()
         // produce random binary test vectors and golden result
         val seqA = RosettaTestHelpers.randomIntVector(pc_len, 1, false)
-        for (i<- 0 to seqA.size-1)
+        for (i ← 0 to seqA.size - 1)
           print(seqA(i))
         val seqB = RosettaTestHelpers.randomIntVector(pc_len, 1, false)
         val golden = RosettaTestHelpers.dotProduct(seqA, seqB)
@@ -101,12 +101,12 @@ class TestDotProductUnit extends JUnitSuite {
         step(1)
         // remove valid input in next cycle
         poke(c.io.in.valid, 0)
-        step(latency-1)
+        step(latency - 1)
         expect(c.io.out, golden)
       }
 
       // test 2: binary, unsigned vectors that do not fit into popCountWidth
-      for(i <- 1 to num_seqs) {
+      for (i ← 1 to num_seqs) {
         // produce seq_len different popcount vectors, each pc_len bits
         // min length of seq_len is 1, no max len (barring accumulator overflow)
         // but set to 16 here for quicker testing
@@ -118,10 +118,10 @@ class TestDotProductUnit extends JUnitSuite {
         val golden = RosettaTestHelpers.dotProduct(seqA, seqB)
         // clear accumulator between runs
         clearAcc()
-        for(j <- 0 to seq_len-1) {
+        for (j ← 0 to seq_len - 1) {
           // push in next slice of bit vector
-          val curA = seqA.slice(j*pc_len, (j+1)*pc_len)
-          val curB = seqB.slice(j*pc_len, (j+1)*pc_len)
+          val curA = seqA.slice(j * pc_len, (j + 1) * pc_len)
+          val curB = seqB.slice(j * pc_len, (j + 1) * pc_len)
           poke(c.io.in.bits.a, scala.math.BigInt.apply(curA.mkString, 2))
           poke(c.io.in.bits.b, scala.math.BigInt.apply(curB.mkString, 2))
           poke(c.io.in.bits.shiftAmount, 0)
@@ -134,12 +134,12 @@ class TestDotProductUnit extends JUnitSuite {
         // remove valid input in next cycle
         poke(c.io.in.valid, 0)
         // wait until all inputs are processed
-        step(latency-1)
+        step(latency - 1)
         expect(c.io.out, golden)
       }
 
       // test 3: multibit unsigned and signed integers
-      for(i <- 1 to num_seqs) {
+      for (i ← 1 to num_seqs) {
         // produce seq_len different popcount vectors, each pc_len bits
         // min length of seq_len is 1, no max len (barring accumulator overflow)
         // but set to 16 here for quicker testing
@@ -147,8 +147,8 @@ class TestDotProductUnit extends JUnitSuite {
         val bit_len = pc_len * seq_len
         // precision in bits, each between 1 and max_shift/2 bits
         // such that their sum won't be greater than max_shift
-        val precA = 1 + r.nextInt(max_shift/2)
-        val precB = 1 + r.nextInt(max_shift/2)
+        val precA = 1 + r.nextInt(max_shift / 2)
+        val precB = 1 + r.nextInt(max_shift / 2)
         assert(precA + precB <= max_shift)
         // produce random binary test vectors and golden result
         val negA = r.nextBoolean
@@ -163,18 +163,18 @@ class TestDotProductUnit extends JUnitSuite {
         clearAcc()
         var golden_acc: Int = 0
         // iterate over each combination of bit positions for bit serial
-        for(bitA <- 0 to precA-1) {
-          val negbitA = negA & (bitA == precA-1)
-          for(bitB <- 0 to precB-1) {
-            val negbitB = negB & (bitB == precB-1)
-            val doNeg = if(negbitA ^ negbitB) 1 else 0
+        for (bitA ← 0 to precA - 1) {
+          val negbitA = negA & (bitA == precA - 1)
+          for (bitB ← 0 to precB - 1) {
+            val negbitB = negB & (bitB == precB - 1)
+            val doNeg = if (negbitA ^ negbitB) 1 else 0
             // shift is equal to sum of current bit positions
-            poke(c.io.in.bits.shiftAmount, bitA+bitB)
-            for(j <- 0 to seq_len-1) {
+            poke(c.io.in.bits.shiftAmount, bitA + bitB)
+            for (j ← 0 to seq_len - 1) {
               // push in next slice of bit vector from correct bit position
-              val curA = seqA_bs(bitA).slice(j*pc_len, (j+1)*pc_len)
-              val curB = seqB_bs(bitB).slice(j*pc_len, (j+1)*pc_len)
-              golden_acc += RosettaTestHelpers.dotProduct(curA, curB) << (bitA+bitB)
+              val curA = seqA_bs(bitA).slice(j * pc_len, (j + 1) * pc_len)
+              val curB = seqB_bs(bitB).slice(j * pc_len, (j + 1) * pc_len)
+              golden_acc += RosettaTestHelpers.dotProduct(curA, curB) << (bitA + bitB)
               poke(c.io.in.bits.a, scala.math.BigInt.apply(curA.mkString, 2))
               poke(c.io.in.bits.b, scala.math.BigInt.apply(curB.mkString, 2))
               poke(c.io.in.bits.negate, doNeg)
@@ -188,7 +188,7 @@ class TestDotProductUnit extends JUnitSuite {
         // remove valid input in next cycle
         poke(c.io.in.valid, 0)
         // wait until all inputs are processed
-        step(latency-1)
+        step(latency - 1)
         expect(c.io.out, golden)
       }
     }
@@ -196,25 +196,25 @@ class TestDotProductUnit extends JUnitSuite {
     // Chisel arguments to pass to chiselMainTest
     def testArgs = RosettaTestHelpers.stdArgs
 
-    for{
-      popc_extra_regs <- 0 to 1
-      dpu_extra_regs <- 0 to 1
-      popc_width <- for(b <- 4 to 10) yield 1 << b
+    for {
+      popc_extra_regs ← 0 to 1
+      dpu_extra_regs ← 0 to 1
+      popc_width ← for (b ← 4 to 10) yield 1 << b
     } {
       // function that instantiates the Module to be tested
       val pcp = new PopCountUnitParams(popc_width, extraPipelineRegs = popc_extra_regs)
       val p = new DotProductUnitParams(pcp, 32, 16)
-      def testModuleInstFxn = () => { Module(new DotProductUnit(p)) }
+      def testModuleInstFxn = () ⇒ { Module(new DotProductUnit(p)) }
       // function that instantiates the Tester to test the Module
-      def testTesterInstFxn = (c: DotProductUnit) => new DotProductUnitTester(c)
+      def testTesterInstFxn = (c: DotProductUnit) ⇒ new DotProductUnitTester(c)
 
       // actually run the test
       chiselMainTest(
         testArgs,
         testModuleInstFxn
       ) {
-        testTesterInstFxn
-      }
+          testTesterInstFxn
+        }
     }
   }
 }

@@ -47,8 +47,7 @@ import Chisel._
 // 0 1 2 3 10 12 14
 
 class MultiSeqGenParams(
-  val w: Int, val a: Int
-) extends PrintableParam {
+  val w: Int, val a: Int) extends PrintableParam {
   def headersAsList(): List[String] = {
     return List("datawidth", "countwidth")
   }
@@ -101,9 +100,9 @@ class MultiSeqGen(p: MultiSeqGenParams) extends Module {
     }
 
     is(sRun) {
-      when (regCounter === regMaxCount) {
+      when(regCounter === regMaxCount) {
         regState := sIdle
-      } .otherwise {
+      }.otherwise {
         io.out.valid := Bool(true)
         when(io.out.ready) {
           regCounter := regCounter + UInt(1)

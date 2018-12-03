@@ -11,28 +11,25 @@ import fpgatidbits.ocm._
 import fpgatidbits.streams._
 import fpgatidbits.PlatformWrapper._
 
-
 // standalone, accelerator-wrapped version of ThrStage
 // this provides the hardware side for EmuTestThrStage
 class EmuTestThrStage(
-                       mRows: Int, mCols: Int,  inBits: Int,  outBits: Int, thUnroll: Int, p: PlatformWrapperParams)
-extends GenericAccelerator(p){
+  mRows: Int, mCols: Int, inBits: Int, outBits: Int, thUnroll: Int, p: PlatformWrapperParams)
+  extends GenericAccelerator(p) {
   val numMemPorts = 0
   // parameters for accelerator instance
   val myP = new ThrStageParams(
-      thresholdMemDepth = 8, inputMemDepth = 8, resMemDepth = 8, bramInRegs = 1, bramOutRegs = 1,
-      thuParams = new ThresholdingUnitParams(
-        thBBParams = new ThresholdingBuildingBlockParams(	inPrecision = inBits, popcountUnroll = thUnroll,  outPrecision = outBits),
-        inputBitPrecision = inBits, maxOutputBitPrecision = outBits, matrixRows = mRows,
-        matrixColumns = mCols, unrollingFactorOutputPrecision = thUnroll,
-        unrollingFactorRows = mRows, unrollingFactorColumns = mCols
-      )
-  )
+    thresholdMemDepth = 8, inputMemDepth = 8, resMemDepth = 8, bramInRegs = 1, bramOutRegs = 1,
+    thuParams = new ThresholdingUnitParams(
+      thBBParams = new ThresholdingBuildingBlockParams(inPrecision = inBits, popcountUnroll = thUnroll, outPrecision = outBits),
+      inputBitPrecision = inBits, maxOutputBitPrecision = outBits, matrixRows = mRows,
+      matrixColumns = mCols, unrollingFactorOutputPrecision = thUnroll,
+      unrollingFactorRows = mRows, unrollingFactorColumns = mCols))
 
   val io = new GenericAcceleratorIF(numMemPorts, p) {
     // base control signals
-    val start = Bool(INPUT)                   // hold high while running
-    val done = Bool(OUTPUT)                   // high when done until start=0
+    val start = Bool(INPUT) // hold high while running
+    val done = Bool(OUTPUT) // high when done until start=0
     val cfg = new ThrStageCfgIO()
     val ctrl = new ThrStageCtrlIO(myP).asInput
     // write access to input matrix tile memory
@@ -53,7 +50,6 @@ extends GenericAccelerator(p){
     val resmem_data = UInt(OUTPUT, width = myP.getResBitWidth())
   }
 
-
   val rmm = Module(new ThrStage(myP)).io
   rmm.cfg <> io.cfg
   rmm.ctrl <> io.ctrl
@@ -63,29 +59,31 @@ extends GenericAccelerator(p){
   // correct version. here the signature is regenerated from the current date.
   io.signature := makeDefaultSignature()
 
-  val inMemory_thr = Vec.fill(myP.getUnrollRows()) { Vec.fill(myP.getThUnroll()){
-    Module(new PipelinedDualPortBRAM(
-      addrBits = log2Up(myP.thresholdMemDepth), dataBits = myP.getInBits(),
-      regIn = myP.bramInRegs, regOut = myP.bramOutRegs
-    )).io
-  }}
-  val inMemory_act = Vec.fill(myP.getUnrollRows()) { Vec.fill(myP.getUnrollCols()){
-    Module(new PipelinedDualPortBRAM(
-      addrBits = log2Up(myP.inputMemDepth), dataBits = myP.getInBits(),
-      regIn = myP.bramInRegs, regOut = myP.bramOutRegs
-    )).io
-  }}
+  val inMemory_thr = Vec.fill(myP.getUnrollRows()) {
+    Vec.fill(myP.getThUnroll()) {
+      Module(new PipelinedDualPortBRAM(
+        addrBits = log2Up(myP.thresholdMemDepth), dataBits = myP.getInBits(),
+        regIn = myP.bramInRegs, regOut = myP.bramOutRegs)).io
+    }
+  }
+  val inMemory_act = Vec.fill(myP.getUnrollRows()) {
+    Vec.fill(myP.getUnrollCols()) {
+      Module(new PipelinedDualPortBRAM(
+        addrBits = log2Up(myP.inputMemDepth), dataBits = myP.getInBits(),
+        regIn = myP.bramInRegs, regOut = myP.bramOutRegs)).io
+    }
+  }
 
-  val resmem = Vec.fill(myP.getUnrollRows()) { Vec.fill(myP.getUnrollCols()){
-    Module(new PipelinedDualPortBRAM(
-      addrBits = log2Up(myP.resMemDepth), dataBits = myP.getResBitWidth(),
-      regIn = 0, regOut = 0
-    )).io
-  }}
+  val resmem = Vec.fill(myP.getUnrollRows()) {
+    Vec.fill(myP.getUnrollCols()) {
+      Module(new PipelinedDualPortBRAM(
+        addrBits = log2Up(myP.resMemDepth), dataBits = myP.getResBitWidth(),
+        regIn = 0, regOut = 0)).io
+    }
+  }
 
-
-  for(i <- 0 until myP.getUnrollRows())
-    for(j <- 0 until myP.getThUnroll()){
+  for (i <- 0 until myP.getUnrollRows())
+    for (j <- 0 until myP.getThUnroll()) {
       inMemory_thr(i)(j).ports(0).req.addr := io.inMemory_thr_addr
       inMemory_thr(i)(j).ports(0).req.writeData := io.inMemory_thr_data
       val myWriteEn = (io.inMemory_thr_sel_r === UInt(i) && io.inMemory_thr_sel_c === UInt(j)) & io.inMemory_thr_write
@@ -95,9 +93,9 @@ extends GenericAccelerator(p){
       }*/
       inMemory_thr(i)(j).ports(1).req := rmm.inMemory.thr_req(i)(j)
       rmm.inMemory.thr_rsp(i)(j) := inMemory_thr(i)(j).ports(1).rsp
-  }
-  for(i <- 0 until myP.getUnrollRows())
-    for(j <- 0 until myP.getUnrollCols()){
+    }
+  for (i <- 0 until myP.getUnrollRows())
+    for (j <- 0 until myP.getUnrollCols()) {
       inMemory_act(i)(j).ports(0).req.addr := io.inMemory_act_addr
       inMemory_act(i)(j).ports(0).req.writeData := io.inMemory_act_data
       val myWriteEn = (io.inMemory_act_sel_r === UInt(i) && io.inMemory_act_sel_c === UInt(j)) & io.inMemory_act_write
@@ -107,14 +105,14 @@ extends GenericAccelerator(p){
       }*/
       inMemory_act(i)(j).ports(1).req := rmm.inMemory.act_req(i)(j)
       rmm.inMemory.act_rsp(i)(j) := inMemory_act(i)(j).ports(1).rsp
-  }
+    }
   // wire-up: result memory
-  for(i <- 0 until myP.getUnrollRows())
-    for(j <- 0 until myP.getUnrollCols()){
-    resmem(i)(j).ports(0).req <> rmm.res.req(i)(j)
-    resmem(i)(j).ports(1).req.addr := io.resmem_addr_e
-    resmem(i)(j).ports(1).req.writeEn := Bool(false)
-  }
+  for (i <- 0 until myP.getUnrollRows())
+    for (j <- 0 until myP.getUnrollCols()) {
+      resmem(i)(j).ports(0).req <> rmm.res.req(i)(j)
+      resmem(i)(j).ports(1).req.addr := io.resmem_addr_e
+      resmem(i)(j).ports(1).req.writeEn := Bool(false)
+    }
 
   // register result reg selector inputs
   io.resmem_data := resmem(io.resmem_addr_r)(io.resmem_addr_c).ports(1).rsp.readData

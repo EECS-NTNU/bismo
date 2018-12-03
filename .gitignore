@@ -1,3 +1,4 @@
+scalariform.jar
 build/
 *.jou
 ### Project Specific stuff
@@ -313,6 +314,7 @@ xcuserdata
 ### Scala template
 *.class
 *.log
+*.txt
 
 # sbt specific
 .cache

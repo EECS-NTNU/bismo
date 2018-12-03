@@ -31,27 +31,26 @@
 // Modifications: Davide Conficconi
 // Add quantization helpers
 
-
 // useful definitions for testing Chisel modules inside Rosetta
 object RosettaTestHelpers {
   // standard arguments to pass to chiselTest
   val stdArgs = Array("--genHarness", "--compile", "--test", "--backend", "c",
-    "--targetDir", "build/test")
+    "--targetDir", "build/test", "--vcd")
 
   // random number generation functions
   val r = scala.util.Random
 
   // treat given positive int as signed based on given num. of bits
   def treatAs2sCompl(in: Int, nBits: Int): Int = {
-    val negOffset = (1 << (nBits-1))
-    return if(in >= negOffset) in-2*negOffset else in
+    val negOffset = (1 << (nBits - 1))
+    return if (in >= negOffset) in - 2 * negOffset else in
   }
 
   // extract bit position at pos from number in
   def extractBitPos(in: Int, pos: Int, nBits: Int): Int = {
-    val negOffset = (1 << (nBits-1))
-    if(in < 0) {
-      return ((in + 2*negOffset) & (1 << pos)) >> pos
+    val negOffset = (1 << (nBits - 1))
+    if (in < 0) {
+      return ((in + 2 * negOffset) & (1 << pos)) >> pos
     } else {
       return (in & (1 << pos)) >> pos
     }
@@ -60,16 +59,16 @@ object RosettaTestHelpers {
   // convert a sequence of integers into bit-serial form
   // e.g. [2, 0, 3] turns to [[0, 0, 1], [1, 0, 1]]
   def intVectorToBitSerial(in: Seq[Int], nBits: Int): Seq[Seq[Int]] = {
-    for(i <- 0 to nBits-1) yield in.map(x => extractBitPos(x, i, nBits))
+    for (i ← 0 to nBits - 1) yield in.map(x ⇒ extractBitPos(x, i, nBits))
   }
 
   // generate a random vector of len integers, each nBits wide, may be signed
   // if allowNeg is true
   def randomIntVector(len: Int, nBits: Int, allowNeg: Boolean): Seq[Int] = {
-    val seq = for (i <- 1 to len) yield r.nextInt(1 << nBits)
+    val seq = for (i ← 1 to len) yield r.nextInt(1 << nBits)
 
-    if(allowNeg) {
-      return seq.map(i => treatAs2sCompl(i, nBits))
+    if (allowNeg) {
+      return seq.map(i ⇒ treatAs2sCompl(i, nBits))
     } else {
       return seq
     }
@@ -78,12 +77,12 @@ object RosettaTestHelpers {
   // reshape a vector of integers into a matrix, treating the vector as a
   // row-major matrix
   def vectorToMatrix(in: Seq[Int], rows: Int, cols: Int): Seq[Seq[Int]] = {
-    return for(i <- 0 to rows-1) yield in.slice(i*cols, (i+1)*cols)
+    return for (i ← 0 to rows - 1) yield in.slice(i * cols, (i + 1) * cols)
   }
 
   // compute the dot product of two number sequences
   def dotProduct(a: Seq[Int], b: Seq[Int]): Int = {
-    return (a zip b).map{case (x,y) => x*y}.reduce(_+_)
+    return (a zip b).map { case (x, y) ⇒ x * y }.reduce(_ + _)
   }
 
   // compute the product of two matrices a and b. assume a's first index returns
@@ -93,31 +92,27 @@ object RosettaTestHelpers {
     // ensure correct dimensions
     assert(a(0).size == b(0).size)
     // pairwise dot products
-    val ret = for(i <- 0 to a.size-1) yield
-      for(j <- 0 to b.size-1) yield
-        dotProduct(a(i), b(j))
+    val ret = for (i ← 0 to a.size - 1) yield for (j ← 0 to b.size - 1) yield dotProduct(a(i), b(j))
     return ret
   }
 
   // generate a matrix of random integers with desired size
   def randomIntMatrix(row: Int, col: Int, nBits: Int, allowNeg: Boolean): Seq[Seq[Int]] = {
-    return vectorToMatrix(randomIntVector(row*col, nBits, allowNeg), row, col)
+    return vectorToMatrix(randomIntVector(row * col, nBits, allowNeg), row, col)
   }
   //helper funtction to quantize a given matrix with a given matrix of thresholds
   def quantizeMatrix(a: Seq[Seq[Int]], b: Seq[Seq[Int]]): Seq[Seq[Int]] = {
-    val ret = for(i <- 0 to a.size-1) yield
-      for(j <- 0 to a(i).size-1) yield
-        {
-          b(i).map((x:Int)=> if (a(i)(j)>x) 1 else 0 ).reduce(_+_)
+    val ret = for (i ← 0 to a.size - 1) yield for (j ← 0 to a(i).size - 1) yield {
+      b(i).map((x: Int) ⇒ if (a(i)(j) > x) 1 else 0).reduce(_ + _)
 
-        }
+    }
     return ret
   }
 
-//Printer helper function
+  //Printer helper function
   def printMatrix(a: Seq[Seq[Int]]) = {
-    for(i <- 0 to a.size-1){
-      for(j <- 0 to a(i).size-1){
+    for (i ← 0 to a.size - 1) {
+      for (j ← 0 to a(i).size - 1) {
         print(a(i)(j))
         print(" ")
       }
@@ -125,9 +120,9 @@ object RosettaTestHelpers {
     }
   }
 
-  def printVector(a : Seq[Int]) ={
-    for(i <- 0 to a.size - 1)
-      print(Integer.toString(a(i),2))
+  def printVector(a: Seq[Int]) = {
+    for (i ← 0 to a.size - 1)
+      print(Integer.toString(a(i), 2))
     println()
   }
 }

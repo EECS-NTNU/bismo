@@ -94,6 +94,21 @@ class BitSerialMatMulParams(
       "dpaLHS", "dpaRHS", "dpaCommon", "lhsMem", "rhsMem", "DRAM_rd", "DRAM_wr",
       "noShifter", "noNegate", "extraRegDPA", "extraRegDPU", "extraRegPC", "thrMem", "MaxQuantDim", "QuantFolding", "StaticSerialization"
     )
+  def estimateResources() = {
+    import Math.ceil
+    val a_dpu = 2.04
+    val b_dpu = 109.41
+    val lut_per_res = 120.1
+    val lut_per_dpu = a_dpu * dpaDimCommon + b_dpu
+    val lut_array = dpaDimLHS * dpaDimRHS * (lut_per_dpu + lut_per_res)
+    val bram_array = ceil(dpaDimCommon / 32) * (dpaDimLHS * ceil(lhsEntriesPerMem / 1024) + dpaDimRHS * ceil(rhsEntriesPerMem / 1024))
+    val binops_per_cycle = 2 * dpaDimLHS * dpaDimRHS * dpaDimCommon
+    val tops_per_sec_200MHz = (binops_per_cycle * 200) / 1000000.0
+    println("Resource predictions from cost model")
+    println("=====================================")
+    println(s"DPA LUT: $lut_array")
+    println(s"DPA BRAM: $bram_array")
+    println(s"TOPS at 200 MHz: $tops_per_sec_200MHz")
   }
 
   def contentAsList(): List[String] = {
@@ -131,23 +146,19 @@ class BitSerialMatMulParams(
     thrEntriesPerMem = thrEntriesPerMem, thsCols = scala.math.pow(2,maxQuantDim).toInt - 1
   )
   val pcParams = new PopCountUnitParams(
-    numInputBits = dpaDimCommon, extraPipelineRegs = extraRegs_PC
-  )
+    numInputBits = dpaDimCommon, extraPipelineRegs = extraRegs_PC)
   val dpuParams = new DotProductUnitParams(
     pcParams = pcParams, accWidth = accWidth, maxShiftSteps = maxShiftSteps,
-    noShifter = noShifter, noNegate = noNegate, extraPipelineRegs = extraRegs_DPU
-  )
+    noShifter = noShifter, noNegate = noNegate, extraPipelineRegs = extraRegs_DPU)
   val dpaParams = new DotProductArrayParams(
     dpuParams = dpuParams, m = dpaDimLHS, n = dpaDimRHS,
-    extraPipelineRegs = extraRegs_DPA
-  )
+    extraPipelineRegs = extraRegs_DPA)
   Predef.assert(dpaDimCommon >= mrp.dataWidth)
   val execStageParams = new ExecStageParams(
     dpaParams = dpaParams, lhsTileMem = lhsEntriesPerMem, rhsTileMem = rhsEntriesPerMem,
     bramInRegs = bramPipelineBefore, bramOutRegs = bramPipelineAfter,
     resEntriesPerMem = resEntriesPerMem,
-    tileMemAddrUnit = dpaDimCommon / mrp.dataWidth
-  )
+    tileMemAddrUnit = dpaDimCommon / mrp.dataWidth)
   val resultStageParams = new ResultStageParams(
     accWidth = accWidth,
     dpa_lhs = dpaDimLHS, dpa_rhs = dpaDimRHS, mrp = mrp,
@@ -198,9 +209,8 @@ class BitSerialMatMulPerf(myP: BitSerialMatMulParams) extends Bundle {
 }
 
 class BitSerialMatMulAccel(
-  val myP: BitSerialMatMulParams, p: PlatformWrapperParams
-) extends GenericAccelerator(p) {
-    val numMemPorts = 1
+  val myP: BitSerialMatMulParams, p: PlatformWrapperParams) extends GenericAccelerator(p) {
+  val numMemPorts = 1
   val io = new GenericAcceleratorIF(numMemPorts, p) {
     // enable/disable execution for each stage
     val fetch_enable = Bool(INPUT)
@@ -262,17 +272,13 @@ class BitSerialMatMulAccel(
     Module(new AsymPipelinedDualPortBRAM(
       p = new OCMParameters(
         b = myP.lhsEntriesPerMem * myP.dpaDimCommon,
-        rWidth = myP.dpaDimCommon, wWidth = myP.mrp.dataWidth, pts = 2, lat = 0
-      ), regIn = myP.bramPipelineBefore, regOut = myP.bramPipelineAfter
-    )).io
+        rWidth = myP.dpaDimCommon, wWidth = myP.mrp.dataWidth, pts = 2, lat = 0), regIn = myP.bramPipelineBefore, regOut = myP.bramPipelineAfter)).io
   }
   val tilemem_rhs = Vec.fill(myP.dpaDimRHS) {
     Module(new AsymPipelinedDualPortBRAM(
       p = new OCMParameters(
         b = myP.rhsEntriesPerMem * myP.dpaDimCommon,
-        rWidth = myP.dpaDimCommon, wWidth = myP.mrp.dataWidth, pts = 2, lat = 0
-      ), regIn = myP.bramPipelineBefore, regOut = myP.bramPipelineAfter
-    )).io
+        rWidth = myP.dpaDimCommon, wWidth = myP.mrp.dataWidth, pts = 2, lat = 0), regIn = myP.bramPipelineBefore, regOut = myP.bramPipelineAfter)).io
   }
   // instantiate the result memory
   // TODO ResultStage actually assumes this memory can be read with zero
@@ -317,7 +323,7 @@ class BitSerialMatMulAccel(
 
   // helper function to wire-up DecoupledIO to DecoupledIO with pulse generator
   def enqPulseGenFromValid[T <: Data](enq: DecoupledIO[T], vld: DecoupledIO[T]) = {
-    enq.valid := vld.valid & !Reg(next=vld.valid)
+    enq.valid := vld.valid & !Reg(next = vld.valid)
     enq.bits := vld.bits
     vld.ready := enq.ready
   }
@@ -379,13 +385,13 @@ class BitSerialMatMulAccel(
   // wire-up: BRAM ports (fetch and exec stages)
   // port 0 used by fetch stage for writes
   // port 1 used by execute stage for reads
-  for(m <- 0 until myP.dpaDimLHS) {
+  for (m ← 0 until myP.dpaDimLHS) {
     tilemem_lhs(m).ports(0).req := fetchStage.bram.lhs_req(m)
     tilemem_lhs(m).ports(1).req := execStage.tilemem.lhs_req(m)
     execStage.tilemem.lhs_rsp(m) := tilemem_lhs(m).ports(1).rsp
     //when(tilemem_lhs(m).ports(0).req.writeEn) { printf("LHS BRAM %d write: addr %d data %x\n", UInt(m), tilemem_lhs(m).ports(0).req.addr, tilemem_lhs(m).ports(0).req.writeData) }
   }
-  for(m <- 0 until myP.dpaDimRHS) {
+  for (m ← 0 until myP.dpaDimRHS) {
     tilemem_rhs(m).ports(0).req := fetchStage.bram.rhs_req(m)
     tilemem_rhs(m).ports(1).req := execStage.tilemem.rhs_req(m)
     execStage.tilemem.rhs_rsp(m) := tilemem_rhs(m).ports(1).rsp
@@ -408,7 +414,6 @@ class BitSerialMatMulAccel(
   syncThrResult_free.deq <> thrCtrl.sync_in(1)
   thrCtrl.sync_out(1) <> syncThrResult_filled.enq
   syncThrResult_filled.deq <> resultCtrl.sync_in(0)
-
 
   // wire-up: result memory (exec and thr stages)
   for{
@@ -494,18 +499,15 @@ class ResultBufParams(
   val addrBits: Int,
   val dataBits: Int,
   val regIn: Int,
-  val regOut: Int
-) extends PrintableParam {
+  val regOut: Int) extends PrintableParam {
   def headersAsList(): List[String] = {
     return List(
-      "addBits", "dataBits", "regIn", "regOut"
-    )
+      "addBits", "dataBits", "regIn", "regOut")
   }
 
   def contentAsList(): List[String] = {
     return List(
-      addrBits, dataBits, regIn, regOut
-    ).map(_.toString)
+      addrBits, dataBits, regIn, regOut).map(_.toString)
   }
 }
 
@@ -515,7 +517,6 @@ class ResultBuf(val myP: ResultBufParams) extends Module {
 
   val mem = Module(new PipelinedDualPortBRAM(
     addrBits = myP.addrBits, dataBits = myP.dataBits,
-    regIn = myP.regIn, regOut = myP.regOut
-  )).io
+    regIn = myP.regIn, regOut = myP.regOut)).io
   io <> mem
 }
