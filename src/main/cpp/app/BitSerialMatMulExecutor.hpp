@@ -86,6 +86,16 @@ public:
     m_platform->deallocAccelBuffer(m_accelLHS);
     m_platform->deallocAccelBuffer(m_accelRHS);
     m_platform->deallocAccelBuffer(m_accelRes);
+    m_platform->deallocAccelBuffer(m_accelP2S);
+    m_platform->deallocAccelBuffer(m_accelP2S_result);
+  }
+
+  void cleanAccelBuff(){
+    m_platform->deallocAccelBuffer(m_accelLHS);
+    m_platform->deallocAccelBuffer(m_accelRHS);
+    m_platform->deallocAccelBuffer(m_accelRes);
+    m_platform->deallocAccelBuffer(m_accelP2S);
+    m_platform->deallocAccelBuffer(m_accelP2S_result);
   }
 
   void setLHS(gemmbitserial::BitSerialMatrix from) {
@@ -110,12 +120,19 @@ public:
     }
   }
 
-  void setP2S(size_t rows, size_t cols, uint8_t * bpm){
+  void * setP2S(size_t rows, size_t cols, uint8_t * bpm){
     size_t nbytes_bitpar = rows * cols * sizeof(uint8_t);
-    void * hw_src = m_platform->allocAccelBuffer(nbytes_bitpar);
-    m_platform->copyBufferHostToAccel(bpm, hw_src, nbytes_bitpar);
+    m_accelP2S = m_platform->allocAccelBuffer(nbytes_bitpar);
+    m_platform->copyBufferHostToAccel(bpm, m_accelP2S, nbytes_bitpar);
+    return m_accelP2S;
   }
 
+void * setP2SRes(size_t bits, size_t rows, size_t cols){
+  size_t nbytes_bitser = (bits * rows * cols) / 8;
+  m_accelP2S_result = m_platform->allocAccelBuffer(nbytes_bitser);
+  m_acc->setup_p2s(m_accelP2S, nbytes_bitser, m_accelP2S_result, rows, cols, bits);
+  return m_accelP2S_result;
+} 
 /*******************************************
 //TODO: Should update here for ths?
 *******************************************/
@@ -380,6 +397,8 @@ protected:
   void * m_accelLHS;
   void * m_accelRHS;
   void * m_accelRes;
+  void * m_accelP2S;
+  void * m_accelP2S_result;
   //TODO Add here???
 
   std::vector<Op> m_fetch_op, m_exec_op, m_result_op, m_thr_op;

@@ -176,13 +176,9 @@ bool test(
   /**************************** P2S ****************************/
   size_t nbytes_bitser_lhs = (nbits_lhs * nrows_lhs * ncols) / 8;
   size_t nbytes_bitser_rhs = (nbits_rhs * nrows_rhs * ncols) / 8;
-  size_t nbytes_bitpar_lhs = nrows_lhs * ncols * sizeof(uint8_t);
-  size_t nbytes_bitpar_rhs = nrows_rhs * ncols * sizeof(uint8_t);
 
-  void * hw_src = platform->allocAccelBuffer(nbytes_bitpar_lhs);
-  void * hw_dst = platform->allocAccelBuffer(nbytes_bitser_lhs);
-  platform->copyBufferHostToAccel(lhs, hw_src, nbytes_bitpar_lhs);
-  acc->setup_p2s(hw_src, nbytes_bitser_lhs, hw_dst, nrows_lhs, ncols, nbits_lhs);
+  void * hw_src = runner->setP2S(nrows_lhs, ncols, lhs);
+  void * hw_dst = runner->setP2SRes(nbits_lhs, nrows_lhs, ncols);
   uint32_t cycles = acc->p2s_exec_and_wait();
   uint8_t * hw_res_lhs = new uint8_t[nbytes_bitser_lhs];
   platform->copyBufferAccelToHost(hw_dst, hw_res_lhs, nbytes_bitser_lhs);
@@ -193,9 +189,8 @@ bool test(
   delete [] hw_res_lhs;
 
   //second one
-
-  platform->copyBufferHostToAccel(rhs, hw_src, nbytes_bitpar_rhs);
-  acc->setup_p2s(hw_src, nbytes_bitser_rhs, hw_dst, nrows_rhs, ncols, nbits_rhs);
+  hw_src = runner->setP2S(nrows_rhs, ncols, rhs);
+  hw_dst = runner->setP2SRes(nbits_rhs, nrows_rhs, ncols);
   cycles = acc->p2s_exec_and_wait();
   uint8_t * hw_res_rhs = new uint8_t[nbytes_bitser_rhs];
   platform->copyBufferAccelToHost(hw_dst, hw_res_rhs, nbytes_bitser_rhs);
@@ -242,9 +237,7 @@ bool test(
 
   printf("Start deleting :)\n");
 
-  delete runner;
-  printf("Deleted runner \n");
-
+  bool return_value = 0;//res == 0;
   delete [] lhs;
   printf("Deleted lhs\n");
 
@@ -266,8 +259,12 @@ bool test(
 
   delete [] accel_res;
   printf("Deleted accel res\n");
+  runner->cleanAccelBuff();
+  // // Deletion of this object cause core dumps
+  // delete runner;
+  // printf("Deleted runner \n");
 
-  return res == 0;
+  return return_value;
 }
 
 bool test_binary_onchip_onetile(
