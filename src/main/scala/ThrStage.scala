@@ -165,6 +165,8 @@ class ThrStage(val myP: ThrStageParams) extends Module {
   when(seqgen.seq.valid){
     threshold_address := seqgen.seq.bits + io.ctrl.thrOffset
     threshold_address_reg := seqgen.seq.bits + io.ctrl.thrOffset
+  }.elsewhen(!io.start){
+    threshold_address := UInt(0)
   }.otherwise{
     threshold_address := threshold_address_reg + io.ctrl.thrOffset
   }

@@ -525,6 +525,9 @@ void thsSingleTransfer(int32_t *mat ,int addr, int sel_r, int sel_c){
   }
 
 /**************************P2S driver section **************************/
+int32_t getdpaDimLHS(){
+  return m_cfg.dpaDimLHS;
+}
 void setup_p2s(
   void * accel_buf_src,
   uint32_t nbytes,

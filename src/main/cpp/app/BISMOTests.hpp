@@ -67,11 +67,13 @@ void quantizeMatrix(int32_t * a, int32_t ** b, size_t arows, size_t acols, size_
 
     //helper funtction to quantize a given matrix with a given matrix of thresholds
 void quantizeMatrix2(int32_t * a, int32_t * b, size_t arows, size_t acols, size_t brows, size_t bcols, int32_t * r, size_t offset ){
+  // std::cout << "Quantization :D" << endl;
     for (int i = 0; i < arows; i++)
       for (int j = 0; j < acols; j++)
         for (int k = 0; k < bcols; k++)
           //for (int l = 0; l < bcols; l++)
           {
+            // std::cout << a[((i+offset) * acols) + j] << " vs " << b[i * bcols + k] << endl;
             if(a[((i+offset) * acols) + j] > b[i * bcols + k] ){
               r[((i+offset) * acols) + j]++;
             }
@@ -115,25 +117,11 @@ bool test(
       qres_bs[i* nrows_lhs + j] = 0;
     }
 
-  // int32_t ** ths = new int32_t*[ths_rows];
-  // int32_t ** qres = new int32_t*[ths_rows];
-  // //Allocation of different matrix
-  // for (int i = 0; i < ths_rows; ++i)
-  // {
-  // 	ths[i] = new int32_t[ncols_ths];
-  //   qres[i] = new int32_t[nrows_lhs];
-  // }
-  // //Init quantized res matrix
-  // for (int i = 0; i < ths_rows; i++)
-  //   for (int j = 0; j < nrows_lhs; j++)
-  //   {
-  //     qres[i][j] = 0;
-  //   }
+  int32_t dpa_lhs = acc->getdpaDimLHS();
   generateRandomVector(nbits_lhs, nrows_lhs*ncols, lhs);
   generateRandomVector(nbits_rhs, nrows_rhs*ncols, rhs);
-  generateRandomVector(4, nrows_lhs * ncols_ths, ths_bs);
+  generateRandomVector(10, nrows_lhs * ncols_ths, ths_bs);
   printmatrix(ths_bs, nrows_lhs, ncols_ths );
-  // printmatrix(lhs, nrows_lhs, ncols );
 
 /**************************** THS transfer ****************************/
   
@@ -141,6 +129,7 @@ bool test(
   // printmatrixInt(ths, ths_rows, ncols_ths  );
 
   //TODO multi tile ths?
+  int32_t addr_offset = 0;
   for (int i = 0; i < ths_rows; i++)
   {
   	//TODO random vector for more than 8 bits
@@ -152,9 +141,14 @@ bool test(
       /******************************************************************/
       //TODO loading on different address depending on the rolling factor
       /******************************************************************/
-  		acc->thsSingleTransfer(&ths_bs[i * ncols_ths + j], 0, i, j);
+      //addr = curr row?
+  		acc->thsSingleTransfer(&ths_bs[i * ncols_ths + j], addr_offset , i, j);
   	}
-  	cout << endl;
+      if((i+1)%dpa_lhs == 0){
+        addr_offset ++;
+        cout << "GNER"<< endl;
+      }
+  	// cout << endl;
   }
 /**************************** END ****************************/
 
@@ -185,8 +179,7 @@ bool test(
   int memcmpres = memcmp(hw_res_lhs, ctx.lhs.data, nbytes_bitser_lhs);
   cout << "Serialize first took " << cycles << " with result =" << memcmpres << endl;
 
-  //delete
-  delete [] hw_res_lhs;
+
 
   //second one
   hw_src = runner->setP2S(nrows_rhs, ncols, rhs);
@@ -197,12 +190,12 @@ bool test(
   memcmpres = memcmp(hw_res_rhs, ctx.rhs.data, nbytes_bitser_rhs);
   cout << "Serialize second took " << cycles << " with result =" << memcmpres << endl;
 
-    //delete
-  delete [] hw_res_rhs;
+  runner->setLHSRHSSerial(hw_res_lhs, hw_res_rhs);
+
   /**************************** END ****************************/
 
-  runner->setLHS(ctx.lhs);
-  runner->setRHS(ctx.rhs);
+  // runner->setLHS(ctx.lhs);
+  // runner->setRHS(ctx.rhs);
   runner->run();
   runner->getRes(accel_res);
 
@@ -210,9 +203,9 @@ bool test(
   // quantizeMatrix(ctx.res, ths, ths_rows, nrows_lhs, ncols_ths, qres);
   //TODO: Tiling properly
   quantizeMatrix2(ctx.res, ths_bs, nrows_lhs, nrows_lhs, nrows_lhs, ncols_ths, qres_bs, 0);
-  quantizeMatrix2(ctx.res, ths_bs, nrows_lhs, nrows_lhs, nrows_lhs, ncols_ths, qres_bs, nrows_lhs);
+  // quantizeMatrix2(ctx.res, ths_bs, nrows_lhs, nrows_lhs, nrows_lhs, ncols_ths, qres_bs, nrows_lhs);
 
-
+  printmatrix(ths_bs, nrows_lhs, ncols_ths );
   int res = memcmp(ctx.res, accel_res, nrows_lhs*nrows_rhs*sizeof(ResultType));
   //TODO final verification miss
   int resq = memcmp(qres_bs,accel_res,nrows_lhs*nrows_rhs*sizeof(ResultType));
@@ -238,28 +231,25 @@ bool test(
   printf("Start deleting :)\n");
 
   bool return_value = 0;//res == 0;
-  delete [] lhs;
-  printf("Deleted lhs\n");
+  // delete [] lhs;
+  // printf("Deleted lhs\n");
 
-  delete [] rhs;
-  // for (int i = 0; i < nrows_lhs; ++i)
-  // {
-  // 	delete[] ths[i];
-  //   delete[] qres[i];
-  // }
-  // delete [] ths;
-  // delete [] qres;
-  printf("Deleted rhs\n");
+  // delete [] rhs;
+  //   //delete
+  // delete [] hw_res_lhs;
+  //   //delete
+  // delete [] hw_res_rhs;
+  // printf("Deleted rhs\n");
 
-  delete [] qres_bs;
-  printf("Deleted qres\n");
+  // delete [] qres_bs;
+  // printf("Deleted qres\n");
 
-  delete [] ths_bs;
-  printf("Deleted ths\n");
+  // delete [] ths_bs;
+  // printf("Deleted ths\n");
 
-  delete [] accel_res;
-  printf("Deleted accel res\n");
-  runner->cleanAccelBuff();
+  // delete [] accel_res;
+  // printf("Deleted accel res\n");
+  // runner->cleanAccelBuff();
   // // Deletion of this object cause core dumps
   // delete runner;
   // printf("Deleted runner \n");

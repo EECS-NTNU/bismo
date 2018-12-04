@@ -119,6 +119,18 @@ public:
       m_cached_rhs[i] = INVALID_CACHE_ENTRY;
     }
   }
+  void setLHSRHSSerial(uint8_t * lhs_bsm, uint8_t * rhs_bsm){
+     m_platform->copyBufferHostToAccel(lhs_bsm, m_accelLHS, lhsBytes());
+     m_platform->copyBufferHostToAccel(rhs_bsm, m_accelRHS, rhsBytes());
+         // invalidate cache
+    for(unsigned int i = 0; i < FETCHEXEC_TOKENS; i++) {
+      m_cached_lhs[i] = INVALID_CACHE_ENTRY;
+    }
+        // invalidate cache
+    for(unsigned int i = 0; i < FETCHEXEC_TOKENS; i++) {
+      m_cached_rhs[i] = INVALID_CACHE_ENTRY;
+    }
+  }
 
   void * setP2S(size_t rows, size_t cols, uint8_t * bpm){
     size_t nbytes_bitpar = rows * cols * sizeof(uint8_t);
@@ -824,7 +836,8 @@ void fill_thr_runcfg() {
 
                 ThrRunCfg thrc;
                 thrc.actOffset = current_resmem_region;
-                thrc.thrOffset = 0;
+                //TODO Offset = the row  tiles? this depends on the computations and how load matrices
+                thrc.thrOffset = rhs_l1;
                 thrc.runTimeThrNumber = (65535);//(1 << (std::pow(2,m_acc->hwcfg().maxQuantDim)-1)) - 1 );// m_acc->hwcfg().maxQuantDim;
                 thrc.writeEn = true;
                 thrc.writeAddr = current_resmem_region;
