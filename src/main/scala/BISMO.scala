@@ -452,8 +452,8 @@ class BitSerialMatMulAccel(
     n <- 0 until myP.dpaDimRHS
   } {
     resmem(m)(n).ports(0).req := execStage.res.req(m)(n)
-    resmem(m)(n).ports(1).req := thrStage.inMemory.act_req(m)(n) //resultStage.resmem_req(m)(n)
-    thrStage.inMemory.act_rsp(m)(n) := resmem(m)(n).ports(1).rsp
+    resmem(m)(n).ports(1).req := thrStage.inMemory.act_req(n)(m) //resultStage.resmem_req(m)(n)
+    thrStage.inMemory.act_rsp(n)(m) := resmem(m)(n).ports(1).rsp
   }
 
   // wire-up: thr memory (thr stage and ??)
@@ -482,7 +482,7 @@ class BitSerialMatMulAccel(
     m <- 0 until myP.dpaDimLHS
     n <- 0 until myP.dpaDimRHS
   }{
-    quantizedmem(m)(n).ports(0).req := thrStage.res.req(m)(n)
+    quantizedmem(m)(n).ports(0).req := thrStage.res.req(n)(m)
     quantizedmem(m)(n).ports(1).req := resultStage.resmem_req(m)(n)
     resultStage.resmem_rsp(m)(n) := quantizedmem(m)(n).ports(1).rsp
   }
