@@ -73,6 +73,8 @@ HW_VERILOG := $(BUILD_DIR_VERILOG)/$(PLATFORM)Wrapper.v
 HW_TO_SYNTH ?= $(HW_VERILOG)
 HW_SW_DRIVER ?= BitSerialMatMulAccel.hpp
 PLATFORM_SCRIPT_DIR := $(TOP)/src/main/script/$(PLATFORM)/target
+DEBUG_CHISEL ?= 0
+CC_FLAG = 
 
 # platform-specific Makefile include for bitfile synthesis
 include platforms/$(PLATFORM).mk
@@ -105,11 +107,11 @@ EmuTest%:
 
 # generate cycle-accurate C++ emulator driver lib
 $(BUILD_DIR_EMU)/driver.a:
-	mkdir -p $(BUILD_DIR_EMU); $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain main $(BUILD_DIR_EMU) 0"
+	mkdir -p $(BUILD_DIR_EMU); $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain main $(BUILD_DIR_EMU) $(DEBUG_CHISEL)"
 
 # generate emulator executable including software sources
 emu: $(BUILD_DIR_EMU)/driver.a
-	cp -r $(APP_SRC_DIR)/* $(BUILD_DIR_EMU)/; cd $(BUILD_DIR_EMU); g++ -std=c++11 *.cpp driver.a -o emu; ./emu
+	cp -r $(APP_SRC_DIR)/* $(BUILD_DIR_EMU)/; cd $(BUILD_DIR_EMU); g++ -std=c++11 $(CC_FLAG) *.cpp driver.a -o emu; ./emu
 
 # run resource/Fmax characterization
 Characterize%:

@@ -69,20 +69,20 @@ void quantizeMatrix(int32_t * a, int32_t ** b, size_t arows, size_t acols, size_
 
     //helper funtction to quantize a given matrix with a given matrix of thresholds
 void quantizeMatrix2(int32_t * a, int32_t * b, size_t arows, size_t acols, size_t brows, size_t bcols, int32_t * r, size_t offset ){
-   // std::cout << "Quantization :D" << endl;
+    // std::cout << "Quantization :D" << endl;
     for (int i = 0; i < arows; i++)
       for (int j = 0; j < acols; j++){
         for (int k = 0; k < bcols; k++)
           //for (int l = 0; l < bcols; l++)
           {
-             // std::cout << a[((i+offset) * acols) + j] << " vs " << b[i * bcols + k] << " ";
+              // std::cout << a[((i+offset) * acols) + j] << " vs " << b[i * bcols + k] << " ";
             //if(a[((i+offset) * acols) + j] > b[(i%brows) * bcols + k] ){
             if(a[((i+offset) * acols) + j] > b[(i) * bcols + k] ){
             
               r[((i+offset) * acols) + j]++;
             }
           }
-          // cout << endl;
+           // cout << endl;
       }
   }
 
@@ -127,7 +127,6 @@ bool test(
   generateRandomVector(nbits_lhs, nrows_lhs*ncols, lhs);
   generateRandomVector(nbits_rhs, nrows_rhs*ncols, rhs);
   generateRandomVector(10, nrows_lhs * ncols_ths, ths_bs);
-  // printmatrix(ths_bs, ths_rows, ncols_ths );
 
 /**************************** THS transfer ****************************/
   
@@ -204,10 +203,7 @@ bool test(
   // quantizeMatrix(ctx.res, ths, ths_rows, nrows_lhs, ncols_ths, qres);
   //TODO: Tiling properly
   cout << "Dimensions " << nrows_lhs << ", " << nrows_rhs << endl;
-  quantizeMatrix2(ctx.res, ths_bs, max(nrows_lhs, nrows_rhs), min(nrows_lhs, nrows_rhs), ths_rows, ncols_ths, qres_bs, 0);
-  /*if(nrows_rhs > nrows_lhs){
-    quantizeMatrix2(ctx.res, ths_bs, nrows_lhs, nrows_lhs, nrows_lhs, ncols_ths, qres_bs, nrows_lhs);
-  }*/
+  quantizeMatrix2(ctx.res, ths_bs, nrows_rhs, nrows_lhs, ths_rows, ncols_ths, qres_bs, 0);
 
   printmatrix(ths_bs, ths_rows, ncols_ths );
   int res = memcmp(ctx.res, accel_res, nrows_lhs*nrows_rhs*sizeof(ResultType));

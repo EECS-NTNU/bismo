@@ -69,7 +69,7 @@ int main(int argc, char const *argv[]) {
     // benchmark_interactive(platform, acc);
 
   bool all_OK = true;
-  // all_OK &= test_binary_onchip_onetile(platform, acc);
+  all_OK &= test_binary_onchip_onetile(platform, acc);
   all_OK &= test_binary_onchip_multitile(platform, acc);
   //all_OK &= test_binary_offchip_multitile(platform, acc);
   // all_OK &= test_binary_offchip_widerows_multitile(platform, acc);
