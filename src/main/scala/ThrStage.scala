@@ -82,7 +82,7 @@ class ThrStageCtrlIO(myP: ThrStageParams) extends PrintableBundle {
   // write to result memory at the end of current execution
   val writeEn = Bool()
   // result memory address to use for writing
-  val writeAddr = UInt(width = log2Up(myP.thresholdMemDepth))
+  val writeAddr = UInt(width = log2Up(myP.resMemDepth))
 
   override def cloneType: this.type =
     new ThrStageCtrlIO(myP).asInstanceOf[this.type]
@@ -167,6 +167,7 @@ class ThrStage(val myP: ThrStageParams) extends Module {
     threshold_address_reg := seqgen.seq.bits + io.ctrl.thrOffset
   }.elsewhen(!io.start){
     threshold_address := io.ctrl.thrOffset
+    threshold_address_reg := UInt(0)
   }.otherwise{
     threshold_address := threshold_address_reg + io.ctrl.thrOffset
   }

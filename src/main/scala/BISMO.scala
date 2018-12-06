@@ -482,7 +482,7 @@ class BitSerialMatMulAccel(
     m <- 0 until myP.dpaDimLHS
     n <- 0 until myP.dpaDimRHS
   }{
-    quantizedmem(m)(n).ports(0).req := thrStage.res.req(n)(m)
+    quantizedmem(m)(n).ports(0).req := thrStage.res.req(m)(n)
     quantizedmem(m)(n).ports(1).req := resultStage.resmem_req(m)(n)
     resultStage.resmem_rsp(m)(n) := quantizedmem(m)(n).ports(1).rsp
   }

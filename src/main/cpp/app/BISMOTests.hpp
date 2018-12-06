@@ -38,6 +38,8 @@ using namespace std;
 #include "BitSerialMatMulAccelDriver.hpp"
 #include "BitSerialMatMulExecutor.hpp"
 #include "gemmbitserial/test/testhelpers.hpp"
+#define max(x,y) (x > y ? x : y)
+#define min(x,y) (x < y ? x : y)
 
 using namespace gemmbitserial;
 
@@ -67,17 +69,21 @@ void quantizeMatrix(int32_t * a, int32_t ** b, size_t arows, size_t acols, size_
 
     //helper funtction to quantize a given matrix with a given matrix of thresholds
 void quantizeMatrix2(int32_t * a, int32_t * b, size_t arows, size_t acols, size_t brows, size_t bcols, int32_t * r, size_t offset ){
-  // std::cout << "Quantization :D" << endl;
+   // std::cout << "Quantization :D" << endl;
     for (int i = 0; i < arows; i++)
-      for (int j = 0; j < acols; j++)
+      for (int j = 0; j < acols; j++){
         for (int k = 0; k < bcols; k++)
           //for (int l = 0; l < bcols; l++)
           {
-            // std::cout << a[((i+offset) * acols) + j] << " vs " << b[i * bcols + k] << endl;
-            if(a[((i+offset) * acols) + j] > b[i * bcols + k] ){
+             // std::cout << a[((i+offset) * acols) + j] << " vs " << b[i * bcols + k] << " ";
+            //if(a[((i+offset) * acols) + j] > b[(i%brows) * bcols + k] ){
+            if(a[((i+offset) * acols) + j] > b[(i) * bcols + k] ){
+            
               r[((i+offset) * acols) + j]++;
             }
           }
+          // cout << endl;
+      }
   }
 
 
@@ -103,12 +109,12 @@ bool test(
   size_t ncols_ths= 15, size_t nbits_ths = 1, bool sgn_ths = false
 ) {
   //This is for tiling
-  size_t ths_rows = nrows_lhs * (nrows_lhs / nrows_rhs);
+  size_t ths_rows = max(nrows_lhs,nrows_rhs);
 
   uint8_t * lhs = new uint8_t[nrows_lhs * ncols];
   uint8_t * rhs = new uint8_t[nrows_rhs * ncols];
 
-  int32_t * ths_bs = new int32_t[nrows_lhs * ncols_ths];
+  int32_t * ths_bs = new int32_t[ths_rows * ncols_ths];
   int32_t * qres_bs = new int32_t[nrows_rhs * nrows_lhs];
 
   for (int i = 0; i < nrows_rhs; i++)
@@ -121,34 +127,30 @@ bool test(
   generateRandomVector(nbits_lhs, nrows_lhs*ncols, lhs);
   generateRandomVector(nbits_rhs, nrows_rhs*ncols, rhs);
   generateRandomVector(10, nrows_lhs * ncols_ths, ths_bs);
-  printmatrix(ths_bs, nrows_lhs, ncols_ths );
+  // printmatrix(ths_bs, ths_rows, ncols_ths );
 
 /**************************** THS transfer ****************************/
   
-  // generateRandMatrixInt(4, ths_rows, ncols_ths, ths);
-  // printmatrixInt(ths, ths_rows, ncols_ths  );
 
   //TODO multi tile ths?
   int32_t addr_offset = 0;
+  cout << "Thr dims " << ths_rows << ", " << ncols_ths << endl;
   for (int i = 0; i < ths_rows; i++)
   {
   	//TODO random vector for more than 8 bits
-  	//generateRandMatrixInt(4, ncols_ths, &(ths[i]);
-  	//cout << "Vector " << i << endl;
+  	// cout << "Vector " << i << endl;
   	for(int j = 0; j < ncols_ths; j++ ){
-  		//cout <<" Elem" << *(*(ths + i)+j) << " " <<  i << ", "<< j << ";";
+  		// cout <<" Elem" << ths_bs[i * ncols_ths + j] << " " <<  i << ", "<< j << ";";
 
       /******************************************************************/
       //TODO loading on different address depending on the rolling factor
       /******************************************************************/
-      //addr = curr row?
   		acc->thsSingleTransfer(&ths_bs[i * ncols_ths + j], addr_offset , i, j);
   	}
       if((i+1)%dpa_lhs == 0){
         addr_offset ++;
-        cout << "GNER"<< endl;
       }
-  	// cout << endl;
+  	 // cout << endl;
   }
 /**************************** END ****************************/
 
@@ -159,7 +161,6 @@ bool test(
   ctx.rhs.importRegular(rhs);
   // ctx.lhs.printHex();
   // ctx.rhs.printHex();
-  // cout << "GNOOOOOOOOOOOOO" << endl;
   gemmBitSerial(ctx);
   int32_t * accel_res = new int32_t[nrows_lhs*nrows_rhs];
 
@@ -202,10 +203,13 @@ bool test(
 
   // quantizeMatrix(ctx.res, ths, ths_rows, nrows_lhs, ncols_ths, qres);
   //TODO: Tiling properly
-  quantizeMatrix2(ctx.res, ths_bs, nrows_lhs, nrows_lhs, nrows_lhs, ncols_ths, qres_bs, 0);
-  // quantizeMatrix2(ctx.res, ths_bs, nrows_lhs, nrows_lhs, nrows_lhs, ncols_ths, qres_bs, nrows_lhs);
+  cout << "Dimensions " << nrows_lhs << ", " << nrows_rhs << endl;
+  quantizeMatrix2(ctx.res, ths_bs, max(nrows_lhs, nrows_rhs), min(nrows_lhs, nrows_rhs), ths_rows, ncols_ths, qres_bs, 0);
+  /*if(nrows_rhs > nrows_lhs){
+    quantizeMatrix2(ctx.res, ths_bs, nrows_lhs, nrows_lhs, nrows_lhs, ncols_ths, qres_bs, nrows_lhs);
+  }*/
 
-  printmatrix(ths_bs, nrows_lhs, ncols_ths );
+  printmatrix(ths_bs, ths_rows, ncols_ths );
   int res = memcmp(ctx.res, accel_res, nrows_lhs*nrows_rhs*sizeof(ResultType));
   //TODO final verification miss
   int resq = memcmp(qres_bs,accel_res,nrows_lhs*nrows_rhs*sizeof(ResultType));
@@ -231,25 +235,25 @@ bool test(
   printf("Start deleting :)\n");
 
   bool return_value = 0;//res == 0;
-  // delete [] lhs;
-  // printf("Deleted lhs\n");
+   delete [] lhs;
+   printf("Deleted lhs\n");
 
-  // delete [] rhs;
-  //   //delete
-  // delete [] hw_res_lhs;
+   delete [] rhs;
+    //delete
+   // delete [] hw_res_lhs;
   //   //delete
   // delete [] hw_res_rhs;
   // printf("Deleted rhs\n");
 
-  // delete [] qres_bs;
-  // printf("Deleted qres\n");
+  delete [] qres_bs;
+  printf("Deleted qres\n");
 
-  // delete [] ths_bs;
-  // printf("Deleted ths\n");
+  delete [] ths_bs;
+  printf("Deleted ths\n");
 
-  // delete [] accel_res;
-  // printf("Deleted accel res\n");
-  // runner->cleanAccelBuff();
+  delete [] accel_res;
+  printf("Deleted accel res\n");
+  runner->cleanAccelBuff();
   // // Deletion of this object cause core dumps
   // delete runner;
   // printf("Deleted runner \n");
