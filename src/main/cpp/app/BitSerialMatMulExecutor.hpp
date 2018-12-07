@@ -189,16 +189,13 @@ void * setP2SRes(size_t bits, size_t rows, size_t cols){
     fill_thr_runcfg();
     fill_result_op();
     fill_result_runcfg();
-    // cout << "[DEBUG] Filled and not enabled stages" << endl;
     // start the cycle counter
     m_acc->perf_set_cc_enable(true);
     // enable all stages
     m_acc->set_stage_enables(1, 1, 1, 1);
     // run the generated schedule -- keep pushing operands until all generated
     // instructions have been pushed
-    // cout << "[DEBUG] Now will wait for all pushed" << endl;
     while(!allPushed()) {
-      // cout << "[DEBUG] Still waiting..." << endl;
       fill_fetch_op();
       fill_fetch_runcfg();
       fill_exec_op();
@@ -210,15 +207,11 @@ void * setP2SRes(size_t bits, size_t rows, size_t cols){
     }
     // wait until the result stage has no instructions std::left (= all finished)
     while(!allFinished());
-    // cout << "[DEBUG] ALL finished" << endl;
     // disable all stages
     m_acc->set_stage_enables(0, 0, 0,0);
-    // cout << "[DEBUG] OOGHEI" << endl;
     // stop the cycle counter
     m_acc->perf_set_cc_enable(false);
-    // cout << "[DEBUG] SGHIRIBENZI" << endl;
     m_cycles = m_acc->perf_get_cc();
-    // cout << "[DEBUG] GNAAAAA" << endl;
     // fetch the number of cycles spent in different states for each stage
     updateFetchStateCounters();
     updateExecStateCounters();
@@ -459,7 +452,7 @@ protected:
       r.dram_block_offset_bytes *= r.dram_block_count;
       r.dram_block_count = 1;
       if(DEBUG_SCHEDULING){
-        cout << "FETCH STAGE executing" << endl;
+        std::cout << "FETCH STAGE executing" << endl;
       }
     }
     // ensure generated runcfg for fetch is valid
@@ -475,7 +468,7 @@ protected:
     m_exec_op.push_back(m_acc->make_op(opRun, 0));
     m_exec_runcfg.push_back(r);
     if(DEBUG_SCHEDULING){
-      cout << "EXECUTE STAGE executing" << endl;
+     std::cout << "EXECUTE STAGE executing" << endl;
     }
   }
 
@@ -483,7 +476,7 @@ protected:
     m_thr_op.push_back(m_acc->make_op(opRun, 0));
     m_thr_runcfg.push_back(thr);
     if(DEBUG_SCHEDULING){
-      cout << "THRESHOLDING STAGE executing" << endl;
+      std::cout << "THRESHOLDING STAGE executing" << endl;
     }
   }
 
@@ -495,7 +488,7 @@ protected:
     m_result_op.push_back(m_acc->make_op(opRun, 0));
     m_result_runcfg.push_back(rrc);
     if(DEBUG_SCHEDULING){
-      cout << "RESULT STAGE executing" << endl;
+      std::cout << "RESULT STAGE executing" << endl;
     }
   }
 
@@ -572,84 +565,84 @@ void fill_thr_runcfg() {
   void makeinstr_fetch_sync_getexecbuffer() {
     m_fetch_op.push_back(m_acc->make_op(opReceiveToken, 0));
     if(DEBUG_SCHEDULING){
-      cout << "FETCH STAGE lock EXEC buff"  << endl;
+      std::cout << "FETCH STAGE lock EXEC buff"  << endl;
     }
   }
 
   void makeinstr_fetch_sync_putexecbuffer() {
     m_fetch_op.push_back(m_acc->make_op(opSendToken, 0));
     if(DEBUG_SCHEDULING){
-      cout << "FETCH STAGE unlock EXEC buff"  << endl;
+      std::cout << "FETCH STAGE unlock EXEC buff"  << endl;
     }
   }
 
   void makeinstr_exec_sync_getfetchbuffer() {
     m_exec_op.push_back(m_acc->make_op(opReceiveToken, 0));
     if(DEBUG_SCHEDULING){
-     cout << "EXEC STAGE lock FETCH buff"  << endl;
+     std::cout << "EXEC STAGE lock FETCH buff"  << endl;
     }
   }
 
   void makeinstr_exec_sync_putfetchbuffer() {
     m_exec_op.push_back(m_acc->make_op(opSendToken, 0));
     if(DEBUG_SCHEDULING){
-      cout << "EXEC STAGE unlock FETCH buff"  << endl;
+      std::cout << "EXEC STAGE unlock FETCH buff"  << endl;
     }
   }
 
   void makeinstr_exec_sync_getthrbuffer() {
     m_exec_op.push_back(m_acc->make_op(opReceiveToken, 1));
     if(DEBUG_SCHEDULING){
-      cout << "EXEC STAGE lock THR buff"  << endl;
+      std::cout << "EXEC STAGE lock THR buff"  << endl;
     }
   }
 
   void makeinstr_exec_sync_putthrbuffer() {
     m_exec_op.push_back(m_acc->make_op(opSendToken, 1));
     if(DEBUG_SCHEDULING){
-      cout << "EXEC STAGE unlock THR buff"  << endl;
+      std::cout << "EXEC STAGE unlock THR buff"  << endl;
     }
   }
 
   void makeinstr_thr_sync_getexecbuffer() {
     m_thr_op.push_back(m_acc->make_op(opReceiveToken, 0));
     if(DEBUG_SCHEDULING){
-    cout << "THR STAGE lock EXEC buff"  << endl;
+      std::cout << "THR STAGE lock EXEC buff"  << endl;
     }
   }
 
   void makeinstr_thr_sync_putexecbuffer() {
     m_thr_op.push_back(m_acc->make_op(opSendToken, 0));
     if(DEBUG_SCHEDULING){
-      cout << "THR STAGE unlock EXEC buff"  << endl;
+      std::cout << "THR STAGE unlock EXEC buff"  << endl;
     }
   }
 
   void makeinstr_thr_sync_getresultbuffer() {
     m_thr_op.push_back(m_acc->make_op(opReceiveToken, 1));
     if(DEBUG_SCHEDULING){
-    cout << "THR STAGE lock RES buff"  << endl;
+      std::cout << "THR STAGE lock RES buff"  << endl;
     }
   }
 
   void makeinstr_thr_sync_putresultbuffer() {
     m_thr_op.push_back(m_acc->make_op(opSendToken, 1));
     if(DEBUG_SCHEDULING){
-      cout << "THR STAGE unlock RES buff"  << endl;
+      std::cout << "THR STAGE unlock RES buff"  << endl;
     }
   }
 
   void makeinstr_result_sync_getthrbuffer() {
     m_result_op.push_back(m_acc->make_op(opReceiveToken, 0));
     if(DEBUG_SCHEDULING){
-      cout << "RES STAGE lock THR buff"  << endl;
+      std::cout << "RES STAGE lock THR buff"  << endl;
     }
   }
 
   void makeinstr_result_sync_putthrbuffer() {
     m_result_op.push_back(m_acc->make_op(opSendToken, 0));
     if(DEBUG_SCHEDULING){
-      cout << "RES STAGE unlock THR buff"  << endl;
+      std::cout << "RES STAGE unlock THR buff"  << endl;
     }
   }
 
@@ -790,7 +783,7 @@ void fill_thr_runcfg() {
     const uint64_t fetch_base_rhs = (uint64_t) m_accelRHS;
     uint64_t res_base = (uint64_t) m_accelRes;
     if(DEBUG_SCHEDULING){
-     cout << "Levels " << lhs_l2_per_matrix << ", " << rhs_l2_per_matrix << ", " << z_l2_per_matrix << endl;
+     std::cout << "Levels " << lhs_l2_per_matrix << ", " << rhs_l2_per_matrix << ", " << z_l2_per_matrix << endl;
     }
     for(int lhs_l2 = 0; lhs_l2 < lhs_l2_per_matrix; lhs_l2++) {
       for(int rhs_l2 = 0; rhs_l2 < rhs_l2_per_matrix; rhs_l2++) {
@@ -857,7 +850,7 @@ void fill_thr_runcfg() {
           makeinstr_exec_sync_getfetchbuffer();
           // process combinations of L1 tiles within the L2 tile
           if(DEBUG_SCHEDULING){
-            cout << "Sub levels " << lhs_l1_per_l2 << ", " << rhs_l1_per_l2 << endl;
+            std::cout << "Sub levels " << lhs_l1_per_l2 << ", " << rhs_l1_per_l2 << endl;
           }
           for(int lhs_l1 = 0; lhs_l1 < lhs_l1_per_l2; lhs_l1++) {
             for(int rhs_l1 = 0; rhs_l1 < rhs_l1_per_l2; rhs_l1++) {
@@ -893,10 +886,10 @@ void fill_thr_runcfg() {
                 //TODO Offset = the row  tiles? this depends on the computations and how load matrices
                 thrc.thrOffset = rhs_l1;
                 if(DEBUG_SCHEDULING){
-                  cout <<"Tile ids " << lhs_l1 << ", " << rhs_l1 << endl;
-                  cout << "Thr Offset " << rhs_l1 << endl;
+                  std::cout <<"Tile ids " << lhs_l1 << ", " << rhs_l1 << endl;
+                  std::cout << "Thr Offset " << rhs_l1 << endl;
                 }
-                thrc.runTimeThrNumber = (65535);//(1 << (std::pow(2,m_acc->hwcfg().maxQuantDim)-1)) - 1 );// m_acc->hwcfg().maxQuantDim;
+                thrc.runTimeThrNumber = 1;//(65535);//(1 << (std::pow(2,m_acc->hwcfg().maxQuantDim)-1)) - 1 );// m_acc->hwcfg().maxQuantDim;
                 thrc.writeEn = true;
                 thrc.writeAddr = current_resmem_region;
   
@@ -918,7 +911,7 @@ void fill_thr_runcfg() {
                 size_t lhs_tile = lhs_l1_per_l2 * lhs_l2 + lhs_l1;
                 size_t rhs_tile = rhs_l1_per_l2 * rhs_l2 + rhs_l1;
                 if(DEBUG_SCHEDULING){
-                 cout <<"Result tile " << lhs_tile << ", " << rhs_tile << endl;
+                 std::cout <<"Result tile " << lhs_tile << ", " << rhs_tile << endl;
                 }
                 rrc.dram_base = get_result_tile_ptr(lhs_tile, rhs_tile);
                 rrc.dram_skip = lhs_eff_rows() * sizeof(ResultType);
