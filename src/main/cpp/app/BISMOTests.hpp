@@ -38,65 +38,11 @@ using namespace std;
 #include "BitSerialMatMulAccelDriver.hpp"
 #include "BitSerialMatMulExecutor.hpp"
 #include "gemmbitserial/test/testhelpers.hpp"
+#include "utils.hpp"
 #define max(x,y) (x > y ? x : y)
 #define min(x,y) (x < y ? x : y)
 
 using namespace gemmbitserial;
-
-void generateRandMatrixInt(size_t bits, size_t rows, size_t cols, int32_t** ret) {
-  int32_t minVal = 0;
-  int32_t maxVal = (1 << bits);
-  for(size_t i = 0; i < rows; i++) {
-  	for(size_t j = 0; j < cols; j++){
-	    ret[i][j] = (int32_t) (rand() % maxVal);
-  	}
-  }
-}
-
-
-  //helper funtction to quantize a given matrix with a given matrix of thresholds
-void quantizeMatrix(int32_t * a, int32_t ** b, size_t arows, size_t acols, size_t bcols, int32_t ** r ){
-    for (int i = 0; i < arows; i++)
-      for (int j = 0; j < acols; j++)
-        for (int k = 0; k < bcols; k++)
-        {
-          if(a[i * acols + j] > b[i][k]){
-            r[i][j]++;
-          }
-        }
-  }
-
-
-    //helper funtction to quantize a given matrix with a given matrix of thresholds
-void quantizeMatrix2(int32_t * a, int32_t * b, size_t arows, size_t acols, size_t brows, size_t bcols, int32_t * r, size_t offset ){
-    // std::cout << "Quantization :D" << endl;
-    for (int i = 0; i < arows; i++)
-      for (int j = 0; j < acols; j++){
-        for (int k = 0; k < bcols; k++)
-          //for (int l = 0; l < bcols; l++)
-          {
-              // std::cout << a[((i+offset) * acols) + j] << " vs " << b[i * bcols + k] << " ";
-            //if(a[((i+offset) * acols) + j] > b[(i%brows) * bcols + k] ){
-            if(a[((i+offset) * acols) + j] > b[(i) * bcols + k] ){
-            
-              r[((i+offset) * acols) + j]++;
-            }
-          }
-           // cout << endl;
-      }
-  }
-
-
-void printmatrixInt(int32_t ** mat, int rows, int cols) {
-  for(int i = 0; i < rows; i++) {
-    for(int j = 0; j < cols; j++) {
-      std::cout << (int) mat[i][j] << " ";
-    }
-    std::cout << std::endl;
-  }
-  std::cout << std::endl;
-}
-
 
  
 // BISMO top-level tests
@@ -171,7 +117,7 @@ bool test(
   size_t nbytes_bitser_lhs = (nbits_lhs * nrows_lhs * ncols) / 8;
   size_t nbytes_bitser_rhs = (nbits_rhs * nrows_rhs * ncols) / 8;
 
-  void * hw_src = runner->setP2S(nrows_lhs, ncols, lhs);
+  void * hw_src = runner->setP2S(1, nrows_lhs * ncols, lhs);
   void * hw_dst = runner->setP2SRes(nbits_lhs, nrows_lhs, ncols);
   uint32_t cycles = acc->p2s_exec_and_wait();
   uint8_t * hw_res_lhs = new uint8_t[nbytes_bitser_lhs];
@@ -199,11 +145,9 @@ bool test(
   runner->run();
   runner->getRes(accel_res);
 
-
-  // quantizeMatrix(ctx.res, ths, ths_rows, nrows_lhs, ncols_ths, qres);
   //TODO: Tiling properly
   cout << "Dimensions " << nrows_lhs << ", " << nrows_rhs << endl;
-  quantizeMatrix2(ctx.res, ths_bs, nrows_rhs, nrows_lhs, ths_rows, ncols_ths, qres_bs, 0);
+  quantizeMatrix(ctx.res, ths_bs, nrows_rhs, nrows_lhs, ths_rows, ncols_ths, qres_bs, 0);
 
   printmatrix(ths_bs, ths_rows, ncols_ths );
   int res = memcmp(ctx.res, accel_res, nrows_lhs*nrows_rhs*sizeof(ResultType));
@@ -230,7 +174,6 @@ bool test(
 
   printf("Start deleting :)\n");
 
-  bool return_value = 0;//res == 0;
    delete [] lhs;
    printf("Deleted lhs\n");
 
@@ -254,7 +197,7 @@ bool test(
   // delete runner;
   // printf("Deleted runner \n");
 
-  return return_value;
+  return resq == 0;;
 }
 
 bool test_binary_onchip_onetile(
