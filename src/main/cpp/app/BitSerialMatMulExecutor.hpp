@@ -40,6 +40,7 @@
 #define max(x,y) (x > y ? x : y)
 #define INVALID_CACHE_ENTRY         (uint64_t) -1
 #define DEBUG_SCHEDULING 0
+#define DEBUG_LEVELS 0
 
 // TODO:
 // - define own context allocator for the accelerator, including
@@ -782,7 +783,7 @@ void fill_thr_runcfg() {
     const uint64_t fetch_base_lhs = (uint64_t) m_accelLHS;
     const uint64_t fetch_base_rhs = (uint64_t) m_accelRHS;
     uint64_t res_base = (uint64_t) m_accelRes;
-    if(DEBUG_SCHEDULING){
+    if(DEBUG_LEVELS){
      std::cout << "Levels " << lhs_l2_per_matrix << ", " << rhs_l2_per_matrix << ", " << z_l2_per_matrix << endl;
     }
     for(int lhs_l2 = 0; lhs_l2 < lhs_l2_per_matrix; lhs_l2++) {
@@ -849,9 +850,11 @@ void fill_thr_runcfg() {
           // exec stage acquires input matrix buffers
           makeinstr_exec_sync_getfetchbuffer();
           // process combinations of L1 tiles within the L2 tile
-          if(DEBUG_SCHEDULING){
+          if(DEBUG_LEVELS){
             std::cout << "Sub levels " << lhs_l1_per_l2 << ", " << rhs_l1_per_l2 << endl;
           }
+          //Variable for thresholds offset  
+          int32_t thr_row;
           for(int lhs_l1 = 0; lhs_l1 < lhs_l1_per_l2; lhs_l1++) {
             for(int rhs_l1 = 0; rhs_l1 < rhs_l1_per_l2; rhs_l1++) {
               if(z_l2 == z_l2_per_matrix - 1) {
@@ -879,17 +882,23 @@ void fill_thr_runcfg() {
                 makeinstr_exec_sync_putthrbuffer();
                 // thr stage: acquire result buffer
                 makeinstr_thr_sync_getexecbuffer();
+                // find the inds of which L1 tile we are currently working on
+                size_t lhs_tile = lhs_l1_per_l2 * lhs_l2 + lhs_l1;
+                size_t rhs_tile = rhs_l1_per_l2 * rhs_l2 + rhs_l1;
                 /***************** THRESHOLDING CONFIGURATION *****************/
 
                 ThrRunCfg thrc;
                 thrc.actOffset = current_resmem_region;
                 //TODO Offset = the row  tiles? this depends on the computations and how load matrices
-                thrc.thrOffset = rhs_l1;
-                if(DEBUG_SCHEDULING){
+                //Empirical formula, the thresholds should follow different patterns in onchip and offchip memory
+                //NOT a theoretical formula, just look at bismo tests numbers
+                thr_row = rhs_l2_per_matrix > 1 ? rhs_l1 + rhs_tile :  rhs_l1;
+                thrc.thrOffset = thr_row;
+                if(DEBUG_LEVELS){
                   std::cout <<"Tile ids " << lhs_l1 << ", " << rhs_l1 << endl;
-                  std::cout << "Thr Offset " << rhs_l1 << endl;
+                  std::cout << "Thr Offset " << thr_row << endl;
                 }
-                thrc.runTimeThrNumber = 1;//(65535);//(1 << (std::pow(2,m_acc->hwcfg().maxQuantDim)-1)) - 1 );// m_acc->hwcfg().maxQuantDim;
+                thrc.runTimeThrNumber = (65535);//(1 << (std::pow(2,m_acc->hwcfg().maxQuantDim)-1)) - 1 );// m_acc->hwcfg().maxQuantDim;
                 thrc.writeEn = true;
                 thrc.writeAddr = current_resmem_region;
   
@@ -907,10 +916,8 @@ void fill_thr_runcfg() {
                             // generate result
                 ResultRunCfg rrc;
                 rrc.resmem_addr = current_resmem_region;
-                // find the inds of which L1 tile we are currently working on
-                size_t lhs_tile = lhs_l1_per_l2 * lhs_l2 + lhs_l1;
-                size_t rhs_tile = rhs_l1_per_l2 * rhs_l2 + rhs_l1;
-                if(DEBUG_SCHEDULING){
+
+                if(DEBUG_LEVELS){
                  std::cout <<"Result tile " << lhs_tile << ", " << rhs_tile << endl;
                 }
                 rrc.dram_base = get_result_tile_ptr(lhs_tile, rhs_tile);
