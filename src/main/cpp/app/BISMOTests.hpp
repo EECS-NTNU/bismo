@@ -34,6 +34,10 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
+
+#include <algorithm>    // std::sort
+
+
 using namespace std;
 #include "BitSerialMatMulAccelDriver.hpp"
 #include "BitSerialMatMulExecutor.hpp"
@@ -54,19 +58,25 @@ bool test(
   size_t nbits_rhs = 1, bool sgn_lhs = false, bool sgn_rhs = false,
   size_t ncols_ths= 15, size_t nbits_ths = 1, bool sgn_ths = false
 ) {
-  //This is for tiling
-  size_t ths_rows = max(nrows_lhs,nrows_rhs);
+  std::cout << "INPUT DIMENSIONS " << nrows_lhs << ", " << ncols << "; "  << nrows_rhs << ", "  << ncols << endl;
 
+  size_t ths_rows = nrows_lhs;
   uint8_t * lhs = new uint8_t[nrows_lhs * ncols];
   uint8_t * rhs = new uint8_t[nrows_rhs * ncols];
-
+  //Threshold matrix, quantization matrix
   int32_t * ths_bs = new int32_t[ths_rows * ncols_ths];
-  int32_t * qres_bs = new int32_t[nrows_rhs * nrows_lhs];
+  int32_t * ths_transposed = new int32_t[ths_rows * ncols_ths];
+  uint8_t * qres_bs = new uint8_t[nrows_lhs * nrows_rhs];
+  uint8_t * qres = new uint8_t[nrows_lhs * nrows_rhs];
 
-  for (int i = 0; i < nrows_rhs; i++)
-    for (int j = 0; j < nrows_lhs; j++)
+
+
+  for (int i = 0; i < nrows_lhs; i++)
+    for (int j = 0; j < nrows_rhs; j++)
     {
-      qres_bs[i* nrows_lhs + j] = 0;
+      qres_bs[i* nrows_rhs + j] = 0;
+      qres[i* nrows_rhs + j] = 0;
+
     }
 
   int32_t dpa_lhs = acc->getdpaDimLHS();
@@ -74,15 +84,17 @@ bool test(
   generateRandomVector(nbits_rhs, nrows_rhs*ncols, rhs);
   generateRandomVector(10, nrows_lhs * ncols_ths, ths_bs);
 
-/**************************** THS transfer ****************************/
-  
+  //Sorting ths for the quantize2 function
+  for (int i = 0; i < ths_rows; i++){
+    sort(ths_bs+(i * ncols_ths), ths_bs+(i * ncols_ths) + ncols_ths);
+  }
 
-  //TODO multi tile ths?
+/**************************** THS transfer ****************************/
+  //TODO multi tile ths? --> on the scheduling size
   int32_t addr_offset = 0;
   cout << "Thr dims " << ths_rows << ", " << ncols_ths << endl;
   for (int i = 0; i < ths_rows; i++)
   {
-  	//TODO random vector for more than 8 bits
   	// cout << "Vector " << i << endl;
   	for(int j = 0; j < ncols_ths; j++ ){
   		// cout <<" Elem" << ths_bs[i * ncols_ths + j] << " " <<  i << ", "<< j << ";";
@@ -107,7 +119,14 @@ bool test(
   // ctx.lhs.printHex();
   // ctx.rhs.printHex();
   gemmBitSerial(ctx);
-  int32_t * accel_res = new int32_t[nrows_lhs*nrows_rhs];
+  std::cout << "Matrix in dim rhs-lhs" << endl;
+  printmatrix(ctx.res, nrows_rhs, nrows_lhs);
+  cout << endl;
+  std::cout << "Matrix in dim lhs-rhs" << endl;
+  printmatrix(ctx.res, nrows_lhs, nrows_rhs);
+  cout << endl;
+
+  uint8_t * accel_res = new uint8_t[nrows_lhs*nrows_rhs];
 
   BitSerialMatMulExecutor * runner = new BitSerialMatMulExecutor(
     ctx, acc, platform
@@ -138,7 +157,7 @@ bool test(
 
   runner->setLHSRHSSerial(hw_res_lhs, hw_res_rhs);
 
-  /**************************** END ****************************/
+  /**************************** END P2S ****************************/
 
   // runner->setLHS(ctx.lhs);
   // runner->setRHS(ctx.rhs);
@@ -146,10 +165,23 @@ bool test(
   runner->getRes(accel_res);
 
   //TODO: Tiling properly
-  cout << "Dimensions " << nrows_lhs << ", " << nrows_rhs << endl;
-  quantizeMatrix(ctx.res, ths_bs, nrows_rhs, nrows_lhs, ths_rows, ncols_ths, qres_bs, 0);
+  cout << "Input Dimensions " << nrows_lhs << ", " << nrows_rhs << endl;
+  quantizeMatrix(ctx.res, ths_bs, nrows_lhs, nrows_rhs, ths_rows, ncols_ths, qres_bs, 0);
+  transpose <int32_t>(ths_bs, ths_rows, ncols_ths, ths_transposed, ncols_ths, ths_rows );
+  quantize2 <int32_t>(ctx.res, ths_transposed, ncols_ths, nrows_lhs, nrows_rhs,qres);
+  std::cout << "my Matrix quantized in r-l dims" << endl;
+  printmatrix(qres_bs, nrows_rhs, nrows_lhs);
+  std::cout << "my Matrix quantized in l-r dims" << endl;
+  printmatrix(qres_bs, nrows_lhs, nrows_rhs);
+  std::cout << "Yaman gold sw r-l dims" << endl;
+  printmatrix(qres, nrows_rhs, nrows_lhs);
+  std::cout << "Yaman gold sw l-r dims" << endl;
+  printmatrix(qres, nrows_lhs, nrows_rhs);
 
+  std::cout << "Thresholds matrix" << endl;
   printmatrix(ths_bs, ths_rows, ncols_ths );
+  std::cout << "Thresholds matrix TRANSPOSED" << endl;
+  printmatrix(ths_transposed, ncols_ths, ths_rows);
   int res = memcmp(ctx.res, accel_res, nrows_lhs*nrows_rhs*sizeof(ResultType));
   //TODO final verification miss
   int resq = memcmp(qres_bs,accel_res,nrows_lhs*nrows_rhs*sizeof(ResultType));
@@ -166,7 +198,6 @@ bool test(
     cout << "Produced: " << endl;
     printmatrix(accel_res, nrows_rhs, nrows_lhs);
     cout << "Quantized: " << endl;
-    // printmatrixInt(qres, nrows_rhs, nrows_lhs);
     printmatrix(qres_bs, nrows_rhs, nrows_lhs);
 
   }
@@ -185,6 +216,7 @@ bool test(
   // printf("Deleted rhs\n");
 
   delete [] qres_bs;
+  delete [] qres;
   printf("Deleted qres\n");
 
   delete [] ths_bs;

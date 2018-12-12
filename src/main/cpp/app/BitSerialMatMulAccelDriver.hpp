@@ -124,7 +124,7 @@ typedef struct {
 } HardwareCfg;
 
 typedef uint64_t PackedBitGroupType;
-typedef int32_t ResultType;
+typedef uint8_t ResultType;
 
 class BitSerialMatMulAccelDriver {
 public:

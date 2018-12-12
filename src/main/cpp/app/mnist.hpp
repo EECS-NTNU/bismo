@@ -35,9 +35,29 @@ bool test_qnn_mnist_0(
  int32_t * ths = new int32_t[ths_rows * ncols_ths];
  memcpy(ths, th0, ths_rows *  ncols_ths * sizeof(int32_t));
 
- int32_t * prequantmat = new int32_t[nrows_rhs * nrows_lhs];
- int32_t * qres_bs = new int32_t[nrows_rhs * nrows_lhs];
 
+ uint8_t * rhs_transposed = new uint8_t[ncols * nrows_rhs];
+ uint8_t * lhs_transposed = new uint8_t[ncols * nrows_lhs];
+ transpose <uint8_t>(rhs,nrows_rhs,ncols,rhs_transposed,ncols,nrows_rhs);
+ std::cout << "RHS matrix transposed" << endl;
+ printmatrix(rhs_transposed, ncols, nrows_rhs);
+ std::cout << "RHS matrix" << endl;
+ printmatrix(rhs,nrows_rhs,ncols);
+
+
+ transpose <uint8_t>(lhs,nrows_lhs,ncols,lhs_transposed,ncols,nrows_lhs);
+ std::cout << "LHS matrix transposed" << endl;
+ printmatrix(lhs_transposed, ncols, nrows_lhs);
+ std::cout << "LHS matrix" << endl;
+ printmatrix(lhs,nrows_lhs,ncols);
+
+ uint8_t * prequantmat = new uint8_t[nrows_rhs * nrows_lhs];
+ 
+ int32_t * results_nt = new int32_t[nrows_rhs * nrows_lhs];
+ int32_t * results_t = new int32_t[nrows_rhs * nrows_lhs];
+
+
+ int32_t * qres_bs = new int32_t[nrows_rhs * nrows_lhs];
 
   for (int i = 0; i < nrows_rhs; i++)
     for (int j = 0; j < nrows_lhs; j++)
@@ -47,10 +67,11 @@ bool test_qnn_mnist_0(
 
     }
 
- dotProduct(lhs, rhs, nrows_lhs, ncols, nrows_rhs, ncols, prequantmat);
+ dotProduct(lhs, rhs, nrows_lhs, ncols, nrows_rhs, ncols, results_nt);
+
  //quantize that matrix for just one threshold
- quantizeMatrix(prequantmat, ths, nrows_rhs, nrows_lhs, 1, 1, qres_bs, 0);
- printmatrix(prequantmat, nrows_rhs, nrows_lhs);
+ // quantizeMatrix(prequantmat, ths, nrows_rhs, nrows_lhs, 1, 1, qres_bs, 0);
+ printmatrix(results_nt, nrows_rhs, nrows_lhs);
  printmatrix(qres_bs, nrows_rhs, nrows_lhs);
 //This context has a different alignment!!!
 
@@ -68,7 +89,24 @@ bool test_qnn_mnist_0(
   gemmBitSerial(ctx);
   int res = memcmp(ctx.res, prequantmat, nrows_lhs*nrows_rhs*sizeof(ResultType));
   cout << "result" << res << endl;
+  printmatrix(ctx.res, nrows_lhs, nrows_rhs);
+
+
+  ctx.lhs.importRegular(rhs);
+  ctx.rhs.importRegular(lhs_transposed);
+  // ctx.lhs.printHex();
+  // ctx.rhs.printHex();
+  gemmBitSerial(ctx);
+  res = memcmp(ctx.res, prequantmat, nrows_lhs*nrows_rhs*sizeof(ResultType));
+  cout << "result" << res << endl;
   printmatrix(ctx.res, nrows_rhs, nrows_lhs);
+
+
+  delete [] prequantmat;
+  delete [] results_nt;
+  delete [] qres_bs;
+
+}
 
 /*
   int32_t * accel_res = new int32_t[nrows_lhs*nrows_rhs];
@@ -107,7 +145,7 @@ BitSerialMatrix bsm = BitSerialMatrix::alloc(
   }
 /**************************** END ****************************/
 
-  /**************************** P2S ****************************
+/*************************** P2S ****************************
   size_t nbytes_bitser_lhs = (nbits_lhs * nrows_lhs * ncols) / 8;
   size_t nbytes_bitser_rhs = (nbits_rhs * nrows_rhs * ncols) / 8;
 
@@ -203,6 +241,7 @@ BitSerialMatrix bsm = BitSerialMatrix::alloc(
   // // Deletion of this object cause core dumps
   // delete runner;
   // printf("Deleted runner \n");
-  */
+  
   return 1;//resq == 0;;
 }
+*/
