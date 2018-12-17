@@ -1,3 +1,6 @@
+#ifndef MNIST_H
+#define MNIST_H
+
 #include <cstring>
 #include <string>
 #include <iostream>
@@ -245,3 +248,5 @@ BitSerialMatrix bsm = BitSerialMatrix::alloc(
   return 1;//resq == 0;;
 }
 */
+
+#endif //MNIST_H

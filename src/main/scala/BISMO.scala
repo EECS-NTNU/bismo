@@ -29,6 +29,13 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// BOB: Bit serial Overlay for Binary/Quantized NN
+//BObBlE    Bit Overlay Binary quantizEd
+//  BIStRO    BIt SeRial Overlay
+//BoSOn     Bit Serial Overlay
+//BreSAOLA    Bit SeriAl OverLAy
+//SQUAT: bit Serial Overlay for QUAnTized Neural Networks :)
+  
 package bismo
 
 import Chisel._

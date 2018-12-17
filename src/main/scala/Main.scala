@@ -333,8 +333,8 @@ val instFxn_thrStage = {p: ThrStageParams => Module(new ThrStage(p))}
 
   def makeParamSpace_P2SAccel(): Seq[StandAloneP2SParams] = {
     return for {
-      mbw ← Seq(4, 8, 16, 32, 64)
-      nxw ← Seq(64 / mbw, 128 / mbw)
+      mbw ← Seq(8, 16, 32, 64)
+      nxw ← Seq(64 / mbw, 128 / mbw, 256 / mbw, 512 / mbw)
       fast ← Seq(false, true)
     } yield new StandAloneP2SParams(
       maxInBw = mbw, nInElemPerWord = nxw, outStreamSize = mbw * nxw, mrp = PYNQZ1Params.toMemReqParams(),
@@ -381,46 +381,6 @@ val instFxn_thrStage = {p: ThrStageParams => Module(new ThrStage(p))}
   val instFxn_P2BSStage = {p: Parallel2BSStageParams => Module(new Parallel2BSStage(p))}
 
 
-  def makeParamSpace_SQUAT(): Seq[BitSerialMatMulQuantParams] = {
-    return for {
-      lhs <- for(i <- 1 to 8) yield (2*i)
-      rhs <- for(i <- 1 to 8) yield (2*i)
-      z <- 64 to 64
-      lmem <- 512 to 512
-      rmem <- 512 to 512
-      thmem <- 512 to 512
-      maxquantDim <- Seq(2,4,8)
-      thFolding <- Seq(1,scala.math.pow(2,maxquantDim).toInt - 1)
-    } yield new BitSerialMatMulQuantParams(
-      dpaDimLHS = lhs, dpaDimRHS = rhs, dpaDimCommon = z,
-      lhsEntriesPerMem = lmem, rhsEntriesPerMem = rmem,
-      mrp = PYNQZ1Params.toMemReqParams(),
-      thrEntriesPerMem = thmem, maxQuantDim = maxquantDim, quantFolding = thFolding
-
-    )
-  }
-  val instFxn_SQUAT = {p: BitSerialMatMulQuantParams => Module(new BitSerialMatMulQuantAccel(p, PYNQZ1Params))}
-
-  def makeParamSpace_BOB(): Seq[BOBParams] = {
-    return for {
-      lhs <- for(i <- 1 to 5) yield (2*i)
-      rhs <- for(i <- 1 to 5) yield (2*i)
-      z <- 64 to 64
-      lmem <- 512 to 512
-      rmem <- 512 to 512
-      thmem <- 512 to 512
-      maxquantDim <- Seq(1,2,4)
-      thFolding <- Seq(1,scala.math.pow(2,maxquantDim).toInt - 1)
-    } yield new BOBParams(
-      dpaDimLHS = lhs, dpaDimRHS = rhs, dpaDimCommon = z,
-      lhsEntriesPerMem = lmem, rhsEntriesPerMem = rmem,
-      mrp = PYNQZ1Params.toMemReqParams(),
-      thrEntriesPerMem = thmem, maxQuantDim = maxquantDim, quantFolding = thFolding
-
-    )
-  }
-  val instFxn_BOB = {p: BOBParams => Module(new BOBAccel(p, PYNQZ1Params))}
-
   def main(args: Array[String]): Unit = {
     val chName: String = args(0)
     val chPath: String = args(1)
@@ -452,10 +412,6 @@ val instFxn_thrStage = {p: ThrStageParams => Module(new ThrStage(p))}
       VivadoSynth.characterizeSpace(makeParamSpace_SU(), instFxn_SU, chPath, chLog, fpgaPart)
     } else if (chName == "CharacterizeP2BS") {
       VivadoSynth.characterizeSpace(makeParamSpace_P2BSStage(), instFxn_P2BSStage, chPath, chLog, fpgaPart)
-    } else if (chName == "CharacterizeSQUAT") {
-      VivadoSynth.characterizeSpace(makeParamSpace_SQUAT(), instFxn_SQUAT, chPath, chLog, fpgaPart)
-    } else if (chName == "CharacterizeBOB") {
-      VivadoSynth.characterizeSpace(makeParamSpace_BOB(), instFxn_BOB, chPath, chLog, fpgaPart)
     } else if (chName == "CharacterizeBBCompressor") {
       VivadoSynth.characterizeSpace(makeParamSpace_BlackBoxCompressor(), instFxn_BlackBoxCompressor, chPath, chLog, fpgaPart)
     }else if (chName == "CharacterizeBBC"){
