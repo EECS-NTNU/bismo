@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <hls_stream.h>
 #include <SlidingWindowUnitHeader.hpp>
+//#include </home/dave/xilinx-bismo/src/main/hls/SlidingWindowUnitHeader.hpp>
 
 //Sliding window unit: Assuming to work with single channel
 // Assuming Padding = 0
@@ -11,11 +12,13 @@
 void SlidingWindowUnit(
 		//32 bits: 16 for BASE Address, 8 for Image size, 4 Kernel size, 4 Stride
 		stream<ap_uint<IN_STREAM_WIDTH>> &strm_in,
-		stream<ap_uint<OUT_ADDR_BITWIDTH>> &strm_out){
+		stream<ap_uint<OUT_ADDR_BITWIDTH>> &strm_out,
+		const ap_uint<ITER_NMBR_BITWIDTH> iter_number){
 
 //#pragma HLS INTERFACE ap_ctrl_none port=return
 //#pragma HLS interface axis port=strm_out
 //#pragma HLS interface axis port=strm_in
+
 //#pragma HLS dataflow
 	ap_uint<IN_STREAM_WIDTH> in_tmp = strm_in.read();
 	const ap_uint<BASE_ADDR_BITWIDTH> base_addr = in_tmp(BASE_ADDR_MSB, BASE_ADDR_LSB);
@@ -34,18 +37,20 @@ void SlidingWindowUnit(
 //	out_err = !( (in_img_size - in_krnl_size) %  in_stride == 0);
 
 	//Formula from zero padding arbitrary stride convolution
-	const ap_uint<32> mat_out_dim = ((img_size - krnl_size)/ stride + 1);
-	//Number of minimum iterations for this convolution
-	const ap_uint<32> iter_number = mat_out_dim * mat_out_dim * krnl_size * krnl_size;
+	//const ap_uint<32> mat_out_dim = ((img_size - krnl_size)/ stride + 1);
+	//Number of maximum iterations for this convolution
+	//const ap_uint<32> iter_number = img_size * img_size * krnl_size * krnl_size;
 	//Input matrix iteration
+
 	int i = 0, j = 0, kr = 0, kc = 0 ;
-	MAIN_LOOP: for(int iter = 0; iter < iter_number; iter++){
+	bool sliding_finished = false;
+	MAIN_LOOP: for(int iter = 0; /*iter < iter_number && */!sliding_finished; iter++){
 #pragma HLS PIPELINE II=1
-		std::cout << "Iter: " << iter << "Idx: " << i << ", " << j << ", " << kr << ", " << kc << std::endl;
+//		std::cout << "Iter: " << iter << "Idx: " << i << ", " << j << ", " << kr << ", " << kc << std::endl;
 		bool kernel_inbound = i-1 + krnl_size < img_size && j-1 + krnl_size < img_size;
 		if(kernel_inbound){
 //			std::cout << "Kernel inbound :D" << std::endl;
-			ap_uint<OUT_ADDR_BITWIDTH> outElem = (kr+i) * img_size + (kc+j);
+			ap_uint<OUT_ADDR_BITWIDTH> outElem = (kr+i) * img_size + (kc+j) + base_addr;
 			strm_out.write(outElem);
 			kc++;
 			if(kc == krnl_size){
@@ -57,23 +62,26 @@ void SlidingWindowUnit(
 					if(j == img_size){
 						j = 0;
 						i = i + stride;
-						if(i == img_size){
+						sliding_finished = i == img_size;
+						/*if(i == img_size){
 							i = 0;
-						}
+						}*/
 					}
 				}
 			}
 		}else{
-			iter--;
+//			iter--;
 			kr = 0;
 			kc = 0;
 			j = j + stride;
 			if(j == img_size){
 				j = 0;
 				i = i + stride;
-				if(i == img_size){
+				sliding_finished = i == img_size;
+				/*if(i == img_size){
 					i = 0;
-				}
+					sliding_finished = true;
+				}*/
 			}
 		}
 	}

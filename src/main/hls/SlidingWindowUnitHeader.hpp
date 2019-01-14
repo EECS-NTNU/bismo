@@ -25,10 +25,12 @@
 
 #define OUT_ADDR_BITWIDTH 8
 
+#define ITER_NMBR_BITWIDTH 16
 using namespace hls;
 void SlidingWindowUnit(
 		//32 bits: 16 for BASE Address, 8 for Image size, 4 Kernel size, 4 Stride
 		stream<ap_uint<IN_STREAM_WIDTH>> &strm_in,
-		stream<ap_uint<OUT_ADDR_BITWIDTH>> &strm_out);
+		stream<ap_uint<OUT_ADDR_BITWIDTH>> &strm_out,
+		const ap_uint<ITER_NMBR_BITWIDTH> iter_number);
 
 #endif
