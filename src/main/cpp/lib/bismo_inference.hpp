@@ -55,6 +55,7 @@ typedef struct {
 typedef struct {
   uint32_t nchannels;   // number of channels
   uint8_t nthresholds;  // number of thresholds per channel
+  uint16_t idim;        // input image dimension (assumed width=height)
 } ThresLayerDescriptor;
 
 // properties for convolutional layers
@@ -82,7 +83,9 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights);
 // execute layer with given handle
 // in and out are assumed to be preallocated to appropriate buffer sizes,
 // depending on the type of layer
-void execLayer(LayerHandle id, const uint8_t * in, uint8_t * out);
+void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out);
+void execThresLayer(LayerHandle id, const int32_t * in, uint8_t * out);
+void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out);
 
 // destroy layer with given handle
 void deinitLayer(LayerHandle id);
