@@ -29,12 +29,16 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <stdint>
+#include <stdint.h>
 
 namespace bismo_inference {
 // handle representing a particular layer instance that BISMO knows
 // how to execute
 typedef unsigned int LayerHandle;
+
+// global init/deinit for the runtime library
+void init();
+void deinit();
 
 // descriptor structs that contain layer properties for each supported
 // layer type
