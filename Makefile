@@ -63,9 +63,11 @@ BUILD_DIR_VERILOG := $(BUILD_DIR)/hw/verilog
 BUILD_DIR_EMU := $(BUILD_DIR)/emu
 BUILD_DIR_HWDRV := $(BUILD_DIR)/hw/driver
 BUILD_DIR_EMULIB_CPP := $(BUILD_DIR)/hw/cpp_emulib
+BUILD_DIR_INFLIB := $(BUILD_DIR)/inflib
 VERILOG_SRC_DIR := $(TOP)/src/main/verilog
 VHDL_SRC_DIR := $(TOP)/src/main/vhdl
 APP_SRC_DIR := $(TOP)/src/main/cpp/app
+INFLIB_SRC_DIR := $(TOP)/src/main/cpp/lib
 VIVADO_IN_PATH := $(shell command -v vivado 2> /dev/null)
 ZSH_IN_PATH := $(shell command -v zsh 2> /dev/null)
 CPPTEST_SRC_DIR := $(TOP)/src/test/cosim
@@ -74,7 +76,7 @@ HW_TO_SYNTH ?= $(HW_VERILOG)
 HW_SW_DRIVER ?= BitSerialMatMulAccel.hpp
 PLATFORM_SCRIPT_DIR := $(TOP)/src/main/script/$(PLATFORM)/target
 DEBUG_CHISEL ?= 0
-CC_FLAG = 
+CC_FLAG =
 
 # platform-specific Makefile include for bitfile synthesis
 include platforms/$(PLATFORM).mk
@@ -113,6 +115,10 @@ $(BUILD_DIR_EMU)/driver.a:
 emu: $(BUILD_DIR_EMU)/driver.a
 	cp -r $(APP_SRC_DIR)/* $(BUILD_DIR_EMU)/; cd $(BUILD_DIR_EMU); g++ -std=c++11 $(CC_FLAG) *.cpp driver.a -o emu; ./emu
 
+# generate dynamic lib for inference, emulated hardware
+inflib_emu: $(BUILD_DIR_EMU)/driver.a
+	mkdir -p $(BUILD_DIR_INFLIB); cp -r $(INFLIB_SRC_DIR)/* $(BUILD_DIR_INFLIB)/; cp $(BUILD_DIR_EMU)/driver.a $(BUILD_DIR_INFLIB)/; cd $(BUILD_DIR_INFLIB); g++ -std=c++11 -fPIC *.cpp driver.a -shared -o $(BUILD_DIR_INFLIB)/libbismo_inference.so
+
 # run resource/Fmax characterization
 Characterize%:
 	mkdir -p $(BUILD_DIR)/$@; cp $(VERILOG_SRC_DIR)/*.v $(BUILD_DIR)/$@; cp $(VHDL_SRC_DIR)/*.vhd $(BUILD_DIR)/$@;$(SBT) $(SBT_FLAGS) "runMain bismo.CharacterizeMain $@ $(BUILD_DIR)/$@ $(PLATFORM)"
@@ -148,7 +154,7 @@ script:
 # get everything ready to copy onto the platform and create a deployment folder
 all: hw sw script
 
-p2saccel:hw p2ssw script 
+p2saccel:hw p2ssw script
 
 # use rsync to synchronize contents of the deployment folder onto the platform
 rsync:
