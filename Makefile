@@ -117,7 +117,11 @@ emu: $(BUILD_DIR_EMU)/driver.a
 
 # generate dynamic lib for inference, emulated hardware
 inflib_emu: $(BUILD_DIR_EMU)/driver.a
-	mkdir -p $(BUILD_DIR_INFLIB); cp -r $(INFLIB_SRC_DIR)/* $(BUILD_DIR_INFLIB)/; cp $(BUILD_DIR_EMU)/driver.a $(BUILD_DIR_INFLIB)/; cd $(BUILD_DIR_INFLIB); g++ -std=c++11 -fPIC *.cpp driver.a -shared -o $(BUILD_DIR_INFLIB)/libbismo_inference.so
+	mkdir -p $(BUILD_DIR_INFLIB); \
+	cp -r $(INFLIB_SRC_DIR)/* $(BUILD_DIR_INFLIB)/; \
+	cp $(BUILD_DIR_EMU)/driver.a $(BUILD_DIR_INFLIB)/; \
+	cd $(BUILD_DIR_INFLIB); \
+	g++ -std=c++11 -I$(BUILD_DIR_EMU) -I$(APP_SRC_DIR) -fPIC *.cpp driver.a -shared -o $(BUILD_DIR_INFLIB)/libbismo_inference.so
 
 # run resource/Fmax characterization
 Characterize%:
