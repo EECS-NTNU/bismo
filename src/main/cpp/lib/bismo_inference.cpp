@@ -5,15 +5,26 @@ namespace bismo_inference {
 // global handle for the platform and BISMO driver
 WrapperRegDriver * platform;
 BitSerialMatMulAccelDriver * acc;
+HardwareCfg cfg;
 // TODO add layer registry that keeps track of instantiated layers
 // TODO add OCM resource pool to keep track of OCM use for weights/thresholds
+uint32_t weightOCMBase, weightOCMBytesLeft;
+uint32_t activationOCMBase, activationOCMBytesLeft;
+uint32_t thresholdOCMBase, thresholdOCMBytesLeft;
 
 // global init/deinit for the runtime library
 void init() {
   platform = initPlatform();
   acc = new BitSerialMatMulAccelDriver(platform);
   acc->print_hwcfg_summary();
-  // TODO initialize OCM resource pool from hwcfg
+  cfg = acc->hwcfg();
+  // initialize OCM resource pool from hwcfg
+  weightOCMBase = 0;
+  weightOCMBytesLeft = acc->get_lhs_total_BRAM_bytes();
+  activationOCMBase = 0;
+  activationOCMBytesLeft = acc->get_rhs_total_BRAM_bytes();
+  thresholdOCMBase = 0;
+  // TODO set thresholdOCMBytesLeft from hwcfg
 }
 
 void deinit() {
@@ -22,15 +33,26 @@ void deinit() {
 }
 
 uint32_t allocWeightOCM(size_t nbytes) {
-  // TODO check if enough weight OCM is left
-  // TODO increment pointer to next available OCM slot
-  // TOOD return allocated base address
-  return 0;
+  // check if enough weight OCM is left
+  // TODO: if not enough space, fail gracefully to permit SW execution
+  assert(nbytes <= weightOCMBytesLeft);
+  // increment pointer to next available OCM slot
+  weightOCMBytesLeft -= nbytes;
+  uint32_t ret = weightOCMBase;
+  // convert bytes to LHS mem address
+  // TODO this conversion needs to be checked for fetch width != exec width
+  assert(cfg.dpaDimCommon == cfg.readChanWidth);
+  const size_t bytesPerWeightOCMEntry = (cfg.dpaDimLHS * cfg.dpaDimCommon) / 8;
+  weightOCMBase += nbytes / bytesPerWeightOCMEntry;
+  // return allocated base address
+  return ret;
 }
 
 uint32_t allocThresOCM(size_t nbytes) {
-  // TODO check if enough weight OCM is left
-  // TODO increment pointer to next available OCM slot
+  // check if enough threshold OCM is left
+  assert(nbytes <= thresholdOCMBytesLeft);
+  thresholdOCMBytesLeft -= nbytes;
+  // TODO implement allocThresOCM
   // TOOD return allocated base address
   return 0;
 }
@@ -38,7 +60,9 @@ uint32_t allocThresOCM(size_t nbytes) {
 uint32_t allocActivationOCM(size_t nbytes) {
   // since we follow a strictly layer-by-layer strategy where only one
   // layer executes at a time, we simply use the same OCM buffer for all layers
-  // TODO check if enough space in activation OCM
+  // check if enough space in activation OCM
+  assert(nbytes <= activationOCMBytesLeft);
+  // all layers use the same activation buffer, so no base ptr update
   return 0;
 }
 
