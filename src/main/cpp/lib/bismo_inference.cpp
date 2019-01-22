@@ -2,18 +2,20 @@
 #include "BitSerialMatMulAccelDriver.hpp"
 
 namespace bismo_inference {
+// global handle for the platform and BISMO driver
+WrapperRegDriver * platform;
+BitSerialMatMulAccelDriver * acc;
+
 // global init/deinit for the runtime library
 void init() {
-  // TODO implement global init
-  WrapperRegDriver * platform = initPlatform();
-  BitSerialMatMulAccelDriver * acc = new BitSerialMatMulAccelDriver(platform);
-  acc->print_hwcfg_summary();
-  delete acc;
-  deinitPlatform(platform);
+  platform = initPlatform();
+  acc = new BitSerialMatMulAccelDriver(platform);
 }
 
 void deinit() {
-  // TODO implement global deinit
+  acc->print_hwcfg_summary();
+  delete acc;
+  deinitPlatform(platform);
 }
 
 // initialize layer of given type and return handle
