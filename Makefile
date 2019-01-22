@@ -119,9 +119,9 @@ emu: $(BUILD_DIR_EMU)/driver.a
 inflib_emu: $(BUILD_DIR_EMU)/driver.a
 	mkdir -p $(BUILD_DIR_INFLIB); \
 	cp -r $(INFLIB_SRC_DIR)/* $(BUILD_DIR_INFLIB)/; \
-	cp $(BUILD_DIR_EMU)/driver.a $(BUILD_DIR_INFLIB)/; \
+	cp $(BUILD_DIR_EMU)/*.cpp $(BUILD_DIR_INFLIB)/; \
 	cd $(BUILD_DIR_INFLIB); \
-	g++ -std=c++11 -I$(BUILD_DIR_EMU) -I$(APP_SRC_DIR) -fPIC *.cpp driver.a -shared -o $(BUILD_DIR_INFLIB)/libbismo_inference.so
+	g++ -std=c++11 -I$(BUILD_DIR_EMU) -I$(APP_SRC_DIR) -fPIC *.cpp -shared -o $(BUILD_DIR_INFLIB)/libbismo_inference.so
 
 # run resource/Fmax characterization
 Characterize%:
