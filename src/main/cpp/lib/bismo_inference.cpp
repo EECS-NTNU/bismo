@@ -16,6 +16,7 @@ uint32_t thresholdOCMBase, thresholdOCMBytesLeft;
 void init() {
   platform = initPlatform();
   acc = new BitSerialMatMulAccelDriver(platform);
+  acc->reset();
   acc->print_hwcfg_summary();
   cfg = acc->hwcfg();
   // initialize OCM resource pool from hwcfg
@@ -69,10 +70,44 @@ uint32_t allocActivationOCM(size_t nbytes) {
 // initialize layer of given type and return handle
 // parameter shape: weights[M][K]
 LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights) {
-  // TODO allocate OCM space for weights
-  // TODO convert weights to bit serial
-  // TODO copy bit-serial weights into DRAM
-  // TODO create and run instruction sequence to fetch weights into OCM
+  // allocate OCM space for weights
+  gemmbitserial::GEMMContext ctx = acc->allocGEMMContext(
+    dsc.M, dsc.K, dsc.N, dsc.wbits, dsc.ibits, dsc.wsigned, dsc.isigned
+  );
+  size_t wbytes = ctx.lhs.wordsPerBitplane() * ctx.lhs.nbits * sizeof(PackedBitGroupType);
+  uint32_t wbuf_base = allocWeightOCM(wbytes);
+  // convert weights to bit serial
+  // don't really care about performance here since this is one-off
+  ctx.lhs.importRegular(weights);
+  // allocate DRAM buffer and copy bit-serial weights there
+  // TODO optimization: can use a single DRAM buffer whose size is the largest
+  // weight buffer since this is done only once per layer
+  void * accelLHS = platform->allocAccelBuffer(wbytes);
+  platform->copyBufferHostToAccel((void *)weights, accelLHS, wbytes);
+  // create instruction sequence to fetch weights into OCM
+  // TODO this needs to be checked for fetch width != exec width
+  // (see exec_to_fetch_width_ratio in BitSerialMatMulExecutor)
+  assert(cfg.dpaDimCommon == cfg.readChanWidth);
+  Op fetchOp;
+  FetchRunCfg fetchRunCfg;
+  fetchOp.opcode = opRun;
+  fetchRunCfg.bram_addr_base = wbuf_base;
+  fetchRunCfg.bram_id_start = acc->get_fetch_first_lhs_id();
+  fetchRunCfg.bram_id_range = cfg.dpaDimLHS - 1;
+  fetchRunCfg.dram_base = accelLHS;
+  fetchRunCfg.dram_block_offset_bytes = 0;
+  fetchRunCfg.dram_block_size_bytes = wbytes;
+  fetchRunCfg.dram_block_count = 1;
+  fetchRunCfg.tiles_per_row = ctx.lhs.ncols_a / cfg.dpaDimCommon;
+  acc->set_stage_enables(0, 0, 0, 0);
+  acc->push_fetch_op(fetchOp);
+  acc->push_fetch_runcfg(fetchRunCfg);
+  assert(acc->fetch_opcount() == 1);
+  // launch weight fetch and wait until complete
+  acc->set_stage_enables(1, 0, 0, 0);
+  while(acc->fetch_opcount() != 0);
+  acc->set_stage_enables(0, 0, 0, 0);
+
   // TODO create instruction sequence for execution, store for later
   // TODO create entry in layer registry
   // TODO return layer handle
