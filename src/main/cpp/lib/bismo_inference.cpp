@@ -1,5 +1,6 @@
 #include "bismo_inference.hpp"
 #include "BitSerialMatMulAccelDriver.hpp"
+#include <vector>
 
 namespace bismo_inference {
 // global handle for the platform and BISMO driver
@@ -11,6 +12,23 @@ HardwareCfg cfg;
 uint32_t weightOCMBase, weightOCMBytesLeft;
 uint32_t activationOCMBase, activationOCMBytesLeft;
 uint32_t thresholdOCMBase, thresholdOCMBytesLeft;
+
+typedef enum {layerMatMul, layerConv, layerThres} InternalLayerType;
+
+typedef struct {
+  InternalLayerType layerType;
+  void * accel_buf_in;
+  void * accel_buf_out;
+  gemmbitserial::GEMMContext ctx;
+  size_t nbytes_buf_in;
+  size_t nbytes_buf_out;
+  MatMulLayerDescriptor mm_dsc;
+  ConvLayerDescriptor cnv_dsc;
+  ThresLayerDescriptor thr_dsc;
+} InternalLayerDescriptor;
+
+std::vector<InternalLayerDescriptor> registry;
+typedef int32_t AccumType;
 
 // global init/deinit for the runtime library
 void init() {
@@ -107,11 +125,20 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   acc->set_stage_enables(1, 0, 0, 0);
   while(acc->fetch_opcount() != 0);
   acc->set_stage_enables(0, 0, 0, 0);
+  // create entry in layer registry and return layer handle
+  InternalLayerDescriptor idsc;
+  idsc.layerType = layerMatMul;
+  idsc.ctx = ctx;
+  idsc.nbytes_buf_in = abytes;
+  idsc.nbytes_buf_out = ctx.lhs.nrows_a * ctx.rhs.nrows_a * sizeof(AccumType) ;
+  idsc.mm_dsc = dsc;
+  LayerHandle ret = registry.size();
+  ret.push_back(idsc);
 
-  // TODO create instruction sequence for execution, store for later
-  // TODO create entry in layer registry
-  // TODO return layer handle
-  return 0;
+  // instruction generation for the rest of the execution is done dynamically
+  // in the execLayer calls for now
+
+  return ret;
 }
 
 // parameter shape: thresholds[nthresholds][nchannels]
@@ -140,7 +167,11 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights) {
 // in and out are assumed to be preallocated to appropriate buffer sizes,
 // depending on the type of layer
 void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
-  // TODO implement execMatMulLayer
+  const InternalLayerDescriptor dsc = registry[id];
+
+  platform->copyBufferHostToAccel((void *)in, dsc.accel_buf_in, dsc.nbytes_buf_in);
+  // TDOO this assumes activations fit into OCM, need tiling otherwise
+
 }
 
 void execThresLayer(LayerHandle id, const int32_t * in, uint8_t * out) {
