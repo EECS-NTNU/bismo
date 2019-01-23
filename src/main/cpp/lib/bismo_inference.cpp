@@ -25,6 +25,8 @@ typedef struct {
   MatMulLayerDescriptor mm_dsc;
   ConvLayerDescriptor cnv_dsc;
   ThresLayerDescriptor thr_dsc;
+  size_t wbase;
+  size_t abase;
 } InternalLayerDescriptor;
 
 std::vector<InternalLayerDescriptor> registry;
@@ -35,6 +37,7 @@ void init() {
   platform = initPlatform();
   acc = new BitSerialMatMulAccelDriver(platform);
   acc->reset();
+  acc->init_resource_pools();
   acc->print_hwcfg_summary();
   cfg = acc->hwcfg();
   // initialize OCM resource pool from hwcfg
@@ -93,33 +96,36 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
     dsc.M, dsc.K, dsc.N, dsc.wbits, dsc.ibits, dsc.wsigned, dsc.isigned
   );
   size_t wbytes = ctx.lhs.wordsPerBitplane() * ctx.lhs.nbits * sizeof(PackedBitGroupType);
-  uint32_t wbuf_base = allocWeightOCM(wbytes);
+  size_t abytes = ctx.rhs.wordsPerBitplane() * ctx.rhs.nbits * sizeof(PackedBitGroupType);
+  size_t resbytes = ctx.lhs.nrows_a * ctx.rhs.nrows_a * sizeof(AccumType);
+  uint32_t wbase = allocWeightOCM(wbytes);
+  uint32_t abase = allocActivationOCM(abytes);
   // convert weights to bit serial
   // don't really care about performance here since this is one-off
   ctx.lhs.importRegular(weights);
   // allocate DRAM buffer and copy bit-serial weights there
   // TODO optimization: can use a single DRAM buffer whose size is the largest
   // weight buffer since this is done only once per layer
-  void * accelLHS = platform->allocAccelBuffer(wbytes);
-  platform->copyBufferHostToAccel((void *)weights, accelLHS, wbytes);
+  void * accel_lhs_ptr = platform->allocAccelBuffer(wbytes);
+  platform->copyBufferHostToAccel((void *)ctx.lhs.data, accel_lhs_ptr, wbytes);
   // create instruction sequence to fetch weights into OCM
   // TODO this needs to be checked for fetch width != exec width
   // (see exec_to_fetch_width_ratio in BitSerialMatMulExecutor)
   assert(cfg.dpaDimCommon == cfg.readChanWidth);
-  Op fetchOp;
-  FetchRunCfg fetchRunCfg;
-  fetchOp.opcode = opRun;
-  fetchRunCfg.bram_addr_base = wbuf_base;
-  fetchRunCfg.bram_id_start = acc->get_fetch_first_lhs_id();
-  fetchRunCfg.bram_id_range = cfg.dpaDimLHS - 1;
-  fetchRunCfg.dram_base = accelLHS;
-  fetchRunCfg.dram_block_offset_bytes = 0;
-  fetchRunCfg.dram_block_size_bytes = wbytes;
-  fetchRunCfg.dram_block_count = 1;
-  fetchRunCfg.tiles_per_row = ctx.lhs.ncols_a / cfg.dpaDimCommon;
+  Op theOp;
+  FetchRunCfg frc;
+  theOp.opcode = opRun;
+  frc.bram_addr_base = wbase;
+  frc.bram_id_start = acc->get_fetch_first_lhs_id();
+  frc.bram_id_range = cfg.dpaDimLHS - 1;
+  frc.dram_base = accel_lhs_ptr;
+  frc.dram_block_offset_bytes = 0;
+  frc.dram_block_size_bytes = wbytes;
+  frc.dram_block_count = 1;
+  frc.tiles_per_row = ctx.lhs.ncols_a / cfg.dpaDimCommon;
   acc->set_stage_enables(0, 0, 0, 0);
-  acc->push_fetch_op(fetchOp);
-  acc->push_fetch_runcfg(fetchRunCfg);
+  acc->push_fetch_op(theOp);
+  acc->push_fetch_runcfg(frc);
   assert(acc->fetch_opcount() == 1);
   // launch weight fetch and wait until complete
   acc->set_stage_enables(1, 0, 0, 0);
@@ -132,12 +138,16 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   idsc.nbytes_buf_in = abytes;
   idsc.nbytes_buf_out = ctx.lhs.nrows_a * ctx.rhs.nrows_a * sizeof(AccumType) ;
   idsc.mm_dsc = dsc;
+  idsc.wbase = wbase;
+  idsc.abase = abase;
+  idsc.accel_buf_in = platform->allocAccelBuffer(abytes);
+  // TODO optimization: can use common buffer for all results, since 1 layer
+  // at a time
+  idsc.accel_buf_out = platform->allocAccelBuffer(resbytes);
   LayerHandle ret = registry.size();
-  ret.push_back(idsc);
-
+  registry.push_back(idsc);
   // instruction generation for the rest of the execution is done dynamically
   // in the execLayer calls for now
-
   return ret;
 }
 
@@ -168,10 +178,124 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights) {
 // depending on the type of layer
 void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   const InternalLayerDescriptor dsc = registry[id];
+  const gemmbitserial::BitSerialMatrix lhs = dsc.ctx.lhs;
+  gemmbitserial::BitSerialMatrix rhs = dsc.ctx.rhs;
+  const size_t lhs_tiles = lhs.nrows_a /  cfg.dpaDimLHS;
+  const size_t rhs_tiles = rhs.nrows_a /  cfg.dpaDimRHS;
+  const size_t wbase = dsc.wbase;
+  const size_t abase = dsc.abase;
+  const size_t wbits = lhs.nbits;
+  const size_t abits = rhs.nbits;
+  uint32_t rptr = (uint32_t)(uint64_t) dsc.accel_buf_out;
+  // TODO this needs to be checked for fetch width != exec width
+  // (see exec_to_fetch_width_ratio in BitSerialMatMulExecutor)
+  assert(cfg.dpaDimCommon == cfg.readChanWidth);
+  const size_t k_tiles = lhs.ncols_a / cfg.dpaDimCommon;
 
-  platform->copyBufferHostToAccel((void *)in, dsc.accel_buf_in, dsc.nbytes_buf_in);
-  // TDOO this assumes activations fit into OCM, need tiling otherwise
+  // TODO call p2s here instead
+  rhs.importRegular((uint8_t *)in);
+  // copy buffer from host
+  platform->copyBufferHostToAccel(rhs.data, dsc.accel_buf_in, dsc.nbytes_buf_in);
+  // enable all stages
+  acc->set_stage_enables(1, 1, 1, 1);
+  // fetch the rhs matrix into the on-chip buffer
+  Op theOp;
+  FetchRunCfg frc;
+  ExecRunCfg erc;
+  erc.writeAddr = 0;
+  ResultRunCfg rrc;
+  // fetch receive token from exec stage for buffer access
+  // in the current schedule this token represents the entire RHS buffer
+  theOp.opcode = opReceiveToken;
+  theOp.syncChannel = 0;
+  acc->push_fetch_op(theOp);
+  theOp.opcode = opRun;
+  frc.bram_addr_base = abase;
+  frc.bram_id_start = acc->get_fetch_first_rhs_id();
+  frc.bram_id_range = cfg.dpaDimRHS - 1;
+  frc.dram_base = dsc.accel_buf_in;
+  frc.dram_block_offset_bytes = 0;
+  frc.dram_block_size_bytes = dsc.nbytes_buf_in;
+  frc.dram_block_count = 1;
+  frc.tiles_per_row = lhs.ncols_a / cfg.dpaDimCommon;
+  acc->push_fetch_op(theOp);
+  acc->push_fetch_runcfg(frc);
+  // fetch sends token to execute stage
+  theOp.opcode = opSendToken;
+  theOp.syncChannel = 0;
+  acc->push_fetch_op(theOp);
 
+  // exec receives token from fetch stage
+  theOp.opcode = opReceiveToken;
+  theOp.syncChannel = 0;
+  acc->push_exec_op(theOp);
+
+  // TODO this assumes activations fit into OCM, need extra tiling otherwise
+  // TODO optimization: do this in smaller chunks for fetch-exec concurrency
+  for(size_t lhs_tile = 0; lhs_tile < lhs_tiles; lhs_tile++) {
+    for(size_t rhs_tile = 0; rhs_tile < rhs_tiles; rhs_tile++) {
+      // exec stage ==============================================
+      // exec receives token from result stage (acquire empty res buffer)
+      theOp.opcode = opReceiveToken;
+      theOp.syncChannel = 1;
+      acc->push_exec_op(theOp);
+      for(size_t wbit = 0; wbit < wbits; wbit++) {
+        for(size_t abit = 0; abit < abits; abit++) {
+          // generate exec instr for current bit position
+          theOp.opcode = opRun;
+          theOp.syncChannel = 0;
+          acc->push_exec_op(theOp);
+          const bool tile_first = (wbit == 0) && (abit == 0);
+          const bool lbit_last = (wbit == wbits-1);
+          const bool rbit_last = (abit == abits-1);
+          const bool tile_last = lbit_last && rbit_last;
+          const bool neg_l = lbit_last && lhs.issigned;
+          const bool neg_r = rbit_last && rhs.issigned;
+          bool isNeg = neg_l ^ neg_r;
+          erc.lhsOffset = wbase + k_tiles * (lhs_tile + wbit * lhs_tiles);
+          erc.rhsOffset = abase + k_tiles * (rhs_tile + abit * rhs_tiles);
+          erc.doNegate = isNeg ? 1 : 0;
+          erc.numTiles = k_tiles;
+          erc.shiftAmount = (wbit + abit);
+          erc.doClear = tile_first ? 1 : 0;
+          erc.writeEn = tile_last ? 1 : 0;
+          // TODO more flexible multi-buffering here
+          erc.writeAddr = (erc.writeAddr == 0) ? 1 : 0;
+          acc->push_exec_runcfg(erc);
+        }
+      }
+      // exec sends token to result stage (send full res buffer)
+      theOp.opcode = opSendToken;
+      theOp.syncChannel = 1;
+      acc->push_exec_op(theOp);
+      // result stage =============================================
+      // res receives token from exec stage (acquire full res buffer)
+      theOp.opcode = opReceiveToken;
+      theOp.syncChannel = 0;
+      acc->push_result_op(theOp);
+      // generate write instruction
+      uint32_t lhs_ind = cfg.dpaDimLHS * lhs_tile;
+      uint32_t rhs_ind = cfg.dpaDimRHS * rhs_tile;
+      size_t ind = rhs_ind * cfg.dpaDimLHS + lhs_ind;
+      rrc.dram_base = (void*) (rptr + (ind * sizeof(AccumType)));
+      rrc.dram_skip = cfg.dpaDimLHS * sizeof(AccumType);
+      rrc.waitComplete = ((lhs_tile == lhs_tiles-1) && (rhs_tile == rhs_tiles - 1)) ? 1 : 0;
+      rrc.waitCompleteBytes = dsc.nbytes_buf_out;
+      acc->push_result_runcfg(rrc);
+      // res sends token to result stage (send empty res buffer)
+      theOp.opcode = opSendToken;
+      theOp.syncChannel = 1;
+      acc->push_result_op(theOp);
+    }
+  }
+  // exec sends token to fetch stage
+  theOp.opcode = opSendToken;
+  theOp.syncChannel = 0;
+  acc->push_exec_op(theOp);
+  // wait until complete
+  while(acc->res_opcount() != 0);
+  // copy result buffer to host
+  platform->copyBufferAccelToHost(dsc.accel_buf_out, (void *)out, dsc.nbytes_buf_out);
 }
 
 void execThresLayer(LayerHandle id, const int32_t * in, uint8_t * out) {
