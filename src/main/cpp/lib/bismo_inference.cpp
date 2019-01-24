@@ -123,14 +123,14 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   frc.dram_block_size_bytes = wbytes;
   frc.dram_block_count = 1;
   frc.tiles_per_row = ctx.lhs.ncols_a / cfg.dpaDimCommon;
-  acc->set_stage_enables(0, 0, 0, 0);
+  acc->set_stage_enables(0, 0, 0);
   acc->push_fetch_op(theOp);
   acc->push_fetch_runcfg(frc);
   assert(acc->fetch_opcount() == 1);
   // launch weight fetch and wait until complete
-  acc->set_stage_enables(1, 0, 0, 0);
+  acc->set_stage_enables(1, 0, 0);
   while(acc->fetch_opcount() != 0);
-  acc->set_stage_enables(0, 0, 0, 0);
+  acc->set_stage_enables(0, 0, 0);
   // create entry in layer registry and return layer handle
   InternalLayerDescriptor idsc;
   idsc.layerType = layerMatMul;
@@ -197,7 +197,7 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   // copy buffer from host
   platform->copyBufferHostToAccel(rhs.data, dsc.accel_buf_in, dsc.nbytes_buf_in);
   // enable all stages
-  acc->set_stage_enables(1, 1, 1, 1);
+  acc->set_stage_enables(1, 1, 1);
   // fetch the rhs matrix into the on-chip buffer
   Op theOp;
   FetchRunCfg frc;
