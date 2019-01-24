@@ -39,8 +39,6 @@
 #define min(x,y) (x < y ? x : y)
 #define max(x,y) (x > y ? x : y)
 #define INVALID_CACHE_ENTRY         (uint64_t) -1
-#define DEBUG_SCHEDULING 0
-#define DEBUG_LEVELS 0
 
 // TODO:
 // - define own context allocator for the accelerator, including
@@ -80,7 +78,7 @@ public:
     // prepare the accelerator for operation
     m_acc->reset();
     m_acc->init_resource_pools();
-    m_acc->set_stage_enables(1, 1, 1, 1);
+    m_acc->set_stage_enables(1, 1, 1);
   }
 
   ~BitSerialMatMulExecutor() {
@@ -88,16 +86,6 @@ public:
     m_platform->deallocAccelBuffer(m_accelLHS);
     m_platform->deallocAccelBuffer(m_accelRHS);
     m_platform->deallocAccelBuffer(m_accelRes);
-    m_platform->deallocAccelBuffer(m_accelP2S);
-    m_platform->deallocAccelBuffer(m_accelP2S_result);
-  }
-
-  void cleanAccelBuff(){
-    m_platform->deallocAccelBuffer(m_accelLHS);
-    m_platform->deallocAccelBuffer(m_accelRHS);
-    m_platform->deallocAccelBuffer(m_accelRes);
-    m_platform->deallocAccelBuffer(m_accelP2S);
-    m_platform->deallocAccelBuffer(m_accelP2S_result);
   }
 
   void setLHS(gemmbitserial::BitSerialMatrix from) {
@@ -121,46 +109,6 @@ public:
       m_cached_rhs[i] = INVALID_CACHE_ENTRY;
     }
   }
-  void setLHSRHSSerial(uint8_t * lhs_bsm, uint8_t * rhs_bsm){
-     m_platform->copyBufferHostToAccel(lhs_bsm, m_accelLHS, lhsBytes());
-     m_platform->copyBufferHostToAccel(rhs_bsm, m_accelRHS, rhsBytes());
-         // invalidate cache
-    for(unsigned int i = 0; i < FETCHEXEC_TOKENS; i++) {
-      m_cached_lhs[i] = INVALID_CACHE_ENTRY;
-    }
-        // invalidate cache
-    for(unsigned int i = 0; i < FETCHEXEC_TOKENS; i++) {
-      m_cached_rhs[i] = INVALID_CACHE_ENTRY;
-    }
-  }
-
-  void * setP2S(size_t rows, size_t cols, uint8_t * bpm){
-    size_t nbytes_bitpar = rows * cols * sizeof(uint8_t);
-    m_accelP2S = m_platform->allocAccelBuffer(nbytes_bitpar);
-    m_platform->copyBufferHostToAccel(bpm, m_accelP2S, nbytes_bitpar);
-    return m_accelP2S;
-  }
-
-void * setP2SRes(size_t bits, size_t rows, size_t cols){
-  size_t nbytes_bitser = (bits * rows * cols) / 8;
-  m_accelP2S_result = m_platform->allocAccelBuffer(nbytes_bitser);
-  m_acc->setup_p2s(m_accelP2S, nbytes_bitser, m_accelP2S_result, rows, cols, bits);
-  return m_accelP2S_result;
-} 
-/*******************************************
-//TODO: Should update here for ths?
-*******************************************/
-  void setTHS(gemmbitserial::BitSerialMatrix from) {
-    assert(m_shape.rhs.nrows_a == from.nrows_a);
-    assert(m_shape.rhs.nbits == from.nbits);
-    // copy host -> accel
-    m_platform->copyBufferHostToAccel(from.data, m_accelRHS, rhsBytes());
-    // invalidate cache
-    for(unsigned int i = 0; i < FETCHEXEC_TOKENS; i++) {
-      m_cached_rhs[i] = INVALID_CACHE_ENTRY;
-    }
-  }
-  //////////////////////////////////////////////////////////////////////////////
 
   void getRes(ResultType * to) {
     // result alignment
@@ -180,20 +128,18 @@ void * setP2SRes(size_t bits, size_t rows, size_t cols){
 
   void run() {
     clear_all_queue_pointers();
-    m_acc->set_stage_enables(0, 0, 0, 0);
+    m_acc->set_stage_enables(0, 0, 0);
     // initial fill-up of the instruction queues
     fill_fetch_op();
     fill_fetch_runcfg();
     fill_exec_op();
     fill_exec_runcfg();
-    fill_thr_op();
-    fill_thr_runcfg();
     fill_result_op();
     fill_result_runcfg();
     // start the cycle counter
     m_acc->perf_set_cc_enable(true);
     // enable all stages
-    m_acc->set_stage_enables(1, 1, 1, 1);
+    m_acc->set_stage_enables(1, 1, 1);
     // run the generated schedule -- keep pushing operands until all generated
     // instructions have been pushed
     while(!allPushed()) {
@@ -201,22 +147,19 @@ void * setP2SRes(size_t bits, size_t rows, size_t cols){
       fill_fetch_runcfg();
       fill_exec_op();
       fill_exec_runcfg();
-      fill_thr_op();
-      fill_thr_runcfg();
       fill_result_op();
       fill_result_runcfg();
     }
     // wait until the result stage has no instructions std::left (= all finished)
     while(!allFinished());
     // disable all stages
-    m_acc->set_stage_enables(0, 0, 0,0);
+    m_acc->set_stage_enables(0, 0, 0);
     // stop the cycle counter
     m_acc->perf_set_cc_enable(false);
     m_cycles = m_acc->perf_get_cc();
     // fetch the number of cycles spent in different states for each stage
     updateFetchStateCounters();
     updateExecStateCounters();
-    updateThrStateCounters();
     updateResultStateCounters();
   }
 
@@ -392,7 +335,6 @@ protected:
   uint32_t m_cycles;
   uint32_t m_fetch_cstate_cycles[N_CTRL_STATES];
   uint32_t m_exec_cstate_cycles[N_CTRL_STATES];
-  uint32_t m_thr_cstate_cycles[N_CTRL_STATES];
   uint32_t m_result_cstate_cycles[N_CTRL_STATES];
   uint32_t m_bytes_to_fetch, m_bytes_to_write;
 
@@ -404,17 +346,13 @@ protected:
   void * m_accelLHS;
   void * m_accelRHS;
   void * m_accelRes;
-  void * m_accelP2S;
-  void * m_accelP2S_result;
-  //TODO Add here???
 
-  std::vector<Op> m_fetch_op, m_exec_op, m_result_op, m_thr_op;
+  std::vector<Op> m_fetch_op, m_exec_op, m_result_op;
   std::vector<FetchRunCfg> m_fetch_runcfg;
   std::vector<ExecRunCfg> m_exec_runcfg;
-  std::vector<ThrRunCfg> m_thr_runcfg;
   std::vector<ResultRunCfg> m_result_runcfg;
-  size_t m_fetch_op_ptr, m_result_op_ptr, m_exec_op_ptr, m_thr_op_ptr;
-  size_t m_fetch_runcfg_ptr, m_result_runcfg_ptr, m_exec_runcfg_ptr, m_thr_runcfg_ptr;
+  size_t m_fetch_op_ptr, m_result_op_ptr, m_exec_op_ptr;
+  size_t m_fetch_runcfg_ptr, m_result_runcfg_ptr, m_exec_runcfg_ptr;
 
   // keep track of what we have in the on-chip memory to avoid re-fetching
   std::vector<uint64_t> m_cached_lhs, m_cached_rhs;
@@ -452,9 +390,6 @@ protected:
       r.dram_block_size_bytes *= r.dram_block_count;
       r.dram_block_offset_bytes *= r.dram_block_count;
       r.dram_block_count = 1;
-      if(DEBUG_SCHEDULING){
-        std::cout << "FETCH STAGE executing" << endl;
-      }
     }
     // ensure generated runcfg for fetch is valid
     m_acc->verifyFetchRunCfg(r);
@@ -468,17 +403,6 @@ protected:
   void makeinstr_exec_run(ExecRunCfg r) {
     m_exec_op.push_back(m_acc->make_op(opRun, 0));
     m_exec_runcfg.push_back(r);
-    if(DEBUG_SCHEDULING){
-     std::cout << "EXECUTE STAGE executing" << endl;
-    }
-  }
-
-  void makeinstr_thr_run(ThrRunCfg thr){
-    m_thr_op.push_back(m_acc->make_op(opRun, 0));
-    m_thr_runcfg.push_back(thr);
-    if(DEBUG_SCHEDULING){
-      std::cout << "THRESHOLDING STAGE executing" << endl;
-    }
   }
 
   void makeinstr_result_run(ResultRunCfg rrc) {
@@ -488,15 +412,12 @@ protected:
     m_bytes_to_write += m_hwcfg.dpaDimLHS * m_hwcfg.dpaDimRHS * sizeof(ResultType);
     m_result_op.push_back(m_acc->make_op(opRun, 0));
     m_result_runcfg.push_back(rrc);
-    if(DEBUG_SCHEDULING){
-      std::cout << "RESULT STAGE executing" << endl;
-    }
   }
 
   void clear_all_queue_pointers() {
     // set queue pointers to zero
-    m_fetch_op_ptr = m_result_op_ptr = m_exec_op_ptr = m_thr_op_ptr = 0;
-    m_fetch_runcfg_ptr = m_result_runcfg_ptr = m_exec_runcfg_ptr = m_thr_runcfg_ptr = 0;
+    m_fetch_op_ptr = m_result_op_ptr = m_exec_op_ptr = 0;
+    m_fetch_runcfg_ptr = m_result_runcfg_ptr = m_exec_runcfg_ptr = 0;
   }
 
   // whether all instruction execution has finished
@@ -510,7 +431,6 @@ protected:
     return
       m_fetch_op_ptr == m_fetch_op.size() &&
       m_exec_op_ptr == m_exec_op.size() &&
-      m_thr_op_ptr == m_thr_op.size() &&
       m_result_op_ptr == m_result_op.size();
   }
 
@@ -523,12 +443,6 @@ protected:
   void fill_exec_op() {
     while(!m_acc->exec_op_full() && m_exec_op_ptr < m_exec_op.size()) {
       m_acc->push_exec_op(m_exec_op[m_exec_op_ptr++]);
-    }
-  }
-
-    void fill_thr_op() {
-    while(!m_acc->thr_op_full() && m_thr_op_ptr < m_thr_op.size()) {
-      m_acc->push_thr_op(m_thr_op[m_thr_op_ptr++]);
     }
   }
 
@@ -556,95 +470,37 @@ protected:
     }
   }
 
-void fill_thr_runcfg() {
-    while(!m_acc->thr_runcfg_full() && m_thr_runcfg_ptr < m_thr_runcfg.size()) {
-      m_acc->push_thr_runcfg(m_thr_runcfg[m_thr_runcfg_ptr++]);
-    }
-  }
   // helper functions for generating sync instructions
-  //TODO FLOW CHANGED!!!
   void makeinstr_fetch_sync_getexecbuffer() {
     m_fetch_op.push_back(m_acc->make_op(opReceiveToken, 0));
-    if(DEBUG_SCHEDULING){
-      std::cout << "FETCH STAGE lock EXEC buff"  << endl;
-    }
   }
 
   void makeinstr_fetch_sync_putexecbuffer() {
     m_fetch_op.push_back(m_acc->make_op(opSendToken, 0));
-    if(DEBUG_SCHEDULING){
-      std::cout << "FETCH STAGE unlock EXEC buff"  << endl;
-    }
   }
 
   void makeinstr_exec_sync_getfetchbuffer() {
     m_exec_op.push_back(m_acc->make_op(opReceiveToken, 0));
-    if(DEBUG_SCHEDULING){
-     std::cout << "EXEC STAGE lock FETCH buff"  << endl;
-    }
   }
 
   void makeinstr_exec_sync_putfetchbuffer() {
     m_exec_op.push_back(m_acc->make_op(opSendToken, 0));
-    if(DEBUG_SCHEDULING){
-      std::cout << "EXEC STAGE unlock FETCH buff"  << endl;
-    }
   }
 
-  void makeinstr_exec_sync_getthrbuffer() {
+  void makeinstr_exec_sync_getresultbuffer() {
     m_exec_op.push_back(m_acc->make_op(opReceiveToken, 1));
-    if(DEBUG_SCHEDULING){
-      std::cout << "EXEC STAGE lock THR buff"  << endl;
-    }
   }
 
-  void makeinstr_exec_sync_putthrbuffer() {
+  void makeinstr_exec_sync_putresultbuffer() {
     m_exec_op.push_back(m_acc->make_op(opSendToken, 1));
-    if(DEBUG_SCHEDULING){
-      std::cout << "EXEC STAGE unlock THR buff"  << endl;
-    }
   }
 
-  void makeinstr_thr_sync_getexecbuffer() {
-    m_thr_op.push_back(m_acc->make_op(opReceiveToken, 0));
-    if(DEBUG_SCHEDULING){
-      std::cout << "THR STAGE lock EXEC buff"  << endl;
-    }
-  }
-
-  void makeinstr_thr_sync_putexecbuffer() {
-    m_thr_op.push_back(m_acc->make_op(opSendToken, 0));
-    if(DEBUG_SCHEDULING){
-      std::cout << "THR STAGE unlock EXEC buff"  << endl;
-    }
-  }
-
-  void makeinstr_thr_sync_getresultbuffer() {
-    m_thr_op.push_back(m_acc->make_op(opReceiveToken, 1));
-    if(DEBUG_SCHEDULING){
-      std::cout << "THR STAGE lock RES buff"  << endl;
-    }
-  }
-
-  void makeinstr_thr_sync_putresultbuffer() {
-    m_thr_op.push_back(m_acc->make_op(opSendToken, 1));
-    if(DEBUG_SCHEDULING){
-      std::cout << "THR STAGE unlock RES buff"  << endl;
-    }
-  }
-
-  void makeinstr_result_sync_getthrbuffer() {
+  void makeinstr_result_sync_getexecbuffer() {
     m_result_op.push_back(m_acc->make_op(opReceiveToken, 0));
-    if(DEBUG_SCHEDULING){
-      std::cout << "RES STAGE lock THR buff"  << endl;
-    }
   }
 
-  void makeinstr_result_sync_putthrbuffer() {
+  void makeinstr_result_sync_putexecbuffer() {
     m_result_op.push_back(m_acc->make_op(opSendToken, 0));
-    if(DEBUG_SCHEDULING){
-      std::cout << "RES STAGE unlock THR buff"  << endl;
-    }
   }
 
   void updateFetchStateCounters() {
@@ -662,12 +518,6 @@ void fill_thr_runcfg() {
   void updateResultStateCounters() {
     for(int i = 0; i < N_CTRL_STATES; i++) {
       m_result_cstate_cycles[i] = m_acc->perf_result_stats((ControllerState) i);
-    }
-  }
-
-  void updateThrStateCounters() {
-    for(int i = 0; i < N_CTRL_STATES; i++) {
-      m_thr_cstate_cycles[i] = m_acc->perf_thr_stats((ControllerState) i);
     }
   }
 
@@ -783,9 +633,7 @@ void fill_thr_runcfg() {
     const uint64_t fetch_base_lhs = (uint64_t) m_accelLHS;
     const uint64_t fetch_base_rhs = (uint64_t) m_accelRHS;
     uint64_t res_base = (uint64_t) m_accelRes;
-    if(DEBUG_LEVELS){
-     std::cout << "Levels " << lhs_l2_per_matrix << ", " << rhs_l2_per_matrix << ", " << z_l2_per_matrix << endl;
-    }
+
     for(int lhs_l2 = 0; lhs_l2 < lhs_l2_per_matrix; lhs_l2++) {
       for(int rhs_l2 = 0; rhs_l2 < rhs_l2_per_matrix; rhs_l2++) {
         for(int z_l2 = 0; z_l2 < z_l2_per_matrix; z_l2++) {
@@ -850,17 +698,12 @@ void fill_thr_runcfg() {
           // exec stage acquires input matrix buffers
           makeinstr_exec_sync_getfetchbuffer();
           // process combinations of L1 tiles within the L2 tile
-          if(DEBUG_LEVELS){
-            std::cout << "Sub levels " << lhs_l1_per_l2 << ", " << rhs_l1_per_l2 << endl;
-          }
-          //Variable for thresholds offset  
-          int32_t thr_row;
           for(int lhs_l1 = 0; lhs_l1 < lhs_l1_per_l2; lhs_l1++) {
             for(int rhs_l1 = 0; rhs_l1 < rhs_l1_per_l2; rhs_l1++) {
               if(z_l2 == z_l2_per_matrix - 1) {
                 // about to finish a new stripe
                 // exec stage acquires new result buffer
-                makeinstr_exec_sync_getthrbuffer();
+                makeinstr_exec_sync_getresultbuffer();
               }
               ExecRunCfg erc;
               erc.numTiles = lhs_l0_per_l1;
@@ -879,57 +722,23 @@ void fill_thr_runcfg() {
 
               if(z_l2 == z_l2_per_matrix - 1) {
                 // finishing a stripe: release result buffer from exec
-                makeinstr_exec_sync_putthrbuffer();
-                // thr stage: acquire result buffer
-                makeinstr_thr_sync_getexecbuffer();
+                makeinstr_exec_sync_putresultbuffer();
+                // result stage: acquire result buffer
+                makeinstr_result_sync_getexecbuffer();
+                // generate result
+                ResultRunCfg rrc;
+                rrc.resmem_addr = current_resmem_region;
                 // find the inds of which L1 tile we are currently working on
                 size_t lhs_tile = lhs_l1_per_l2 * lhs_l2 + lhs_l1;
                 size_t rhs_tile = rhs_l1_per_l2 * rhs_l2 + rhs_l1;
-                /***************** THRESHOLDING CONFIGURATION *****************/
-
-                ThrRunCfg thrc;
-                thrc.actOffset = current_resmem_region;
-                //TODO Offset = the row  tiles? this depends on the computations and how load matrices
-                //Empirical formula, the thresholds should follow different patterns in onchip and offchip memory
-                //NOT a theoretical formula, just look at bismo tests numbers
-                thr_row = rhs_l2_per_matrix > 1 ? rhs_l1 + rhs_tile :  rhs_l1;
-                thrc.thrOffset = thr_row;
-                if(DEBUG_LEVELS){
-                  std::cout <<"Tile ids " << lhs_l1 << ", " << rhs_l1 << endl;
-                  std::cout << "Thr Offset " << thr_row << endl;
-                }
-                thrc.runTimeThrNumber = (65535);//(1 << (std::pow(2,m_acc->hwcfg().maxQuantDim)-1)) - 1 );// m_acc->hwcfg().maxQuantDim;
-                thrc.writeEn = true;
-                thrc.writeAddr = current_resmem_region;
-  
-                //thr stage get result buffer
-                makeinstr_thr_sync_getresultbuffer();                
-                makeinstr_thr_run(thrc);
-                //thr release exec buffer
-                makeinstr_thr_sync_putexecbuffer();
-                //thr release result buffer
-                makeinstr_thr_sync_putresultbuffer();
-
-                //result get exec buff
-                makeinstr_result_sync_getthrbuffer();
-                /***************** END *****************/
-                            // generate result
-                ResultRunCfg rrc;
-                rrc.resmem_addr = current_resmem_region;
-
-                if(DEBUG_LEVELS){
-                 std::cout <<"Result tile " << lhs_tile << ", " << rhs_tile << endl;
-                }
                 rrc.dram_base = get_result_tile_ptr(lhs_tile, rhs_tile);
                 rrc.dram_skip = lhs_eff_rows() * sizeof(ResultType);
                 rrc.waitComplete = false;
                 rrc.waitCompleteBytes = 0;
                 makeinstr_result_run(rrc);
-               // makeinstr_thr_sync_putexecbuffer();
+                makeinstr_result_sync_putexecbuffer();
                 // use next resmem region for next time
                 current_resmem_region = current_resmem_region < resmem_regions-1 ? current_resmem_region + 1 : 0;
-                //result release buffer
-                makeinstr_result_sync_putthrbuffer();
               }
             }
           }
@@ -940,21 +749,6 @@ void fill_thr_runcfg() {
         }
       }
     }
-
-    /***************** THRESHOLDING CONFIGURATION *****************/
-    //TODO: Still needed or wrong up?
-    /*ThrRunCfg thrc;
-    thrc.actOffset = 0;
-    thrc.thrOffset = 0;
-    thrc.runTimeThrNumber = m_acc->hwcfg().maxQuantDim;
-    thrc.writeEn = true;
-    thrc.writeAddr = 0;
-    makeinstr_thr_sync_getresultbuffer();
-    makeinstr_thr_sync_putresultbuffer();
-    makeinstr_result_sync_putthrbuffer();
-    makeinstr_result_sync_getthrbuffer();
-    makeinstr_thr_run(thrc);*/
-    /***************** END *****************/
     // wait until all result writes are complete
     ResultRunCfg rrc;
     rrc.waitComplete = true;

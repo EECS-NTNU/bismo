@@ -72,7 +72,7 @@ object Settings {
   }
   // instantiate smaller accelerator for emu for faster testing
   val emuInstParams = new BitSerialMatMulParams(
-    dpaDimLHS = 8, dpaDimRHS = 1, dpaDimCommon = 128, lhsEntriesPerMem = 128,
+    dpaDimLHS = 2, dpaDimRHS = 2, dpaDimCommon = 128, lhsEntriesPerMem = 128,
     rhsEntriesPerMem = 128, mrp = PYNQZ1Params.toMemReqParams())
 
   // given accelerator or hw-sw-test name, return its hardware instantiator

@@ -30,7 +30,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "BISMOTests.hpp"
-#include "mnist.hpp"
 
 // read matrix dimensions from stdin and run a bit-serial matmul benchmark
 void benchmark_interactive(
@@ -69,12 +68,11 @@ int main(int argc, char const *argv[]) {
     // Uncomment to enable interactive benchmarking:
     // benchmark_interactive(platform, acc);
 
-  bool all_OK = true;
+    bool all_OK = true;
     all_OK &= test_binary_onchip_onetile(platform, acc);
-    // all_OK &= test_binary_onchip_multitile(platform, acc);
-    // all_OK &= test_binary_offchip_multitile(platform, acc);
-    // all_OK &= test_binary_offchip_widerows_multitile(platform, acc);
-    // all_OK &= test_qnn_mnist_0(platform, acc);
+    all_OK &= test_binary_onchip_multitile(platform, acc);
+    all_OK &= test_binary_offchip_multitile(platform, acc);
+    all_OK &= test_binary_offchip_widerows_multitile(platform, acc);
 
     if(all_OK) {
       cout << "All tests passed succesfully" << endl;
