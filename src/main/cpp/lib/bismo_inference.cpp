@@ -1,6 +1,7 @@
 #include "bismo_inference.hpp"
 #include "BitSerialMatMulAccelDriver.hpp"
 #include <vector>
+#include <string.h>
 
 namespace bismo_inference {
 // global handle for the platform and BISMO driver
@@ -322,6 +323,19 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   };
   // copy result buffer to host
   platform->copyBufferAccelToHost(dsc.accel_buf_out, (void *)out, dsc.nbytes_buf_out);
+
+  // optional: compute result with CPU and compare
+  /*gemmbitserial::gemmBitSerial(dsc.ctx);
+  int ret = memcmp(dsc.ctx.res, out, dsc.nbytes_buf_out);
+  cout << "memcmp against golden = " << ret << endl;
+  if(ret != 0) {
+    cout << "expected vs found" << endl;
+    for(int i = 0; i < dsc.nbytes_buf_out / sizeof(AccumType); i++) {
+      if(dsc.ctx.res[i] != out[i]) {
+        cout << "pos " << i << ": " << dsc.ctx.res[i] << " " << out[i] << endl;
+      }
+    }
+  }*/
 }
 
 void execThresLayer(LayerHandle id, const int32_t * in, uint8_t * out) {
