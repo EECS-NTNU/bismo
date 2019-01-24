@@ -187,6 +187,12 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   const size_t abase = dsc.abase;
   const size_t wbits = lhs.nbits;
   const size_t abits = rhs.nbits;
+  /*
+  cout << "tiles: lhs rhs " << lhs_tiles << " " << rhs_tiles << endl;
+  cout << "wbase abase " << wbase << " " << abase << endl;
+  cout << "wbits abits " << wbits << " " << abits << endl;
+  cout << "bytes in " << dsc.nbytes_buf_in << " out " << dsc.nbytes_buf_out << endl;
+  */
   uint32_t rptr = (uint32_t)(uint64_t) dsc.accel_buf_out;
   // TODO this needs to be checked for fetch width != exec width
   // (see exec_to_fetch_width_ratio in BitSerialMatMulExecutor)
@@ -225,6 +231,7 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   theOp.opcode = opSendToken;
   theOp.syncChannel = 0;
   acc->push_fetch_op(theOp);
+  //acc->set_stage_enables(0, 0, 0);
 
   // exec receives token from fetch stage
   theOp.opcode = opReceiveToken;
@@ -282,10 +289,13 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
       rrc.dram_skip = cfg.dpaDimLHS * sizeof(AccumType);
       rrc.waitComplete = ((lhs_tile == lhs_tiles-1) && (rhs_tile == rhs_tiles - 1)) ? 1 : 0;
       rrc.waitCompleteBytes = dsc.nbytes_buf_out;
+      theOp.opcode = opRun;
+      theOp.syncChannel = 0;
+      acc->push_result_op(theOp);
       acc->push_result_runcfg(rrc);
-      // res sends token to result stage (send empty res buffer)
+      // res sends token to exec stage (send empty res buffer)
       theOp.opcode = opSendToken;
-      theOp.syncChannel = 1;
+      theOp.syncChannel = 0;
       acc->push_result_op(theOp);
     }
   }
@@ -293,8 +303,13 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   theOp.opcode = opSendToken;
   theOp.syncChannel = 0;
   acc->push_exec_op(theOp);
+  //cout << "starting, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount() << endl;
+  //acc->set_stage_enables(1, 1, 1);
+
   // wait until complete
-  while(acc->res_opcount() != 0);
+  while(acc->res_opcount() != 0) {
+    //cout << "ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount() << endl;
+  };
   // copy result buffer to host
   platform->copyBufferAccelToHost(dsc.accel_buf_out, (void *)out, dsc.nbytes_buf_out);
 }
