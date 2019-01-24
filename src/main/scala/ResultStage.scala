@@ -219,7 +219,10 @@ class ResultStage(val myP: ResultStageParams) extends Module {
     }
 
     is(sWaitComplete) {
-      when(allComplete) { regState := sFinished }
+      when(allComplete) {
+        regState := sFinished
+        regCompletedWrBytes := UInt(0)
+      }
     }
 
     is(sFinished) {
