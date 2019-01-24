@@ -287,8 +287,8 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
       size_t ind = rhs_ind * cfg.dpaDimLHS + lhs_ind;
       rrc.dram_base = (void*) (rptr + (ind * sizeof(AccumType)));
       rrc.dram_skip = cfg.dpaDimLHS * sizeof(AccumType);
-      rrc.waitComplete = ((lhs_tile == lhs_tiles-1) && (rhs_tile == rhs_tiles - 1)) ? 1 : 0;
-      rrc.waitCompleteBytes = dsc.nbytes_buf_out;
+      rrc.waitComplete = 0;
+      rrc.waitCompleteBytes = 0;
       theOp.opcode = opRun;
       theOp.syncChannel = 0;
       acc->push_result_op(theOp);
@@ -305,6 +305,16 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   acc->push_exec_op(theOp);
   //cout << "starting, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount() << endl;
   //acc->set_stage_enables(1, 1, 1);
+
+  // generate result instruction to wait for write completion
+  rrc.dram_base = 0;
+  rrc.dram_skip = 0;
+  rrc.waitComplete = 1;
+  rrc.waitCompleteBytes = dsc.nbytes_buf_out;
+  theOp.opcode = opRun;
+  theOp.syncChannel = 0;
+  acc->push_result_op(theOp);
+  acc->push_result_runcfg(rrc);
 
   // wait until complete
   while(acc->res_opcount() != 0) {
