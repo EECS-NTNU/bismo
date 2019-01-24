@@ -57,6 +57,7 @@ void deinit() {
 uint32_t allocWeightOCM(size_t nbytes) {
   // check if enough weight OCM is left
   // TODO: if not enough space, fail gracefully to permit SW execution
+  cout << nbytes << ", " << weightOCMBytesLeft << endl;
   assert(nbytes <= weightOCMBytesLeft);
   // increment pointer to next available OCM slot
   weightOCMBytesLeft -= nbytes;
