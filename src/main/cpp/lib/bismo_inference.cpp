@@ -3,6 +3,12 @@
 #include <vector>
 #include <string.h>
 
+#ifdef DEBUG
+#define BISMORT_DEBUG(x) cout << x << endl;
+#else
+#define BISMORT_DEBUG(x) ;
+#endif
+
 namespace bismo_inference {
 // global handle for the platform and BISMO driver
 WrapperRegDriver * platform;
@@ -58,7 +64,7 @@ void deinit() {
 uint32_t allocWeightOCM(size_t nbytes) {
   // check if enough weight OCM is left
   // TODO: if not enough space, fail gracefully to permit SW execution
-  cout << nbytes << ", " << weightOCMBytesLeft << endl;
+  BISMORT_DEBUG("[allocWeightOCM] alloc " << nbytes << ", available " << weightOCMBytesLeft);
   assert(nbytes <= weightOCMBytesLeft);
   // increment pointer to next available OCM slot
   weightOCMBytesLeft -= nbytes;
@@ -133,6 +139,7 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   acc->set_stage_enables(1, 0, 0);
   while(acc->fetch_opcount() != 0);
   acc->set_stage_enables(0, 0, 0);
+  BISMORT_DEBUG("[initMatMulLayer] weight init done");
   // create entry in layer registry and return layer handle
   InternalLayerDescriptor idsc;
   idsc.layerType = layerMatMul;
@@ -147,6 +154,7 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   // at a time
   idsc.accel_buf_out = platform->allocAccelBuffer(resbytes);
   LayerHandle ret = registry.size();
+  BISMORT_DEBUG("[initMatMulLayer] registered new matmul layer with id " << ret);
   registry.push_back(idsc);
   // instruction generation for the rest of the execution is done dynamically
   // in the execLayer calls for now
