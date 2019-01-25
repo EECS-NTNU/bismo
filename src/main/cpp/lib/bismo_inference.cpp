@@ -322,11 +322,25 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
     //cout << "ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount() << endl;
   };
   // copy result buffer to host
-  platform->copyBufferAccelToHost(dsc.accel_buf_out, (void *)out, dsc.nbytes_buf_out);
+  if((lhs.nrows_a == lhs.nrows) && (rhs.nrows_a == rhs.nrows)) {
+    // no padding was necessary, copy directly to host
+    platform->copyBufferAccelToHost(dsc.accel_buf_out, (void *)out, dsc.nbytes_buf_out);
+  } else {
+    // accelerator computed a padded result matrix, copy actual parts only
+    AccumType * acc_buf_out = (AccumType *) dsc.accel_buf_out;
+    size_t nbytes_row_nonpadded = sizeof(AccumType) * lhs.nrows;
+    for(size_t row = 0; row < rhs.nrows; row++) {
+      size_t ind_padded = row * lhs.nrows_a;
+      size_t ind_actual = row * lhs.nrows;
+      platform->copyBufferAccelToHost(&acc_buf_out[ind_padded], (void *)(&out[ind_actual]), nbytes_row_nonpadded);
+    }
+  }
 
-  // optional: compute result with CPU and compare
-  /*gemmbitserial::gemmBitSerial(dsc.ctx);
-  int ret = memcmp(dsc.ctx.res, out, dsc.nbytes_buf_out);
+#ifdef BISMORT_MATMUL_VERIFY_AGAINST_CPU
+  // compute result with CPU and compare
+  size_t actual_res_bytes = sizeof(AccumType) * lhs.nrows * rhs.nrows;
+  gemmbitserial::gemmBitSerial(dsc.ctx);
+  int ret = memcmp(dsc.ctx.res, out, actual_res_bytes);
   cout << "memcmp against golden = " << ret << endl;
   if(ret != 0) {
     cout << "expected vs found" << endl;
@@ -335,7 +349,8 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
         cout << "pos " << i << ": " << dsc.ctx.res[i] << " " << out[i] << endl;
       }
     }
-  }*/
+  }
+#endif
 }
 
 void execThresLayer(LayerHandle id, const int32_t * in, uint8_t * out) {
