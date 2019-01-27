@@ -44,6 +44,9 @@ void init() {
   platform = initPlatform();
   acc = new BitSerialMatMulAccelDriver(platform);
   acc->reset();
+  // currently the runtime is implemented with direct instruction feed
+  // will switch to descriptors when the correct generators are impl'd
+  acc->useDirectInstructionFeed();
   acc->init_resource_pools();
   acc->print_hwcfg_summary();
   cfg = acc->hwcfg();
@@ -120,9 +123,9 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   // TODO this needs to be checked for fetch width != exec width
   // (see exec_to_fetch_width_ratio in BitSerialMatMulExecutor)
   assert(cfg.dpaDimCommon == cfg.readChanWidth);
-  Op theOp;
-  FetchRunCfg frc;
-  theOp.opcode = opRun;
+  BISMOFetchRunInstruction frc;
+  frc.targetStage = stgFetch;
+  frc.isRunCfg = 1;
   frc.bram_addr_base = wbase;
   frc.bram_id_start = acc->get_fetch_first_lhs_id();
   frc.bram_id_range = cfg.dpaDimLHS - 1;
@@ -132,8 +135,7 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   frc.dram_block_count = 1;
   frc.tiles_per_row = ctx.lhs.ncols_a / cfg.dpaDimCommon;
   acc->set_stage_enables(0, 0, 0);
-  acc->push_fetch_op(theOp);
-  acc->push_fetch_runcfg(frc);
+  acc->pushInstruction(frc.asRaw());
   assert(acc->fetch_opcount() == 1);
   // launch weight fetch and wait until complete
   acc->set_stage_enables(1, 0, 0);
@@ -215,17 +217,24 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   // enable all stages
   acc->set_stage_enables(1, 1, 1);
   // fetch the rhs matrix into the on-chip buffer
-  Op theOp;
-  FetchRunCfg frc;
-  ExecRunCfg erc;
+  BISMOSyncInstruction sync;
+  sync.isRunCfg = 0;
+  BISMOFetchRunInstruction frc;
+  frc.isRunCfg = 1;
+  frc.targetStage = stgFetch;
+  BISMOExecRunInstruction erc;
+  erc.isRunCfg = 1;
+  erc.targetStage = stgExec;
   erc.writeAddr = 0;
-  ResultRunCfg rrc;
+  BISMOResultRunInstruction rrc;
+  rrc.isRunCfg = 1;
+  rrc.targetStage = stgResult;
   // fetch receive token from exec stage for buffer access
   // in the current schedule this token represents the entire RHS buffer
-  theOp.opcode = opReceiveToken;
-  theOp.syncChannel = 0;
-  acc->push_fetch_op(theOp);
-  theOp.opcode = opRun;
+  sync.targetStage = stgFetch;
+  sync.isSendToken = 0;
+  sync.chanID = 0;
+  acc->pushInstruction(sync.asRaw());
   frc.bram_addr_base = abase;
   frc.bram_id_start = acc->get_fetch_first_rhs_id();
   frc.bram_id_range = cfg.dpaDimRHS - 1;
@@ -234,18 +243,18 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   frc.dram_block_size_bytes = dsc.nbytes_buf_in;
   frc.dram_block_count = 1;
   frc.tiles_per_row = lhs.ncols_a / cfg.dpaDimCommon;
-  acc->push_fetch_op(theOp);
-  acc->push_fetch_runcfg(frc);
+  acc->pushInstruction(frc.asRaw());
   // fetch sends token to execute stage
-  theOp.opcode = opSendToken;
-  theOp.syncChannel = 0;
-  acc->push_fetch_op(theOp);
+  sync.targetStage = stgFetch;
+  sync.isSendToken = 1;
+  sync.chanID = 0;
+  acc->pushInstruction(sync.asRaw());
   //acc->set_stage_enables(0, 0, 0);
-
   // exec receives token from fetch stage
-  theOp.opcode = opReceiveToken;
-  theOp.syncChannel = 0;
-  acc->push_exec_op(theOp);
+  sync.targetStage = stgExec;
+  sync.isSendToken = 0;
+  sync.chanID = 0;
+  acc->pushInstruction(sync.asRaw());
 
   // TODO this assumes activations fit into OCM, need extra tiling otherwise
   // TODO optimization: do this in smaller chunks for fetch-exec concurrency
@@ -253,15 +262,13 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
     for(size_t rhs_tile = 0; rhs_tile < rhs_tiles; rhs_tile++) {
       // exec stage ==============================================
       // exec receives token from result stage (acquire empty res buffer)
-      theOp.opcode = opReceiveToken;
-      theOp.syncChannel = 1;
-      acc->push_exec_op(theOp);
+      sync.targetStage = stgExec;
+      sync.isSendToken = 0;
+      sync.chanID = 1;
+      acc->pushInstruction(sync.asRaw());
       for(size_t wbit = 0; wbit < wbits; wbit++) {
         for(size_t abit = 0; abit < abits; abit++) {
           // generate exec instr for current bit position
-          theOp.opcode = opRun;
-          theOp.syncChannel = 0;
-          acc->push_exec_op(theOp);
           const bool tile_first = (wbit == 0) && (abit == 0);
           const bool lbit_last = (wbit == wbits-1);
           const bool rbit_last = (abit == abits-1);
@@ -278,18 +285,20 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
           erc.writeEn = tile_last ? 1 : 0;
           // TODO more flexible multi-buffering here
           erc.writeAddr = (erc.writeAddr == 0) ? 1 : 0;
-          acc->push_exec_runcfg(erc);
+          acc->pushInstruction(erc.asRaw());
         }
       }
       // exec sends token to result stage (send full res buffer)
-      theOp.opcode = opSendToken;
-      theOp.syncChannel = 1;
-      acc->push_exec_op(theOp);
+      sync.targetStage = stgExec;
+      sync.isSendToken = 1;
+      sync.chanID = 1;
+      acc->pushInstruction(sync.asRaw());
       // result stage =============================================
       // res receives token from exec stage (acquire full res buffer)
-      theOp.opcode = opReceiveToken;
-      theOp.syncChannel = 0;
-      acc->push_result_op(theOp);
+      sync.targetStage = stgResult;
+      sync.isSendToken = 0;
+      sync.chanID = 0;
+      acc->pushInstruction(sync.asRaw());
       // generate write instruction
       uint32_t lhs_ind = cfg.dpaDimLHS * lhs_tile;
       uint32_t rhs_ind = cfg.dpaDimRHS * rhs_tile;
@@ -298,35 +307,23 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
       rrc.dram_skip = cfg.dpaDimLHS * sizeof(AccumType);
       rrc.waitComplete = 0;
       rrc.waitCompleteBytes = 0;
-      theOp.opcode = opRun;
-      theOp.syncChannel = 0;
-      acc->push_result_op(theOp);
-      acc->push_result_runcfg(rrc);
+      acc->pushInstruction(rrc.asRaw());
       // res sends token to exec stage (send empty res buffer)
-      theOp.opcode = opSendToken;
-      theOp.syncChannel = 0;
-      acc->push_result_op(theOp);
+      sync.targetStage = stgResult;
+      sync.isSendToken = 1;
+      sync.chanID = 0;
+      acc->pushInstruction(sync.asRaw());
     }
   }
   // exec sends token to fetch stage
-  theOp.opcode = opSendToken;
-  theOp.syncChannel = 0;
-  acc->push_exec_op(theOp);
+  sync.targetStage = stgExec;
+  sync.isSendToken = 1;
+  sync.chanID = 0;
+  acc->pushInstruction(sync.asRaw());
   //cout << "starting, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount() << endl;
   //acc->set_stage_enables(1, 1, 1);
-
-  // generate result instruction to wait for write completion
-  rrc.dram_base = 0;
-  rrc.dram_skip = 0;
-  rrc.waitComplete = 1;
-  rrc.waitCompleteBytes = dsc.nbytes_buf_out;
-  theOp.opcode = opRun;
-  theOp.syncChannel = 0;
-  acc->push_result_op(theOp);
-  acc->push_result_runcfg(rrc);
-
-  // wait until complete
-  while(acc->res_opcount() != 0) {
+  // wait until all writes are completed
+  while(acc->get_completed_writes() != dsc.nbytes_buf_out) {
     //cout << "ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount() << endl;
   };
   // copy result buffer to host
