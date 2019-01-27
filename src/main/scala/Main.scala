@@ -119,6 +119,8 @@ object ChiselMain {
   }
 }
 
+/*
+TODO bring back as needed
 // call this object's main method to generate Chisel Verilog for the P2S
 object P2SMain {
   def main(args: Array[String]): Unit = {
@@ -138,6 +140,7 @@ object P2SMain {
     // TODO may need Settings.makeHLSDependencies here
   }
 }
+*/
 
 object ResModelMain {
   def main(args: Array[String]): Unit = {
@@ -466,6 +469,8 @@ object DriverMain {
   }
 }
 
+/*
+TODO bring back as needed
 // call this object's main method to generate the register driver for your
 // accelerator for PYNQ. expects the following command line arguments, in order:
 // 1. name of platform (must be supported by fpga-tidbits PlatformWrapper)
@@ -495,3 +500,4 @@ object P2SDriverMain {
     fileCopyBulk(drvSrcDir, targetDir, myModule.platformDriverFiles)
   }
 }
+*/

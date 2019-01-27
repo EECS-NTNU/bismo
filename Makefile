@@ -136,7 +136,7 @@ EmuTest%:
 
 # generate cycle-accurate C++ emulator for the whole system via Verilator
 $(BUILD_DIR_EMU)/verilator-build.sh:
-	mkdir -p $(BUILD_DIR_EMU); $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain main $(BUILD_DIR_EMU) verilator"
+	mkdir -p $(BUILD_DIR_EMU); $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain main $(BUILD_DIR_EMU) verilator $(DEBUG_CHISEL)"
 
 # generate emulator executable including software sources
 emu: $(BUILD_DIR_EMU)/verilator-build.sh
