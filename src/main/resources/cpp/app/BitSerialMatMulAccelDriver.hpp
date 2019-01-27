@@ -89,6 +89,18 @@ public:
   ~BitSerialMatMulAccelDriver() {
   }
 
+  // use descriptors and instruction generation hardware
+  // do not use direct instruction feed
+  void useDescriptors() {
+    m_accel->set_dscOrIns(0);
+  }
+
+  // do not use descriptors and instruction generation hardware
+  // use direct instruction feed
+  void useDirectInstructionFeed() {
+    m_accel->set_dscOrIns(1);
+  }
+
   // write a descriptor into the instruction generator
   void pushSingleMMDescriptor(SingleMMDescriptor desc) {
     while(m_accel->get_dsc_ready() != 1);

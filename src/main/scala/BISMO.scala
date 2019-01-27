@@ -201,6 +201,10 @@ class BitSerialMatMulAccel(
     val fetch_enable = Bool(INPUT)
     val exec_enable = Bool(INPUT)
     val result_enable = Bool(INPUT)
+    // choose between descriptors (0) or direct instruction feed (1)
+    val dscOrIns = Bool(INPUT)
+    // direct instruction feed
+    val ins = Decoupled(UInt(width=BISMOLimits.instrBits)).flip
     // descriptors for instruction generator
     val dsc = Decoupled(UInt(width=BISMOLimits.descrBits)).flip
     // command counts in each queue
@@ -305,20 +309,34 @@ class BitSerialMatMulAccel(
   enqPulseGenFromValid(dscQ.enq, io.dsc)
   // make copies of the descriptor queue output, one for each instrgen
   StreamCopy(dscQ.deq, Seq(igFetch.in, igExec.in, igRes.in))
+
+  // handle direct instruction feed
+  // split up single-stream feed into one for each stage
+  val insDeinterleave = Module(new StreamDeinterleaverQueued(
+    numDests = BISMOLimits.numStages, gen = UInt(width = BISMOLimits.instrBits),
+    route = {x: UInt => new BISMOInstruction().fromBits(x).targetStage},
+    capacity = 2
+  )).io
+  io.ins <> insDeinterleave.in
+
+  val fetchInstrMix = DecoupledInputMux(io.dscOrIns, Seq(igFetch.out, insDeinterleave.out(0)))
+  val execInstrMix = DecoupledInputMux(io.dscOrIns, Seq(igExec.out, insDeinterleave.out(1)))
+  val resInstrMix = DecoupledInputMux(io.dscOrIns, Seq(igRes.out, insDeinterleave.out(2)))
+
   // wire up instruction generator to instruction queues
   // need to use .fromBits due to difference in types (wires/content are the same)
   // fetch instrgen -> fetch op q
-  fetchOpQ.enq.valid := igFetch.out.valid
-  fetchOpQ.enq.bits := fetchOpQ.enq.bits.fromBits(igFetch.out.bits)
-  igFetch.out.ready := fetchOpQ.enq.ready
+  fetchOpQ.enq.valid := fetchInstrMix.valid
+  fetchOpQ.enq.bits := fetchOpQ.enq.bits.fromBits(fetchInstrMix.bits)
+  fetchInstrMix.ready := fetchOpQ.enq.ready
   // exec instrgen -> exec op q
-  execOpQ.enq.valid := igExec.out.valid
-  execOpQ.enq.bits := execOpQ.enq.bits.fromBits(igExec.out.bits)
-  igExec.out.ready := execOpQ.enq.ready
+  execOpQ.enq.valid := execInstrMix.valid
+  execOpQ.enq.bits := execOpQ.enq.bits.fromBits(execInstrMix.bits)
+  execInstrMix.ready := execOpQ.enq.ready
   // result instrgen -> res op q
-  resultOpQ.enq.valid := igRes.out.valid
-  resultOpQ.enq.bits := resultOpQ.enq.bits.fromBits(igRes.out.bits)
-  igRes.out.ready := resultOpQ.enq.ready
+  resultOpQ.enq.valid := resInstrMix.valid
+  resultOpQ.enq.bits := resultOpQ.enq.bits.fromBits(resInstrMix.bits)
+  resInstrMix.ready := resultOpQ.enq.ready
 
   // wire-up: command queues and pulse generators for fetch stage
   fetchCtrl.enable := io.fetch_enable
