@@ -117,6 +117,16 @@ public:
     m_accel->set_dsc_valid(0);
   }
 
+  void pushInstruction(BISMOInstruction ins) {
+    while(m_accel->get_ins_ready() != 1);
+    m_accel->set_ins_bits3(ins(31, 0));
+    m_accel->set_ins_bits2(ins(63, 32));
+    m_accel->set_ins_bits1(ins(95, 64));
+    m_accel->set_ins_bits0(ins(127, 96));
+    m_accel->set_ins_valid(1);
+    m_accel->set_ins_valid(0);
+  }
+
   size_t get_completed_writes() {
     return (size_t) m_accel->get_completed_writes();
   }
