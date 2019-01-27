@@ -317,7 +317,7 @@ class BitSerialMatMulAccel(
     route = {x: UInt => new BISMOInstruction().fromBits(x).targetStage},
     capacity = 2
   )).io
-  io.ins <> insDeinterleave.in
+  enqPulseGenFromValid(insDeinterleave.in, io.ins)
 
   val fetchInstrMix = DecoupledInputMux(io.dscOrIns, Seq(igFetch.out, insDeinterleave.out(0)))
   val execInstrMix = DecoupledInputMux(io.dscOrIns, Seq(igExec.out, insDeinterleave.out(1)))
