@@ -171,3 +171,17 @@ class ResultController extends BaseController(
     printf("ResultController state: %d -> %d\n", prevState, regState)
   }*/
 }
+
+/*
+TODO bring back and port to new controller interface as needed
+class ThresholdingController(val myP: ThrStageParams) extends BaseController(
+  genStageO = new ThrStageCtrlIO(myP), inChannels = 2, outChannels = 2) {
+  // val prevState = Reg(next=regState)
+  // when(regState != prevState) {
+  //   printf("[HW-DEBUG] Thres changed state: %d -> %d \n", prevState, regState)
+  // }
+}
+
+class P2BSController(val myP: Parallel2BSStageParams) extends BaseController(
+  genStageO = new Parallel2BSStageCtrlIO(myP), inChannels = 2, outChannels = 2) {}
+*/

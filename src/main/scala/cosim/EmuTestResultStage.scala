@@ -38,14 +38,12 @@ import fpgatidbits.streams._
 import fpgatidbits.PlatformWrapper._
 
 class EmuTestResultStage(
-  accArrayDim: Int, p: PlatformWrapperParams
-) extends GenericAccelerator(p) {
+  accArrayDim: Int, p: PlatformWrapperParams) extends GenericAccelerator(p) {
   val numMemPorts = 1
   // parameters for accelerator instance
   val myP = new ResultStageParams(
     accWidth = 32, resMemReadLatency = 0,
-    dpa_rhs = accArrayDim, dpa_lhs = accArrayDim, mrp = PYNQZ1Params.toMemReqParams()
-  )
+    dpa_rhs = accArrayDim, dpa_lhs = accArrayDim, mrp = PYNQZ1Params.toMemReqParams())
   val io = new GenericAcceleratorIF(numMemPorts, p) {
     // base control signals
     val start = Bool(INPUT)                   // hold high while running
@@ -56,17 +54,18 @@ class EmuTestResultStage(
     val accwr_rhs = UInt(INPUT, width = log2Up(myP.dpa_rhs))
     val accwr_data = UInt(INPUT, width = myP.accWidth)
   }
-  val resmem = Vec.fill(myP.dpa_lhs) { Vec.fill(myP.dpa_rhs) {
-    Module(new PipelinedDualPortBRAM(
-      addrBits = 1, dataBits = myP.accWidth, regIn = 0, regOut = 0
-    )).io
-  }}
+  val resmem = Vec.fill(myP.dpa_lhs) {
+    Vec.fill(myP.dpa_rhs) {
+      Module(new PipelinedDualPortBRAM(
+        addrBits = 1, dataBits = myP.accWidth, regIn = 0, regOut = 0)).io
+    }
+  }
   val res = Module(new ResultStage(myP)).io
   res.start := io.start
   io.done := res.done
   res.csr <> io.csr
-  for(lhs <- 0 until myP.dpa_lhs) {
-    for(rhs <- 0 until myP.dpa_rhs) {
+  for (lhs ← 0 until myP.dpa_lhs) {
+    for (rhs ← 0 until myP.dpa_rhs) {
       // drive defaults on resmem req port 0
       val is_my_lhs = (UInt(lhs) === io.accwr_lhs)
       val is_my_rhs = (UInt(rhs) === io.accwr_rhs)

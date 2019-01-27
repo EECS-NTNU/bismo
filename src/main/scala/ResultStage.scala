@@ -45,18 +45,17 @@ import fpgatidbits.PlatformWrapper._
 // will jump to the next address determined by the runtime matrix size.
 
 class ResultStageParams(
-  val accWidth: Int,      // accumulator width in bits
+  val accWidth: Int, // accumulator width in bits
   // DPA dimensions
   val dpa_rhs: Int,
   val dpa_lhs: Int,
-  val mrp: MemReqParams,  // memory request params for platform
+  val mrp: MemReqParams, // memory request params for platform
   // read latency for result memory
   val resMemReadLatency: Int,
   // whether to transpose accumulator order while writing
   val transpose: Boolean = true,
   // number of entries in the result mem
-  val resEntriesPerMem: Int = 2
-) extends PrintableParam {
+  val resEntriesPerMem: Int = 2) extends PrintableParam {
   def headersAsList(): List[String] = {
     return List("DRAM_wr", "dpa_rhs", "dpa_lhs", "accWidth")
   }
@@ -122,29 +121,31 @@ class ResultStage(val myP: ResultStageParams) extends Module {
     val dram = new ResultStageDRAMIO(myP)
     val completed_writes = UInt(OUTPUT, 32)
     // interface towards result memory
-    val resmem_req = Vec.fill(myP.dpa_lhs) { Vec.fill(myP.dpa_rhs) {
-      new OCMRequest(myP.accWidth, log2Up(myP.resEntriesPerMem)).asOutput
-    }}
-    val resmem_rsp = Vec.fill(myP.dpa_lhs) { Vec.fill(myP.dpa_rhs) {
-      new OCMResponse(myP.accWidth).asInput
-    }}
+    val resmem_req = Vec.fill(myP.dpa_lhs) {
+      Vec.fill(myP.dpa_rhs) {
+        new OCMRequest(myP.accWidth, log2Up(myP.resEntriesPerMem)).asOutput
+      }
+    }
+    val resmem_rsp = Vec.fill(myP.dpa_lhs) {
+      Vec.fill(myP.dpa_rhs) {
+        new OCMResponse(myP.accWidth).asInput
+      }
+    }
   }
   // TODO add burst support, single beat for now
   val bytesPerBeat: Int = myP.mrp.dataWidth / 8
 
   // instantiate downsizer
   val ds = Module(new StreamResizer(
-    inWidth = myP.getTotalAccBits(), outWidth = myP.mrp.dataWidth
-  )).io
+    inWidth = myP.getTotalAccBits(), outWidth = myP.mrp.dataWidth)).io
   // instantiate request generator
   val rg = Module(new BlockStridedRqGen(
-    mrp = myP.mrp, writeEn = true
-  )).io
+    mrp = myP.mrp, writeEn = true)).io
 
   // wire up resmem_req
   for {
-    i <- 0 until myP.dpa_lhs
-    j <- 0 until myP.dpa_rhs
+    i ← 0 until myP.dpa_lhs
+    j ← 0 until myP.dpa_rhs
   } {
     io.resmem_req(i)(j).addr := io.csr.resmem_addr
     io.resmem_req(i)(j).writeEn := Bool(false)
@@ -152,8 +153,8 @@ class ResultStage(val myP: ResultStageParams) extends Module {
 
   // wire up downsizer
   val accseq = for {
-    j <- 0 until myP.getNumRows()
-    i <- 0 until myP.dpa_lhs
+    j ← 0 until myP.getNumRows()
+    i ← 0 until myP.dpa_lhs
   } yield io.resmem_rsp(i)(j).readData
   val allacc = Cat(accseq.reverse)
   ds.in.bits := allacc
@@ -168,7 +169,7 @@ class ResultStage(val myP: ResultStageParams) extends Module {
   rg.in.bits.block_count := UInt(myP.getNumRows())
   // TODO fix if we introduce bursts here
   rg.block_intra_step := UInt(bytesPerBeat)
-  rg.block_intra_count := UInt(myP.getRowAccBits() / (8*bytesPerBeat))
+  rg.block_intra_count := UInt(myP.getRowAccBits() / (8 * bytesPerBeat))
 
   rg.out <> io.dram.wr_req
 

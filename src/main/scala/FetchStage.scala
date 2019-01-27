@@ -42,12 +42,13 @@ import fpgatidbits.PlatformWrapper._
 // the other stages are doing their thing.
 
 class FetchStageParams(
-  val numLHSMems: Int,    // number of LHS memories
-  val numRHSMems: Int,    // number of RHS memories
-  val numAddrBits: Int,   // number of bits for address inside target memory
-  val mrp: MemReqParams,  // memory request params for platform
-  val bramWrLat: Int = 1  // number of cycles until data written to BRAM
-) extends PrintableParam {
+  val numLHSMems: Int, // number of LHS memories
+  val numRHSMems: Int, // number of RHS memories
+  val numAddrBits: Int, // number of bits for address inside target memory
+  val mrp: MemReqParams, // memory request params for platform
+  val bramWrLat: Int = 1, // number of cycles until data written to BRAM
+  val thrEntriesPerMem: Int = 8,
+  val thsCols: Int = 3) extends PrintableParam {
   def headersAsList(): List[String] = {
     return List("nodes", "rd_width")
   }
@@ -56,9 +57,8 @@ class FetchStageParams(
     return List(numNodes, mrp.dataWidth).map(_.toString)
   }
 
-  // total number of nodes (LHS or RHS mems) targeted by the FetchStage
-  val numNodes = numLHSMems + numRHSMems
-
+  // total number of nodes (LHS or RHS mems) targeted by the FetchStage + Thresholds
+  val numNodes = numLHSMems + numRHSMems //+ numLHSMems + thsCols
   // number of ID bits to identify a node
   def getIDBits(): Int = {
     return log2Up(getNumNodes())
@@ -99,7 +99,7 @@ class FetchStagePacket(myP: FetchStageParams) extends PrintableBundle {
     new FetchStagePacket(myP).asInstanceOf[this.type]
 
   val printfStr = "(id = %d, addr = %d, data = %x)\n"
-  val printfElems = {() =>  Seq(id, addr, data)}
+  val printfElems = { () ⇒ Seq(id, addr, data) }
 }
 
 class FetchInterconnect(val myP: FetchStageParams) extends Module {
@@ -117,13 +117,13 @@ class FetchInterconnect(val myP: FetchStageParams) extends Module {
   // the packet data reg does not have init to save LUTs
   val regNodePacket = Vec.fill(myP.getNumNodes()) { Reg(outType = io.in.bits) }
 
-  for(i <- 0 until myP.getNumNodes()) {
-    if(i == 0) {
+  for (i ← 0 until myP.getNumNodes()) {
+    if (i == 0) {
       regNodeValid(0) := io.in.valid
       regNodePacket(0) := io.in.bits
     } else {
-      regNodeValid(i) := regNodeValid(i-1)
-      regNodePacket(i) := regNodePacket(i-1)
+      regNodeValid(i) := regNodeValid(i - 1)
+      regNodePacket(i) := regNodePacket(i - 1)
     }
     // addr and data are propagated to all nodes without dest. checking
     io.node_out(i).addr := regNodePacket(i).addr
@@ -168,7 +168,7 @@ class FetchStageCtrlIO() extends PrintableBundle {
     new FetchStageCtrlIO().asInstanceOf[this.type]
 
   val printfStr = "(dram (base = %x, bsize = %d, boffs = %d, bcnt = %d), bramstart = %d, bramrange = %d, tiles = %d)\n"
-  val printfElems = {() =>  Seq(dram_base, dram_block_size_bytes, dram_block_offset_bytes, dram_block_count, bram_id_start, bram_id_range, tiles_per_row)}
+  val printfElems = { () ⇒ Seq(dram_base, dram_block_size_bytes, dram_block_offset_bytes, dram_block_count, bram_id_start, bram_id_range, tiles_per_row) }
 }
 
 // fetch stage IO: BRAM writes
@@ -179,6 +179,11 @@ class FetchStageBRAMIO(myP: FetchStageParams) extends Bundle {
   val rhs_req = Vec.fill(myP.numRHSMems) {
     new OCMRequest(myP.mrp.dataWidth, myP.numAddrBits).asOutput
   }
+
+  /* val thr_rq = Vec.fill(myP.numLHSMems) {
+    Vec.fill(myP.thsCols){
+    new OCMRequest(myP.mrp.dataWidth, log2Up(myP.thrEntriesPerMem)).asOutput
+  }}*/
 
   override def cloneType: this.type =
     new FetchStageBRAMIO(myP).asInstanceOf[this.type]
@@ -213,12 +218,12 @@ class FetchRouteGen(myP: FetchStageParams) extends Module {
   // registers for values controlling sequence generation
   val regTilesPerRow = Reg(init = UInt(0, width = 16))
   val regTilesPerRowMinusOne = Reg(init = UInt(0, width = 16))
-  val regBRAMStart   = Reg(init = UInt(0, width = myP.getIDBits()))
-  val regBRAMRange   = Reg(init = UInt(0, width = myP.getIDBits()))
-  val regAddrBase    = Reg(init = UInt(0, width = myP.numAddrBits))
+  val regBRAMStart = Reg(init = UInt(0, width = myP.getIDBits()))
+  val regBRAMRange = Reg(init = UInt(0, width = myP.getIDBits()))
+  val regAddrBase = Reg(init = UInt(0, width = myP.numAddrBits))
   // internal state registers for sequence generation
-  val regAddr        = Reg(init = UInt(0, width = myP.numAddrBits))
-  val regBRAMTarget  = Reg(init = UInt(0, width = myP.getIDBits()))
+  val regAddr = Reg(init = UInt(0, width = myP.numAddrBits))
+  val regBRAMTarget = Reg(init = UInt(0, width = myP.getIDBits()))
 
   // wire up I/O streams
   io.out.valid := io.in.valid
@@ -274,7 +279,7 @@ class FetchStage(val myP: FetchStageParams) extends Module {
   // outer loop
   reader.in.bits.base := Reg(next = io.csr.dram_base)
   // bytes to jump between each block
-  reader.in.bits.block_step :=  Reg(next = io.csr.dram_block_offset_bytes)
+  reader.in.bits.block_step := Reg(next = io.csr.dram_block_offset_bytes)
   // number of blocks
   reader.in.bits.block_count := Reg(next = io.csr.dram_block_count)
   // inner loop
@@ -294,7 +299,7 @@ class FetchStage(val myP: FetchStageParams) extends Module {
 
   // wire up routing info generation
   // use rising edge detect on start to set init_new high for 1 cycle
-  routegen.init_new := io.start & !Reg(init=Bool(false), next=io.start)
+  routegen.init_new := io.start & !Reg(init = Bool(false), next = io.start)
   routegen.tiles_per_row := io.csr.tiles_per_row
   routegen.bram_addr_base := io.csr.bram_addr_base
   routegen.bram_id_start := io.csr.bram_id_start
@@ -304,8 +309,9 @@ class FetchStage(val myP: FetchStageParams) extends Module {
   // assign IDs to LHS and RHS memories for interconnect
   // 0...numLHSMems are the LHS IDs
   // numLHSMems..numLHSMems+numRHSMems-1 are the RHS IDs
-  for(i <- 0 until myP.numLHSMems) {
-    val lhs_mem_ind =  i
+  // numLHSMems+numRHSMems are the Thr ID
+  for (i <- 0 until myP.numLHSMems) {
+    val lhs_mem_ind = i
     val node_ind = i
     io.bram.lhs_req(lhs_mem_ind) := conn.node_out(node_ind)
     println(s"LHS $lhs_mem_ind assigned to node# $node_ind")
@@ -317,6 +323,17 @@ class FetchStage(val myP: FetchStageParams) extends Module {
     println(s"RHS $rhs_mem_ind assigned to node# $node_ind")
   }
 
+  //Adding thresholds memory
+  /*
+    for(i <- 0 until myP.numLHSMems)
+    for(j <- 0 until myP.thsCols) {
+    val thr_mem_ind_row = i
+    val thr_mem_ind_col = j
+    val node_ind = myP.numLHSMems + myP.numRHSMems + i + j
+    io.bram.thr_rq(thr_mem_ind_row)(thr_mem_ind_col) := conn.node_out(node_ind)
+    println(s"THS $thr_mem_ind_row $thr_mem_ind_col assigned to node# $node_ind")
+  }*/
+
   // count responses to determine done
   val regBlockBytesReceived = Reg(init = UInt(0, 32))
   val regBlocksReceived = Reg(init = UInt(0, 32))
@@ -327,7 +344,7 @@ class FetchStage(val myP: FetchStageParams) extends Module {
       when(regBlockBytesReceived === regBlockBytesAlmostFinished) {
         regBlockBytesReceived := UInt(0)
         regBlocksReceived := regBlocksReceived + UInt(1)
-      } .otherwise {
+      }.otherwise {
         regBlockBytesReceived := regBlockBytesReceived + UInt(bytesPerBeat)
       }
     }
@@ -347,6 +364,6 @@ class FetchStage(val myP: FetchStageParams) extends Module {
   // clock cycles from start to done
   val regCycles = Reg(outType = UInt(width = 32))
   when(!io.start) { regCycles := UInt(0) }
-  .elsewhen(io.start & !io.done) { regCycles := regCycles + UInt(1) }
+    .elsewhen(io.start & !io.done) { regCycles := regCycles + UInt(1) }
   io.perf.cycles := regCycles
 }

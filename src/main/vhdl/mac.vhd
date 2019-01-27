@@ -19,7 +19,7 @@ entity mac is
     WC              : positive;         -- Bit Width of Multipliers
     WD              : positive;         -- Bit Width of Multplicands
     HAVE_ACCU_INPUT : boolean := false;   -- Use Input a, ignore otherwise
-    DEPTH           : positive         -- Number of register in the tree
+    DEPTH           : natural         -- Number of register in the tree
   );
   port (
     clk : in std_logic;

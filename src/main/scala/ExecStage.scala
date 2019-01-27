@@ -54,8 +54,7 @@ class ExecStageParams(
   val bramInRegs: Int = 1,
   val bramOutRegs: Int = 1,
   // number of entries in the result mem
-  val resEntriesPerMem: Int = 2
-) extends PrintableParam {
+  val resEntriesPerMem: Int = 2) extends PrintableParam {
   def headersAsList(): List[String] = {
     return dpaParams.headersAsList() ++ List("lhsTileMem", "rhsTileMem")
   }
@@ -132,9 +131,10 @@ class ExecStageCtrlIO() extends PrintableBundle {
     new ExecStageCtrlIO().asInstanceOf[this.type]
 
   val printfStr = "(offs lhs/rhs = %d/%d, ntiles = %d, << %d, w? %d/%d)\n"
-  val printfElems = {() =>  Seq(
-    lhsOffset, rhsOffset, numTiles, shiftAmount, writeEn, writeAddr
-  )}
+  val printfElems = { () ⇒
+    Seq(
+      lhsOffset, rhsOffset, numTiles, shiftAmount, writeEn, writeAddr)
+  }
 }
 
 // interface towards tile memories (LHS/RHS BRAMs)
@@ -158,11 +158,12 @@ class ExecStageTileMemIO(myP: ExecStageParams) extends Bundle {
 
 // interface towards result stage
 class ExecStageResMemIO(myP: ExecStageParams) extends Bundle {
-  val req = Vec.fill(myP.getM()) { Vec.fill(myP.getN()) {
-    new OCMRequest(
-      myP.getResBitWidth(), log2Up(myP.resEntriesPerMem)
-    ).asOutput
-  }}
+  val req = Vec.fill(myP.getM()) {
+    Vec.fill(myP.getN()) {
+      new OCMRequest(
+        myP.getResBitWidth(), log2Up(myP.resEntriesPerMem)).asOutput
+    }
+  }
 
   override def cloneType: this.type =
     new ExecStageResMemIO(myP).asInstanceOf[this.type]
@@ -171,8 +172,8 @@ class ExecStageResMemIO(myP: ExecStageParams) extends Bundle {
 class ExecStage(val myP: ExecStageParams) extends Module {
   val io = new Bundle {
     // base control signals
-    val start = Bool(INPUT)                   // hold high while running
-    val done = Bool(OUTPUT)                   // high when done until start=0
+    val start = Bool(INPUT) // hold high while running
+    val done = Bool(OUTPUT) // high when done until start=0
     val cfg = new ExecStageCfgIO()
     val csr = new ExecStageCtrlIO().asInput
     val tilemem = new ExecStageTileMemIO(myP)
@@ -233,19 +234,19 @@ class ExecStage(val myP: ExecStageParams) extends Module {
   // generated here.
   when(io.csr.clear_before_first_accumulation) {
     // set clear_acc to 1 for the very first cycle
-    dpa.clear_acc := read_complete & !Reg(next=read_complete)
-  } .otherwise {
+    dpa.clear_acc := read_complete & !Reg(next = read_complete)
+  }.otherwise {
     dpa.clear_acc := Bool(false)
   }
 
   // generate result memory write signal
   val time_to_write = myP.dpaLatency + myP.myLatency_read
   val do_write = ShiftRegister(io.start & seqgen.finished & io.csr.writeEn, time_to_write)
-  val do_write_pulse = do_write & !Reg(next=do_write)
+  val do_write_pulse = do_write & !Reg(next = do_write)
   // wire up DPA accumulators to resmem write ports
   for {
-    i <- 0 until myP.getM()
-    j <- 0 until myP.getN()
+    i ← 0 until myP.getM()
+    j ← 0 until myP.getN()
   } {
     io.res.req(i)(j).writeData := dpa.out(i)(j)
     io.res.req(i)(j).addr := io.csr.writeAddr

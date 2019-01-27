@@ -48,9 +48,9 @@ class MultiSeqGenTester(c: MultiSeqGen) extends Tester(c) {
   poke(c.io.in.valid, 0)
 
   var ni: Int = 0
-  for(i <- 0 until 30) {
+  for (i ← 0 until 30) {
     poke(c.io.out.ready, r.nextInt(2))
-    if((peek(c.io.out.valid) & peek(c.io.out.ready)) == 1) {
+    if ((peek(c.io.out.valid) & peek(c.io.out.ready)) == 1) {
       expect(c.io.out.bits, ni)
       ni += 1
     }
@@ -64,18 +64,20 @@ class TestMultiSeqGen extends JUnitSuite {
     // Chisel arguments to pass to chiselMainTest
     def testArgs = RosettaTestHelpers.stdArgs
     // function that instantiates the Module to be tested
-    def testModuleInstFxn = () => { Module(new MultiSeqGen(
-      new MultiSeqGenParams(64, 10)
-    )) }
+    def testModuleInstFxn = () ⇒ {
+      Module(new MultiSeqGen(
+        new MultiSeqGenParams(64, 10)
+      ))
+    }
     // function that instantiates the Tester to test the Module
-    def testTesterInstFxn = (c: MultiSeqGen) => new MultiSeqGenTester(c)
+    def testTesterInstFxn = (c: MultiSeqGen) ⇒ new MultiSeqGenTester(c)
 
     // actually run the test
     chiselMainTest(
       testArgs,
       testModuleInstFxn
     ) {
-      testTesterInstFxn
-    }
+        testTesterInstFxn
+      }
   }
 }
