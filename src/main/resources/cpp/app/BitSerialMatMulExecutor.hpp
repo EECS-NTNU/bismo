@@ -67,6 +67,7 @@ public:
     // prepare the accelerator for operation
     m_acc->reset();
     m_acc->init_resource_pools();
+    m_acc->useDescriptors();
     // build schedule for each stage based on shape
     build_schedule_trivial();
     // uncomment to see the generated instructions

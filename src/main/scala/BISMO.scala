@@ -202,7 +202,7 @@ class BitSerialMatMulAccel(
     val exec_enable = Bool(INPUT)
     val result_enable = Bool(INPUT)
     // choose between descriptors (0) or direct instruction feed (1)
-    val dscOrIns = Bool(INPUT)
+    val insOrDsc = Bool(INPUT)
     // direct instruction feed
     val ins = Decoupled(UInt(width=BISMOLimits.instrBits)).flip
     // descriptors for instruction generator
@@ -319,9 +319,13 @@ class BitSerialMatMulAccel(
   )).io
   enqPulseGenFromValid(insDeinterleave.in, io.ins)
 
-  val fetchInstrMix = DecoupledInputMux(io.dscOrIns, Seq(igFetch.out, insDeinterleave.out(0)))
-  val execInstrMix = DecoupledInputMux(io.dscOrIns, Seq(igExec.out, insDeinterleave.out(1)))
-  val resInstrMix = DecoupledInputMux(io.dscOrIns, Seq(igRes.out, insDeinterleave.out(2)))
+  val fetchInstrMix = DecoupledInputMux(io.insOrDsc, Seq(insDeinterleave.out(0), igFetch.out))
+  val execInstrMix = DecoupledInputMux(io.insOrDsc, Seq(insDeinterleave.out(1), igExec.out))
+  val resInstrMix = DecoupledInputMux(io.insOrDsc, Seq(insDeinterleave.out(2), igRes.out))
+
+  /*PrintableBundleStreamMonitor(fetchOpQ.enq, Bool(true), "fetchOpQ", true)
+  PrintableBundleStreamMonitor(execOpQ.enq, Bool(true), "execOpQ", true)
+  PrintableBundleStreamMonitor(resultOpQ.enq, Bool(true), "resultOpQ", true)*/
 
   // wire up instruction generator to instruction queues
   // need to use .fromBits due to difference in types (wires/content are the same)

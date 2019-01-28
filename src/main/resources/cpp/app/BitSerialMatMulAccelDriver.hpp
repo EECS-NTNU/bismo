@@ -92,13 +92,13 @@ public:
   // use descriptors and instruction generation hardware
   // do not use direct instruction feed
   void useDescriptors() {
-    m_accel->set_dscOrIns(0);
+    m_accel->set_insOrDsc(1);
   }
 
   // do not use descriptors and instruction generation hardware
   // use direct instruction feed
   void useDirectInstructionFeed() {
-    m_accel->set_dscOrIns(1);
+    m_accel->set_insOrDsc(0);
   }
 
   // write a descriptor into the instruction generator
