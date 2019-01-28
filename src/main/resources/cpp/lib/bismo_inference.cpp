@@ -24,8 +24,8 @@ typedef enum {layerMatMul, layerConv, layerThres} InternalLayerType;
 
 typedef struct {
   InternalLayerType layerType;
-  void * accel_buf_in;
-  void * accel_buf_out;
+  uint32_t accel_buf_in;
+  uint32_t accel_buf_out;
   gemmbitserial::GEMMContext ctx;
   size_t nbytes_buf_in;
   size_t nbytes_buf_out;
@@ -46,8 +46,8 @@ void init() {
   acc->reset();
   // currently the runtime is implemented with direct instruction feed
   // will switch to descriptors when the correct generators are impl'd
-  acc->useDirectInstructionFeed();
   acc->init_resource_pools();
+  acc->useDirectInstructionFeed();
   acc->print_hwcfg_summary();
   cfg = acc->hwcfg();
   // initialize OCM resource pool from hwcfg
@@ -117,8 +117,8 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   // allocate DRAM buffer and copy bit-serial weights there
   // TODO optimization: can use a single DRAM buffer whose size is the largest
   // weight buffer since this is done only once per layer
-  void * accel_lhs_ptr = platform->allocAccelBuffer(wbytes);
-  platform->copyBufferHostToAccel((void *)ctx.lhs.data, accel_lhs_ptr, wbytes);
+  uint32_t accel_lhs_ptr = (uint32_t)(uint64_t)platform->allocAccelBuffer(wbytes);
+  platform->copyBufferHostToAccel((void *)ctx.lhs.data, (void *)accel_lhs_ptr, wbytes);
   // create instruction sequence to fetch weights into OCM
   // TODO this needs to be checked for fetch width != exec width
   // (see exec_to_fetch_width_ratio in BitSerialMatMulExecutor)
@@ -131,15 +131,24 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   frc.bram_id_range = cfg.dpaDimLHS - 1;
   frc.dram_base = accel_lhs_ptr;
   frc.dram_block_offset_bytes = 0;
-  frc.dram_block_size_bytes = wbytes;
-  frc.dram_block_count = 1;
+  // adjust blocking to respect maximum fetch block size
+  if(wbytes > FETCH_BLOCK_MAX) {
+    frc.dram_block_size_bytes = FETCH_BLOCK_MAX;
+    frc.dram_block_count = wbytes / FETCH_BLOCK_MAX;
+  } else {
+    frc.dram_block_size_bytes = wbytes;
+    frc.dram_block_count = 1;
+  }
   frc.tiles_per_row = ctx.lhs.ncols_a / cfg.dpaDimCommon;
   acc->set_stage_enables(0, 0, 0);
   acc->pushInstruction(frc.asRaw());
   assert(acc->fetch_opcount() == 1);
+  BISMORT_DEBUG("[initMatMulLayer] created weight init instruction");
   // launch weight fetch and wait until complete
   acc->set_stage_enables(1, 0, 0);
-  while(acc->fetch_opcount() != 0);
+  while(acc->fetch_opcount() != 0) {
+    BISMORT_DEBUG("[initMatMulLayer] waiting for weight init, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
+  };
   acc->set_stage_enables(0, 0, 0);
   BISMORT_DEBUG("[initMatMulLayer] weight init done");
   // create entry in layer registry and return layer handle
@@ -151,10 +160,12 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   idsc.mm_dsc = dsc;
   idsc.wbase = wbase;
   idsc.abase = abase;
-  idsc.accel_buf_in = platform->allocAccelBuffer(abytes);
+  idsc.accel_buf_in = (uint32_t)(uint64_t)platform->allocAccelBuffer(abytes);
+  BISMORT_DEBUG("[initMatMulLayer] accel_buf_in: " << (idsc.accel_buf_in) << " for " << abytes << " bytes");
   // TODO optimization: can use common buffer for all results, since 1 layer
   // at a time
-  idsc.accel_buf_out = platform->allocAccelBuffer(resbytes);
+  idsc.accel_buf_out = (uint32_t)(uint64_t)platform->allocAccelBuffer(resbytes);
+  BISMORT_DEBUG("[initMatMulLayer] accel_buf_out: " << (idsc.accel_buf_out) << " for " << resbytes << " bytes");
   LayerHandle ret = registry.size();
   BISMORT_DEBUG("[initMatMulLayer] registered new matmul layer with id " << ret);
   registry.push_back(idsc);
@@ -189,6 +200,7 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights) {
 // in and out are assumed to be preallocated to appropriate buffer sizes,
 // depending on the type of layer
 void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
+  BISMORT_DEBUG("[execMatMulLayer] id " << id);
   const InternalLayerDescriptor dsc = registry[id];
   const gemmbitserial::BitSerialMatrix lhs = dsc.ctx.lhs;
   gemmbitserial::BitSerialMatrix rhs = dsc.ctx.rhs;
@@ -198,13 +210,7 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   const size_t abase = dsc.abase;
   const size_t wbits = lhs.nbits;
   const size_t abits = rhs.nbits;
-  /*
-  cout << "tiles: lhs rhs " << lhs_tiles << " " << rhs_tiles << endl;
-  cout << "wbase abase " << wbase << " " << abase << endl;
-  cout << "wbits abits " << wbits << " " << abits << endl;
-  cout << "bytes in " << dsc.nbytes_buf_in << " out " << dsc.nbytes_buf_out << endl;
-  */
-  uint32_t rptr = (uint32_t)(uint64_t) dsc.accel_buf_out;
+  uint32_t rptr = dsc.accel_buf_out;
   // TODO this needs to be checked for fetch width != exec width
   // (see exec_to_fetch_width_ratio in BitSerialMatMulExecutor)
   assert(cfg.dpaDimCommon == cfg.readChanWidth);
@@ -213,7 +219,7 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   // TODO call p2s here instead
   rhs.importRegular((uint8_t *)in);
   // copy buffer from host
-  platform->copyBufferHostToAccel(rhs.data, dsc.accel_buf_in, dsc.nbytes_buf_in);
+  platform->copyBufferHostToAccel(rhs.data, (void *)dsc.accel_buf_in, dsc.nbytes_buf_in);
   // enable all stages
   acc->set_stage_enables(1, 1, 1);
   // fetch the rhs matrix into the on-chip buffer
@@ -238,11 +244,18 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   frc.bram_addr_base = abase;
   frc.bram_id_start = acc->get_fetch_first_rhs_id();
   frc.bram_id_range = cfg.dpaDimRHS - 1;
-  frc.dram_base = dsc.accel_buf_in;
+  frc.dram_base = (uint32_t)(uint64_t)dsc.accel_buf_in;
+  // adjust blocking to respect maximum fetch block size
+  if(dsc.nbytes_buf_in > FETCH_BLOCK_MAX) {
+    frc.dram_block_size_bytes = FETCH_BLOCK_MAX;
+    frc.dram_block_count = dsc.nbytes_buf_in / FETCH_BLOCK_MAX;
+  } else {
+    frc.dram_block_size_bytes = dsc.nbytes_buf_in;
+    frc.dram_block_count = 1;
+  }
   frc.dram_block_offset_bytes = 0;
-  frc.dram_block_size_bytes = dsc.nbytes_buf_in;
-  frc.dram_block_count = 1;
   frc.tiles_per_row = lhs.ncols_a / cfg.dpaDimCommon;
+  BISMORT_DEBUG("[execMatMulLayer] frc for rhs fetch = " << frc);
   acc->pushInstruction(frc.asRaw());
   // fetch sends token to execute stage
   sync.targetStage = stgFetch;
@@ -303,7 +316,7 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
       uint32_t lhs_ind = cfg.dpaDimLHS * lhs_tile;
       uint32_t rhs_ind = cfg.dpaDimRHS * rhs_tile;
       size_t ind = rhs_ind * cfg.dpaDimLHS + lhs_ind;
-      rrc.dram_base = (void*) (rptr + (ind * sizeof(AccumType)));
+      rrc.dram_base = (rptr + (ind * sizeof(AccumType)));
       rrc.dram_skip = cfg.dpaDimLHS * sizeof(AccumType);
       rrc.waitCompleteBytes = 0;
       acc->pushInstruction(rrc.asRaw());
@@ -319,16 +332,15 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   sync.isSendToken = 1;
   sync.chanID = 0;
   acc->pushInstruction(sync.asRaw());
-  //cout << "starting, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount() << endl;
-  //acc->set_stage_enables(1, 1, 1);
+
   // wait until all writes are completed
   while(acc->get_completed_writes() != dsc.nbytes_buf_out) {
-    //cout << "ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount() << endl;
+    BISMORT_DEBUG("[execMatMulLayer] waiting for exec, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
   };
   // copy result buffer to host
   if((lhs.nrows_a == lhs.nrows) && (rhs.nrows_a == rhs.nrows)) {
     // no padding was necessary, copy directly to host
-    platform->copyBufferAccelToHost(dsc.accel_buf_out, (void *)out, dsc.nbytes_buf_out);
+    platform->copyBufferAccelToHost((void *)dsc.accel_buf_out, (void *)out, dsc.nbytes_buf_out);
   } else {
     // accelerator computed a padded result matrix, copy actual parts only
     AccumType * acc_buf_out = (AccumType *) dsc.accel_buf_out;
