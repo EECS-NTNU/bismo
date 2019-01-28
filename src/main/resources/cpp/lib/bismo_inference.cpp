@@ -3,6 +3,7 @@
 #include <vector>
 #include <string.h>
 
+#define DEBUG
 #ifdef DEBUG
 #define BISMORT_DEBUG(x) cout << x << endl;
 #else
@@ -211,6 +212,9 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   const size_t wbits = lhs.nbits;
   const size_t abits = rhs.nbits;
   uint32_t rptr = dsc.accel_buf_out;
+  BISMORT_DEBUG("lhs_tiles " << lhs_tiles << " rhs_tiles " << rhs_tiles);
+  BISMORT_DEBUG("wbase " << wbase << " abase " << abase);
+  BISMORT_DEBUG("wbits " << wbits << " abits " << abits);
   // TODO this needs to be checked for fetch width != exec width
   // (see exec_to_fetch_width_ratio in BitSerialMatMulExecutor)
   assert(cfg.dpaDimCommon == cfg.readChanWidth);
@@ -221,7 +225,8 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   // copy buffer from host
   platform->copyBufferHostToAccel(rhs.data, (void *)dsc.accel_buf_in, dsc.nbytes_buf_in);
   // enable all stages
-  acc->set_stage_enables(1, 1, 1);
+  //acc->set_stage_enables(1, 1, 1);
+  acc->set_stage_enables(0, 0, 0);
   // fetch the rhs matrix into the on-chip buffer
   BISMOSyncInstruction sync;
   sync.isRunCfg = 0;
@@ -235,6 +240,7 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   BISMOResultRunInstruction rrc;
   rrc.isRunCfg = 1;
   rrc.targetStage = stgResult;
+  rrc.resmem_addr = 0;
   // fetch receive token from exec stage for buffer access
   // in the current schedule this token represents the entire RHS buffer
   sync.targetStage = stgFetch;
@@ -296,8 +302,10 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
           erc.shiftAmount = (wbit + abit);
           erc.clear_before_first_accumulation = tile_first ? 1 : 0;
           erc.writeEn = tile_last ? 1 : 0;
-          // TODO more flexible multi-buffering here
-          erc.writeAddr = (erc.writeAddr == 0) ? 1 : 0;
+          if(tile_last) {
+            // TODO more flexible multi-buffering here
+            erc.writeAddr = (erc.writeAddr == 0) ? 1 : 0;
+          }
           acc->pushInstruction(erc.asRaw());
         }
       }
@@ -319,6 +327,7 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
       rrc.dram_base = (rptr + (ind * sizeof(AccumType)));
       rrc.dram_skip = cfg.dpaDimLHS * sizeof(AccumType);
       rrc.waitCompleteBytes = 0;
+      rrc.resmem_addr = (rrc.resmem_addr == 0) ? 1 : 0;
       acc->pushInstruction(rrc.asRaw());
       // res sends token to exec stage (send empty res buffer)
       sync.targetStage = stgResult;
@@ -332,10 +341,13 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   sync.isSendToken = 1;
   sync.chanID = 0;
   acc->pushInstruction(sync.asRaw());
+  BISMORT_DEBUG("[execMatMulLayer] waiting for exec, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
+  acc->set_stage_enables(1, 1, 1);
 
   // wait until all writes are completed
   while(acc->get_completed_writes() != dsc.nbytes_buf_out) {
-    BISMORT_DEBUG("[execMatMulLayer] waiting for exec, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
+    //BISMORT_DEBUG("[execMatMulLayer] waiting for exec, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
+    //BISMORT_DEBUG("[execMatMulLayer] completed vs expected written bytes: " << acc->get_completed_writes() << " " << dsc.nbytes_buf_out);
   };
   // copy result buffer to host
   if((lhs.nrows_a == lhs.nrows) && (rhs.nrows_a == rhs.nrows)) {
