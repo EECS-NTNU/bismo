@@ -130,16 +130,17 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   frc.bram_id_start = acc->get_fetch_first_lhs_id();
   frc.bram_id_range = cfg.dpaDimLHS - 1;
   frc.dram_base = accel_lhs_ptr;
-  frc.dram_block_offset_bytes = 0;
   // adjust blocking to respect maximum fetch block size
   if(wbytes > FETCH_BLOCK_MAX) {
     // TODO handle remainder if not evenly divisible
     assert(wbytes % FETCH_BLOCK_MAX == 0);
     frc.dram_block_size_bytes = FETCH_BLOCK_MAX;
     frc.dram_block_count = wbytes / FETCH_BLOCK_MAX;
+    frc.dram_block_offset_bytes = FETCH_BLOCK_MAX;
   } else {
     frc.dram_block_size_bytes = wbytes;
     frc.dram_block_count = 1;
+    frc.dram_block_offset_bytes = 0;
   }
   frc.tiles_per_row = ctx.lhs.ncols_a / cfg.dpaDimCommon;
   acc->set_stage_enables(0, 0, 0);
@@ -257,12 +258,13 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
     // TODO handle remainder if not evenly divisible
     assert(dsc.nbytes_buf_in % FETCH_BLOCK_MAX == 0);
     frc.dram_block_size_bytes = FETCH_BLOCK_MAX;
+    frc.dram_block_offset_bytes = FETCH_BLOCK_MAX;
     frc.dram_block_count = dsc.nbytes_buf_in / FETCH_BLOCK_MAX;
   } else {
     frc.dram_block_size_bytes = dsc.nbytes_buf_in;
     frc.dram_block_count = 1;
+    frc.dram_block_offset_bytes = 0;
   }
-  frc.dram_block_offset_bytes = 0;
   frc.tiles_per_row = lhs.ncols_a / cfg.dpaDimCommon;
   BISMORT_DEBUG("[execMatMulLayer] frc for rhs fetch = " << frc);
   acc->pushInstruction(frc.asRaw());
