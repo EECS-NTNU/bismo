@@ -72,8 +72,8 @@ class BISMOFetchRunInstruction extends PrintableBundle {
   // always stgFetch
   val targetStage = UInt(width = 2)
 
-  val printfStr = "frc: " + runcfg.printfStr
-  val printfElems = runcfg.printfElems
+  val printfStr = "(targetStage = %d isRuncfg = %d) runcfg: " + runcfg.printfStr
+  val printfElems = {() => Seq(targetStage, isRunCfg) ++ runcfg.printfElems()}
 
   override def cloneType: this.type =
     new BISMOFetchRunInstruction().asInstanceOf[this.type]
@@ -87,8 +87,8 @@ class BISMOExecRunInstruction extends PrintableBundle {
   // always stgExec
   val targetStage = UInt(width = 2)
 
-  val printfStr = "erc: " + runcfg.printfStr
-  val printfElems = runcfg.printfElems
+  val printfStr = "(targetStage = %d isRuncfg = %d) runcfg: " + runcfg.printfStr
+  val printfElems = {() => Seq(targetStage, isRunCfg) ++ runcfg.printfElems()}
 
   override def cloneType: this.type =
     new BISMOExecRunInstruction().asInstanceOf[this.type]
@@ -102,8 +102,8 @@ class BISMOResultRunInstruction extends PrintableBundle {
   // always stgResult
   val targetStage = UInt(width = 2)
 
-  val printfStr = "rrc: " + runcfg.printfStr
-  val printfElems = runcfg.printfElems
+  val printfStr = "(targetStage = %d isRuncfg = %d) runcfg: " + runcfg.printfStr
+  val printfElems = {() => Seq(targetStage, isRunCfg) ++ runcfg.printfElems()}
 
   override def cloneType: this.type =
     new BISMOResultRunInstruction().asInstanceOf[this.type]
