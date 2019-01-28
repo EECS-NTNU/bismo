@@ -1,6 +1,14 @@
 #include "bismo_inference.hpp"
 #include "BitSerialMatMulAccelDriver.hpp"
 #include <vector>
+#include <string.h>
+#include <chrono>
+
+#ifdef DEBUG
+#define BISMORT_DEBUG(x) cout << x << endl;
+#else
+#define BISMORT_DEBUG(x) ;
+#endif
 
 namespace bismo_inference {
 // global handle for the platform and BISMO driver
@@ -192,7 +200,7 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   // (see exec_to_fetch_width_ratio in BitSerialMatMulExecutor)
   assert(cfg.dpaDimCommon == cfg.readChanWidth);
   const size_t k_tiles = lhs.ncols_a / cfg.dpaDimCommon;
-
+  auto start_time = std::chrono::high_resolution_clock::now();
   // TODO call p2s here instead
   rhs.importRegular((uint8_t *)in);
   auto end_time = std::chrono::high_resolution_clock::now();

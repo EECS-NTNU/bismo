@@ -47,8 +47,8 @@
 #define FETCH_ADDRALIGN   64
 #define FETCH_SIZEALIGN   8
 
-#define max(x,y) (x > y ? x : y)
-#define FETCH_ALIGN       max(FETCH_ADDRALIGN, FETCH_SIZEALIGN)
+#define max_local(x,y) (x > y ? x : y)
+#define FETCH_ALIGN       max_local(FETCH_ADDRALIGN, FETCH_SIZEALIGN)
 
 typedef enum {
   opRun = 0, opSendToken, opReceiveToken
