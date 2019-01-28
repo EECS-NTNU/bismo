@@ -3,7 +3,6 @@
 #include <vector>
 #include <string.h>
 
-#define DEBUG
 #ifdef DEBUG
 #define BISMORT_DEBUG(x) cout << x << endl;
 #else
@@ -134,6 +133,8 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   frc.dram_block_offset_bytes = 0;
   // adjust blocking to respect maximum fetch block size
   if(wbytes > FETCH_BLOCK_MAX) {
+    // TODO handle remainder if not evenly divisible
+    assert(wbytes % FETCH_BLOCK_MAX == 0);
     frc.dram_block_size_bytes = FETCH_BLOCK_MAX;
     frc.dram_block_count = wbytes / FETCH_BLOCK_MAX;
   } else {
@@ -253,6 +254,8 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   frc.dram_base = (uint32_t)(uint64_t)dsc.accel_buf_in;
   // adjust blocking to respect maximum fetch block size
   if(dsc.nbytes_buf_in > FETCH_BLOCK_MAX) {
+    // TODO handle remainder if not evenly divisible
+    assert(dsc.nbytes_buf_in % FETCH_BLOCK_MAX == 0);
     frc.dram_block_size_bytes = FETCH_BLOCK_MAX;
     frc.dram_block_count = dsc.nbytes_buf_in / FETCH_BLOCK_MAX;
   } else {
@@ -372,7 +375,7 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   cout << "memcmp against golden = " << ret << endl;
   if(ret != 0) {
     cout << "expected vs found" << endl;
-    for(int i = 0; i < dsc.nbytes_buf_out / sizeof(AccumType); i++) {
+    for(int i = 0; i < lhs.nrows * rhs.nrows; i++) {
       if(dsc.ctx.res[i] != out[i]) {
         cout << "pos " << i << ": " << dsc.ctx.res[i] << " " << out[i] << endl;
       }
