@@ -123,6 +123,16 @@ inflib_emu: $(BUILD_DIR_EMU)/driver.a
 	cd $(BUILD_DIR_INFLIB); \
 	g++ -std=c++11 -I$(BUILD_DIR_EMU) -I$(APP_SRC_DIR) -fPIC *.cpp -shared -o $(BUILD_DIR_INFLIB)/libbismo_inference.so
 
+<<<<<<< HEAD
+=======
+inflib: hw_driver
+	mkdir -p $(BUILD_DIR_INFLIB); \
+	cp -r $(INFLIB_SRC_DIR)/* $(BUILD_DIR_INFLIB)/; \
+	cp $(BUILD_DIR_HWDRV)/*.cpp $(BUILD_DIR_INFLIB)/; \
+	cd $(BUILD_DIR_INFLIB); \
+	g++ -std=c++11 -I$(BUILD_DIR_HWDRV) -I$(APP_SRC_DIR) -fPIC *.cpp -lcma -shared -o $(BUILD_DIR_INFLIB)/libbismo_inference.so
+
+>>>>>>> 3414591... [InferenceRT] linking cma to inflib target
 # run resource/Fmax characterization
 Characterize%:
 	mkdir -p $(BUILD_DIR)/$@; cp $(VERILOG_SRC_DIR)/*.v $(BUILD_DIR)/$@; cp $(VHDL_SRC_DIR)/*.vhd $(BUILD_DIR)/$@;$(SBT) $(SBT_FLAGS) "runMain bismo.CharacterizeMain $@ $(BUILD_DIR)/$@ $(PLATFORM)"
