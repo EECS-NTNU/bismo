@@ -32,17 +32,21 @@
 package bismo
 
 import Chisel._
+import fpgatidbits.streams.PrintableBundle
 
-class BISMOInstruction extends Bundle {
+class BISMOInstruction extends PrintableBundle {
   val instrData = UInt(width = 128 - 3)
   val isRunCfg = Bool()
   val targetStage = UInt(width = 2)
+
+  val printfStr = "instruction: targetStage = %d isRuncfg = %d \n"
+  val printfElems = { () ⇒ Seq(targetStage, isRunCfg) }
 
   override def cloneType: this.type =
     new BISMOInstruction().asInstanceOf[this.type]
 }
 
-class BISMOSyncInstruction extends Bundle {
+class BISMOSyncInstruction extends PrintableBundle {
   val unused = UInt(width = 128 - 6)
   // channel number for token sync
   val chanID = UInt(width = 2)
@@ -53,11 +57,14 @@ class BISMOSyncInstruction extends Bundle {
   // which stage this instruction is targeting (TargetStages)
   val targetStage = UInt(width = 2)
 
+  val printfStr = "sync: targetStage = %d isSend = %d chanID = %d \n"
+  val printfElems = { () ⇒ Seq(targetStage, isSendToken, chanID) }
+
   override def cloneType: this.type =
     new BISMOSyncInstruction().asInstanceOf[this.type]
 }
 
-class BISMOFetchRunInstruction extends Bundle {
+class BISMOFetchRunInstruction extends PrintableBundle {
   val runcfg = new FetchStageCtrlIO()
   val unused = UInt(width = 3)
   // always true
@@ -65,11 +72,14 @@ class BISMOFetchRunInstruction extends Bundle {
   // always stgFetch
   val targetStage = UInt(width = 2)
 
+  val printfStr = "frc: " + runcfg.printfStr
+  val printfElems = runcfg.printfElems
+
   override def cloneType: this.type =
     new BISMOFetchRunInstruction().asInstanceOf[this.type]
 }
 
-class BISMOExecRunInstruction extends Bundle {
+class BISMOExecRunInstruction extends PrintableBundle {
   val runcfg = new ExecStageCtrlIO()
   val unused = UInt(width = 68)
   // always true
@@ -77,17 +87,23 @@ class BISMOExecRunInstruction extends Bundle {
   // always stgExec
   val targetStage = UInt(width = 2)
 
+  val printfStr = "erc: " + runcfg.printfStr
+  val printfElems = runcfg.printfElems
+
   override def cloneType: this.type =
     new BISMOExecRunInstruction().asInstanceOf[this.type]
 }
 
-class BISMOResultRunInstruction extends Bundle {
+class BISMOResultRunInstruction extends PrintableBundle {
   val runcfg = new ResultStageCtrlIO()
   val unused = UInt(width = 59)
   // always true
   val isRunCfg = Bool()
   // always stgResult
   val targetStage = UInt(width = 2)
+
+  val printfStr = "rrc: " + runcfg.printfStr
+  val printfElems = runcfg.printfElems
 
   override def cloneType: this.type =
     new BISMOResultRunInstruction().asInstanceOf[this.type]

@@ -89,7 +89,7 @@ class ResultStageParams(
   assert(resMemReadLatency == 0)
 }
 
-class ResultStageCtrlIO() extends Bundle {
+class ResultStageCtrlIO() extends PrintableBundle {
   val waitCompleteBytes = UInt(width = BISMOLimits.dramBlockSizeBits)
   val dram_skip = UInt(width = BISMOLimits.dramBlockSizeBits)
   val dram_base = UInt(width = BISMOLimits.dramAddrBits)
@@ -97,6 +97,9 @@ class ResultStageCtrlIO() extends Bundle {
   val resmem_addr = UInt(width = BISMOLimits.resAddrBits)
   // ignore instruction if set
   val nop = Bool()
+
+  val printfStr = "rmem = %d dram_base = %d dram_skip = %d \n"
+  val printfElems = { () ⇒ Seq(resmem_addr, dram_base, dram_skip) }
 
   override def cloneType: this.type =
     new ResultStageCtrlIO().asInstanceOf[this.type]
