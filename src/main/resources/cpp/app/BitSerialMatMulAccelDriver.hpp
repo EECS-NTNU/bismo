@@ -118,6 +118,7 @@ public:
   }
 
   void pushInstruction(BISMOInstruction ins) {
+    verifyInstr(ins);
     while(m_accel->get_ins_ready() != 1);
     m_accel->set_ins_bits3(ins(31, 0));
     m_accel->set_ins_bits2(ins(63, 32));
@@ -253,6 +254,8 @@ public:
       ASSERT_BITS(f.dram_block_offset_bytes, BISMO_LIMIT_DRAM_BSIZE_BITS);
       ASSERT_BITS(f.dram_block_count, BISMO_LIMIT_DRAM_BCNT_BITS);
       ASSERT_BITS(f.tiles_per_row, BISMO_LIMIT_INBUFADDR_BITS);
+      // catch 0-sized transfers, may be due to overflow
+      assert(f.dram_block_size_bytes != 0);
 
       const size_t exec_to_fetch_width_ratio = m_cfg.dpaDimCommon / m_cfg.readChanWidth;
       // ensure all DRAM accesses are aligned
