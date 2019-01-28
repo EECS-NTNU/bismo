@@ -278,10 +278,10 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
           bool isNeg = neg_l ^ neg_r;
           erc.lhsOffset = wbase + k_tiles * (lhs_tile + wbit * lhs_tiles);
           erc.rhsOffset = abase + k_tiles * (rhs_tile + abit * rhs_tiles);
-          erc.doNegate = isNeg ? 1 : 0;
+          erc.negate = isNeg ? 1 : 0;
           erc.numTiles = k_tiles;
           erc.shiftAmount = (wbit + abit);
-          erc.doClear = tile_first ? 1 : 0;
+          erc.clear_before_first_accumulation = tile_first ? 1 : 0;
           erc.writeEn = tile_last ? 1 : 0;
           // TODO more flexible multi-buffering here
           erc.writeAddr = (erc.writeAddr == 0) ? 1 : 0;
@@ -305,7 +305,6 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
       size_t ind = rhs_ind * cfg.dpaDimLHS + lhs_ind;
       rrc.dram_base = (void*) (rptr + (ind * sizeof(AccumType)));
       rrc.dram_skip = cfg.dpaDimLHS * sizeof(AccumType);
-      rrc.waitComplete = 0;
       rrc.waitCompleteBytes = 0;
       acc->pushInstruction(rrc.asRaw());
       // res sends token to exec stage (send empty res buffer)
