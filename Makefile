@@ -79,7 +79,7 @@ VIVADOHLS_ROOT ?= $(shell dirname $(shell which vivado_hls))/..
 HLS_SIM_INCL := $(VIVADOHLS_ROOT)/include
 DEBUG_CHISEL ?= 0
 CC_FLAG =
-
+VERILATOR_SRC_DIR = /usr/share/verilator/include
 # platform-specific Makefile include for bitfile synthesis
 include platforms/$(PLATFORM).mk
 
@@ -147,9 +147,12 @@ emu: $(BUILD_DIR_EMU)/verilator-build.sh
 inflib_emu: $(BUILD_DIR_EMU)/verilator-build.sh
 	mkdir -p $(BUILD_DIR_INFLIB); \
 	cp -r $(INFLIB_SRC_DIR)/* $(BUILD_DIR_INFLIB)/; \
-	cp $(BUILD_DIR_EMU)/*.cpp $(BUILD_DIR_INFLIB)/; \
+	cp $(BUILD_DIR_EMU)/* $(BUILD_DIR_INFLIB)/; \
 	cd $(BUILD_DIR_INFLIB); \
-	g++ -std=c++11 -I$(BUILD_DIR_EMU) -I$(APP_SRC_DIR) -fPIC *.cpp -shared -o $(BUILD_DIR_INFLIB)/libbismo_inference.so
+	verilator -Iother-verilog --cc TesterWrapper.v -Wno-assignin -Wno-fatal -Wno-lint -Wno-style -Wno-COMBDLY -Wno-STMTDLY --Mdir verilated --trace; \
+	cp -f $(VERILATOR_SRC_DIR)/verilated.cpp .; \
+	cp -f $(VERILATOR_SRC_DIR)/verilated_vcd_c.cpp .; \
+	g++ -std=c++11 -I$(HLS_SIM_INCL) -I$(BUILD_DIR_EMU) -Iverilated -I$(VERILATOR_SRC_DIR) -I$(APP_SRC_DIR) -fPIC verilated/*.cpp *.cpp -shared -o $(BUILD_DIR_INFLIB)/libbismo_inference.so
 
 inflib: hw_driver
 	mkdir -p $(BUILD_DIR_INFLIB); \
