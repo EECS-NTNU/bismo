@@ -41,7 +41,8 @@ year = {2018}
 2. `zsh` e.g. `sudo apt install zsh` on Ubuntu
 3. [Vivado 2017.4](https://www.xilinx.com/support/download.html) (make sure `vivado` is in `PATH`)
 4. `gcc` 4.8 or later
-4. A [Xilinx PYNQ-Z1 board](http://www.pynq.io/board.html) board with the v1.4 image or later, with network access
+5. `verilator` e.g. `sudo apt install verilator` on Ubuntu 
+6. A [Xilinx PYNQ-Z1 board](http://www.pynq.io/board.html) board with the v1.4 image or later, with network access
 
 ## Installation
 1. `git clone --recurse-submodules https://github.com/EECS-NTNU/bismo.git`
