@@ -78,7 +78,7 @@ void ResultInstrGen_Templated(
   res.resmem_addr = 0;
   res.dram_base = ins_in.dram_res;
   res.dram_skip = bytes_per_acc * M; // TODO multitile will need matrix dim
-  res.waitCompleteBytes = bytes_per_res_tile;
+  res.waitCompleteBytes = 0;
   // emit res instruction
   out.write(res.asRaw());
 
@@ -87,6 +87,11 @@ void ResultInstrGen_Templated(
   sync.isSendToken = 1;
   sync.chanID = 0;
   out.write(sync.asRaw());
+
+  // generate a final instruction to ensure all writes completed
+  res.nop = 1;
+  res.waitCompleteBytes = 1;
+  out.write(res.asRaw());
 }
 
 #include "ResultInstrGen_TemplateDefs.hpp"

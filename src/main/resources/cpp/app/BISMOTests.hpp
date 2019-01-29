@@ -55,6 +55,7 @@ bool test(
   GEMMContext ctx = acc->allocGEMMContext(
     nrows_lhs, ncols, nrows_rhs, nbits_lhs, nbits_rhs, sgn_lhs, sgn_rhs
   );
+  cout << "Starting test: " << testName << endl;
   ctx.lhs.importRegular(lhs);
   ctx.rhs.importRegular(rhs);
   gemmBitSerial(ctx);

@@ -290,11 +290,10 @@ protected:
   void * m_accelRHS;
   void * m_accelRes;
 
-  // whether all instruction execution has finished
+  // whether all instruction execution has finished:
+  // done when the final res instruction is completed
   bool allFinished() {
-    // TODO: >= because we seem to be writing too many bytes sometimes
-    // find out why + fix
-    return (m_acc->get_completed_writes() >= resBytes());
+    return (m_acc->res_opcount() == 0);
   }
 
   void build_schedule_trivial() {
