@@ -159,7 +159,7 @@ inflib: hw_driver
 	cp -r $(INFLIB_SRC_DIR)/* $(BUILD_DIR_INFLIB)/; \
 	cp $(BUILD_DIR_HWDRV)/*.cpp $(BUILD_DIR_INFLIB)/; \
 	cd $(BUILD_DIR_INFLIB); \
-	g++ -std=c++11 -I$(BUILD_DIR_HWDRV) -I$(APP_SRC_DIR) -fPIC *.cpp -shared -o $(BUILD_DIR_INFLIB)/libbismo_inference.so
+	g++ -std=c++11 -I$(HLS_SIM_INCL) -I$(BUILD_DIR_HWDRV) -I$(APP_SRC_DIR) -fPIC *.cpp -shared -o $(BUILD_DIR_INFLIB)/libbismo_inference.so
 
 # run resource/Fmax characterization
 Characterize%:
