@@ -2,7 +2,7 @@
 #include "BitSerialMatMulAccelDriver.hpp"
 #include <vector>
 #include <string.h>
-#define DEBUG
+
 #ifdef DEBUG
 #define BISMORT_DEBUG(x) cout << x << endl;
 #else
