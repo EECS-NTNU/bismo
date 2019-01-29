@@ -2,6 +2,8 @@
 #include "BitSerialMatMulAccelDriver.hpp"
 #include <vector>
 #include <string.h>
+//benchmarking
+#include <chrono>
 
 #ifdef DEBUG
 #define BISMORT_DEBUG(x) cout << x << endl;
@@ -221,13 +223,17 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   // (see exec_to_fetch_width_ratio in BitSerialMatMulExecutor)
   assert(cfg.dpaDimCommon == cfg.readChanWidth);
   const size_t k_tiles = lhs.ncols_a / cfg.dpaDimCommon;
-
+  auto start_time = std::chrono::high_resolution_clock::now();
   // TODO call p2s here instead
   rhs.importRegular((uint8_t *)in);
+  auto end_time = std::chrono::high_resolution_clock::now();
+  auto rhs2bs_duration_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
+  BISMORT_DEBUG("[execMatMulLayer] bit-serialization time: " << rhs2bs_duration_time << " us" );
   // copy buffer from host
   platform->copyBufferHostToAccel(rhs.data, (void *)dsc.accel_buf_in, dsc.nbytes_buf_in);
   // enable all stages
   //acc->set_stage_enables(1, 1, 1);
+  start_time = std::chrono::high_resolution_clock::now();
   acc->set_stage_enables(0, 0, 0);
   // fetch the rhs matrix into the on-chip buffer
   BISMOSyncInstruction sync;
@@ -354,14 +360,23 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   rrc.dram_skip = 0;
   rrc.resmem_addr = 0;
   acc->pushInstruction(rrc.asRaw());
+  end_time = std::chrono::high_resolution_clock::now();
+  auto instr_gen_duration_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
+  BISMORT_DEBUG("[execMatMulLayer] Instruction generation time: " << instr_gen_duration_time << " us" );
 
   BISMORT_DEBUG("[execMatMulLayer] waiting for exec, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
+
+  start_time = std::chrono::high_resolution_clock::now();
   acc->set_stage_enables(1, 1, 1);
 
   // wait until all writes are completed
   while(acc->res_opcount() != 0) {
     BISMORT_DEBUG("[execMatMulLayer] waiting for exec, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
   };
+
+  end_time = std::chrono::high_resolution_clock::now();
+  auto exec_duration_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
+  BISMORT_DEBUG("[execMatMulLayer] Execution Time: " << exec_duration_time << " us" );
   // copy result buffer to host
   if((lhs.nrows_a == lhs.nrows) && (rhs.nrows_a == rhs.nrows)) {
     // no padding was necessary, copy directly to host

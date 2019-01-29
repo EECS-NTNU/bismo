@@ -53,8 +53,8 @@
 #define FETCH_SIZEALIGN           64
 #define FETCH_BLOCK_MAX           (1 << (BISMO_LIMIT_DRAM_BSIZE_BITS-1))
 
-#define max(x,y)                  (x > y ? x : y)
-#define FETCH_ALIGN               max(FETCH_ADDRALIGN, FETCH_SIZEALIGN)
+#define max_local(x,y)                  (x > y ? x : y)
+#define FETCH_ALIGN               max_local(FETCH_ADDRALIGN, FETCH_SIZEALIGN)
 
 typedef enum {
   csGetCmd = 0, csRun, csSend, csReceive
