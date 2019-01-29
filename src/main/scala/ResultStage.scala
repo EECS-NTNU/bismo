@@ -122,7 +122,6 @@ class ResultStage(val myP: ResultStageParams) extends Module {
     val done = Bool(OUTPUT)                   // high when done until start=0
     val csr = new ResultStageCtrlIO().asInput
     val dram = new ResultStageDRAMIO(myP)
-    val completed_writes = UInt(OUTPUT, 32)
     // interface towards result memory
     val resmem_req = Vec.fill(myP.dpa_lhs) {
       Vec.fill(myP.dpa_rhs) {
@@ -177,12 +176,13 @@ class ResultStage(val myP: ResultStageParams) extends Module {
   rg.out <> io.dram.wr_req
 
   // completion detection logic
-  val regCompletedWrBytes = Reg(init = UInt(0, 32))
+  val regOutstandingWrBytes = Reg(init = UInt(0, 32))
   io.dram.wr_rsp.ready := Bool(true)
-  when(io.dram.wr_rsp.valid) {
-    regCompletedWrBytes := regCompletedWrBytes + UInt(bytesPerBeat)
+  when(!io.dram.wr_req.fire() && io.dram.wr_rsp.fire()) {
+    regOutstandingWrBytes := regOutstandingWrBytes - UInt(bytesPerBeat)
+  } .elsewhen(io.dram.wr_req.fire() && !io.dram.wr_rsp.fire()) {
+    regOutstandingWrBytes := regOutstandingWrBytes + UInt(bytesPerBeat)
   }
-  io.completed_writes := regCompletedWrBytes
 
   // FSM logic for control
   val sIdle :: sWaitDS :: sWaitRG :: sFinished :: Nil = Enum(UInt(), 4)
@@ -222,8 +222,13 @@ class ResultStage(val myP: ResultStageParams) extends Module {
       }
 
       is(sFinished) {
-        io.done := Bool(true)
-        when(!io.start) {regState := sIdle}
+        when(io.csr.waitCompleteBytes > UInt(0) && regOutstandingWrBytes > UInt(0)) {
+          // wait until all writes are completed
+          io.done := Bool(false)
+        } .otherwise {
+          io.done := Bool(true)
+          when(!io.start) {regState := sIdle}
+        }
       }
   }
   // debug:

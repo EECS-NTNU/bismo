@@ -224,9 +224,6 @@ class BitSerialMatMulAccel(
     // are available
     val addtoken_ef = Bool(INPUT)
     val addtoken_re = Bool(INPUT)
-    // written bytes
-    val completed_writes = UInt(OUTPUT, 32)
-
   }
   io.hw := myP.asHWCfgBundle(32)
   // instantiate accelerator stages
@@ -447,8 +444,6 @@ class BitSerialMatMulAccel(
   io.perf.prf_fetch <> fetchCtrl.perf
   io.perf.prf_exec <> execCtrl.perf
   io.perf.prf_res <> resultCtrl.perf
-
-  io.completed_writes := resultStage.completed_writes
 
   /* TODO expose the useful ports from the monitors below:
   StreamMonitor(syncFetchExec_free.enq, io.perf.cc_enable)

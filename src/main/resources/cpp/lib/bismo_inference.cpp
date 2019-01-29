@@ -2,7 +2,7 @@
 #include "BitSerialMatMulAccelDriver.hpp"
 #include <vector>
 #include <string.h>
-
+#define DEBUG
 #ifdef DEBUG
 #define BISMORT_DEBUG(x) cout << x << endl;
 #else
@@ -333,6 +333,7 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
       rrc.dram_skip = cfg.dpaDimLHS * sizeof(AccumType);
       rrc.waitCompleteBytes = 0;
       rrc.resmem_addr = (rrc.resmem_addr == 0) ? 1 : 0;
+      rrc.nop = 0;
       acc->pushInstruction(rrc.asRaw());
       // res sends token to exec stage (send empty res buffer)
       sync.targetStage = stgResult;
@@ -346,13 +347,20 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   sync.isSendToken = 1;
   sync.chanID = 0;
   acc->pushInstruction(sync.asRaw());
+  // final result instruction to ensure all writes completed
+  rrc.nop = 1;
+  rrc.waitCompleteBytes = 1;
+  rrc.dram_base = 0;
+  rrc.dram_skip = 0;
+  rrc.resmem_addr = 0;
+  acc->pushInstruction(rrc.asRaw());
+
   BISMORT_DEBUG("[execMatMulLayer] waiting for exec, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
   acc->set_stage_enables(1, 1, 1);
 
   // wait until all writes are completed
-  while(acc->get_completed_writes() != dsc.nbytes_buf_out) {
-    //BISMORT_DEBUG("[execMatMulLayer] waiting for exec, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
-    //BISMORT_DEBUG("[execMatMulLayer] completed vs expected written bytes: " << acc->get_completed_writes() << " " << dsc.nbytes_buf_out);
+  while(acc->res_opcount() != 0) {
+    BISMORT_DEBUG("[execMatMulLayer] waiting for exec, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
   };
   // copy result buffer to host
   if((lhs.nrows_a == lhs.nrows) && (rhs.nrows_a == rhs.nrows)) {

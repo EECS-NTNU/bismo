@@ -128,10 +128,6 @@ public:
     m_accel->set_ins_valid(0);
   }
 
-  size_t get_completed_writes() {
-    return (size_t) m_accel->get_completed_writes();
-  }
-
   void verifyInstr(BISMOInstruction ins) {
     BISMOSyncInstruction sync;
     sync.fromRaw(ins);
