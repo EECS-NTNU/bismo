@@ -205,7 +205,7 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   rhs.importRegular((uint8_t *)in);
   auto end_time = std::chrono::high_resolution_clock::now();
   auto rhs2bs_duration_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
-  BISMORT_DEBUG("[execMatMulLayer] RHS 2bs Time: " << rhs2bs_duration_time);
+  BISMORT_DEBUG("[execMatMulLayer] bit-serialization time: " << rhs2bs_duration_time << " us" );
   // copy buffer from host
   platform->copyBufferHostToAccel(rhs.data, dsc.accel_buf_in, dsc.nbytes_buf_in);
   // enable all stages
@@ -319,7 +319,7 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   acc->push_result_runcfg(rrc);
   end_time = std::chrono::high_resolution_clock::now();
   auto instr_gen_duration_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
-  BISMORT_DEBUG("[execMatMulLayer] Instruction generation time: " << instr_gen_duration_time );
+  BISMORT_DEBUG("[execMatMulLayer] Instruction generation time: " << instr_gen_duration_time << " us" );
   // wait until complete
   start_time = std::chrono::high_resolution_clock::now();
   while(acc->res_opcount() != 0) {
@@ -327,7 +327,7 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   };
   end_time = std::chrono::high_resolution_clock::now();
   auto exec_duration_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
-  BISMORT_DEBUG("[execMatMulLayer] Execution Time: " << exec_duration_time);
+  BISMORT_DEBUG("[execMatMulLayer] Execution Time: " << exec_duration_time << " us" );
   // copy result buffer to host
   platform->copyBufferAccelToHost(dsc.accel_buf_out, (void *)out, dsc.nbytes_buf_out);
 }
