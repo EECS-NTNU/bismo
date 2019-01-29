@@ -313,7 +313,8 @@ public:
     m_accel->set_fetch_op_bits_opcode((AccelReg) op.opcode);
     m_accel->set_fetch_op_bits_token_channel(op.syncChannel);
     // push into fetch op FIFO
-    assert(!fetch_op_full());
+    while(fetch_op_full()){cout<<"Fetch OP Full"<<endl;};
+    //assert(!fetch_op_full());
     m_accel->set_fetch_op_valid(1);
     m_accel->set_fetch_op_valid(0);
   }
@@ -323,7 +324,8 @@ public:
     m_accel->set_exec_op_bits_opcode((AccelReg) op.opcode);
     m_accel->set_exec_op_bits_token_channel(op.syncChannel);
     // push into exec op FIFO
-    assert(!exec_op_full());
+    while(exec_op_full()){cout<<"Exec OP Full"<<endl;};
+    // assert(!exec_op_full());
     m_accel->set_exec_op_valid(1);
     m_accel->set_exec_op_valid(0);
   }
@@ -333,7 +335,8 @@ public:
     m_accel->set_result_op_bits_opcode((AccelReg) op.opcode);
     m_accel->set_result_op_bits_token_channel(op.syncChannel);
     // push into result op FIFO
-    assert(!result_op_full());
+    while(result_op_full()){cout<<"Result OP Full"<<endl;};
+    // assert(!result_op_full());
     m_accel->set_result_op_valid(1);
     m_accel->set_result_op_valid(0);
   }
@@ -352,7 +355,9 @@ public:
     assert(cfg.tiles_per_row < (1 << 16));
     m_accel->set_fetch_runcfg_bits_tiles_per_row(cfg.tiles_per_row);
     // push to runcfg FIFO
-    assert(!fetch_runcfg_full());
+    while(fetch_runcfg_full()){cout<<"Fetch runcfg Full"<<endl;};
+
+    // assert(!fetch_runcfg_full());
     m_accel->set_fetch_runcfg_valid(1);
     m_accel->set_fetch_runcfg_valid(0);
   }
@@ -368,7 +373,8 @@ public:
     m_accel->set_exec_runcfg_bits_shiftAmount(cfg.shiftAmount);
     m_accel->set_exec_runcfg_bits_writeEn(cfg.writeEn);
     m_accel->set_exec_runcfg_bits_writeAddr(cfg.writeAddr);
-    assert(!exec_runcfg_full());
+    while(exec_runcfg_full()){cout<<"Exec runcfg Full"<<endl;};
+    // assert(!exec_runcfg_full());
     // push to runcfg FIFO
     m_accel->set_exec_runcfg_valid(1);
     m_accel->set_exec_runcfg_valid(0);
@@ -383,7 +389,8 @@ public:
     m_accel->set_result_runcfg_bits_waitComplete(cfg.waitComplete ? 1 : 0);
     m_accel->set_result_runcfg_bits_waitCompleteBytes(cfg.waitCompleteBytes);
     // push to runcfg FIFO
-    assert(!result_runcfg_full());
+    while(result_runcfg_full()){cout<<"Result runcfg Full"<<endl;};
+    // assert(!result_runcfg_full());
     m_accel->set_result_runcfg_valid(1);
     m_accel->set_result_runcfg_valid(0);
   }

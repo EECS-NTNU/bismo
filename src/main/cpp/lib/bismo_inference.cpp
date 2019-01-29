@@ -195,11 +195,16 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
 
   // TODO call p2s here instead
   rhs.importRegular((uint8_t *)in);
+  auto end_time = std::chrono::high_resolution_clock::now();
+  auto rhs2bs_duration_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
+  BISMORT_DEBUG("[execMatMulLayer] RHS 2bs Time: " << rhs2bs_duration_time);
   // copy buffer from host
   platform->copyBufferHostToAccel(rhs.data, dsc.accel_buf_in, dsc.nbytes_buf_in);
   // enable all stages
   acc->set_stage_enables(1, 1, 1);
+
   // fetch the rhs matrix into the on-chip buffer
+  start_time = std::chrono::high_resolution_clock::now();
   Op theOp;
   FetchRunCfg frc;
   ExecRunCfg erc;
@@ -293,8 +298,28 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   theOp.opcode = opSendToken;
   theOp.syncChannel = 0;
   acc->push_exec_op(theOp);
+  //cout << "starting, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount() << endl;
+  //acc->set_stage_enables(1, 1, 1);
+  // generate result instruction to wait for write completion
+  rrc.dram_base = 0;
+  rrc.dram_skip = 0;
+  rrc.waitComplete = 1;
+  rrc.waitCompleteBytes = dsc.nbytes_buf_out;
+  theOp.opcode = opRun;
+  theOp.syncChannel = 0;
+  acc->push_result_op(theOp);
+  acc->push_result_runcfg(rrc);
+  end_time = std::chrono::high_resolution_clock::now();
+  auto instr_gen_duration_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
+  BISMORT_DEBUG("[execMatMulLayer] Instruction generation time: " << instr_gen_duration_time );
   // wait until complete
-  while(acc->res_opcount() != 0);
+  start_time = std::chrono::high_resolution_clock::now();
+  while(acc->res_opcount() != 0) {
+    //cout << "ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount() << endl;
+  };
+  end_time = std::chrono::high_resolution_clock::now();
+  auto exec_duration_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
+  BISMORT_DEBUG("[execMatMulLayer] Execution Time: " << exec_duration_time);
   // copy result buffer to host
   platform->copyBufferAccelToHost(dsc.accel_buf_out, (void *)out, dsc.nbytes_buf_out);
 }
