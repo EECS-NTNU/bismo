@@ -107,7 +107,7 @@ object ChiselMain {
       //TODO updated for BOB :)
       new BitSerialMatMulParams(
         dpaDimLHS = dpaDimLHS, dpaDimRHS = dpaDimRHS, dpaDimCommon = dpaDimCommon,
-        lhsEntriesPerMem = 1024, rhsEntriesPerMem = 1024,
+        lhsEntriesPerMem = 8192, rhsEntriesPerMem = 8192,
         cmdQueueEntries = 512, mrp = PYNQZ1Params.toMemReqParams()
       )
     )

@@ -53,7 +53,7 @@ create_project $config_proj_name $config_proj_dir -part $config_proj_part
 update_ip_catalog
 
 # add the Verilog implementation for the accelerator
-add_files -norecurse $config_accel_verilog
+add_files -norecurse $config_accel_verilog/
 # add misc verilog files used by fpga-rosetta
 add_files -norecurse $config_rosetta_verilog/Q_srl.v $config_rosetta_verilog/DualPortBRAM.v
 # add vhdl files used by fpga-rosetta
