@@ -19,6 +19,9 @@ enum BISMOTargetStage {
 #define BISMO_LIMIT_RESADDR_BITS    1
 #define BISMO_MMDESCR_BITS          208
 #define BISMO_INSTR_BITS            128
+#define BISMO_CNV_IMGSIZE_BITS      8
+#define BISMO_CNV_K_BITS            4
+#define BISMO_CNV_STRIDE_BITS       4
 
 // NOTE: the ordering of the fields is important and should
 // not be changed without making corresponding changes on the
@@ -126,8 +129,11 @@ struct BISMOFetchRunInstruction {
 struct BISMOExecRunInstruction {
   ap_uint<2> targetStage;
   ap_uint<1> isRunCfg;
-  ap_uint<61> unused0;
-  ap_uint<7> unused1;
+  ap_uint<51> unused0;
+  ap_uint<1> cnvAddrGenMode;
+  ap_uint<8> cnvImgSize;
+  ap_uint<4> cnvKernelSize;
+  ap_uint<4> cnvStride;
   ap_uint<16> lhsOffset;
   ap_uint<16> rhsOffset;
   ap_uint<16> numTiles;
@@ -141,8 +147,11 @@ struct BISMOExecRunInstruction {
     ap_uint<BISMO_INSTR_BITS> ret = 0;
     ret(1, 0) = targetStage;
     ret(2, 2) = isRunCfg;
-    ret(63, 3) = unused0;
-    ret(70, 64) = unused1;
+    ret(53, 3) = unused0;
+    ret(54, 54) = cnvAddrGenMode;
+    ret(62, 55) = cnvImgSize;
+    ret(66, 63) = cnvKernelSize;
+    ret(70, 67) = cnvStride;
     ret(86, 71) = lhsOffset;
     ret(102, 87) = rhsOffset;
     ret(118, 103) = numTiles;
@@ -157,8 +166,11 @@ struct BISMOExecRunInstruction {
   void fromRaw(ap_uint<BISMO_INSTR_BITS> ret) {
     targetStage = ret(1, 0);
     isRunCfg = ret(2, 2);
-    unused0 = ret(63, 3);
-    unused1 = ret(70, 64);
+    unused0 = ret(53, 3);
+    cnvAddrGenMode = ret(54, 54);
+    cnvImgSize = ret(62, 55);
+    cnvKernelSize = ret(66, 63);
+    cnvStride = ret(70, 67);
     lhsOffset = ret(86, 71);
     rhsOffset = ret(102, 87);
     numTiles = ret(118, 103);
@@ -172,8 +184,11 @@ struct BISMOExecRunInstruction {
   BISMOExecRunInstruction() {
     targetStage = 0;
     isRunCfg = 0;
+    cnvAddrGenMode = 0;
+    cnvImgSize = 0;
+    cnvKernelSize = 0;
+    cnvStride = 0;
     unused0 = 0;
-    unused1 = 0;
     lhsOffset = 0;
     rhsOffset = 0;
     numTiles = 0;

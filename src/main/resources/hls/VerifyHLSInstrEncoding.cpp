@@ -59,6 +59,10 @@ void VerifyHLSInstrEncoding(
     exec.rhsOffset = 10 - i;
     exec.numTiles = 2 * i;
     exec.shiftAmount = i+1;
+    exec.cnvAddrGenMode = 1;
+    exec.cnvImgSize = i;
+    exec.cnvKernelSize = 10 - i;
+    exec.cnvStride = i;
     out.write(exec.asRaw());
   }
   sync.isRunCfg = 0;

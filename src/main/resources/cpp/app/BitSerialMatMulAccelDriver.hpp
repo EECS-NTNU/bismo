@@ -292,10 +292,13 @@ public:
       ASSERT_BITS(f.clear_before_first_accumulation, 1);
       ASSERT_BITS(f.writeEn, 1);
       ASSERT_BITS(f.writeAddr, BISMO_LIMIT_RESADDR_BITS);
+      ASSERT_BITS(f.cnvAddrGenMode, 1);
+      ASSERT_BITS(f.cnvStride, BISMO_CNV_STRIDE_BITS);
+      ASSERT_BITS(f.cnvKernelSize, BISMO_CNV_K_BITS);
+      ASSERT_BITS(f.cnvImgSize, BISMO_CNV_IMGSIZE_BITS);
     } else {
       assert(s.chanID == 0 || s.chanID == 1);
       assert(s.unused0 == 0);
-      assert(s.unused1 == 0);
     }
   }
 
