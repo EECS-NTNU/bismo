@@ -81,7 +81,9 @@ class BitSerialMatMulParams(
   // do not instantiate the shift stage
   val noShifter: Boolean = false,
   // do not instantiate the negate stage
-  val noNegate: Boolean = false
+  val noNegate: Boolean = false,
+  val p2sAccelParams: StandAloneP2SParams = new StandAloneP2SParams(maxInBw = 8, nInElemPerWord = 8, outStreamSize = 64,
+    fastMode = true, mrp = PYNQZ1Params.toMemReqParams() )
 ) extends PrintableParam {
   def estimateResources() = {
     import Math.ceil
@@ -195,7 +197,7 @@ object Stages {
 class BitSerialMatMulAccel(
   val myP: BitSerialMatMulParams, p: PlatformWrapperParams
 ) extends GenericAccelerator(p) {
-    val numMemPorts = 1
+    val numMemPorts = 2
   val io = new GenericAcceleratorIF(numMemPorts, p) {
     // enable/disable execution for each stage
     val fetch_enable = Bool(INPUT)
@@ -224,6 +226,10 @@ class BitSerialMatMulAccel(
     // are available
     val addtoken_ef = Bool(INPUT)
     val addtoken_re = Bool(INPUT)
+
+    val enable = Bool(INPUT)
+    val cmdqueue = Decoupled(new P2SCmdIO(myP.p2sAccelParams.p2sparams)).flip
+    val ackqueue = Decoupled(UInt(width = 32))
   }
   io.hw := myP.asHWCfgBundle(32)
   // instantiate accelerator stages
@@ -455,6 +461,31 @@ class BitSerialMatMulAccel(
   StreamMonitor(syncExecResult_filled.enq, io.perf.cc_enable)
   StreamMonitor(syncExecResult_filled.deq, io.perf.cc_enable)
   */
+
+    /*** Parallel to Serial Accelerator***/
+  val p2saccel = Module(new StandAloneP2SAccel(myP.p2sAccelParams, p)).io
+  io.memPort(1) <> p2saccel.memPort(0)
+  // instantiate and connect cmd and ack queues
+  val cmdQ = Module(new FPGAQueue(io.cmdqueue.bits, 16)).io
+  val ackQ = Module(new FPGAQueue(io.ackqueue.bits, 16)).io
+  io.cmdqueue <> cmdQ.enq
+  cmdQ.deq <> p2saccel.p2sCmd
+  p2saccel.ack <> ackQ.enq
+  ackQ.deq <> io.ackqueue
+
+  // for the accelerator-facing side of the cmd and ack queues,
+  // only enable transactions if io.enable is set
+  p2saccel.p2sCmd.valid := cmdQ.deq.valid & io.enable
+  cmdQ.deq.ready := p2saccel.p2sCmd.ready & io.enable
+  p2saccel.ack.ready := ackQ.enq.ready & io.enable
+  ackQ.enq.valid := p2saccel.ack.valid & io.enable
+
+  // for the CPU-facing side of the cmd and ack queues,
+  // rewire valid/ready with pulse generators to ensure single
+  // enqueue/dequeue from the CPU
+  cmdQ.enq.valid := io.cmdqueue.valid & !Reg(next = io.cmdqueue.valid)
+  ackQ.deq.ready := io.ackqueue.ready & !Reg(next = io.ackqueue.ready)
+  /*** End p2s***/
 }
 
 class ResultBufParams(
