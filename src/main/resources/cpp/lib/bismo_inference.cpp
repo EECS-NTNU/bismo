@@ -377,14 +377,73 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   // (see exec_to_fetch_width_ratio in BitSerialMatMulExecutor)
   assert(cfg.dpaDimCommon == cfg.readChanWidth);
   const size_t k_tiles = lhs.ncols_a / cfg.dpaDimCommon;
+  
+  /************P2S****************/
+  //Create a tmp in buff for parallel activations
+  size_t nbytes_bitpar = rhs.nrows_a * rhs.ncols_a * sizeof(uint8_t);
+  void * inbuf_p2s = platform->allocAccelBuffer(nbytes_bitpar);
+
+  #ifdef P2S_CLEAR_IN_BUF
+    uint8_t * in_formatted = new uint8_t[rhs.nrows_a * rhs.ncols_a];
+    for (int i = 0; i < rhs.nrows_a * rhs.ncols_a; i++)
+    {
+      in_formatted[i]=0;
+    }
+    memcpy(in_formatted, in, rhs.nrows * rhs.ncols);
+    platform->copyBufferHostToAccel((void *)in_formatted, inbuf_p2s, nbytes_bitpar);
+    delete []in_formatted;
+  #else
+  platform->copyBufferHostToAccel((void *)in, inbuf_p2s, nbytes_bitpar);
+
+  #endif
+
+  //use bismo input buff as out buff for p2s
+  acc->setup_p2s( inbuf_p2s, dsc.nbytes_buf_in, (void *)dsc.accel_buf_in, rhs.nrows_a, rhs.ncols_a, abits);
+  uint32_t cycles = acc->p2s_exec_and_wait();
+
+  //Software side
   auto start_time = std::chrono::high_resolution_clock::now();
-  // TODO call p2s here instead
   rhs.importRegular((uint8_t *)in);
   auto end_time = std::chrono::high_resolution_clock::now();
   auto rhs2bs_duration_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
-  BISMORT_DEBUG("[execMatMulLayer] bit-serialization time: " << rhs2bs_duration_time << " us" );
-  // copy buffer from host
-  platform->copyBufferHostToAccel(rhs.data, (void *)dsc.accel_buf_in, dsc.nbytes_buf_in);
+  BISMORT_DEBUG("[execMatMulLayer] software bit-serialization time: " << rhs2bs_duration_time << " us" );
+
+  //Verify hw output correctness
+  uint8_t * rhs_hw_serialized = new uint8_t[dsc.nbytes_buf_in];
+  platform->copyBufferAccelToHost((void *)dsc.accel_buf_in, rhs_hw_serialized, dsc.nbytes_buf_in);
+
+  platform->deallocAccelBuffer(inbuf_p2s);
+  int memcmpres = memcmp(rhs_hw_serialized, rhs.data, dsc.nbytes_buf_in);
+  BISMORT_DEBUG("[execMatMulLayer] Serialize rhs took " << cycles << ", " << cycles/200 << " us @200MHz  with result =" << memcmpres);
+  if(memcmpres!=0){
+      // copy buffer from host
+    #ifdef P2S_CLEAR_IN_BUF
+    // that version cannot admit p2s errors
+      assert(memcmpres==0);
+    #endif
+    // platform->copyBufferHostToAccel(rhs.data, (void *)dsc.accel_buf_in, dsc.nbytes_buf_in);
+    BISMORT_DEBUG("[execMatMulLayer] expected: ");
+    #ifdef DEBUG
+    rhs.printHex();
+    #endif
+    BISMORT_DEBUG("[execMatMulLayer] found: ");
+    memcpy(rhs.data, rhs_hw_serialized, dsc.nbytes_buf_in);
+    #ifdef DEBUG
+    rhs.printHex();
+    #endif
+  }else{
+    BISMORT_DEBUG("[execMatMulLayer] P2S hw execution fine");
+    // platform->copyBufferHostToAccel(rhs.data, (void *)dsc.accel_buf_in, dsc.nbytes_buf_in);
+    // BISMORT_DEBUG("expected: ");
+    // rhs.printHex();
+    // BISMORT_DEBUG("found: ");
+    // memcpy(rhs.data, rhs_hw_serialized, dsc.nbytes_buf_in);
+    // rhs.printHex();
+  }
+
+
+
+  /************** END P2S *************/
   // enable all stages
   acc->set_stage_enables(1, 1, 1);
   start_time = std::chrono::high_resolution_clock::now();

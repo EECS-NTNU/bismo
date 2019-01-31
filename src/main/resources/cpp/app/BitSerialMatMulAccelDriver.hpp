@@ -56,6 +56,8 @@
 #define max_local(x,y)                  (x > y ? x : y)
 #define FETCH_ALIGN               max_local(FETCH_ADDRALIGN, FETCH_SIZEALIGN)
 
+#define P2S_ALIGN                 64
+
 typedef enum {
   csGetCmd = 0, csRun, csSend, csReceive
 } ControllerState;
@@ -494,6 +496,48 @@ public:
     cout << "rhsEntriesPerMem = " << m_cfg.rhsEntriesPerMem << endl;
     cout << "writeChanWidth = " << m_cfg.writeChanWidth << endl;
   }
+
+
+/**************************P2S driver section **************************/
+void setup_p2s(
+  void * accel_buf_src,
+  uint32_t nbytes,
+  void * accel_buf_dst,
+  uint32_t rows,
+  uint32_t cols,
+  uint32_t bit_width
+) {
+  // ensure #cols is divisible by P2S_ALIGN
+  assert(cols % P2S_ALIGN == 0);
+  size_t col_groups = cols / P2S_ALIGN;
+  m_accel->set_cmdqueue_valid(false);
+  m_accel->set_cmdqueue_bits_dramBaseAddrSrc((AccelDblReg) accel_buf_src);
+  // cout << "[SW] DRAM Base Addr Src" << accel_buf << endl;
+  m_accel->set_cmdqueue_bits_dramBaseAddrDst((AccelDblReg) accel_buf_dst );
+  m_accel->set_cmdqueue_bits_matrixRows(rows);
+  m_accel->set_cmdqueue_bits_matrixColsGroup(col_groups);
+  m_accel->set_cmdqueue_bits_actualPrecision(bit_width);
+  m_accel->set_cmdqueue_bits_waitCompleteBytes(nbytes);
+  // wait until cmdqueue is available
+  while(m_accel->get_cmdqueue_ready() != 1);
+  // pulse cmdqueue.valid
+  m_accel->set_cmdqueue_valid(true);
+  m_accel->set_cmdqueue_valid(false);
+}
+
+uint32_t p2s_exec_and_wait() {
+  m_accel->set_enable(1);
+  m_accel->set_ackqueue_ready(false);
+  while(m_accel->get_ackqueue_valid() != 1);
+  uint32_t ret = m_accel->get_ackqueue_bits();
+  // pulse ackqueue.ready to consume ack token
+  m_accel->set_ackqueue_ready(true);
+  m_accel->set_ackqueue_ready(false);
+  m_accel->set_enable(0);
+  return ret;
+}
+
+/************************** END P2S driver section **************************/
 
 protected:
   BitSerialMatMulAccel * m_accel;
