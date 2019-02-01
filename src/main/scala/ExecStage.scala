@@ -126,6 +126,10 @@ class ExecStageCtrlIO() extends PrintableBundle {
   val numTiles = UInt(width = BISMOLimits.inpBufAddrBits)    // num of L0 tiles to execute
   val rhsOffset = UInt(width = BISMOLimits.inpBufAddrBits)   // start offset for RHS tiles
   val lhsOffset = UInt(width = BISMOLimits.inpBufAddrBits)   // start offset for LHS tiles
+  val cnvStride = UInt(width = BISMOLimits.cnvStrideBits)
+  val cnvKernelSize = UInt(width = BISMOLimits.cnvStrideBits)
+  val cnvImgSize = UInt(width = BISMOLimits.cnvImgSizeBits)
+  val cnvAddrGenMode = Bool()
 
   override def cloneType: this.type =
     new ExecStageCtrlIO().asInstanceOf[this.type]

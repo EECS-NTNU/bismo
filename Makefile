@@ -100,7 +100,7 @@ endif
 # hw-sw cosimulation tests with extra HLS dependencies
 EmuTestVerifyHLSInstrEncoding:
 	mkdir -p $(BUILD_DIR)/$@;
-	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator";
+	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator $(DEBUG_CHISEL)";
 	cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
@@ -108,7 +108,7 @@ EmuTestVerifyHLSInstrEncoding:
 
 EmuTestExecInstrGen:
 	mkdir -p $(BUILD_DIR)/$@;
-	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator";
+	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator $(DEBUG_CHISEL)";
 	cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
@@ -116,7 +116,7 @@ EmuTestExecInstrGen:
 
 EmuTestFetchInstrGen:
 	mkdir -p $(BUILD_DIR)/$@;
-	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator";
+	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator $(DEBUG_CHISEL)";
 	cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
