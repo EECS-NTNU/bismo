@@ -41,12 +41,12 @@ class SlidingWindowUnit extends TemplatedHLSBlackBox {
     val strm_in = Decoupled(UInt(width = BISMOLimits.swuDescrInBits)).flip
     val strm_out = Decoupled(UInt(width = BISMOLimits.swuDescrOutBits))
     val rst_n = Bool(INPUT)
-    in.bits.setName("strm_in_V_V_TDATA")
-    in.valid.setName("strm_in_V_V_TVALID")
-    in.ready.setName("strm_in_V_V_TREADY")
-    out.bits.setName("strm_out_V_V_TDATA")
-    out.valid.setName("strm_out_V_V_TVALID")
-    out.ready.setName("strm_out_V_V_TREADY")
+    strm_in.bits.setName("strm_in_V_V_TDATA")
+    strm_in.valid.setName("strm_in_V_V_TVALID")
+    strm_in.ready.setName("strm_in_V_V_TREADY")
+    strm_out.bits.setName("strm_out_V_V_TDATA")
+    strm_out.valid.setName("strm_out_V_V_TVALID")
+    strm_out.ready.setName("strm_out_V_V_TREADY")
     rst_n.setName("ap_rst_n")
   }
   // clock needs to be added manually to BlackBox
