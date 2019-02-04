@@ -12,8 +12,7 @@
 void SlidingWindowUnit(
 		//32 bits: 16 for BASE Address, 8 for Image size, 4 Kernel size, 4 Stride
 		stream<ap_uint<IN_STREAM_WIDTH>> &strm_in,
-		stream<ap_uint<OUT_ADDR_BITWIDTH>> &strm_out,
-		const ap_uint<ITER_NMBR_BITWIDTH> iter_number){
+		stream<ap_uint<OUT_ADDR_BITWIDTH>> &strm_out){
 
 //#pragma HLS INTERFACE ap_ctrl_none port=return
 //#pragma HLS interface axis port=strm_out

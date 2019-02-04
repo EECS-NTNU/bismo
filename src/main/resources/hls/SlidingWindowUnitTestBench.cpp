@@ -43,7 +43,7 @@ int main(int argc, char * argv[]){
 
 	int iterations =  mat_out_dim * mat_out_dim * KRNL_SIZE * KRNL_SIZE;//IMG_SIZE * IMG_SIZE * KRNL_SIZE * KRNL_SIZE;
 	int iter_number = IMG_SIZE * IMG_SIZE * KRNL_SIZE * KRNL_SIZE;
-	SlidingWindowUnit(in_strm, out_mem_address, iter_number);
+	SlidingWindowUnit(in_strm, out_mem_address /*, iter_number*/);
 	for(int i=0; i < iterations ; i++){
 		std::cout << out_mem_address.read() << std::endl;
 	}
