@@ -1,5 +1,4 @@
 // Copyright (c) 2018 Xilinx
-// Copyright (c) 2018 Norwegian University of Science and Technology (NTNU)
 //
 // BSD v3 License
 //
@@ -33,27 +32,27 @@
 package bismo
 
 import Chisel._
+import fpgatidbits.streams._
+import fpgatidbits.hlstools.TemplatedHLSBlackBox
 
-object BISMOLimits {
-  val cnvImgSizeBits = 8
-  val cnvKernelSizeBits = 4
-  val cnvStrideBits = 4
-  val fetchIDBits = 5
-  val fetchBurstBeats = 8
-  val inpBufAddrBits = 16
-  val dramAddrBits = 32
-  val dramBlockSizeBits = 16
-  val dramBlockCountBits = 16
-  val maxShift = 16
-  val maxShiftBits = log2Up(maxShift+1)
-  val resAddrBits = 1
-  val instrBits = 128
-  val ifgBits = 32
-  val maxBufRegions = 8
-  val maxBufRegionBits = log2Up(maxBufRegions)
-  val maxRepBits = 16
-  val descrBits = 208
-  val swuDescrInBits = inpBufAddrBits + cnvImgSizeBits + cnvKernelSizeBits + cnvStrideBits
-  val swuDescrOutBits = inpBufAddrBits
-  val numStages = 3
+// TODO: the params in SlidingWindowUnitHeader should really be template params
+class SlidingWindowUnit extends TemplatedHLSBlackBox {
+  val io = new Bundle {
+    val strm_in = Decoupled(UInt(width = BISMOLimits.swuDescrInBits)).flip
+    val strm_out = Decoupled(UInt(width = BISMOLimits.swuDescrOutBits))
+    val rst_n = Bool(INPUT)
+    in.bits.setName("strm_in_V_V_TDATA")
+    in.valid.setName("strm_in_V_V_TVALID")
+    in.ready.setName("strm_in_V_V_TREADY")
+    out.bits.setName("strm_out_V_V_TDATA")
+    out.valid.setName("strm_out_V_V_TVALID")
+    out.ready.setName("strm_out_V_V_TREADY")
+    rst_n.setName("ap_rst_n")
+  }
+  // clock needs to be added manually to BlackBox
+	addClock(Driver.implicitClock)
+  renameClock("clk", "ap_clk")
+
+  // no template args
+  val hlsTemplateParams: Map[String, String] = Map()
 }
