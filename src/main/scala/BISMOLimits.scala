@@ -38,6 +38,7 @@ object BISMOLimits {
   val cnvImgSizeBits = 8
   val cnvKernelSizeBits = 4
   val cnvStrideBits = 4
+  val cnvPadBits = 4
   val fetchIDBits = 5
   val fetchBurstBeats = 8
   val inpBufAddrBits = 16

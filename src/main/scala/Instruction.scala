@@ -81,7 +81,7 @@ class BISMOFetchRunInstruction extends PrintableBundle {
 
 class BISMOExecRunInstruction extends PrintableBundle {
   val runcfg = new ExecStageCtrlIO()
-  val unused = UInt(width = 51)
+  val unused = UInt(width = 47)
   // always true
   val isRunCfg = Bool()
   // always stgExec

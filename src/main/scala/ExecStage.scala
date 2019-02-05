@@ -130,6 +130,7 @@ class ExecStageCtrlIO() extends PrintableBundle {
   val cnvKernelSize = UInt(width = BISMOLimits.cnvStrideBits)
   val cnvImgSize = UInt(width = BISMOLimits.cnvImgSizeBits)
   val cnvAddrGenMode = Bool()
+  val cnvPad = UInt(width = BISMOLimits.cnvPadBits)
 
   override def cloneType: this.type =
     new ExecStageCtrlIO().asInstanceOf[this.type]

@@ -129,7 +129,8 @@ struct BISMOFetchRunInstruction {
 struct BISMOExecRunInstruction {
   ap_uint<2> targetStage;
   ap_uint<1> isRunCfg;
-  ap_uint<51> unused0;
+  ap_uint<47> unused0;
+  ap_uint<4> cnvPad;
   ap_uint<1> cnvAddrGenMode;
   ap_uint<8> cnvImgSize;
   ap_uint<4> cnvKernelSize;
@@ -147,7 +148,8 @@ struct BISMOExecRunInstruction {
     ap_uint<BISMO_INSTR_BITS> ret = 0;
     ret(1, 0) = targetStage;
     ret(2, 2) = isRunCfg;
-    ret(53, 3) = unused0;
+    ret(49, 3) = unused0;
+    ret(53, 50) = cnvPad;
     ret(54, 54) = cnvAddrGenMode;
     ret(62, 55) = cnvImgSize;
     ret(66, 63) = cnvKernelSize;
@@ -166,7 +168,8 @@ struct BISMOExecRunInstruction {
   void fromRaw(ap_uint<BISMO_INSTR_BITS> ret) {
     targetStage = ret(1, 0);
     isRunCfg = ret(2, 2);
-    unused0 = ret(53, 3);
+    unused0 = ret(49, 3);
+    cnvPad = ret(53, 50);
     cnvAddrGenMode = ret(54, 54);
     cnvImgSize = ret(62, 55);
     cnvKernelSize = ret(66, 63);
