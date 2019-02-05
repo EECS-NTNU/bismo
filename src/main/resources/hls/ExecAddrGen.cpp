@@ -95,11 +95,11 @@ void ExecAddrGen_Templated(
     addr.lhsAddr = ins.lhsOffset;
     addr.rhsAddr = ins.rhsOffset;
     // use sequential access mode for both memories
-    for(ap_uint<16> i = 0; i < numTiles; i += ADDR_UNIT) {
+    for(ap_uint<16> i = 0; i < numTiles; i += 1) {
       // produce one address every cycle
       #pragma HLS PIPELINE II=1
       addr.rhsIsPadding = 0;
-      addr.last = (numTiles - i == ADDR_UNIT);
+      addr.last = (numTiles - i == 1);
       out.write(addr.asRaw());
       addr.lhsAddr += ADDR_UNIT;
       addr.rhsAddr += ADDR_UNIT;
