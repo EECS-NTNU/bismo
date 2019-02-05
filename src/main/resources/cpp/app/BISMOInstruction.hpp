@@ -187,6 +187,7 @@ struct BISMOExecRunInstruction {
   BISMOExecRunInstruction() {
     targetStage = 0;
     isRunCfg = 0;
+    cnvPad = 0;
     cnvAddrGenMode = 0;
     cnvImgSize = 0;
     cnvKernelSize = 0;
