@@ -34,6 +34,7 @@
 # *******************************************************************************/
 
 #include <ap_int.h>
+#include <ap_utils.h>
 #include <hls_stream.h>
 #include <stdint.h>
 #include "BISMOInstruction.hpp"
@@ -51,6 +52,7 @@ void ResultInstrGen_Templated(
   #pragma HLS INTERFACE ap_ctrl_none port=return
   #pragma HLS INTERFACE axis port=out
   #pragma HLS INTERFACE axis port=in
+  #pragma HLS protocol fixed
 
   BISMOResultRunInstruction res;
   BISMOSyncInstruction sync;
@@ -63,12 +65,14 @@ void ResultInstrGen_Templated(
   // read the descriptor
   SingleMMDescriptor ins_in;
   ins_in.fromRaw(in.read());
+  ap_wait();
 
   // start by acquiring buffer from execute stage
   // receive token from execute stage
   sync.isSendToken = 0;
   sync.chanID = 0;
   out.write(sync.asRaw());
+  ap_wait();
 
   const size_t bytes_per_acc = A / 8;
   const size_t bytes_per_res_tile = M * N * bytes_per_acc;
@@ -81,12 +85,14 @@ void ResultInstrGen_Templated(
   res.waitCompleteBytes = 0;
   // emit res instruction
   out.write(res.asRaw());
+  ap_wait();
 
   // signal that res buffer is now free to be recycled
   // send token to execute stage
   sync.isSendToken = 1;
   sync.chanID = 0;
   out.write(sync.asRaw());
+  ap_wait();
 
   // generate a final instruction to ensure all writes completed
   res.nop = 1;
