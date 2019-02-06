@@ -68,9 +68,9 @@ typedef struct {
   uint8_t ibits;  // bits per input
   bool wsigned;   // whether weights are signed
   bool isigned;   // whether inputs are signed
-  uint16_t M;     // rows of left-hand-side (weight) matrix
-  uint16_t K;     // common dimension (columns)
-  uint16_t N;     // rows of right-hand-side (weight) matrix
+  uint32_t M;     // rows of left-hand-side (weight) matrix
+  uint32_t K;     // common dimension (columns)
+  uint32_t N;     // rows of right-hand-side (weight) matrix
   // note that the right-hand-side matrix is assumed transposed
 } MatMulLayerDescriptor;
 
