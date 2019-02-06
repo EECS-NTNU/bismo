@@ -51,7 +51,6 @@ void init() {
   // will switch to descriptors when the correct generators are impl'd
   acc->init_resource_pools();
   acc->useDirectInstructionFeed();
-  acc->print_hwcfg_summary();
   cfg = acc->hwcfg();
   // initialize OCM resource pool from hwcfg
   weightOCMBase = 0;
@@ -65,6 +64,21 @@ void init() {
 void deinit() {
   delete acc;
   deinitPlatform(platform);
+}
+
+HardwareConfig getHardwareConfig() {
+  HardwareConfig ret;
+  ret.accWidth = cfg.accWidth;
+  ret.cmdQueueEntries = cfg.cmdQueueEntries;
+  ret.dpaDimCommon = cfg.dpaDimCommon;
+  ret.dpaDimLHS = cfg.dpaDimLHS;
+  ret.dpaDimRHS = cfg.dpaDimRHS;
+  ret.lhsEntriesPerMem = cfg.lhsEntriesPerMem;
+  ret.maxShiftSteps = cfg.maxShiftSteps;
+  ret.readChanWidth = cfg.readChanWidth;
+  ret.rhsEntriesPerMem = cfg.rhsEntriesPerMem;
+  ret.writeChanWidth = cfg.writeChanWidth;
+  return ret;
 }
 
 uint32_t allocWeightOCM(size_t nbytes) {
@@ -377,7 +391,7 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   // (see exec_to_fetch_width_ratio in BitSerialMatMulExecutor)
   assert(cfg.dpaDimCommon == cfg.readChanWidth);
   const size_t k_tiles = lhs.ncols_a / cfg.dpaDimCommon;
-  
+
   /************P2S****************/
   //Create a tmp in buff for parallel activations
   size_t nbytes_bitpar = rhs.nrows_a * rhs.ncols_a * sizeof(uint8_t);

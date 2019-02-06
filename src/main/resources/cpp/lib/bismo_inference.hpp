@@ -36,9 +36,28 @@ namespace bismo_inference {
 // how to execute
 typedef unsigned int LayerHandle;
 
+// struct with details of currently instantiated hardware config
+// copied from BitSerialMatMulAccelDriver in order not to have that as a
+// dependency
+typedef struct {
+  uint64_t accWidth;
+  uint64_t cmdQueueEntries;
+  uint64_t dpaDimCommon;
+  uint64_t dpaDimLHS;
+  uint64_t dpaDimRHS;
+  uint64_t lhsEntriesPerMem;
+  uint64_t maxShiftSteps;
+  uint64_t readChanWidth;
+  uint64_t rhsEntriesPerMem;
+  uint64_t writeChanWidth;
+} HardwareConfig;
+
 // global init/deinit for the runtime library
 void init();
 void deinit();
+
+// retrieve hardware configuration for the instance
+HardwareConfig getHardwareConfig();
 
 // descriptor structs that contain layer properties for each supported
 // layer type
