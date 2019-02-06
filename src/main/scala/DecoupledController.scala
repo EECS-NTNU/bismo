@@ -48,7 +48,7 @@ import fpgatidbits.profiler._
 // support having multiple outstanding dispatched instructions until a sync
 // instruction is encountered
 
-class DecoupedController[Ts <: Bundle, Ti <: Bundle](
+class DecoupledController[Ts <: Bundle, Ti <: Bundle](
   inChannels: Int,          // number of input sync channels
   outChannels: Int,         // number of output sync channels
   genStageO: => Ts,         // gentype for stage output
@@ -152,4 +152,38 @@ class DecoupedController[Ts <: Bundle, Ti <: Bundle](
   profiler <> io.perf
   profiler.start := io.perf.start & io.enable
   profiler.probe := regState
+}
+
+// derived classes for each type of controller.
+class FetchDecoupledController extends DecoupledController(
+  genStageO = new FetchStageCtrlIO(), inChannels = 1, outChannels = 1,
+  genInstr = new BISMOFetchRunInstruction(),
+  instr2StageO = (x: BISMOFetchRunInstruction) => x.runcfg
+){
+  /*val prevState = Reg(next=regState)
+  when(regState != prevState) {
+    printf("FetchController state: %d -> %d\n", prevState, regState)
+  }*/
+}
+
+class ExecDecoupledController extends DecoupledController(
+  genStageO = new ExecStageCtrlIO(), inChannels = 2, outChannels = 2,
+  genInstr = new BISMOExecRunInstruction(),
+  instr2StageO = (x: BISMOExecRunInstruction) => x.runcfg
+){
+  /*val prevState = Reg(next=regState)
+  when(regState != prevState) {
+    printf("ExecController state: %d -> %d\n", prevState, regState)
+  }*/
+}
+
+class ResultDecoupledController extends DecoupledController(
+  genStageO = new ResultStageCtrlIO(), inChannels = 1, outChannels = 1,
+  genInstr = new BISMOResultRunInstruction(),
+  instr2StageO = (x: BISMOResultRunInstruction) => x.runcfg
+){
+  /*val prevState = Reg(next=regState)
+  when(regState != prevState) {
+    printf("ResultController state: %d -> %d\n", prevState, regState)
+  }*/
 }
