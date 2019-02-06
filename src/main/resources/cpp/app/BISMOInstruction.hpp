@@ -311,87 +311,12 @@ struct SingleMMDescriptor {
 };
 
 #ifndef __SYNTHESIS__
-#include <iomanip>
-
+#include <iostream>
 typedef ap_uint<BISMO_INSTR_BITS> BISMOInstruction;
 #define EmptyInstruction ap_uint<BISMO_INSTR_BITS>("0", 16)
-
-ostream& operator<<(ostream& os, const BISMOSyncInstruction& dt)
-{
-    os << "sync " << (dt.isSendToken ? "send" : "receive");
-    os << " chanID="<< dt.chanID << std::endl;
-    return os;
-}
-
-ostream& operator<<(ostream& os, const BISMOFetchRunInstruction& r)
-{
-  os << "Fetch config ============================" << endl;
-  os << "bram_addr_base: " << r.bram_addr_base << endl;
-  os << "bram_id_start: " << r.bram_id_start << endl;
-  os << "bram_id_range: " << r.bram_id_range << endl;
-  os << "tiles_per_row: " << r.tiles_per_row << endl;
-  os << "dram_base: " << (uint64_t) r.dram_base << endl;
-  os << "dram_block_offset_bytes: " << r.dram_block_offset_bytes << endl;
-  os << "dram_block_size_bytes: " << r.dram_block_size_bytes << endl;
-  os << "dram_block_count: " << r.dram_block_count << endl;
-  os << "========================================" << endl;
-  return os;
-}
-
-ostream& operator<<(ostream& os, const BISMOExecRunInstruction& r)
-{
-  os << "Exec config ============================" << endl;
-  os << "lhsOffset: " << r.lhsOffset << endl;
-  os << "rhsOffset: " << r.rhsOffset << endl;
-  os << "negate: " << r.negate << endl;
-  os << "numTiles: " << r.numTiles << endl;
-  os << "shiftAmount: " << r.shiftAmount << endl;
-  os << "clear_before_first_accumulation: " << r.clear_before_first_accumulation << endl;
-  os << "writeEn: " << r.writeEn << endl;
-  os << "writeAddr: " << r.writeAddr << endl;
-  os << "========================================" << endl;
-}
-
-ostream& operator<<(ostream& os, const BISMOResultRunInstruction& r)
-{
-  os << "Result config ============================" << endl;
-  os << "dram_base: " << r.dram_base << endl;
-  os << "dram_skip: " << r.dram_skip << endl;
-  os << "resmem_addr: " << r.resmem_addr << endl;
-  os << "nop: " << r.nop << endl;
-  os << "waitCompleteBytes: " << r.waitCompleteBytes << endl;
-  os << "========================================" << endl;
-}
-
-
-ostream& operator<<(ostream& os, const BISMOInstruction& dt)
-{
-    /*os << dt << endl;
-    os.fill('0');*/
-    os << "raw " << dt.to_string(16) << std::endl;
-    BISMOSyncInstruction sync;
-    sync.fromRaw(dt);
-    os << "targetStage " << sync.targetStage << " runcfg? " << sync.isRunCfg << std::endl;
-    if(sync.isRunCfg == 0) {
-      os << sync;
-    } else {
-      if(sync.targetStage == 0) {
-        BISMOFetchRunInstruction fetch;
-        fetch.fromRaw(dt);
-        os << fetch;
-      } else if(sync.targetStage == 1) {
-        BISMOExecRunInstruction exec;
-        exec.fromRaw(dt);
-        os << exec;
-      } else if(sync.targetStage == 2) {
-        BISMOResultRunInstruction res;
-        res.fromRaw(dt);
-        os << res;
-      } else {
-        os << "illegal target stage";
-      }
-    }
-    return os;
-}
-
+std::ostream& operator<<(std::ostream& os, const BISMOSyncInstruction& dt);
+std::ostream& operator<<(std::ostream& os, const BISMOFetchRunInstruction& r);
+std::ostream& operator<<(std::ostream& os, const BISMOExecRunInstruction& r);
+std::ostream& operator<<(std::ostream& os, const BISMOResultRunInstruction& r);
+std::ostream& operator<<(std::ostream& os, const BISMOInstruction& dt);
 #endif
