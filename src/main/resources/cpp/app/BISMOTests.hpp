@@ -31,6 +31,7 @@
 
 #include <cstring>
 #include <string>
+#include <algorithm>
 #include <iostream>
 #include <vector>
 using namespace std;
@@ -97,12 +98,13 @@ bool test(
 bool test_binary_onchip_onetile(bismo_inference::HardwareConfig hwcfg) {
   bool all_OK = true;
   vector<size_t> cols_div_factor {2, 4, 8};
+  const size_t memsize = min(hwcfg.lhsEntriesPerMem, hwcfg.rhsEntriesPerMem);
 
   for(auto & col_div : cols_div_factor) {
     all_OK &= test(
       "binary_onchip_onetile_coldiv" + to_string(col_div),
       hwcfg.dpaDimLHS, hwcfg.dpaDimRHS,
-      hwcfg.dpaDimCommon * hwcfg.lhsEntriesPerMem / col_div
+      hwcfg.dpaDimCommon * memsize / col_div
     );
   }
 
@@ -111,8 +113,8 @@ bool test_binary_onchip_onetile(bismo_inference::HardwareConfig hwcfg) {
 
 bool test_multibit_onchip_onetile(bismo_inference::HardwareConfig hwcfg) {
   bool all_OK = true;
-  vector<size_t> bits {2, 3};
-  const size_t memsize = hwcfg.lhsEntriesPerMem;
+  vector<size_t> bits {2, 4};
+  const size_t memsize = min(hwcfg.lhsEntriesPerMem, hwcfg.rhsEntriesPerMem);
   for(auto & lbits: bits) {
     for(auto & rbits: bits) {
       all_OK &= test(
