@@ -39,13 +39,6 @@ class ExecAddrGenParams(
   val addrUnit: Int
 )
 
-class ExecAddrGenOutput extends Bundle {
-  val lhsAddr = UInt(width = 16)
-  val rhsAddr = UInt(width = 16)
-  val rhsIsPadding = UInt(width = 1)
-  val last = UInt(width = 1)
-}
-
 class ExecAddrGen(val p: ExecAddrGenParams) extends TemplatedHLSBlackBox {
   val io = new Bundle {
     val in = Decoupled(UInt(width = BISMOLimits.descrBits)).flip

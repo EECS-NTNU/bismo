@@ -192,18 +192,6 @@ class ExecStage(val myP: ExecStageParams) extends Module {
   io.cfg.config_rhs_mem := UInt(myP.rhsTileMem)
   // the actual compute array
   val dpa = Module(new DotProductArray(myP.dpaParams)).io
-
-  val addrgen = Module(new ExecAddrGen(new ExecAddrGenParams(
-    addrUnit = myP.tileMemAddrUnit
-  ))).io
-  // wire up reset differently (Vivado HLS BlackBox)
-  addrgen.rst_n := !this.reset
-  addrgen.in.bits := io.cfg.toBits()
-  addrgen.in.valid := Bool(false)
-  addrgen.out.ready := Bool(false)
-
-  // TODO add FSM for control signal manipulation here
-
   // instantiate sequence generator for BRAM addressing
   // the tile mem is addressed in terms of the narrowest access
   val tileAddrBits = log2Up(myP.tileMemAddrUnit * math.max(myP.lhsTileMem, myP.rhsTileMem))
@@ -214,13 +202,12 @@ class ExecStage(val myP: ExecStageParams) extends Module {
   seqgen.start := io.start
   // account for latency inside datapath to delay finished signal
   io.done := ShiftRegister(seqgen.finished, myP.getLatency())
-  val addrOut = new ExecAdddrGenOutput()
-  addrOut := addrOut.fromBits(io.out.bits)
 
   // wire up the generated sequence into the BRAM address ports, and returned
   // read data into the DPA inputs
   for(i <- 0 to myP.getM()-1) {
-    io.tilemem.lhs_req(i).addr := addrOut.lhsAddr
+    val adjustedLHSOffset = io.csr.lhsOffset << log2Ceil(myP.tileMemAddrUnit)
+    io.tilemem.lhs_req(i).addr := seqgen.seq.bits + adjustedLHSOffset
     io.tilemem.lhs_req(i).writeEn := Bool(false)
     dpa.a(i) := io.tilemem.lhs_rsp(i).readData
     //printf("Read data from BRAM %d = %x\n", UInt(i), io.tilemem.lhs_rsp(i).readData)
@@ -230,7 +217,8 @@ class ExecStage(val myP: ExecStageParams) extends Module {
     }*/
   }
   for(i <- 0 to myP.getN()-1) {
-    io.tilemem.rhs_req(i).addr := addrOut.rhsAddr
+    val adjustedRHSOffset = io.csr.rhsOffset << log2Ceil(myP.tileMemAddrUnit)
+    io.tilemem.rhs_req(i).addr := seqgen.seq.bits + adjustedRHSOffset
     io.tilemem.rhs_req(i).writeEn := Bool(false)
     dpa.b(i) := io.tilemem.rhs_rsp(i).readData
     /*when(seqgen.seq.valid) {
