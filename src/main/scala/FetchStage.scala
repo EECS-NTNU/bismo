@@ -367,3 +367,145 @@ class FetchStage(val myP: FetchStageParams) extends Module {
     .elsewhen(io.start & !io.done) { regCycles := regCycles + UInt(1) }
   io.perf.cycles := regCycles
 }
+
+class FetchDecoupledStage(val myP: FetchStageParams) extends Module {
+  val io = new Bundle {
+    val stage_run = Decoupled(new FetchStageCtrlIO()).flip
+    val stage_done = Valid(Bool())
+    val perf = new FetchStagePerfIO(myP)
+    val bram = new FetchStageBRAMIO(myP)
+    val dram = new FetchStageDRAMIO(myP)
+  }
+
+  /*when(io.start) {
+    printf("Fetch stage runcfg: " + current_runcfg.printfStr, current_runcfg.printfElems():_*)
+  }*/
+  // instantiate FetchGroup components
+  val reader = Module(new BlockStridedRqGen(myP.mrp, false, 0)).io
+  val routegen = Module(new FetchRouteGen(myP)).io
+  val conn = Module(new FetchInterconnect(myP)).io
+  val current_runcfg = Reg(init = io.stage_run.bits)
+
+  io.stage_run.ready := Bool(false)
+  io.stage_done.valid := Bool(false)
+  reader.in.valid := Bool(false)
+  routegen.init_new := Bool(false)
+
+  // wire up the BlockStridedRqGen
+  // outer loop
+  reader.in.bits.base := current_runcfg.dram_base
+  // bytes to jump between each block
+  reader.in.bits.block_step := current_runcfg.dram_block_offset_bytes
+  // number of blocks
+  reader.in.bits.block_count := current_runcfg.dram_block_count
+  // inner loop
+  // bytes for beat for each block
+  val bytesPerBeat = myP.mrp.dataWidth/8
+  val bytesPerBurst = BISMOLimits.fetchBurstBeats * bytesPerBeat
+  Predef.assert(isPow2(bytesPerBurst))
+  val bytesToBurstsRightShift = log2Up(bytesPerBurst)
+  reader.block_intra_step := UInt(bytesPerBurst)
+  // #beats for each block
+  reader.block_intra_count := current_runcfg.dram_block_size_bytes >> bytesToBurstsRightShift
+
+  // supply read requests to DRAM from BlockStridedRqGen
+  reader.out <> io.dram.rd_req
+  // filter read responses from DRAM and push into route generator
+  ReadRespFilter(io.dram.rd_rsp) <> routegen.in
+
+  // wire up routing info generation
+  routegen.tiles_per_row := current_runcfg.tiles_per_row
+  routegen.bram_addr_base := current_runcfg.bram_addr_base
+  routegen.bram_id_start := current_runcfg.bram_id_start
+  routegen.bram_id_range := current_runcfg.bram_id_range
+  FPGAQueue(routegen.out, 2) <> conn.in
+
+  // assign IDs to LHS and RHS memories for interconnect
+  // 0...numLHSMems are the LHS IDs
+  // numLHSMems..numLHSMems+numRHSMems-1 are the RHS IDs
+  // numLHSMems+numRHSMems are the Thr ID
+  for (i <- 0 until myP.numLHSMems) {
+    val lhs_mem_ind = i
+    val node_ind = i
+    io.bram.lhs_req(lhs_mem_ind) := conn.node_out(node_ind)
+    println(s"LHS $lhs_mem_ind assigned to node# $node_ind")
+  }
+  for(i <- 0 until myP.numRHSMems) {
+    val rhs_mem_ind = i
+    val node_ind = myP.numLHSMems + i
+    io.bram.rhs_req(rhs_mem_ind) := conn.node_out(node_ind)
+    println(s"RHS $rhs_mem_ind assigned to node# $node_ind")
+  }
+
+  // count responses to determine done
+  val regBlockBytesReceived = Reg(init = UInt(0, 32))
+  val regBlocksReceived = Reg(init = UInt(0, 32))
+  val regBlockBytesAlmostFinished = Reg(init = UInt(0, 32))
+
+  val sGetCmd :: sGenReq :: sWaitTransfer :: sWaitInterconnect :: Nil = Enum(UInt(), 4)
+  val regState = Reg(init = UInt(sGetCmd))
+  val regWaitInterconnect = Reg(init = UInt(0, width = 8))
+
+  // performance counters
+  // clock cycles from start to done
+  val regCycles = Reg(outType = UInt(width = 32))
+  when(regState === sGetCmd) {
+    regCycles := UInt(0)
+  } .otherwise {
+    regCycles := regCycles + UInt(1)
+  }
+  io.perf.cycles := regCycles
+
+  /*val prevState = Reg(next=regState)
+  when(regState != prevState) {
+    printf("FetchStage internal state: %d -> %d\n", prevState, regState)
+  }*/
+
+  switch(regState) {
+    is(sGetCmd) {
+      io.stage_run.ready := Bool(true)
+      when(io.stage_run.valid) {
+        current_runcfg := io.stage_run.bits
+        regState := sGenReq
+        regBlockBytesReceived := UInt(0)
+        regBlocksReceived := UInt(0)
+        regWaitInterconnect := UInt(0)
+        regBlockBytesAlmostFinished := io.stage_run.bits.dram_block_size_bytes - UInt(bytesPerBeat)
+      }
+    }
+    is(sGenReq) {
+      reader.in.valid := Bool(true)
+      when(reader.in.ready) {
+        regState := sWaitTransfer
+        // prepare routegen for a new transaction
+        routegen.init_new := Bool(true)
+      }
+    }
+    is(sWaitTransfer) {
+      // wait for DMA engine to finish data transfer
+      when(regBlocksReceived === current_runcfg.dram_block_count) {
+        regState := sWaitInterconnect
+      } .otherwise {
+        when(routegen.in.fire()) {
+          // count responses
+          when(regBlockBytesReceived === regBlockBytesAlmostFinished) {
+            regBlockBytesReceived := UInt(0)
+            regBlocksReceived := regBlocksReceived + UInt(1)
+          }.otherwise {
+            regBlockBytesReceived := regBlockBytesReceived + UInt(bytesPerBeat)
+          }
+        }
+      }
+    }
+    is(sWaitInterconnect) {
+      // wait for the final data packet to travel through FetchInterconnect
+      when(regWaitInterconnect === UInt(myP.getDMAtoBRAMLatency()-1)) {
+        // emit done signal and back to sGetCmd
+        io.stage_done.valid := Bool(true)
+        regState := sGetCmd
+      } .otherwise {
+        regWaitInterconnect := regWaitInterconnect + UInt(1)
+      }
+    }
+  }
+}

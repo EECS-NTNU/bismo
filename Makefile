@@ -141,6 +141,7 @@ $(BUILD_DIR_EMU)/verilator-build.sh:
 # generate emulator executable including software sources
 emu: $(BUILD_DIR_EMU)/verilator-build.sh
 	cp -r $(APP_SRC_DIR)/* $(BUILD_DIR_EMU)/;
+	cp -r $(INFLIB_SRC_DIR)/* $(BUILD_DIR_EMU)/; \
 	cd $(BUILD_DIR_EMU); sh verilator-build.sh -I$(HLS_SIM_INCL); mv VerilatedTesterWrapper emu; ./emu
 
 # generate dynamic lib for inference, emulated hardware

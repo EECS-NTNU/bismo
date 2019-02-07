@@ -233,12 +233,12 @@ class BitSerialMatMulAccel(
   }
   io.hw := myP.asHWCfgBundle(32)
   // instantiate accelerator stages
-  val fetchStage = Module(new FetchStage(myP.fetchStageParams)).io
-  val execStage = Module(new ExecStage(myP.execStageParams)).io
+  val fetchStage = Module(new FetchDecoupledStage(myP.fetchStageParams)).io
+  val execStage = Module(new ExecDecoupledStage(myP.execStageParams)).io
   val resultStage = Module(new ResultStage(myP.resultStageParams)).io
   // instantiate the controllers for each stage
-  val fetchCtrl = Module(new FetchController()).io
-  val execCtrl = Module(new ExecController()).io
+  val fetchCtrl = Module(new FetchDecoupledController()).io
+  val execCtrl = Module(new ExecDecoupledController()).io
   val resultCtrl = Module(new ResultController()).io
   // instantiate op queues
   val fetchOpQ = Module(new FPGAQueue(new BISMOFetchRunInstruction(), myP.cmdQueueEntries)).io
@@ -361,13 +361,11 @@ class BitSerialMatMulAccel(
   resultOpQ.deq <> resultCtrl.op
 
   // wire-up: fetch controller and stage
-  fetchStage.start := fetchCtrl.start
-  fetchCtrl.done := fetchStage.done
-  fetchStage.csr := fetchCtrl.stageO
+  fetchCtrl.stage_run <> fetchStage.stage_run
+  fetchStage.stage_done <> fetchCtrl.stage_done
   // wire-up: exec controller and stage
-  execStage.start := execCtrl.start
-  execCtrl.done := execStage.done
-  execStage.csr := execCtrl.stageO
+  execCtrl.stage_run <> execStage.stage_run
+  execStage.stage_done <> execCtrl.stage_done
   // wire-up: result controller and stage
   resultStage.start := resultCtrl.start
   resultCtrl.done := resultStage.done

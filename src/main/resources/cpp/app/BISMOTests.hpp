@@ -31,59 +31,62 @@
 
 #include <cstring>
 #include <string>
+#include <algorithm>
 #include <iostream>
 #include <vector>
 using namespace std;
-#include "BitSerialMatMulAccelDriver.hpp"
-#include "BitSerialMatMulExecutor.hpp"
 #include "gemmbitserial/test/testhelpers.hpp"
-
-using namespace gemmbitserial;
+#include "gemmbitserial/gemmbitserial.hpp"
+#include "bismo_inference.hpp"
 
 // BISMO top-level tests
 
 bool test(
   string testName,
-  WrapperRegDriver * platform, BitSerialMatMulAccelDriver * acc,
   size_t nrows_lhs, size_t nrows_rhs, size_t ncols, size_t nbits_lhs = 1,
   size_t nbits_rhs = 1, bool sgn_lhs = false, bool sgn_rhs = false
 ) {
   uint8_t * lhs = new uint8_t[nrows_lhs * ncols];
   uint8_t * rhs = new uint8_t[nrows_rhs * ncols];
-  generateRandomVector(nbits_lhs, nrows_lhs*ncols, lhs);
-  generateRandomVector(nbits_rhs, nrows_rhs*ncols, rhs);
-  GEMMContext ctx = acc->allocGEMMContext(
+  gemmbitserial::generateRandomVector(nbits_lhs, nrows_lhs*ncols, lhs);
+  gemmbitserial::generateRandomVector(nbits_rhs, nrows_rhs*ncols, rhs);
+  gemmbitserial::GEMMContext ctx = gemmbitserial::allocGEMMContext(
     nrows_lhs, ncols, nrows_rhs, nbits_lhs, nbits_rhs, sgn_lhs, sgn_rhs
   );
   cout << "Starting test: " << testName << endl;
   ctx.lhs.importRegular(lhs);
   ctx.rhs.importRegular(rhs);
-  gemmBitSerial(ctx);
+  gemmbitserial::gemmBitSerial(ctx);
+  cout << testName << ": " << nrows_lhs << "x" << ncols << "x" << nrows_rhs;
+  cout << " " << nbits_lhs << "bx" << nbits_rhs << "b" << endl;
+
+  bismo_inference::MatMulLayerDescriptor dscr;
+  dscr.wbits = nbits_lhs;
+  dscr.ibits = nbits_rhs;
+  dscr.wsigned = sgn_lhs;
+  dscr.isigned = sgn_rhs;
+  dscr.M = nrows_lhs;
+  dscr.K = ncols;
+  dscr.N = nrows_rhs;
+  bismo_inference::init();
+  bismo_inference::LayerHandle id = bismo_inference::initMatMulLayer(dscr, lhs);
   int32_t * accel_res = new int32_t[nrows_lhs*nrows_rhs];
+  bismo_inference::execMatMulLayer(id, rhs, accel_res);
+  bismo_inference::deinit();
 
-  BitSerialMatMulExecutor * runner = new BitSerialMatMulExecutor(
-    ctx, acc, platform
-  );
-  runner->setLHS(ctx.lhs);
-  runner->setRHS(ctx.rhs);
-  runner->run();
-  runner->getRes(accel_res);
-
-  int res = memcmp(ctx.res, accel_res, nrows_lhs*nrows_rhs*sizeof(ResultType));
+  int res = memcmp(ctx.res, accel_res, nrows_lhs*nrows_rhs*sizeof(int32_t));
 
   if(res == 0) {
     cout << "Test succeeded (" << testName << ")" << endl;
-    runner->printPerfSummary();
-    runner->printPerfDetails();
+    //runner->printPerfSummary();
+    //runner->printPerfDetails();
   } else {
     cout << "Test failed (" << testName << ")" << endl;
     cout << "Expected: " << endl;
-    printmatrix(ctx.res, nrows_rhs, nrows_lhs);
+    gemmbitserial::printmatrix(ctx.res, nrows_rhs, nrows_lhs);
     cout << "Produced: " << endl;
-    printmatrix(accel_res, nrows_rhs, nrows_lhs);
+    gemmbitserial::printmatrix(accel_res, nrows_rhs, nrows_lhs);
   }
-
-  delete runner;
 
   delete [] lhs;
   delete [] rhs;
@@ -92,35 +95,32 @@ bool test(
   return res == 0;
 }
 
-bool test_binary_onchip_onetile(
-  WrapperRegDriver * platform, BitSerialMatMulAccelDriver * acc
-) {
+bool test_binary_onchip_onetile(bismo_inference::HardwareConfig hwcfg) {
   bool all_OK = true;
   vector<size_t> cols_div_factor {2, 4, 8};
+  const size_t memsize = min(hwcfg.lhsEntriesPerMem, hwcfg.rhsEntriesPerMem);
+
   for(auto & col_div : cols_div_factor) {
     all_OK &= test(
-      "binary_onchip_onetile_coldiv" + to_string(col_div), platform, acc,
-      acc->hwcfg().dpaDimLHS, acc->hwcfg().dpaDimRHS,
-      acc->hwcfg().dpaDimCommon * acc->hwcfg().lhsEntriesPerMem / col_div
+      "binary_onchip_onetile_coldiv" + to_string(col_div),
+      hwcfg.dpaDimLHS, hwcfg.dpaDimRHS,
+      hwcfg.dpaDimCommon * memsize / col_div
     );
   }
 
   return all_OK;
 }
 
-bool test_multibit_onchip_onetile(
-  WrapperRegDriver * platform, BitSerialMatMulAccelDriver * acc
-) {
+bool test_multibit_onchip_onetile(bismo_inference::HardwareConfig hwcfg) {
   bool all_OK = true;
-  vector<size_t> bits {2, 3};
-  const size_t memsize = acc->hwcfg().lhsEntriesPerMem;
+  vector<size_t> bits {2, 4};
+  const size_t memsize = min(hwcfg.lhsEntriesPerMem, hwcfg.rhsEntriesPerMem);
   for(auto & lbits: bits) {
     for(auto & rbits: bits) {
       all_OK &= test(
         "multibit_onchip_onetile_" + to_string(lbits) + "bx" + to_string(rbits) + "b",
-        platform, acc,
-        acc->hwcfg().dpaDimLHS, acc->hwcfg().dpaDimRHS,
-        acc->hwcfg().dpaDimCommon * memsize / (lbits * rbits * 2),
+        hwcfg.dpaDimLHS, hwcfg.dpaDimRHS,
+        hwcfg.dpaDimCommon * memsize / (lbits * rbits * 2),
         lbits, rbits
       );
     }
@@ -129,75 +129,65 @@ bool test_multibit_onchip_onetile(
   return all_OK;
 }
 
-bool test_binary_size_independent(
-  WrapperRegDriver * platform, BitSerialMatMulAccelDriver * acc
-) {
+bool test_binary_size_independent(bismo_inference::HardwareConfig hwcfg) {
   bool all_OK = true;
   all_OK &= test(
-    "binary_size_independent_",
-    platform, acc,
-    17, 7, 11
+    "binary_size_independent_", 17, 7, 11
   );
 
   return all_OK;
 }
 
-bool test_binary_onchip_multitile(
-  WrapperRegDriver * platform, BitSerialMatMulAccelDriver * acc
-) {
+bool test_binary_onchip_multitile(bismo_inference::HardwareConfig hwcfg) {
   bool all_OK = true;
   vector<size_t> stripes {2, /*3,*/ 4};
   for(auto & lhs_stripes : stripes) {
     for(auto & rhs_stripes : stripes) {
-      size_t ncols = acc->hwcfg().dpaDimCommon*acc->hwcfg().lhsEntriesPerMem / (lhs_stripes*rhs_stripes);
-      size_t nrows_lhs = lhs_stripes*acc->hwcfg().dpaDimLHS;
-      size_t nrows_rhs = rhs_stripes*acc->hwcfg().dpaDimRHS;
+      size_t ncols = hwcfg.dpaDimCommon*hwcfg.lhsEntriesPerMem / (lhs_stripes*rhs_stripes);
+      size_t nrows_lhs = lhs_stripes*hwcfg.dpaDimLHS;
+      size_t nrows_rhs = rhs_stripes*hwcfg.dpaDimRHS;
       all_OK &= test(
         "binary_onchip_multitile_" +
         to_string(nrows_lhs) + "x" + to_string(ncols) + "x"+ to_string(nrows_rhs),
-        platform, acc, nrows_lhs, nrows_rhs, ncols
+        nrows_lhs, nrows_rhs, ncols
       );
     }
   }
   return all_OK;
 }
 
-bool test_binary_offchip_multitile(
-  WrapperRegDriver * platform, BitSerialMatMulAccelDriver * acc
-) {
+bool test_binary_offchip_multitile(bismo_inference::HardwareConfig hwcfg) {
   bool all_OK = true;
   vector<size_t> stripes {2, /*3,*/ 4};
   for(auto & lhs_stripes : stripes) {
     for(auto & rhs_stripes : stripes) {
-      size_t ncols = acc->hwcfg().dpaDimCommon*acc->hwcfg().lhsEntriesPerMem;
-      size_t nrows_lhs = lhs_stripes*acc->hwcfg().dpaDimLHS;
-      size_t nrows_rhs = rhs_stripes*acc->hwcfg().dpaDimRHS;
+      size_t ncols = hwcfg.dpaDimCommon*hwcfg.lhsEntriesPerMem;
+      size_t nrows_lhs = lhs_stripes*hwcfg.dpaDimLHS;
+      size_t nrows_rhs = rhs_stripes*hwcfg.dpaDimRHS;
       all_OK &= test(
         "binary_offchip_multitile_" +
         to_string(nrows_lhs) + "x" + to_string(ncols) + "x"+ to_string(nrows_rhs),
-        platform, acc, nrows_lhs, nrows_rhs, ncols
+        nrows_lhs, nrows_rhs, ncols
       );
     }
   }
   return all_OK;
 }
 
-bool test_binary_offchip_widerows_multitile(
-  WrapperRegDriver * platform, BitSerialMatMulAccelDriver * acc
-) {
+bool test_binary_offchip_widerows_multitile(bismo_inference::HardwareConfig hwcfg) {
   bool all_OK = true;
   vector<size_t> lr_stripes {1, 2, 4};
   vector<size_t> z_stripes {2, 4};
   for(auto & lhs_stripe : lr_stripes) {
     for(auto & rhs_stripe : lr_stripes) {
       for(auto & z_stripe : z_stripes) {
-        size_t ncols = acc->hwcfg().dpaDimCommon*acc->hwcfg().lhsEntriesPerMem*z_stripe;
-        size_t nrows_lhs = lhs_stripe*acc->hwcfg().dpaDimLHS;
-        size_t nrows_rhs = rhs_stripe*acc->hwcfg().dpaDimRHS;
+        size_t ncols = hwcfg.dpaDimCommon*hwcfg.lhsEntriesPerMem*z_stripe;
+        size_t nrows_lhs = lhs_stripe*hwcfg.dpaDimLHS;
+        size_t nrows_rhs = rhs_stripe*hwcfg.dpaDimRHS;
         all_OK &= test(
           "test_binary_offchip_widerows_multitile_" +
           to_string(nrows_lhs) + "x" + to_string(ncols) + "x"+ to_string(nrows_rhs),
-          platform, acc, nrows_lhs, nrows_rhs, ncols
+          nrows_lhs, nrows_rhs, ncols
         );
       }
     }

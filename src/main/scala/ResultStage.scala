@@ -238,3 +238,129 @@ class ResultStage(val myP: ResultStageParams) extends Module {
     printf("Write data: %x\n", io.dram.wr_dat.bits)
   }*/
 }
+
+class ResultDecoupledStage(val myP: ResultStageParams) extends Module {
+  val io = new Bundle {
+    val stage_run = Decoupled(new ResultStageCtrlIO()).flip
+    val stage_done = Valid(Bool())
+    val dram = new ResultStageDRAMIO(myP)
+    // interface towards result memory
+    val resmem_req = Vec.fill(myP.dpa_lhs) {
+      Vec.fill(myP.dpa_rhs) {
+        new OCMRequest(myP.accWidth, log2Up(myP.resEntriesPerMem)).asOutput
+      }
+    }
+    val resmem_rsp = Vec.fill(myP.dpa_lhs) {
+      Vec.fill(myP.dpa_rhs) {
+        new OCMResponse(myP.accWidth).asInput
+      }
+    }
+  }
+  // TODO add burst support, single beat for now
+  val bytesPerBeat: Int = myP.mrp.dataWidth / 8
+
+  // instantiate downsizer
+  val ds = Module(new StreamResizer(
+    inWidth = myP.getTotalAccBits(), outWidth = myP.mrp.dataWidth)).io
+  // instantiate request generator
+  val rg = Module(new BlockStridedRqGen(
+    mrp = myP.mrp, writeEn = true)).io
+  val regCurrentCmd = Reg(init = io.stage_run.bits)
+
+  io.stage_run.ready := Bool(false)
+  io.stage_done.valid := Bool(false)
+  ds.in.valid := Bool(false)
+
+  // wire up resmem_req
+  for {
+    i ← 0 until myP.dpa_lhs
+    j ← 0 until myP.dpa_rhs
+  } {
+    io.resmem_req(i)(j).addr := regCurrentCmd.resmem_addr
+    io.resmem_req(i)(j).writeEn := Bool(false)
+  }
+
+  // wire up downsizer
+  val accseq = for {
+    j ← 0 until myP.getNumRows()
+    i ← 0 until myP.dpa_lhs
+  } yield io.resmem_rsp(i)(j).readData
+  val allacc = Cat(accseq.reverse)
+  ds.in.bits := allacc
+
+  FPGAQueue(ds.out, 256) <> io.dram.wr_dat
+
+  // wire up request generator
+  rg.in.valid := Bool(false)
+  rg.in.bits.base := regCurrentCmd.dram_base
+  rg.in.bits.block_step := regCurrentCmd.dram_skip
+  rg.in.bits.block_count := UInt(myP.getNumRows())
+  // TODO fix if we introduce bursts here
+  rg.block_intra_step := UInt(bytesPerBeat)
+  rg.block_intra_count := UInt(myP.getRowAccBits() / (8 * bytesPerBeat))
+  rg.out <> io.dram.wr_req
+
+  // completion detection logic
+  val regOutstandingWrBytes = Reg(init = UInt(0, 32))
+  io.dram.wr_rsp.ready := Bool(true)
+  when(!io.dram.wr_req.fire() && io.dram.wr_rsp.fire()) {
+    regOutstandingWrBytes := regOutstandingWrBytes - UInt(bytesPerBeat)
+  } .elsewhen(io.dram.wr_req.fire() && !io.dram.wr_rsp.fire()) {
+    regOutstandingWrBytes := regOutstandingWrBytes + UInt(bytesPerBeat)
+  }
+
+  // FSM logic for control
+  val sIdle :: sRun :: sWaitDS :: sWaitRG :: sFinished :: Nil = Enum(UInt(), 5)
+  val regState = Reg(init = UInt(sIdle))
+
+  switch(regState) {
+      is(sIdle) {
+        io.stage_run.ready := Bool(true)
+        when(io.stage_run.valid) {
+          regCurrentCmd := io.stage_run.bits
+          regState := Mux(io.stage_run.bits.nop, sFinished, sRun)
+        }
+      }
+
+      is(sRun) {
+        ds.in.valid := Bool(true)
+        rg.in.valid := Bool(true)
+        when(ds.in.ready & !rg.in.ready) {
+          regState := sWaitRG
+        } .elsewhen (!ds.in.ready & rg.in.ready) {
+          regState := sWaitDS
+        } .elsewhen (ds.in.ready & rg.in.ready) {
+          regState := sFinished
+        }
+      }
+
+      is(sWaitDS) {
+        // downsizer is busy but request generator is done
+        ds.in.valid := Bool(true)
+        when(ds.in.ready) { regState := sFinished }
+      }
+
+      is(sWaitRG) {
+        // downsizer is done but request generator busy
+        rg.in.valid := Bool(true)
+        when(rg.in.ready) { regState := sFinished }
+      }
+
+      is(sFinished) {
+        when(regCurrentCmd.waitCompleteBytes > UInt(0) && regOutstandingWrBytes > UInt(0)) {
+          // wait until all writes are completed, stay in this state
+          regState := sFinished
+        } .otherwise {
+          // signal to controller that instruction is finished
+          io.stage_done.valid := Bool(true)
+          regState := sIdle
+        }
+      }
+  }
+  // debug:
+  // uncomment to print issued write requests and data in emulation
+  //PrintableBundleStreamMonitor(io.dram.wr_req, Bool(true), "wr_req", true)
+  /*when(io.dram.wr_dat.fire()) {
+    printf("Write data: %x\n", io.dram.wr_dat.bits)
+  }*/
+}
