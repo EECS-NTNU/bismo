@@ -61,7 +61,7 @@ class DecoupledController[Ts <: Bundle, Ti <: Bundle](
     // enable/disable execution of new instructions for this stage
     val enable = Bool(INPUT)
     // run instructions to stage
-    val stage_run = Decoupled(genInstr)
+    val stage_run = Decoupled(genStageO)
     // completed run instructions from stage
     val stage_done = Decoupled(Bool()).flip
     // synchronization channels
