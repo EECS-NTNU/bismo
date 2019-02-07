@@ -56,10 +56,10 @@ struct ExecAddr {
   }
 
   void fromRaw(ap_uint<BISMO_EXECADDRSTRUCT_BITS> raw) {
-    lhsAddr = ret(15, 0);
-    rhsAddr = ret(31, 16);
-    rhsIsPadding = ret(32, 32);
-    last = ret(33, 33);
+    lhsAddr = raw(15, 0);
+    rhsAddr = raw(31, 16);
+    rhsIsPadding = raw(32, 32);
+    last = raw(33, 33);
   }
 
   ExecAddr() {
@@ -95,11 +95,11 @@ void ExecAddrGen_Templated(
     addr.lhsAddr = ins.lhsOffset;
     addr.rhsAddr = ins.rhsOffset;
     // use sequential access mode for both memories
-    for(ap_uint<16> i = 0; i < numTiles; i += 1) {
+    for(ap_uint<16> i = 0; i < ins.numTiles; i += 1) {
       // produce one address every cycle
       #pragma HLS PIPELINE II=1
       addr.rhsIsPadding = 0;
-      addr.last = (numTiles - i == 1);
+      addr.last = (ins.numTiles - i == 1);
       out.write(addr.asRaw());
       addr.lhsAddr += ADDR_UNIT;
       addr.rhsAddr += ADDR_UNIT;
