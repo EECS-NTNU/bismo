@@ -280,7 +280,7 @@ class ExecStage(val myP: ExecStageParams) extends Module {
 class ExecDecoupledStage(val myP: ExecStageParams) extends Module {
   val io = new Bundle {
     val stage_run = Decoupled(new ExecStageCtrlIO()).flip
-    val stage_done = Decoupled(Bool())
+    val stage_done = Valid(Bool())
     val cfg = new ExecStageCfgIO()
     val tilemem = new ExecStageTileMemIO(myP)
     val res = new ExecStageResMemIO(myP)
@@ -307,8 +307,6 @@ class ExecDecoupledStage(val myP: ExecStageParams) extends Module {
   seqgen.init := UInt(0)
   seqgen.count := regCurrentCmd.numTiles
   seqgen.step := UInt(myP.tileMemAddrUnit)
-
-
 
   // wire up the generated sequence into the BRAM address ports, and returned
   // read data into the DPA inputs
@@ -379,7 +377,7 @@ class ExecDecoupledStage(val myP: ExecStageParams) extends Module {
   }
   */
 
-  val sGetCmd :: sLaunchAddrGen :: sWaitAddrGen :: sWaitDPUPipeline :: sEmitDone :: Nil = Enum(UInt(), 5)
+  val sGetCmd :: sLaunchAddrGen :: sWaitAddrGen :: sWaitDPUPipeline :: Nil = Enum(UInt(), 4)
   val regState = Reg(init = UInt(sGetCmd))
   val regWaitDPUPipeline = Reg(init = UInt(0, width = 8))
 
@@ -404,17 +402,12 @@ class ExecDecoupledStage(val myP: ExecStageParams) extends Module {
     is(sWaitDPUPipeline) {
       // wait for the final data packet to travel through the DPU pipeline
       when(regWaitDPUPipeline === UInt(myP.getLatency()-1)) {
-        regState := sEmitDone
+        // emit a done token to signal the controller that this instruction is
+        // completed
+        regState := sGetCmd
+        io.stage_done.valid := Bool(true)
       } .otherwise {
         regWaitDPUPipeline := regWaitDPUPipeline + UInt(1)
-      }
-    }
-    is(sEmitDone) {
-      // emit a done token to signal the controller that this instruction is
-      // completed
-      io.stage_done.valid := Bool(true)
-      when(io.stage_done.ready) {
-        regState := sGetCmd
       }
     }
   }

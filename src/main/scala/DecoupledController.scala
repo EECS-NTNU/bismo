@@ -63,7 +63,7 @@ class DecoupledController[Ts <: Bundle, Ti <: Bundle](
     // run instructions to stage
     val stage_run = Decoupled(genStageO)
     // completed run instructions from stage
-    val stage_done = Decoupled(Bool()).flip
+    val stage_done = Valid(Bool()).flip
     // synchronization channels
     val sync_in = Vec.fill(inChannels) { Decoupled(Bool()).flip }
     val sync_out = Vec.fill(outChannels) { Decoupled(Bool()) }
@@ -79,7 +79,6 @@ class DecoupledController[Ts <: Bundle, Ti <: Bundle](
   io.op.ready := Bool(false)
   io.stage_run.bits := instr2StageO(io.op.bits)
   io.stage_run.valid := Bool(false)
-  io.stage_done.ready := Bool(true)
   for(i <- 0 until inChannels) { io.sync_in(i).ready := Bool(false) }
   for(i <- 0 until outChannels) {
     io.sync_out(i).valid := Bool(false)

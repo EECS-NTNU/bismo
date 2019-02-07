@@ -371,7 +371,7 @@ class FetchStage(val myP: FetchStageParams) extends Module {
 class FetchDecoupledStage(val myP: FetchStageParams) extends Module {
   val io = new Bundle {
     val stage_run = Decoupled(new FetchStageCtrlIO()).flip
-    val stage_done = Decoupled(Bool())
+    val stage_done = Valid(Bool())
     val perf = new FetchStagePerfIO(myP)
     val bram = new FetchStageBRAMIO(myP)
     val dram = new FetchStageDRAMIO(myP)
@@ -442,7 +442,7 @@ class FetchDecoupledStage(val myP: FetchStageParams) extends Module {
   val regBlocksReceived = Reg(init = UInt(0, 32))
   val regBlockBytesAlmostFinished = Reg(init = UInt(0, 32))
 
-  val sGetCmd :: sGenReq :: sWaitTransfer :: sWaitInterconnect :: sEmitDone :: Nil = Enum(UInt(), 5)
+  val sGetCmd :: sGenReq :: sWaitTransfer :: sWaitInterconnect :: Nil = Enum(UInt(), 4)
   val regState = Reg(init = UInt(sGetCmd))
   val regWaitInterconnect = Reg(init = UInt(0, width = 8))
 
@@ -500,17 +500,11 @@ class FetchDecoupledStage(val myP: FetchStageParams) extends Module {
     is(sWaitInterconnect) {
       // wait for the final data packet to travel through FetchInterconnect
       when(regWaitInterconnect === UInt(myP.getDMAtoBRAMLatency()-1)) {
-        regState := sEmitDone
+        // emit done signal and back to sGetCmd
+        io.stage_done.valid := Bool(true)
+        regState := sGetCmd
       } .otherwise {
         regWaitInterconnect := regWaitInterconnect + UInt(1)
-      }
-    }
-    is(sEmitDone) {
-      // emit a done token to signal the controller that this instruction is
-      // completed
-      io.stage_done.valid := Bool(true)
-      when(io.stage_done.ready) {
-        regState := sGetCmd
       }
     }
   }
