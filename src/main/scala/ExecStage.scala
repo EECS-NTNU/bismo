@@ -276,3 +276,146 @@ class ExecStage(val myP: ExecStageParams) extends Module {
   }
   */
 }
+
+class ExecDecoupledStage(val myP: ExecStageParams) extends Module {
+  val io = new Bundle {
+    val stage_run = Decoupled(new ExecStageCtrlIO()).flip
+    val stage_done = Decoupled(Bool())
+    val cfg = new ExecStageCfgIO()
+    val tilemem = new ExecStageTileMemIO(myP)
+    val res = new ExecStageResMemIO(myP)
+  }
+  // the actual compute array
+  val dpa = Module(new DotProductArray(myP.dpaParams)).io
+  // instantiate sequence generator for BRAM addressing
+  // the tile mem is addressed in terms of the narrowest access
+  val tileAddrBits = log2Up(myP.tileMemAddrUnit * math.max(myP.lhsTileMem, myP.rhsTileMem))
+  val seqgen = Module(new SequenceGenerator(tileAddrBits)).io
+  val regCurrentCmd = Reg(init = io.stage_run.bits)
+
+  io.stage_run.ready := Bool(false)
+  io.stage_done.valid := Bool(false)
+  seqgen.start := Bool(false)
+
+  // expose generated hardware config to software
+  io.cfg.config_dpu_x := UInt(myP.getM())
+  io.cfg.config_dpu_y := UInt(myP.getN())
+  io.cfg.config_dpu_z := UInt(myP.getK())
+  io.cfg.config_lhs_mem := UInt(myP.lhsTileMem)
+  io.cfg.config_rhs_mem := UInt(myP.rhsTileMem)
+
+  seqgen.init := UInt(0)
+  seqgen.count := regCurrentCmd.numTiles
+  seqgen.step := UInt(myP.tileMemAddrUnit)
+
+
+
+  // wire up the generated sequence into the BRAM address ports, and returned
+  // read data into the DPA inputs
+  for(i <- 0 to myP.getM()-1) {
+    val adjustedLHSOffset = regCurrentCmd.lhsOffset << log2Ceil(myP.tileMemAddrUnit)
+    io.tilemem.lhs_req(i).addr := seqgen.seq.bits + adjustedLHSOffset
+    io.tilemem.lhs_req(i).writeEn := Bool(false)
+    dpa.a(i) := io.tilemem.lhs_rsp(i).readData
+    //printf("Read data from BRAM %d = %x\n", UInt(i), io.tilemem.lhs_rsp(i).readData)
+    /*when(seqgen.seq.valid) {
+      printf("LHS BRAM %d read addr %d\n", UInt(i), io.tilemem.lhs_req(i).addr)
+      printf("Seqgen: %d offset: %d\n", seqgen.seq.bits, io.csr.lhsOffset)
+    }*/
+  }
+  for(i <- 0 to myP.getN()-1) {
+    val adjustedRHSOffset = regCurrentCmd.rhsOffset << log2Ceil(myP.tileMemAddrUnit)
+    io.tilemem.rhs_req(i).addr := seqgen.seq.bits + adjustedRHSOffset
+    io.tilemem.rhs_req(i).writeEn := Bool(false)
+    dpa.b(i) := io.tilemem.rhs_rsp(i).readData
+    /*when(seqgen.seq.valid) {
+      printf("RHS BRAM %d read addr %d\n", UInt(i), io.tilemem.rhs_req(i).addr)
+      printf("Seqgen: %d offset: %d\n", seqgen.seq.bits, io.csr.rhsOffset)
+    }*/
+  }
+  // no backpressure in current design, so always pop
+  seqgen.seq.ready := Bool(true)
+  // data to DPA is valid after read from BRAM is completed
+  val read_complete = ShiftRegister(seqgen.seq.valid, myP.getBRAMReadLatency())
+  dpa.valid := read_complete
+  dpa.shiftAmount := regCurrentCmd.shiftAmount
+  dpa.negate := regCurrentCmd.negate
+  // FIXME: this is not a great way to implement the accumulator clearing. if
+  // there is a cycle of no data from the BRAM (due to a SequenceGenerator bug
+  // or some weird timing interaction) an erronous accumulator clear may be
+  // generated here.
+  when(regCurrentCmd.clear_before_first_accumulation) {
+    // set clear_acc to 1 for the very first cycle
+    dpa.clear_acc := read_complete & !Reg(next = read_complete)
+  }.otherwise {
+    dpa.clear_acc := Bool(false)
+  }
+
+  // wire up DPA accumulators to resmem write ports
+  for {
+    i ← 0 until myP.getM()
+    j ← 0 until myP.getN()
+  } {
+    io.res.req(i)(j).writeData := dpa.out(i)(j)
+    io.res.req(i)(j).addr := regCurrentCmd.writeAddr
+    io.res.req(i)(j).writeEn := regCurrentCmd.writeEn
+  }
+  /*
+  when(io.start & !Reg(next=io.start)) {
+    printf("Now executing:\n")
+    printf(io.csr.printfStr, io.csr.printfElems():_*)
+  }
+  */
+  /*
+  when(do_write_pulse) {
+    printf("Exec stage writing into resmem %d:\n", io.csr.writeAddr)
+    for {
+      i <- 0 until myP.getM()
+      j <- 0 until myP.getN()
+    } {
+      printf("%d ", dpa.out(i)(j))
+    }
+    printf("\n")
+  }
+  */
+
+  val sGetCmd :: sLaunchAddrGen :: sWaitAddrGen :: sWaitDPUPipeline :: sEmitDone :: Nil = Enum(UInt(), 5)
+  val regState = Reg(init = UInt(sGetCmd))
+  val regWaitDPUPipeline = Reg(init = UInt(0, width = 8))
+
+  switch(regState) {
+    is(sGetCmd) {
+      io.stage_run.ready := Bool(true)
+      when(io.stage_run.valid) {
+        regCurrentCmd := io.stage_run.bits
+        regState := sLaunchAddrGen
+        regWaitDPUPipeline := UInt(0)
+      }
+    }
+    is(sLaunchAddrGen) {
+      seqgen.start := Bool(true)
+      regState := sWaitAddrGen
+    }
+    is(sWaitAddrGen) {
+      when(seqgen.finished) {
+        regState := sWaitDPUPipeline
+      }
+    }
+    is(sWaitDPUPipeline) {
+      // wait for the final data packet to travel through the DPU pipeline
+      when(regWaitDPUPipeline === UInt(myP.getLatency()-1)) {
+        regState := sEmitDone
+      } .otherwise {
+        regWaitDPUPipeline := regWaitDPUPipeline + UInt(1)
+      }
+    }
+    is(sEmitDone) {
+      // emit a done token to signal the controller that this instruction is
+      // completed
+      io.stage_done.valid := Bool(true)
+      when(io.stage_done.ready) {
+        regState := sGetCmd
+      }
+    }
+  }
+}
