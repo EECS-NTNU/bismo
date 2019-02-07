@@ -117,10 +117,11 @@ bool test_multibit_onchip_onetile(bismo_inference::HardwareConfig hwcfg) {
   const size_t memsize = min(hwcfg.lhsEntriesPerMem, hwcfg.rhsEntriesPerMem);
   for(auto & lbits: bits) {
     for(auto & rbits: bits) {
+      const size_t maxbits = max(lbits, rbits);
       all_OK &= test(
         "multibit_onchip_onetile_" + to_string(lbits) + "bx" + to_string(rbits) + "b",
         hwcfg.dpaDimLHS, hwcfg.dpaDimRHS,
-        hwcfg.dpaDimCommon * memsize / (lbits * rbits * 2),
+        hwcfg.dpaDimCommon * memsize / maxbits,
         lbits, rbits
       );
     }
