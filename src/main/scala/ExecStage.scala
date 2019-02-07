@@ -290,12 +290,43 @@ class ExecDecoupledStage(val myP: ExecStageParams) extends Module {
   // instantiate sequence generator for BRAM addressing
   // the tile mem is addressed in terms of the narrowest access
   val tileAddrBits = log2Up(myP.tileMemAddrUnit * math.max(myP.lhsTileMem, myP.rhsTileMem))
-  val seqgen = Module(new SequenceGenerator(tileAddrBits)).io
-  val regCurrentCmd = Reg(init = io.stage_run.bits)
 
-  io.stage_run.ready := Bool(false)
-  io.stage_done.valid := Bool(false)
-  seqgen.start := Bool(false)
+  // instantiate and wire up the HLS address generator
+  val addrgen_ins = new BISMOExecRunInstruction()
+  addrgen_ins.runcfg := io.stage_run.bits
+  addrgen_ins.unused := UInt(0)
+  addrgen_ins.isRunCfg := Bool(true)
+  addrgen_ins.targetStage := UInt(1)
+
+  // TODO re-enable wider execute stage
+  Predef.assert(myP.tileMemAddrUnit == 1)
+  // ugly hack:  to add child's HLS blackboxes to own list (in order to generate
+  // dependencies in parent), instantiate the addrgen without .io here first
+  // TODO is there some way to handle this directly in Chisel?
+  val addrgen_d = Module(new ExecAddrGen(new ExecAddrGenParams(
+    addrUnit = myP.tileMemAddrUnit
+  )))
+  val addrgen = addrgen_d.io
+  // wire up reset differently (since ExecAddrGen is Vivado HLS BlackBox)
+  // TODO can the infrastructure handle this automatically?
+  addrgen.rst_n := !this.reset
+  addrgen.in.bits := addrgen_ins.toBits()
+  addrgen.in.valid := io.stage_run.valid
+  io.stage_run.ready := addrgen.in.ready
+  // no backpressure in current design, so always pop
+  addrgen.out.ready := Bool(true)
+
+  val regCurrentCmd = Reg(init = io.stage_run.bits)
+  when(addrgen.in.fire()) {
+    regCurrentCmd := io.stage_run.bits
+  }
+
+  // reinterpret output of ExecAddrGen as uint
+  val addrgen_out = new ExecAddrGenOutput()
+  addrgen_out := addrgen_out.fromBits(addrgen.out.bits)
+
+  val isLastAddr = addrgen.out.fire() & addrgen_out.last
+  io.stage_done.valid := ShiftRegister(isLastAddr, myP.getLatency())
 
   // expose generated hardware config to software
   io.cfg.config_dpu_x := UInt(myP.getM())
@@ -304,15 +335,10 @@ class ExecDecoupledStage(val myP: ExecStageParams) extends Module {
   io.cfg.config_lhs_mem := UInt(myP.lhsTileMem)
   io.cfg.config_rhs_mem := UInt(myP.rhsTileMem)
 
-  seqgen.init := UInt(0)
-  seqgen.count := regCurrentCmd.numTiles
-  seqgen.step := UInt(myP.tileMemAddrUnit)
-
   // wire up the generated sequence into the BRAM address ports, and returned
   // read data into the DPA inputs
   for(i <- 0 to myP.getM()-1) {
-    val adjustedLHSOffset = regCurrentCmd.lhsOffset << log2Ceil(myP.tileMemAddrUnit)
-    io.tilemem.lhs_req(i).addr := seqgen.seq.bits + adjustedLHSOffset
+    io.tilemem.lhs_req(i).addr := addrgen_out.lhsAddr
     io.tilemem.lhs_req(i).writeEn := Bool(false)
     dpa.a(i) := io.tilemem.lhs_rsp(i).readData
     //printf("Read data from BRAM %d = %x\n", UInt(i), io.tilemem.lhs_rsp(i).readData)
@@ -322,8 +348,7 @@ class ExecDecoupledStage(val myP: ExecStageParams) extends Module {
     }*/
   }
   for(i <- 0 to myP.getN()-1) {
-    val adjustedRHSOffset = regCurrentCmd.rhsOffset << log2Ceil(myP.tileMemAddrUnit)
-    io.tilemem.rhs_req(i).addr := seqgen.seq.bits + adjustedRHSOffset
+    io.tilemem.rhs_req(i).addr := addrgen_out.rhsAddr
     io.tilemem.rhs_req(i).writeEn := Bool(false)
     dpa.b(i) := io.tilemem.rhs_rsp(i).readData
     /*when(seqgen.seq.valid) {
@@ -331,10 +356,8 @@ class ExecDecoupledStage(val myP: ExecStageParams) extends Module {
       printf("Seqgen: %d offset: %d\n", seqgen.seq.bits, io.csr.rhsOffset)
     }*/
   }
-  // no backpressure in current design, so always pop
-  seqgen.seq.ready := Bool(true)
   // data to DPA is valid after read from BRAM is completed
-  val read_complete = ShiftRegister(seqgen.seq.valid, myP.getBRAMReadLatency())
+  val read_complete = ShiftRegister(addrgen.out.valid, myP.getBRAMReadLatency())
   dpa.valid := read_complete
   dpa.shiftAmount := regCurrentCmd.shiftAmount
   dpa.negate := regCurrentCmd.negate
@@ -342,6 +365,7 @@ class ExecDecoupledStage(val myP: ExecStageParams) extends Module {
   // there is a cycle of no data from the BRAM (due to a SequenceGenerator bug
   // or some weird timing interaction) an erronous accumulator clear may be
   // generated here.
+  // TODO move accumulator clearing gen logic into ExecAddrGen
   when(regCurrentCmd.clear_before_first_accumulation) {
     // set clear_acc to 1 for the very first cycle
     dpa.clear_acc := read_complete & !Reg(next = read_complete)
@@ -376,39 +400,4 @@ class ExecDecoupledStage(val myP: ExecStageParams) extends Module {
     printf("\n")
   }
   */
-
-  val sGetCmd :: sLaunchAddrGen :: sWaitAddrGen :: sWaitDPUPipeline :: Nil = Enum(UInt(), 4)
-  val regState = Reg(init = UInt(sGetCmd))
-  val regWaitDPUPipeline = Reg(init = UInt(0, width = 8))
-
-  switch(regState) {
-    is(sGetCmd) {
-      io.stage_run.ready := Bool(true)
-      when(io.stage_run.valid) {
-        regCurrentCmd := io.stage_run.bits
-        regState := sLaunchAddrGen
-        regWaitDPUPipeline := UInt(0)
-      }
-    }
-    is(sLaunchAddrGen) {
-      seqgen.start := Bool(true)
-      regState := sWaitAddrGen
-    }
-    is(sWaitAddrGen) {
-      when(seqgen.finished) {
-        regState := sWaitDPUPipeline
-      }
-    }
-    is(sWaitDPUPipeline) {
-      // wait for the final data packet to travel through the DPU pipeline
-      when(regWaitDPUPipeline === UInt(myP.getLatency()-1)) {
-        // emit a done token to signal the controller that this instruction is
-        // completed
-        regState := sGetCmd
-        io.stage_done.valid := Bool(true)
-      } .otherwise {
-        regWaitDPUPipeline := regWaitDPUPipeline + UInt(1)
-      }
-    }
-  }
 }

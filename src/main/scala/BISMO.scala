@@ -234,7 +234,11 @@ class BitSerialMatMulAccel(
   io.hw := myP.asHWCfgBundle(32)
   // instantiate accelerator stages
   val fetchStage = Module(new FetchDecoupledStage(myP.fetchStageParams)).io
-  val execStage = Module(new ExecDecoupledStage(myP.execStageParams)).io
+  // ugly hack: add child's HLS blackboxes to own list to generate dependencies
+  // TODO is there some way to handle this directly in Chisel?
+  val execStage_direct = Module(new ExecDecoupledStage(myP.execStageParams))
+  HLSBlackBox(execStage_direct.addrgen_d)
+  val execStage = execStage_direct.io
   val resultStage = Module(new ResultStage(myP.resultStageParams)).io
   // instantiate the controllers for each stage
   val fetchCtrl = Module(new FetchDecoupledController()).io
