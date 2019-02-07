@@ -325,6 +325,10 @@ class ExecDecoupledStage(val myP: ExecStageParams) extends Module {
   val addrgen_out = new ExecAddrGenOutput()
   addrgen_out := addrgen_out.fromBits(addrgen.out.bits)
 
+  /*when(addrgen.out.fire()) {
+    printf("[AddrGenOutput] " + addrgen_out.printfStr, addrgen_out.printfElems():_*)
+  }*/
+
   val isLastAddr = addrgen.out.fire() & addrgen_out.last
   io.stage_done.valid := ShiftRegister(isLastAddr, myP.getLatency())
 
