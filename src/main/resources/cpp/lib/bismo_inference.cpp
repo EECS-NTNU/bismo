@@ -123,6 +123,11 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   gemmbitserial::GEMMContext ctx = acc->allocGEMMContext(
     dsc.M, dsc.K, dsc.N, dsc.wbits, dsc.ibits, dsc.wsigned, dsc.isigned
   );
+  BISMORT_DEBUG("[initMatMulLayer] Workload lhs/rhs details:");
+#ifdef DEBUG
+  ctx.lhs.printSummary();
+  ctx.rhs.printSummary();
+#endif
   size_t wbytes = ctx.lhs.wordsPerBitplane() * ctx.lhs.nbits * sizeof(PackedBitGroupType);
   size_t abytes = ctx.rhs.wordsPerBitplane() * ctx.rhs.nbits * sizeof(PackedBitGroupType);
   size_t resbytes = ctx.lhs.nrows_a * ctx.rhs.nrows_a * sizeof(AccumType);
