@@ -36,7 +36,13 @@ import fpgatidbits.streams._
 import fpgatidbits.hlstools.TemplatedHLSBlackBox
 
 class ExecAddrGenParams(
-  val addrUnit: Int
+  val addrUnit: Int,
+  val imgSizeBitwidth: Int,
+  val krnlSizeBitwidth: Int,
+  val strideBitwidth: Int,
+  val paddingBitwidth: Int,
+  val outAddrBitwidth: Int,
+  val constAddr: Int
 )
 
 class ExecAddrGenOutput extends PrintableBundle {
@@ -70,6 +76,12 @@ class ExecAddrGen(val p: ExecAddrGenParams) extends TemplatedHLSBlackBox {
   renameClock("clk", "ap_clk")
 
   val hlsTemplateParams: Map[String, String] = Map(
-    "ADDR_UNIT" -> p.addrUnit.toString
+    "ADDR_UNIT" -> p.addrUnit.toString,
+    "IMG_SIZE_BITWIDTH" -> p.imgSizeBitwidth.toString,
+    "KRNL_SIZE_BITWIDTH" -> p.krnlSizeBitwidth.toString,
+    "STRIDE_BITWIDTH" -> p.strideBitwidth.toString,
+    "PADDING_BITWIDTH" -> p.paddingBitwidth.toString,
+    "OUT_ADDR_BITWIDTH" -> p.outAddrBitwidth.toString,
+    "CONSTANT_ADDRESS" -> p.constAddr.toString
   )
 }

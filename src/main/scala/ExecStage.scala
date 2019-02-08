@@ -304,7 +304,13 @@ class ExecDecoupledStage(val myP: ExecStageParams) extends Module {
   // dependencies in parent), instantiate the addrgen without .io here first
   // TODO is there some way to handle this directly in Chisel?
   val addrgen_d = Module(new ExecAddrGen(new ExecAddrGenParams(
-    addrUnit = myP.tileMemAddrUnit
+    addrUnit = myP.tileMemAddrUnit,
+    imgSizeBitwidth = BISMOLimits.cnvImgSizeBits,
+    krnlSizeBitwidth = BISMOLimits.cnvKernelSizeBits,
+    strideBitwidth = BISMOLimits.cnvStrideBits,
+    paddingBitwidth = BISMOLimits.cnvPadBits,
+    outAddrBitwidth = BISMOLimits.inpBufAddrBits,
+    constAddr = 0
   )))
   val addrgen = addrgen_d.io
   // wire up reset differently (since ExecAddrGen is Vivado HLS BlackBox)

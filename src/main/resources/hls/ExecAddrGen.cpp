@@ -71,8 +71,13 @@ struct ExecAddr {
 };
 
 template <
-  size_t ADDR_UNIT // access unit for memories, i.e. exec-to-fetch ratio
-  // TODO add more template params as needed
+  size_t ADDR_UNIT,
+  size_t IMG_SIZE_BITWIDTH,
+  size_t KRNL_SIZE_BITWIDTH,
+  size_t STRIDE_BITWIDTH,
+  size_t PADDING_BITWIDTH,
+  size_t OUT_ADDR_BITWIDTH,
+  size_t CONSTANT_ADDRESS
 >
 void ExecAddrGen_Templated(
   hls::stream<ap_uint<BISMO_INSTR_BITS>> & in,  // exec stage instructions
@@ -117,7 +122,10 @@ void ExecAddrGen(
   #pragma HLS INTERFACE axis port=in
 
   ExecAddrGen_Templated<
-    TEMPLATE_PARAM_ADDR_UNIT
+  TEMPLATE_PARAM_ADDR_UNIT, TEMPLATE_PARAM_IMG_SIZE_BITWIDTH,
+  TEMPLATE_PARAM_KRNL_SIZE_BITWIDTH, TEMPLATE_PARAM_STRIDE_BITWIDTH,
+  TEMPLATE_PARAM_PADDING_BITWIDTH, TEMPLATE_PARAM_OUT_ADDR_BITWIDTH,
+  TEMPLATE_PARAM_CONSTANT_ADDRESS
   >(
     in, out
   );
