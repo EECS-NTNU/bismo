@@ -206,7 +206,7 @@ public:
     ctx.k = k;
     ctx.stride = stride;
     ctx.pad = pad;
-    const uint64_t pack_bits = m_cfg.dpaDimCommon * 8;
+    const uint64_t pack_bits = m_cfg.dpaDimCommon;
     // determine the output dimension based on input
     ctx.padded_idim = ctx.in_dim + 2*ctx.pad;
     ctx.out_dim = ((ctx.padded_idim - ctx.k) / ctx.stride) + 1;
