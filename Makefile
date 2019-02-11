@@ -102,7 +102,7 @@ EmuTestVerifyHLSInstrEncoding:
 	mkdir -p $(BUILD_DIR)/$@;
 	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator $(DEBUG_CHISEL)";
 	cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
-	ln -s $(APP_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
+	ln -s $(INFLIB_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
 	cd $(BUILD_DIR)/$@; sh verilator-build.sh -I$(HLS_SIM_INCL); ./VerilatedTesterWrapper
 
@@ -110,7 +110,7 @@ EmuTestExecInstrGen:
 	mkdir -p $(BUILD_DIR)/$@;
 	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator $(DEBUG_CHISEL)";
 	cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
-	ln -s $(APP_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
+	ln -s $(INFLIB_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
 	cd $(BUILD_DIR)/$@; sh verilator-build.sh -I$(HLS_SIM_INCL); ./VerilatedTesterWrapper
 
@@ -118,7 +118,7 @@ EmuTestFetchInstrGen:
 	mkdir -p $(BUILD_DIR)/$@;
 	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator $(DEBUG_CHISEL)";
 	cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
-	ln -s $(APP_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
+	ln -s $(INFLIB_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
 	cd $(BUILD_DIR)/$@; sh verilator-build.sh -I$(HLS_SIM_INCL); ./VerilatedTesterWrapper
 

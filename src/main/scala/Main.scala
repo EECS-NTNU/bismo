@@ -87,7 +87,7 @@ object Settings {
   def makeHLSDependencies(accInst: AccelInstFxn, targetDir: String) = {
     val hlsSrcDir = getClass.getResource("/hls").getPath
     val inclDirs: Seq[String] = Seq(
-      getClass.getResource("/cpp/app").getPath
+      getClass.getResource("/cpp/lib").getPath
     )
     TidbitsMakeUtils.makeHLSDependencies(
       accInst, hlsSrcDir, targetDir, inclDirs
