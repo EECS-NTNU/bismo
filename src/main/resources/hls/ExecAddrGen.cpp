@@ -96,54 +96,55 @@ void ExecAddrGen_Templated(
     // use convolution mode for rhs, sequential for lhs
     const ap_uint<IMG_SIZE_BITWIDTH + PADDING_BITWIDTH> extended_dim = ins.cnvImgSize + (ins.cnvPad << 1);
     int i = 0, j = 0, kr = 0, kc = 0 ;
+    ap_uint<16> seq = 0;
     bool sliding_finished = false;
-    for(int iter = 0; !sliding_finished; iter++){
+    for(int iter = 0; !sliding_finished; iter++) {
       #pragma HLS PIPELINE II=1
       bool kernel_inbound = (i-1 + ins.cnvKernelSize < extended_dim) && (j-1 + ins.cnvKernelSize < extended_dim);
   		bool isNotPadding = ((ins.cnvPad - 1) < (kr+i) && (kr+i) < (ins.cnvImgSize + ins.cnvPad)) && ((ins.cnvPad - 1) < (kc+j) && (kc+j) < (ins.cnvImgSize + ins.cnvPad));
-  		ap_uint<OUT_ADDR_BITWIDTH> outElem;
-  		if(isNotPadding) {
-  		    addr.rhsAddr = ((kr+i - ins.cnvPad) * (ins.cnvImgSize) + (kc+j - ins.cnvPad));
-          addr.rhsIsPadding = 0;
-  			} else {
-          addr.rhsIsPadding = 1;
-          addr.rhsAddr = 0;
-  			}
-        // sequential memory access pattern on lhs -- just use loop inds
-        addr.lhsAddr = iter;
-        // TODO need to cater for ADDR_UNIT for convolutions here
-        // add specified offsets to addresses
-        addr.rhsAddr += ins.rhsOffset;
-        addr.lhsAddr += ins.lhsOffset;
+  		if(kernel_inbound) {
+        addr.rhsIsPadding = isNotPadding ? 0 : 1;
+        if(isNotPadding) {
+          addr.rhsAddr = ((kr+i - ins.cnvPad) * (ins.cnvImgSize) + (kc+j - ins.cnvPad));
+        } else {
+          addr.rhsAddr = CONSTANT_ADDRESS;
+        }
         // check boundaries to keep track of loop variables
   			kc++;
-  			if(kc == ins.cnvKernelSize){
+  			if(kc == ins.cnvKernelSize) {
   				kc = 0;
   				kr++;
-  				if(kr == ins.cnvKernelSize){
+  				if(kr == ins.cnvKernelSize) {
   					kr = 0;
   					j = j + ins.cnvStride;
-  					if(j == extended_dim){
+  					if(j == extended_dim) {
   						j = 0;
   						i = i + ins.cnvStride;
   						sliding_finished = i == extended_dim;
   					}
   				}
   			}
+        // finalize the output address packet
+        // sequential memory access pattern on lhs
+        addr.lhsAddr = seq;
+        seq++;
+        // TODO need to cater for ADDR_UNIT for convolutions here
+        // add specified offsets to addresses
+        addr.rhsAddr += ins.rhsOffset;
+        addr.lhsAddr += ins.lhsOffset;
         addr.last = sliding_finished ? 1 : 0;
         out.write(addr.asRaw());
+      } else {
+        kr = 0;
+  			kc = 0;
+  			j = j + ins.cnvStride;
+  			if(j == extended_dim) {
+  				j = 0;
+  				i = i + ins.cnvStride;
+  				sliding_finished = i == extended_dim;
+  			}
       }
-		} else {
-			kr = 0;
-			kc = 0;
-			j = j + ins.cnvStride;
-			if(j == extended_dim){
-				j = 0;
-				i = i + ins.cnvStride;
-				sliding_finished = i == extended_dim;
-			}
-		}
-	}
+    }
   } else {
     // use sequential access mode for both memories
     addr.lhsAddr = ins.lhsOffset;
