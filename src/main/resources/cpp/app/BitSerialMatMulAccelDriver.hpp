@@ -199,9 +199,6 @@ public:
   ) {
     // there's currently a bug with ofm=1 configs, assert until resolved
     assert(ofm != 1);
-    // bipolar not supported yet
-    assert(!(ctx.gemmctx.lhs.isBipolar()));
-    assert(!(ctx.gemmctx.rhs.isBipolar()));
     gemmbitserial::ConvBitSerialContext ctx;
     ctx.ifm = ifm;
     ctx.ofm = ofm;
@@ -214,7 +211,7 @@ public:
     ctx.padded_idim = ctx.in_dim + 2*ctx.pad;
     ctx.out_dim = ((ctx.padded_idim - ctx.k) / ctx.stride) + 1;
     // round up number of input channels to be divisible by packing size
-    ctx.aligned_ifm = alignTo(ctx.ifm, pack_bits);
+    ctx.aligned_ifm = gemmbitserial::alignTo(ctx.ifm, pack_bits);
     // number of channels after packing
     ctx.packed_ifm = ctx.aligned_ifm / pack_bits;
     // determine the matrix sizes for the lowered convolution
@@ -227,9 +224,12 @@ public:
       lhs_rows, depth, rhs_rows, ibits, wbits, isigned, wsigned
     );
     // allocate the buffer for converted activations
-    ctx.abuf = BitSerialMatrix::alloc(
+    ctx.abuf = gemmbitserial::BitSerialMatrix::alloc(
       ibits, ctx.in_dim * ctx.in_dim, ctx.ifm, isigned, 1, pack_bits
     );
+    // bipolar not supported yet
+    assert(!(ctx.gemmctx.lhs.isBipolar()));
+    assert(!(ctx.gemmctx.rhs.isBipolar()));
     return ctx;
   }
 

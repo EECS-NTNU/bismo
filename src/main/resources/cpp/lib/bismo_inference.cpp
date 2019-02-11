@@ -4,7 +4,7 @@
 #include <string.h>
 //benchmarking
 #include <chrono>
-
+#define DEBUG
 #ifdef DEBUG
 #define BISMORT_DEBUG(x) cout << x << endl;
 #else
@@ -368,7 +368,6 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights) {
   gemmbitserial::ConvBitSerialContext ctx = acc->allocConvBitSerialContext(
     dsc.ifm, dsc.ofm, dsc.idim, dsc.ksize, dsc.stride, dsc.pad, dsc.ibits,
     dsc.wbits, dsc.isigned, dsc.wsigned
-    ifm, ofm, indim, k, stride, pad, ibits, wbits, isigned, wsigned
   );
   BISMORT_DEBUG("[initConvLayer] Workload lhs/rhs details:");
 #ifdef DEBUG
@@ -759,7 +758,7 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   // NOTE: lhs and rhs are swapped, see note in initConvLayer
   const gemmbitserial::BitSerialMatrix lhs = dsc.ctx.rhs;
   gemmbitserial::BitSerialMatrix rhs = dsc.ctx.lhs;
-  gemmbitserial::ConvBitSerialContext ctx = dsc.ctx;
+  gemmbitserial::ConvBitSerialContext ctx = dsc.cnv_ctx;
 
   // using CPU lowering for now
   // TODO switch to hardware SWU
@@ -770,7 +769,7 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   BISMORT_DEBUG("[execConvLayer] software p2s+im2row time: " << rhs2bs_duration_time << " us" );
 
   //  copy the lowered bit-serial activations to the accelerator
-  platform->copyBufferHostToAccel(ctx.rhs.data, (void *)dsc.accel_buf_in, dsc.nbytes_buf_in);
+  platform->copyBufferHostToAccel(rhs.data, (void *)dsc.accel_buf_in, dsc.nbytes_buf_in);
 
   // enable all stages
   acc->set_stage_enables(1, 1, 1);
