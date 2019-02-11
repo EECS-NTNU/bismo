@@ -50,8 +50,8 @@
 #define EXECRES_TOKENS            2
 #define N_CTRL_STATES             4
 #define N_STAGES                  3
-#define FETCH_ADDRALIGN           64
-#define FETCH_SIZEALIGN           64
+#define FETCH_ADDRALIGN           8
+#define FETCH_SIZEALIGN           8
 #define FETCH_BLOCK_MAX           (1 << (BISMO_LIMIT_DRAM_BSIZE_BITS-1))
 
 #define max_local(x,y)                  (x > y ? x : y)

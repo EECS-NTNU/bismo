@@ -40,7 +40,7 @@ object BISMOLimits {
   val cnvStrideBits = 4
   val cnvPadBits = 4
   val fetchIDBits = 5
-  val fetchBurstBeats = 8
+  val fetchBurstBeats = 1
   val inpBufAddrBits = 16
   val dramAddrBits = 32
   val dramBlockSizeBits = 16
