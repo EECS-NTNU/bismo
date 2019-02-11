@@ -2,6 +2,7 @@
 #include "BitSerialMatMulAccelDriver.hpp"
 #include <vector>
 #include <string.h>
+#include <algorithm>
 //benchmarking
 #include <chrono>
 //#define DEBUG
@@ -116,6 +117,43 @@ uint32_t allocActivationOCM(size_t nbytes) {
   assert(nbytes <= activationOCMBytesLeft);
   // all layers use the same activation buffer, so no base ptr update
   return 0;
+}
+
+
+void genFetchInstrs(
+  std::vector<BISMOInstruction> & ins,
+  size_t bram_base,
+  bool lhsNotRhs,
+  void * dram_base,
+  size_t tiles_per_row,
+  size_t nbytes
+) {
+  BISMOFetchRunInstruction frc;
+  size_t bram_start = lhsNotRhs ? acc->get_fetch_first_lhs_id() : acc->get_fetch_first_rhs_id();
+  size_t bram_range = (lhsNotRhs ? cfg.dpaDimLHS : cfg.dpaDimRHS) - 1;
+  uint32_t dram_base_addr = (uint32_t)(uint64_t) dram_base;
+
+  frc.isRunCfg = 1;
+  frc.targetStage = stgFetch;
+  frc.bram_id_start = bram_start;
+  frc.bram_id_range = bram_range;
+  frc.tiles_per_row = tiles_per_row;
+
+  frc.bram_addr_base = bram_base;
+  frc.dram_base = dram_base_addr;
+
+  int bytes_left = nbytes;
+  const size_t bytes_per_addr = (lhsNotRhs ? cfg.dpaDimLHS : cfg.dpaDimRHS) * (cfg.dpaDimCommon/8);
+  while(bytes_left > 0) {
+    frc.dram_block_size_bytes = std::min(FETCH_BLOCK_MAX, bytes_left);
+    frc.dram_block_offset_bytes = frc.dram_block_size_bytes;
+    frc.dram_block_count = bytes_left / frc.dram_block_size_bytes;
+    ins.push_back(frc.asRaw());
+    size_t last_chunk_bytes = frc.dram_block_count * frc.dram_block_size_bytes;
+    bytes_left -= last_chunk_bytes;
+    frc.dram_base += last_chunk_bytes;
+    frc.bram_addr_base += last_chunk_bytes / bytes_per_addr;
+  }
 }
 
 // initialize layer of given type and return handle
