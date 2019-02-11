@@ -124,24 +124,21 @@ void genFetchInstrs(
   std::vector<BISMOInstruction> & ins,
   size_t bram_base,
   bool lhsNotRhs,
-  void * dram_base,
+  uint32_t dram_base,
   size_t tiles_per_row,
   size_t nbytes
 ) {
   BISMOFetchRunInstruction frc;
   size_t bram_start = lhsNotRhs ? acc->get_fetch_first_lhs_id() : acc->get_fetch_first_rhs_id();
   size_t bram_range = (lhsNotRhs ? cfg.dpaDimLHS : cfg.dpaDimRHS) - 1;
-  uint32_t dram_base_addr = (uint32_t)(uint64_t) dram_base;
 
   frc.isRunCfg = 1;
   frc.targetStage = stgFetch;
   frc.bram_id_start = bram_start;
   frc.bram_id_range = bram_range;
   frc.tiles_per_row = tiles_per_row;
-
   frc.bram_addr_base = bram_base;
-  frc.dram_base = dram_base_addr;
-
+  frc.dram_base = dram_base;
   int bytes_left = nbytes;
   const size_t bytes_per_addr = (lhsNotRhs ? cfg.dpaDimLHS : cfg.dpaDimRHS) * (cfg.dpaDimCommon/8);
   while(bytes_left > 0) {
@@ -185,30 +182,13 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   // TODO this needs to be checked for fetch width != exec width
   // (see exec_to_fetch_width_ratio in BitSerialMatMulExecutor)
   assert(cfg.dpaDimCommon == cfg.readChanWidth);
-  BISMOFetchRunInstruction frc;
-  frc.targetStage = stgFetch;
-  frc.isRunCfg = 1;
-  frc.bram_addr_base = wbase;
-  frc.bram_id_start = acc->get_fetch_first_lhs_id();
-  frc.bram_id_range = cfg.dpaDimLHS - 1;
-  frc.dram_base = accel_lhs_ptr;
-  // adjust blocking to respect maximum fetch block size
-  if(wbytes > FETCH_BLOCK_MAX) {
-    // TODO handle remainder if not evenly divisible
-    assert(wbytes % FETCH_BLOCK_MAX == 0);
-    frc.dram_block_size_bytes = FETCH_BLOCK_MAX;
-    frc.dram_block_count = wbytes / FETCH_BLOCK_MAX;
-    frc.dram_block_offset_bytes = FETCH_BLOCK_MAX;
-  } else {
-    frc.dram_block_size_bytes = wbytes;
-    frc.dram_block_count = 1;
-    frc.dram_block_offset_bytes = 0;
-  }
-  frc.tiles_per_row = ctx.lhs.ncols_a / cfg.dpaDimCommon;
+  std::vector<BISMOInstruction> instrFetchWeights;
+  genFetchInstrs(instrFetchWeights, wbase, true, accel_lhs_ptr, ctx.lhs.ncols_a / cfg.dpaDimCommon, wbytes);
   acc->set_stage_enables(0, 0, 0);
-  acc->pushInstruction(frc.asRaw());
-  assert(acc->fetch_opcount() == 1);
-  BISMORT_DEBUG("[initMatMulLayer] created weight init instruction");
+  for(auto & fi : instrFetchWeights) {
+    acc->pushInstruction(fi);
+  }
+  BISMORT_DEBUG("[initMatMulLayer] created weight init instructions: " << acc->fetch_opcount());
   // launch weight fetch and wait until complete
   acc->set_stage_enables(1, 0, 0);
   while(acc->fetch_opcount() != 0) {
@@ -245,9 +225,6 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   // fetch the rhs matrix into the on-chip buffer
   BISMOSyncInstruction sync;
   sync.isRunCfg = 0;
-  // BISMOFetchRunInstruction frc;
-  frc.isRunCfg = 1;
-  frc.targetStage = stgFetch;
   BISMOExecRunInstruction erc;
   erc.isRunCfg = 1;
   erc.targetStage = stgExec;
@@ -263,26 +240,12 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   sync.chanID = 0;
   // acc->pushInstruction(sync.asRaw());
   idsc.instructions_queue.push_back(sync.asRaw());
-  frc.bram_addr_base = abase;
-  frc.bram_id_start = acc->get_fetch_first_rhs_id();
-  frc.bram_id_range = cfg.dpaDimRHS - 1;
-  frc.dram_base = (uint32_t)(uint64_t)idsc.accel_buf_in;
-  // adjust blocking to respect maximum fetch block size
-  if(idsc.nbytes_buf_in > FETCH_BLOCK_MAX) {
-    // TODO handle remainder if not evenly divisible
-    assert(idsc.nbytes_buf_in % FETCH_BLOCK_MAX == 0);
-    frc.dram_block_size_bytes = FETCH_BLOCK_MAX;
-    frc.dram_block_offset_bytes = FETCH_BLOCK_MAX;
-    frc.dram_block_count = idsc.nbytes_buf_in / FETCH_BLOCK_MAX;
-  } else {
-    frc.dram_block_size_bytes = idsc.nbytes_buf_in;
-    frc.dram_block_count = 1;
-    frc.dram_block_offset_bytes = 0;
-  }
-  frc.tiles_per_row = ctx.lhs.ncols_a / cfg.dpaDimCommon;
-  BISMORT_DEBUG("[initMatMulLayer] frc for rhs fetch = " << frc);
+  // generate fetch instructions for activations
+  genFetchInstrs(idsc.instructions_queue, abase, false, idsc.accel_buf_in, ctx.lhs.ncols_a / cfg.dpaDimCommon, idsc.nbytes_buf_in);
+  //BISMORT_DEBUG("[initMatMulLayer] frc for rhs fetch = " << frc);
   // acc->pushInstruction(frc.asRaw());
-  idsc.instructions_queue.push_back(frc.asRaw());
+  //idsc.instructions_queue.push_back(frc.asRaw());
+
   // fetch sends token to execute stage
   sync.targetStage = stgFetch;
   sync.isSendToken = 1;
@@ -440,29 +403,13 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights) {
   // TODO this needs to be checked for fetch width != exec width
   // (see exec_to_fetch_width_ratio in BitSerialMatMulExecutor)
   assert(cfg.dpaDimCommon == cfg.readChanWidth);
-  BISMOFetchRunInstruction frc;
-  frc.targetStage = stgFetch;
-  frc.isRunCfg = 1;
-  frc.bram_addr_base = wbase;
-  frc.bram_id_start = acc->get_fetch_first_lhs_id();
-  frc.bram_id_range = cfg.dpaDimLHS - 1;
-  frc.dram_base = accel_lhs_ptr;
-  // adjust blocking to respect maximum fetch block size
-  if(wbytes > FETCH_BLOCK_MAX) {
-    // TODO handle remainder if not evenly divisible
-    assert(wbytes % FETCH_BLOCK_MAX == 0);
-    frc.dram_block_size_bytes = FETCH_BLOCK_MAX;
-    frc.dram_block_count = wbytes / FETCH_BLOCK_MAX;
-    frc.dram_block_offset_bytes = FETCH_BLOCK_MAX;
-  } else {
-    frc.dram_block_size_bytes = wbytes;
-    frc.dram_block_count = 1;
-    frc.dram_block_offset_bytes = 0;
-  }
-  frc.tiles_per_row = lhs.ncols_a / cfg.dpaDimCommon;
+
+  std::vector<BISMOInstruction> instrFetchWeights;
+  genFetchInstrs(instrFetchWeights, wbase, true, accel_lhs_ptr, lhs.ncols_a / cfg.dpaDimCommon, wbytes);
   acc->set_stage_enables(0, 0, 0);
-  acc->pushInstruction(frc.asRaw());
-  assert(acc->fetch_opcount() == 1);
+  for(auto & fi : instrFetchWeights) {
+    acc->pushInstruction(fi);
+  }
   BISMORT_DEBUG("[initConvLayer] created weight init instruction");
   // launch weight fetch and wait until complete
   acc->set_stage_enables(1, 0, 0);
@@ -501,9 +448,6 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights) {
   // fetch the rhs matrix into the on-chip buffer
   BISMOSyncInstruction sync;
   sync.isRunCfg = 0;
-  // BISMOFetchRunInstruction frc;
-  frc.isRunCfg = 1;
-  frc.targetStage = stgFetch;
   BISMOExecRunInstruction erc;
   erc.isRunCfg = 1;
   erc.targetStage = stgExec;
@@ -519,26 +463,8 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights) {
   sync.chanID = 0;
   // acc->pushInstruction(sync.asRaw());
   idsc.instructions_queue.push_back(sync.asRaw());
-  frc.bram_addr_base = abase;
-  frc.bram_id_start = acc->get_fetch_first_rhs_id();
-  frc.bram_id_range = cfg.dpaDimRHS - 1;
-  frc.dram_base = (uint32_t)(uint64_t)idsc.accel_buf_in;
-  // adjust blocking to respect maximum fetch block size
-  if(idsc.nbytes_buf_in > FETCH_BLOCK_MAX) {
-    // TODO handle remainder if not evenly divisible
-    assert(idsc.nbytes_buf_in % FETCH_BLOCK_MAX == 0);
-    frc.dram_block_size_bytes = FETCH_BLOCK_MAX;
-    frc.dram_block_offset_bytes = FETCH_BLOCK_MAX;
-    frc.dram_block_count = idsc.nbytes_buf_in / FETCH_BLOCK_MAX;
-  } else {
-    frc.dram_block_size_bytes = idsc.nbytes_buf_in;
-    frc.dram_block_count = 1;
-    frc.dram_block_offset_bytes = 0;
-  }
-  frc.tiles_per_row = lhs.ncols_a / cfg.dpaDimCommon;
-  BISMORT_DEBUG("[initConvLayer] frc for rhs fetch = " << frc);
-  // acc->pushInstruction(frc.asRaw());
-  idsc.instructions_queue.push_back(frc.asRaw());
+  // generate fetch for activations
+  genFetchInstrs(idsc.instructions_queue, abase, false, idsc.accel_buf_in, lhs.ncols_a / cfg.dpaDimCommon, idsc.nbytes_buf_in);
   // fetch sends token to execute stage
   sync.targetStage = stgFetch;
   sync.isSendToken = 1;
