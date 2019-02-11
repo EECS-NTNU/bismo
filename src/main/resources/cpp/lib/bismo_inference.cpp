@@ -380,7 +380,8 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights) {
   // so we swap lhs<->rhs internally in this function.
   gemmbitserial::BitSerialMatrix lhs = ctx.gemmctx.rhs;
   gemmbitserial::BitSerialMatrix rhs = ctx.gemmctx.lhs;
-
+  // dependency on PackedBitGroupType here
+  assert(cfg.dpaDimCommon == 64);
   size_t wbytes = lhs.wordsPerBitplane() * lhs.nbits * sizeof(PackedBitGroupType);
   size_t abytes = rhs.wordsPerBitplane() * rhs.nbits * sizeof(PackedBitGroupType);
   size_t resbytes = lhs.nrows_a * rhs.nrows_a * sizeof(AccumType);
@@ -436,6 +437,7 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights) {
   InternalLayerDescriptor idsc;
   idsc.layerType = layerConv;
   idsc.cnv_ctx = ctx;
+  idsc.ctx = ctx.gemmctx;
   idsc.nbytes_buf_in = abytes;
   idsc.nbytes_buf_out = lhs.nrows_a * rhs.nrows_a * sizeof(AccumType) ;
   idsc.cnv_dsc = dsc;
@@ -752,7 +754,55 @@ void execThresLayer(LayerHandle id, const int32_t * in, uint8_t * out) {
 }
 
 void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
-  // TODO implement execConvLayer
+  BISMORT_DEBUG("[execConvLayer] id " << id);
+  const InternalLayerDescriptor dsc = registry[id];
+  // NOTE: lhs and rhs are swapped, see note in initConvLayer
+  const gemmbitserial::BitSerialMatrix lhs = dsc.ctx.rhs;
+  gemmbitserial::BitSerialMatrix rhs = dsc.ctx.lhs;
+  gemmbitserial::ConvBitSerialContext ctx = dsc.ctx;
+
+  // using CPU lowering for now
+  // TODO switch to hardware SWU
+  auto start_time = std::chrono::high_resolution_clock::now();
+  ctx.importActivations(in);
+  auto end_time = std::chrono::high_resolution_clock::now();
+  auto rhs2bs_duration_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
+  BISMORT_DEBUG("[execConvLayer] software p2s+im2row time: " << rhs2bs_duration_time << " us" );
+
+  //  copy the lowered bit-serial activations to the accelerator
+  platform->copyBufferHostToAccel(ctx.rhs.data, (void *)dsc.accel_buf_in, dsc.nbytes_buf_in);
+
+  // enable all stages
+  acc->set_stage_enables(1, 1, 1);
+  start_time = std::chrono::high_resolution_clock::now();
+  for (auto & instr : dsc.instructions_queue)
+  {
+    acc->pushInstruction(instr);
+  }
+  // wait until all writes are completed
+  while(acc->res_opcount() != 0) {
+    BISMORT_DEBUG("[execConvLayer] waiting for exec, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
+  };
+
+  end_time = std::chrono::high_resolution_clock::now();
+  auto exec_duration_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
+  BISMORT_DEBUG("[execConvLayer] Execution Time: " << exec_duration_time << " us" );
+  // TODO need transpose here for both cases
+  // copy result buffer to host
+  if((lhs.nrows_a == lhs.nrows) && (rhs.nrows_a == rhs.nrows)) {
+    // no padding was necessary, copy directly to host
+    platform->copyBufferAccelToHost((void *)dsc.accel_buf_out, (void *)out, dsc.nbytes_buf_out);
+  } else {
+    // accelerator computed a padded result matrix, copy actual parts only
+    AccumType * acc_buf_out = (AccumType *) dsc.accel_buf_out;
+    size_t nbytes_row_nonpadded = sizeof(AccumType) * lhs.nrows;
+    for(size_t row = 0; row < rhs.nrows; row++) {
+      size_t ind_padded = row * lhs.nrows_a;
+      size_t ind_actual = row * lhs.nrows;
+      platform->copyBufferAccelToHost(&acc_buf_out[ind_padded], (void *)(&out[ind_actual]), nbytes_row_nonpadded);
+    }
+  }
+  // TODO add CPU golden comparison
 }
 
 // destroy layer with given handle
