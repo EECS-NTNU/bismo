@@ -4,7 +4,7 @@
 #include <string.h>
 //benchmarking
 #include <chrono>
-#define DEBUG
+//#define DEBUG
 #ifdef DEBUG
 #define BISMORT_DEBUG(x) cout << x << endl;
 #else
@@ -112,6 +112,7 @@ uint32_t allocActivationOCM(size_t nbytes) {
   // since we follow a strictly layer-by-layer strategy where only one
   // layer executes at a time, we simply use the same OCM buffer for all layers
   // check if enough space in activation OCM
+  BISMORT_DEBUG("[allocActivationOCM] alloc " << nbytes << ", available " << activationOCMBytesLeft);
   assert(nbytes <= activationOCMBytesLeft);
   // all layers use the same activation buffer, so no base ptr update
   return 0;
