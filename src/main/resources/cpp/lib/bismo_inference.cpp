@@ -315,7 +315,7 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
       // generate write instruction
       uint32_t lhs_ind = cfg.dpaDimLHS * lhs_tile;
       uint32_t rhs_ind = cfg.dpaDimRHS * rhs_tile;
-      size_t ind = rhs_ind * cfg.dpaDimLHS + lhs_ind;
+      size_t ind = rhs_ind * ctx.lhs.nrows_a + lhs_ind;
       rrc.dram_base = (rptr + (ind * sizeof(AccumType)));
       rrc.dram_skip = ctx.lhs.nrows_a * sizeof(AccumType);
       rrc.waitCompleteBytes = 0;
@@ -538,7 +538,7 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights) {
       // generate write instruction
       uint32_t lhs_ind = cfg.dpaDimLHS * lhs_tile;
       uint32_t rhs_ind = cfg.dpaDimRHS * rhs_tile;
-      size_t ind = rhs_ind * cfg.dpaDimLHS + lhs_ind;
+      size_t ind = rhs_ind * lhs.nrows_a + lhs_ind;
       rrc.dram_base = (rptr + (ind * sizeof(AccumType)));
       rrc.dram_skip = lhs.nrows_a * sizeof(AccumType);
       rrc.waitCompleteBytes = 0;
