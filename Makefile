@@ -101,7 +101,7 @@ endif
 EmuTestVerifyHLSInstrEncoding:
 	mkdir -p $(BUILD_DIR)/$@;
 	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator $(DEBUG_CHISEL)";
-	cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
+	cp -rf $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
 	ln -s $(INFLIB_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
 	cd $(BUILD_DIR)/$@; sh verilator-build.sh -I$(HLS_SIM_INCL); ./VerilatedTesterWrapper
@@ -109,7 +109,7 @@ EmuTestVerifyHLSInstrEncoding:
 EmuTestExecInstrGen:
 	mkdir -p $(BUILD_DIR)/$@;
 	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator $(DEBUG_CHISEL)";
-	cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
+	cp -rf $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
 	ln -s $(INFLIB_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
 	cd $(BUILD_DIR)/$@; sh verilator-build.sh -I$(HLS_SIM_INCL); ./VerilatedTesterWrapper
@@ -117,7 +117,7 @@ EmuTestExecInstrGen:
 EmuTestFetchInstrGen:
 	mkdir -p $(BUILD_DIR)/$@;
 	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator $(DEBUG_CHISEL)";
-	cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
+	cp -rf $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
 	ln -s $(INFLIB_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
 	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
 	cd $(BUILD_DIR)/$@; sh verilator-build.sh -I$(HLS_SIM_INCL); ./VerilatedTesterWrapper
@@ -140,25 +140,25 @@ $(BUILD_DIR_EMU)/verilator-build.sh:
 
 # generate emulator executable including software sources
 emu: $(BUILD_DIR_EMU)/verilator-build.sh
-	cp -r $(APP_SRC_DIR)/* $(BUILD_DIR_EMU)/;
-	cp -r $(INFLIB_SRC_DIR)/* $(BUILD_DIR_EMU)/; \
+	cp -rf $(APP_SRC_DIR)/* $(BUILD_DIR_EMU)/;
+	cp -rf $(INFLIB_SRC_DIR)/* $(BUILD_DIR_EMU)/; \
 	cd $(BUILD_DIR_EMU); sh verilator-build.sh -I$(HLS_SIM_INCL); mv VerilatedTesterWrapper emu; ./emu
 
 # generate dynamic lib for inference, emulated hardware
 inflib_emu: $(BUILD_DIR_EMU)/verilator-build.sh
 	mkdir -p $(BUILD_DIR_INFLIB); \
-	cp -r $(INFLIB_SRC_DIR)/* $(BUILD_DIR_INFLIB)/; \
-	cp $(BUILD_DIR_EMU)/* $(BUILD_DIR_INFLIB)/; \
+	cp -rf $(INFLIB_SRC_DIR)/* $(BUILD_DIR_INFLIB)/; \
+	cp -rf $(BUILD_DIR_EMU)/* $(BUILD_DIR_INFLIB)/; \
 	cd $(BUILD_DIR_INFLIB); \
 	verilator -Iother-verilog --cc TesterWrapper.v -Wno-assignin -Wno-fatal -Wno-lint -Wno-style -Wno-COMBDLY -Wno-STMTDLY --Mdir verilated --trace; \
-	cp -f $(VERILATOR_SRC_DIR)/verilated.cpp .; \
-	cp -f $(VERILATOR_SRC_DIR)/verilated_vcd_c.cpp .; \
+	cp -rf $(VERILATOR_SRC_DIR)/verilated.cpp .; \
+	cp -rf $(VERILATOR_SRC_DIR)/verilated_vcd_c.cpp .; \
 	g++ -std=c++11 -I$(HLS_SIM_INCL) -I$(BUILD_DIR_EMU) -Iverilated -I$(VERILATOR_SRC_DIR) -I$(APP_SRC_DIR) -fPIC verilated/*.cpp *.cpp -shared -o $(BUILD_DIR_INFLIB)/libbismo_inference.so
 
 inflib: hw_driver
 	mkdir -p $(BUILD_DIR_INFLIB); \
-	cp -r $(INFLIB_SRC_DIR)/* $(BUILD_DIR_INFLIB)/; \
-	cp $(BUILD_DIR_HWDRV)/*.cpp $(BUILD_DIR_INFLIB)/; \
+	cp -rf $(INFLIB_SRC_DIR)/* $(BUILD_DIR_INFLIB)/; \
+	cp -rf $(BUILD_DIR_HWDRV)/*.cpp $(BUILD_DIR_INFLIB)/; \
 	cd $(BUILD_DIR_INFLIB); \
 	g++ -std=c++11 -I$(HLS_SIM_INCL) -I$(BUILD_DIR_HWDRV) -I$(APP_SRC_DIR) -fPIC *.cpp -lcma -shared -o $(BUILD_DIR_INFLIB)/libbismo_inference.so
 
@@ -192,7 +192,7 @@ p2ssw: $(BUILD_DIR_HWDRV)/EmuTestP2SAccel.hpp
 
 # copy scripts to the deployment folder
 script:
-	cp $(PLATFORM_SCRIPT_DIR)/* $(BUILD_DIR_DEPLOY)/
+	cp -f $(PLATFORM_SCRIPT_DIR)/* $(BUILD_DIR_DEPLOY)/
 
 # get everything ready to copy onto the platform and create a deployment folder
 all: hw sw script
