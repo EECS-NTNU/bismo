@@ -57,5 +57,5 @@ object BISMOLimits {
   val swuDescrInBits = inpBufAddrBits + cnvImgSizeBits + cnvKernelSizeBits + cnvStrideBits
   val swuDescrOutBits = inpBufAddrBits
   val numStages = 3
-  val execAddrGenOutBits = 34
+  val execAddrGenOutBits = 43
 }

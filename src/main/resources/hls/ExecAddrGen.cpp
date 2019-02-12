@@ -38,13 +38,18 @@
 #include <stdint.h>
 #include "BISMOInstruction.hpp"
 
-#define BISMO_EXECADDRSTRUCT_BITS 34
+#define BISMO_EXECADDRSTRUCT_BITS 43
 
 struct ExecAddr {
   ap_uint<16> lhsAddr;
   ap_uint<16> rhsAddr;
   ap_uint<1> rhsIsPadding;
   ap_uint<1> last;
+  ap_uint<1> clear;
+  ap_uint<1> negate;
+  ap_uint<5> shift;
+  ap_uint<1> writeEn;
+  ap_uint<1> writeAddr;
 
   ap_uint<BISMO_EXECADDRSTRUCT_BITS> asRaw() {
     ap_uint<BISMO_EXECADDRSTRUCT_BITS> ret = 0;
@@ -52,6 +57,11 @@ struct ExecAddr {
     ret(31, 16) = rhsAddr;
     ret(32, 32) = rhsIsPadding;
     ret(33, 33) = last;
+    ret(34, 34) = clear;
+    ret(35, 35) = negate;
+    ret(40, 36) = shift;
+    ret(41, 41) = writeEn;
+    ret(42, 42) = writeAddr;
     return ret;
   }
 
@@ -60,6 +70,11 @@ struct ExecAddr {
     rhsAddr = raw(31, 16);
     rhsIsPadding = raw(32, 32);
     last = raw(33, 33);
+    clear = raw(34, 34);
+    negate = raw(35, 35);
+    shift = raw(40, 36);
+    writeEn = raw(41, 41);
+    writeAddr = raw(42, 42);
   }
 
   ExecAddr() {
@@ -67,6 +82,11 @@ struct ExecAddr {
     rhsAddr = 0;
     rhsIsPadding = 0;
     last = 0;
+    clear = 0;
+    negate = 0;
+    shift = 0;
+    writeEn = 0;
+    writeAddr = 0;
   }
 };
 
@@ -91,6 +111,10 @@ void ExecAddrGen_Templated(
   // read an execute instruction from the input stream
   BISMOExecRunInstruction ins;
   ins.fromRaw(in.read());
+  addr.shift = ins.shiftAmount;
+  addr.negate = ins.negate;
+  addr.writeEn = ins.writeEn;
+  addr.writeAddr = ins.writeAddr;
 
   if(ins.cnvAddrGenMode == 1) {
     // use convolution mode for rhs, sequential for lhs
@@ -127,13 +151,14 @@ void ExecAddrGen_Templated(
         // finalize the output address packet
         // sequential memory access pattern on lhs
         addr.lhsAddr = seq;
-        seq++;
         // TODO need to cater for ADDR_UNIT for convolutions here
         // add specified offsets to addresses
         addr.rhsAddr += ins.rhsOffset;
         addr.lhsAddr += ins.lhsOffset;
         addr.last = sliding_finished ? 1 : 0;
+        addr.clear = ins.clear_before_first_accumulation & (seq == 0);
         out.write(addr.asRaw());
+        seq++;
       } else {
         kr = 0;
   			kc = 0;
@@ -154,6 +179,7 @@ void ExecAddrGen_Templated(
       #pragma HLS PIPELINE II=1
       addr.rhsIsPadding = 0;
       addr.last = (ins.numTiles - i == 1);
+      addr.clear = ins.clear_before_first_accumulation & (i == 0);
       out.write(addr.asRaw());
       addr.lhsAddr += ADDR_UNIT;
       addr.rhsAddr += ADDR_UNIT;

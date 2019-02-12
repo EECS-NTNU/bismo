@@ -46,6 +46,11 @@ class ExecAddrGenParams(
 )
 
 class ExecAddrGenOutput extends PrintableBundle {
+  val writeAddr = UInt(width = 1)
+  val writeEn = UInt(width = 1)
+  val shiftAmount = UInt(width = 5)
+  val negate = UInt(width = 1)
+  val clear = UInt(width = 1)
   val last = UInt(width = 1)
   val rhsIsPadding = UInt(width = 1)
   val rhsAddr = UInt(width = 16)
@@ -54,8 +59,8 @@ class ExecAddrGenOutput extends PrintableBundle {
   override def cloneType: this.type =
     new ExecAddrGenOutput().asInstanceOf[this.type]
 
-  val printfStr = "(lhs = %d, rhs = %d, rhs_pad? %d, last? %d)\n"
-  val printfElems = { () ⇒ Seq(lhsAddr, rhsAddr, rhsIsPadding, last) }
+  val printfStr = "(lhs = %d, rhs = %d, shift %d, wen? %d, waddr? %d rhs_pad? %d last? %d clear? %d neg? %d)\n"
+  val printfElems = { () ⇒ Seq(lhsAddr, rhsAddr, shiftAmount, writeEn, writeAddr, rhsIsPadding, last, clear, negate) }
 }
 
 class ExecAddrGen(val p: ExecAddrGenParams) extends TemplatedHLSBlackBox {
