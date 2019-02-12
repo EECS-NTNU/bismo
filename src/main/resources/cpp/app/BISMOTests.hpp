@@ -37,6 +37,7 @@
 using namespace std;
 #include "gemmbitserial/test/testhelpers.hpp"
 #include "gemmbitserial/gemmbitserial.hpp"
+#include "gemmbitserial/convbitserial.hpp"
 #include "bismo_inference.hpp"
 
 // BISMO top-level tests
@@ -92,6 +93,49 @@ bool test(
   delete [] rhs;
   delete [] accel_res;
 
+  return res == 0;
+}
+
+bool test_conv(
+  string testName, bismo_inference::ConvLayerDescriptor & cnv
+) {
+  // calculate some sizes
+  int depth = cnv.ksize * cnv.ksize * cnv.ifm;
+  int odim = (((cnv.idim + 2*cnv.pad) - cnv.ksize) / cnv.stride) + 1;
+  // allocate input image and weight
+  uint8_t * w = new uint8_t[cnv.ofm * depth];
+  uint8_t * a = new uint8_t[cnv.ifm * cnv.idim * cnv.idim];
+  uint8_t * a_lowered = new uint8_t[odim * odim * depth];
+  // random initialization
+  gemmbitserial::generateRandomVector(cnv.wbits, cnv.ofm*depth, w, cnv.wsigned);
+  gemmbitserial::generateRandomVector(cnv.ibits, cnv.ifm*cnv.idim*cnv.idim, a, cnv.isigned);
+  // allocate conv context
+  gemmbitserial::ConvBitSerialContext ctx = gemmbitserial::allocConvBitSerialContext(
+    cnv.ifm, cnv.ofm, cnv.idim, cnv.ksize, cnv.stride, cnv.pad, cnv.ibits,
+    cnv.wbits, cnv.isigned, cnv.wsigned
+  );
+  ctx.importWeights(w);
+  ctx.importActivations(a);
+  gemmbitserial::gemmBitSerial(ctx.gemmctx);
+
+  int32_t * res_hw = new int32_t[odim * odim * cnv.ofm];
+  bismo_inference::LayerHandle handle = bismo_inference::initConvLayer(cnv, w);
+  bismo_inference::execConvLayer(handle, a, res_hw);
+
+  int res = memcmp(res_hw, ctx.gemmctx.res, sizeof(int32_t)*odim*odim*cnv.ofm);
+  cout << "Conv test " << testName << " ";
+  if(res == 0) {
+    cout << "OK";
+  } else {
+    cout << "NOT OK";
+  }
+  cout << endl;
+  // cleanup
+  gemmbitserial::deallocConvBitSerialContext(ctx);
+  delete [] res_hw;
+  delete [] a_lowered;
+  delete [] w;
+  delete [] a;
   return res == 0;
 }
 
