@@ -61,7 +61,7 @@ class ExecAddrGenOutput extends PrintableBundle {
 class ExecAddrGen(val p: ExecAddrGenParams) extends TemplatedHLSBlackBox {
   val io = new Bundle {
     val in = Decoupled(UInt(width = BISMOLimits.descrBits)).flip
-    val out = Decoupled(UInt(width = BISMOLimits.instrBits))
+    val out = Decoupled(UInt(width = BISMOLimits.execAddrGenOutBits))
     val rst_n = Bool(INPUT)
     in.bits.setName("in_V_V_TDATA")
     in.valid.setName("in_V_V_TVALID")
