@@ -413,10 +413,9 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights) {
   }
   BISMORT_DEBUG("[initConvLayer] created weight init instruction");
   // launch weight fetch and wait until complete
+  BISMORT_DEBUG("[initConvLayer] waiting for weight init, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
   acc->set_stage_enables(1, 0, 0);
-  while(acc->fetch_opcount() != 0) {
-    BISMORT_DEBUG("[initConvLayer] waiting for weight init, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
-  };
+  while(acc->fetch_opcount() != 0) {};
   acc->set_stage_enables(0, 0, 0);
   BISMORT_DEBUG("[initConvLayer] weight init done");
   // create entry in layer registry and return layer handle
@@ -755,11 +754,14 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   end_time = std::chrono::high_resolution_clock::now();
   auto exec_duration_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
   BISMORT_DEBUG("[execConvLayer] Execution Time: " << exec_duration_time << " us" );
-  // TODO need transpose here for both cases
-  // copy result buffer to host
+  // temporary buffer to help with transposition
+  AccumType * transpose_tmp = new AccumType[lhs.nrows * rhs.nrows];
+  // copy result buffer from accel to host
+  //AccumType * targetHostBuf = out;
+  AccumType * targetHostBuf = transpose_tmp;
   if((lhs.nrows_a == lhs.nrows) && (rhs.nrows_a == rhs.nrows)) {
     // no padding was necessary, copy directly to host
-    platform->copyBufferAccelToHost((void *)dsc.accel_buf_out, (void *)out, dsc.nbytes_buf_out);
+    platform->copyBufferAccelToHost((void *)dsc.accel_buf_out, (void *)targetHostBuf, dsc.nbytes_buf_out);
   } else {
     // accelerator computed a padded result matrix, copy actual parts only
     AccumType * acc_buf_out = (AccumType *) dsc.accel_buf_out;
@@ -767,9 +769,17 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
     for(size_t row = 0; row < rhs.nrows; row++) {
       size_t ind_padded = row * lhs.nrows_a;
       size_t ind_actual = row * lhs.nrows;
-      platform->copyBufferAccelToHost(&acc_buf_out[ind_padded], (void *)(&out[ind_actual]), nbytes_row_nonpadded);
+      platform->copyBufferAccelToHost(&acc_buf_out[ind_padded], (void *)(&targetHostBuf[ind_actual]), nbytes_row_nonpadded);
     }
   }
+  // host-to-host transpose
+  for(size_t i = 0; i < rhs.nrows; i++) {
+    for(size_t j = 0; j < lhs.nrows; j++) {
+      out[j * rhs.nrows + i] = transpose_tmp[i * lhs.nrows + j];
+    }
+  }
+  delete [] transpose_tmp;
+
 #ifdef BISMORT_CONV_VERIFY_AGAINST_CPU
   // compute result with CPU and compare
   size_t actual_res_bytes = sizeof(AccumType) * lhs.nrows * rhs.nrows;
