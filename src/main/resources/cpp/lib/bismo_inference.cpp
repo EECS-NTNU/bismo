@@ -3,9 +3,9 @@
 #include <vector>
 #include <string.h>
 #include <algorithm>
-//benchmarking
 #include <chrono>
 //#define DEBUG
+//#define BISMORT_CONV_VERIFY_AGAINST_CPU
 #ifdef DEBUG
 #define BISMORT_DEBUG(x) cout << x << endl;
 #else
@@ -766,7 +766,22 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
       platform->copyBufferAccelToHost(&acc_buf_out[ind_padded], (void *)(&out[ind_actual]), nbytes_row_nonpadded);
     }
   }
-  // TODO add CPU golden comparison
+#ifdef BISMORT_CONV_VERIFY_AGAINST_CPU
+  // compute result with CPU and compare
+  size_t actual_res_bytes = sizeof(AccumType) * lhs.nrows * rhs.nrows;
+  gemmbitserial::gemmBitSerial(ctx.gemmctx);
+  int ret = memcmp(ctx.gemmctx.res, out, actual_res_bytes);
+  cout << "memcmp against golden = " << ret << endl;
+  if(ret != 0) {
+    cout << "expected vs found" << endl;
+    for(int i = 0; i < lhs.nrows * rhs.nrows; i++) {
+      if(dsc.ctx.res[i] != out[i]) {
+        cout << "pos " << i << ": " << ctx.gemmctx.res[i] << " " << out[i] << endl;
+      }
+    }
+  }
+  //memcpy(out, ctx.gemmctx.res, actual_res_bytes);
+#endif
 }
 
 // destroy layer with given handle
