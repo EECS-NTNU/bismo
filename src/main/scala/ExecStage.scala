@@ -322,10 +322,13 @@ class ExecDecoupledStage(val myP: ExecStageParams) extends Module {
   // no backpressure in current design, so always pop
   addrgen.out.ready := Bool(true)
 
-  val regCurrentCmd = Reg(init = io.stage_run.bits)
-  when(addrgen.in.fire()) {
-    regCurrentCmd := io.stage_run.bits
-  }
+  val addrgen_out_delayed_raw = ShiftRegister(addrgen.out.bits, myP.getBRAMReadLatency())
+  val addrgen_out_delayed = new ExecAddrGenOutput()
+  addrgen_out_delayed := addrgen_out_delayed.fromBits(addrgen_out_delayed_raw)
+
+  val addrgen_out_final_delayed_raw = ShiftRegister(addrgen.out.bits, myP.getLatency())
+  val addrgen_out_final_delayed = new ExecAddrGenOutput()
+  addrgen_out_final_delayed := addrgen_out_final_delayed.fromBits(addrgen_out_final_delayed_raw)
 
   // reinterpret output of ExecAddrGen as uint
   val addrgen_out = new ExecAddrGenOutput()
@@ -334,6 +337,7 @@ class ExecDecoupledStage(val myP: ExecStageParams) extends Module {
   /*when(addrgen.out.fire()) {
     printf("[AddrGenOutput] " + addrgen_out.printfStr, addrgen_out.printfElems():_*)
   }*/
+  //printf("dpa valid %d clear %d shift %d ned %d \n", dpa.valid, dpa.clear_acc, dpa.shiftAmount, dpa.negate)
 
   val isLastAddr = addrgen.out.fire() & addrgen_out.last
   io.stage_done.valid := ShiftRegister(isLastAddr, myP.getLatency())
@@ -369,19 +373,9 @@ class ExecDecoupledStage(val myP: ExecStageParams) extends Module {
   // data to DPA is valid after read from BRAM is completed
   val read_complete = ShiftRegister(addrgen.out.valid, myP.getBRAMReadLatency())
   dpa.valid := read_complete
-  dpa.shiftAmount := regCurrentCmd.shiftAmount
-  dpa.negate := regCurrentCmd.negate
-  // FIXME: this is not a great way to implement the accumulator clearing. if
-  // there is a cycle of no data from the BRAM (due to a SequenceGenerator bug
-  // or some weird timing interaction) an erronous accumulator clear may be
-  // generated here.
-  // TODO move accumulator clearing gen logic into ExecAddrGen
-  when(regCurrentCmd.clear_before_first_accumulation) {
-    // set clear_acc to 1 for the very first cycle
-    dpa.clear_acc := read_complete & !Reg(next = read_complete)
-  }.otherwise {
-    dpa.clear_acc := Bool(false)
-  }
+  dpa.shiftAmount := addrgen_out_delayed.shiftAmount
+  dpa.negate := addrgen_out_delayed.negate
+  dpa.clear_acc := addrgen_out_delayed.clear
 
   // wire up DPA accumulators to resmem write ports
   for {
@@ -389,8 +383,8 @@ class ExecDecoupledStage(val myP: ExecStageParams) extends Module {
     j ← 0 until myP.getN()
   } {
     io.res.req(i)(j).writeData := dpa.out(i)(j)
-    io.res.req(i)(j).addr := regCurrentCmd.writeAddr
-    io.res.req(i)(j).writeEn := regCurrentCmd.writeEn
+    io.res.req(i)(j).addr := addrgen_out_final_delayed.writeAddr
+    io.res.req(i)(j).writeEn := addrgen_out_final_delayed.writeEn
   }
   /*
   when(io.start & !Reg(next=io.start)) {
