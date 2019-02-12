@@ -119,8 +119,10 @@ bool test_conv(
   gemmbitserial::gemmBitSerial(ctx.gemmctx);
 
   int32_t * res_hw = new int32_t[odim * odim * cnv.ofm];
+  bismo_inference::init();
   bismo_inference::LayerHandle handle = bismo_inference::initConvLayer(cnv, w);
   bismo_inference::execConvLayer(handle, a, res_hw);
+  bismo_inference::deinit();
 
   int res = memcmp(res_hw, ctx.gemmctx.res, sizeof(int32_t)*odim*odim*cnv.ofm);
   cout << "Conv test " << testName << " ";
@@ -137,6 +139,24 @@ bool test_conv(
   delete [] w;
   delete [] a;
   return res == 0;
+}
+
+bool test_small_conv(bismo_inference::HardwareConfig hwcfg) {
+  bool all_OK = true;
+  bismo_inference::ConvLayerDescriptor cnv;
+  cnv.wbits = 4;
+  cnv.ibits = 4;
+  cnv.wsigned = true;
+  cnv.isigned = true;
+  cnv.pad = 0;
+  cnv.ksize = 2;
+  cnv.stride = 1;
+  cnv.idim = 8;
+  cnv.ifm = 2;
+  cnv.ofm = 2;
+  all_OK = test_conv("SmallConv", cnv);
+
+  return all_OK;
 }
 
 bool test_binary_onchip_onetile(bismo_inference::HardwareConfig hwcfg) {
