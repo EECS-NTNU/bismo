@@ -234,7 +234,7 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   // using CPU lowering for now
   // TODO switch to hardware SWU
   // TODO fixes hardware lowering: everything concerning rhs here
-  assert(dsc.useCPULowering);
+  assert(dsc.cnv_dsc.useCPULowering);
   auto start_time = std::chrono::high_resolution_clock::now();
   ctx.importActivations(in);
   auto end_time = std::chrono::high_resolution_clock::now();
