@@ -82,6 +82,8 @@ class BitSerialMatMulParams(
   val noShifter: Boolean = false,
   // do not instantiate the negate stage
   val noNegate: Boolean = false,
+  // instruction generators
+  val instrGen: Boolean = false,
   val p2sAccelParams: StandAloneP2SParams = new StandAloneP2SParams(maxInBw = 8, nInElemPerWord = 8, outStreamSize = 64,
     fastMode = true, mrp = PYNQZ1Params.toMemReqParams() )
 ) extends PrintableParam {
@@ -296,27 +298,6 @@ class BitSerialMatMulAccel(
     vld.ready := enq.ready
   }
 
-  // instantiate the instruction generators
-  val igExec = Module(HLSBlackBox(new ExecInstrGen())).io
-  val igFetch = Module(HLSBlackBox(new FetchInstrGen(new FetchInstrGenParams(
-    dpaDimLHS = myP.dpaDimLHS, dpaDimCommon = myP.dpaDimCommon,
-    dpaDimRHS = myP.dpaDimRHS,
-    execToFetchLeftShift = log2Up(myP.dpaDimCommon / myP.mrp.dataWidth)
-  )))).io
-  val igRes = Module(HLSBlackBox(new ResultInstrGen(new ResultInstrGenParams(
-    dpaDimLHS = myP.dpaDimLHS, dpaDimRHS = myP.dpaDimRHS,
-    accWidthBits = myP.accWidth
-  )))).io
-  // wire up reset differently (Vivado HLS BlackBox)
-  igExec.rst_n := !this.reset
-  igFetch.rst_n := !this.reset
-  igRes.rst_n := !this.reset
-  // instantiate descriptor queues
-  val dscQ = Module(new FPGAQueue(UInt(width = BISMOLimits.descrBits), myP.dscQueueEntries)).io
-  enqPulseGenFromValid(dscQ.enq, io.dsc)
-  // make copies of the descriptor queue output, one for each instrgen
-  StreamCopy(dscQ.deq, Seq(igFetch.in, igExec.in, igRes.in))
-
   // handle direct instruction feed
   // split up single-stream feed into one for each stage
   val insDeinterleave = Module(new StreamDeinterleaverQueued(
@@ -326,28 +307,64 @@ class BitSerialMatMulAccel(
   )).io
   enqPulseGenFromValid(insDeinterleave.in, io.ins)
 
-  val fetchInstrMix = DecoupledInputMux(io.insOrDsc, Seq(insDeinterleave.out(0), igFetch.out))
-  val execInstrMix = DecoupledInputMux(io.insOrDsc, Seq(insDeinterleave.out(1), igExec.out))
-  val resInstrMix = DecoupledInputMux(io.insOrDsc, Seq(insDeinterleave.out(2), igRes.out))
+  if(myP.instrGen) {
+    // instantiate the instruction generators
+    val igExec = Module(HLSBlackBox(new ExecInstrGen())).io
+    val igFetch = Module(HLSBlackBox(new FetchInstrGen(new FetchInstrGenParams(
+      dpaDimLHS = myP.dpaDimLHS, dpaDimCommon = myP.dpaDimCommon,
+      dpaDimRHS = myP.dpaDimRHS,
+      execToFetchLeftShift = log2Up(myP.dpaDimCommon / myP.mrp.dataWidth)
+    )))).io
+    val igRes = Module(HLSBlackBox(new ResultInstrGen(new ResultInstrGenParams(
+      dpaDimLHS = myP.dpaDimLHS, dpaDimRHS = myP.dpaDimRHS,
+      accWidthBits = myP.accWidth
+    )))).io
+    // wire up reset differently (Vivado HLS BlackBox)
+    igExec.rst_n := !this.reset
+    igFetch.rst_n := !this.reset
+    igRes.rst_n := !this.reset
+    // instantiate descriptor queues
+    val dscQ = Module(new FPGAQueue(UInt(width = BISMOLimits.descrBits), myP.dscQueueEntries)).io
+    enqPulseGenFromValid(dscQ.enq, io.dsc)
+    // make copies of the descriptor queue output, one for each instrgen
+    StreamCopy(dscQ.deq, Seq(igFetch.in, igExec.in, igRes.in))
+    val fetchInstrMix = DecoupledInputMux(io.insOrDsc, Seq(insDeinterleave.out(0), igFetch.out))
+    val execInstrMix = DecoupledInputMux(io.insOrDsc, Seq(insDeinterleave.out(1), igExec.out))
+    val resInstrMix = DecoupledInputMux(io.insOrDsc, Seq(insDeinterleave.out(2), igRes.out))
+    // wire up instruction generator to instruction queues
+    // need to use .fromBits due to difference in types (wires/content are the same)
+    // fetch instrgen -> fetch op q
+    fetchOpQ.enq.valid := fetchInstrMix.valid
+    fetchOpQ.enq.bits := fetchOpQ.enq.bits.fromBits(fetchInstrMix.bits)
+    fetchInstrMix.ready := fetchOpQ.enq.ready
+    // exec instrgen -> exec op q
+    execOpQ.enq.valid := execInstrMix.valid
+    execOpQ.enq.bits := execOpQ.enq.bits.fromBits(execInstrMix.bits)
+    execInstrMix.ready := execOpQ.enq.ready
+    // result instrgen -> res op q
+    resultOpQ.enq.valid := resInstrMix.valid
+    resultOpQ.enq.bits := resultOpQ.enq.bits.fromBits(resInstrMix.bits)
+    resInstrMix.ready := resultOpQ.enq.ready
+  } else {
+    // directly wire direct instruction feed into controllers
+    fetchOpQ.enq.valid := insDeinterleave.out(0).valid
+    fetchOpQ.enq.bits := fetchOpQ.enq.bits.fromBits(insDeinterleave.out(0).bits)
+    insDeinterleave.out(0).ready := fetchOpQ.enq.ready
+    // exec instrgen -> exec op q
+    execOpQ.enq.valid := insDeinterleave.out(1).valid
+    execOpQ.enq.bits := execOpQ.enq.bits.fromBits(insDeinterleave.out(1).bits)
+    insDeinterleave.out(1).ready := execOpQ.enq.ready
+    // result instrgen -> res op q
+    resultOpQ.enq.valid := insDeinterleave.out(2).valid
+    resultOpQ.enq.bits := resultOpQ.enq.bits.fromBits(insDeinterleave.out(2).bits)
+    insDeinterleave.out(2).ready := resultOpQ.enq.ready
+  }
 
   /*PrintableBundleStreamMonitor(fetchOpQ.enq, Bool(true), "fetchOpQ", true)
   PrintableBundleStreamMonitor(execOpQ.enq, Bool(true), "execOpQ", true)
   PrintableBundleStreamMonitor(resultOpQ.enq, Bool(true), "resultOpQ", true)*/
 
-  // wire up instruction generator to instruction queues
-  // need to use .fromBits due to difference in types (wires/content are the same)
-  // fetch instrgen -> fetch op q
-  fetchOpQ.enq.valid := fetchInstrMix.valid
-  fetchOpQ.enq.bits := fetchOpQ.enq.bits.fromBits(fetchInstrMix.bits)
-  fetchInstrMix.ready := fetchOpQ.enq.ready
-  // exec instrgen -> exec op q
-  execOpQ.enq.valid := execInstrMix.valid
-  execOpQ.enq.bits := execOpQ.enq.bits.fromBits(execInstrMix.bits)
-  execInstrMix.ready := execOpQ.enq.ready
-  // result instrgen -> res op q
-  resultOpQ.enq.valid := resInstrMix.valid
-  resultOpQ.enq.bits := resultOpQ.enq.bits.fromBits(resInstrMix.bits)
-  resInstrMix.ready := resultOpQ.enq.ready
+
 
   // wire-up: command queues and pulse generators for fetch stage
   fetchCtrl.enable := io.fetch_enable
