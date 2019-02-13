@@ -144,15 +144,15 @@ bool test_conv(
 bool test_small_conv(bismo_inference::HardwareConfig hwcfg) {
   bool all_OK = true;
   bismo_inference::ConvLayerDescriptor cnv;
-  cnv.wbits = 4;
+  cnv.wbits = 1;
   cnv.ibits = 4;
-  cnv.wsigned = true;
-  cnv.isigned = true;
+  cnv.wsigned = false;
+  cnv.isigned = false;
   cnv.pad = 0;
-  cnv.ksize = 2;
+  cnv.ksize = 3;
   cnv.stride = 1;
-  cnv.idim = 8;
-  cnv.ifm = 2;
+  cnv.idim = 13;
+  cnv.ifm = 64;
   cnv.ofm = 2;
   all_OK = test_conv("SmallConv", cnv);
 
