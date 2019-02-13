@@ -607,7 +607,7 @@ void p2s(const uint8_t * host_buf, uint32_t accel_buf, gemmbitserial::BitSerialM
   platform->copyBufferHostToAccel((void *)in_formatted, inbuf_p2s, nbytes_bitpar);
   delete [] in_formatted;
 #else
-  platform->copyBufferHostToAccel(host_buf, inbuf_p2s, nbytes_bitpar);
+  platform->copyBufferHostToAccel((void *)host_buf, inbuf_p2s, nbytes_bitpar);
 #endif
   //use bismo input buff as out buff for p2s
   acc->setup_p2s(inbuf_p2s, nbytes, (void *) accel_buf, mat.nrows_a, mat.ncols_a, mat.nbits);
