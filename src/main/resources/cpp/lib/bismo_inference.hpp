@@ -93,6 +93,7 @@ typedef struct {
   uint16_t idim;  // input image dimension (assumed width=height)
   uint16_t ifm;   // number of input channels
   uint16_t ofm;   // number of output channels
+  bool useCPULowering;  // whether to use CPU (software) matmul lowering
 } ConvLayerDescriptor;
 
 // initialize layer of given type and return handle

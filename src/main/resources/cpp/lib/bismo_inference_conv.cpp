@@ -17,10 +17,16 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights) {
   // so we swap lhs<->rhs internally in this function.
   gemmbitserial::BitSerialMatrix lhs = ctx.gemmctx.rhs;
   gemmbitserial::BitSerialMatrix rhs = ctx.gemmctx.lhs;
+  // bit-serial activation buffer prior to lowering
+  gemmbitserial::BitSerialMatrix abuf = ctx.abuf;
   // dependency on PackedBitGroupType here
   assert(cfg.dpaDimCommon == 64);
   size_t wbytes = lhs.wordsPerBitplane() * lhs.nbits * sizeof(PackedBitGroupType);
-  size_t abytes = rhs.wordsPerBitplane() * rhs.nbits * sizeof(PackedBitGroupType);
+  // the rhs for the hardware depends on who is doing the lowering
+  size_t abytes_lowered = rhs.wordsPerBitplane() * rhs.nbits * sizeof(PackedBitGroupType);
+  size_t abytes_nonlowered = abuf.wordsPerBitplane() * abuf.nbits * sizeof(PackedBitGroupType);
+  size_t abytes = dsc.useCPULowering ? abytes_lowered : abytes_nonlowered;
+
   size_t resbytes = lhs.nrows_a * rhs.nrows_a * sizeof(AccumType);
   uint32_t wbase = allocWeightOCM(wbytes);
   uint32_t abase = allocActivationOCM(abytes);
@@ -72,6 +78,8 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights) {
   LayerHandle ret = registry.size();
   BISMORT_DEBUG("[initConvLayer] registered new conv layer with id " << ret);
   /********************** INSTRUCTION GENERATION ************************/
+  // TODO fixes hardware lowering: everything concerning rhs here
+  assert(dsc.useCPULowering);
   const size_t lhs_tiles = lhs.nrows_a /  cfg.dpaDimLHS;
   const size_t rhs_tiles = rhs.nrows_a /  cfg.dpaDimRHS;
   const size_t wbits = lhs.nbits;
@@ -225,6 +233,8 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
 
   // using CPU lowering for now
   // TODO switch to hardware SWU
+  // TODO fixes hardware lowering: everything concerning rhs here
+  assert(dsc.useCPULowering);
   auto start_time = std::chrono::high_resolution_clock::now();
   ctx.importActivations(in);
   auto end_time = std::chrono::high_resolution_clock::now();

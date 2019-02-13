@@ -154,6 +154,7 @@ bool test_small_conv(bismo_inference::HardwareConfig hwcfg) {
   cnv.idim = 13;
   cnv.ifm = 64;
   cnv.ofm = 2;
+  cnv.useCPULowering = true;
   all_OK = test_conv("SmallConv", cnv);
 
   return all_OK;
