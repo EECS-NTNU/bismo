@@ -105,13 +105,19 @@ void genFetchInstrs(
   frc.tiles_per_row = tiles_per_row;
   frc.bram_addr_base = bram_base;
   frc.dram_base = dram_base;
-  int bytes_left = nbytes;
+  size_t bytes_left = nbytes;
   const size_t bytes_per_addr = (lhsNotRhs ? cfg.dpaDimLHS : cfg.dpaDimRHS) * (cfg.dpaDimCommon/8);
+  // bram base addr calculations here assume that each non-final packet is
+  // distributed evenly between memories. need a max block size that is divisible
+  // by tiles_per_row * bytes_per_addr for this.
+  const size_t aligned_chunks = FETCH_BLOCK_MAX / (tiles_per_row * bytes_per_addr);
+  const size_t max_block = aligned_chunks * (tiles_per_row * bytes_per_addr);
   while(bytes_left > 0) {
-    frc.dram_block_size_bytes = std::min(FETCH_BLOCK_MAX, bytes_left);
+    frc.dram_block_size_bytes = std::min(max_block, bytes_left);
     frc.dram_block_offset_bytes = frc.dram_block_size_bytes;
     frc.dram_block_count = bytes_left / frc.dram_block_size_bytes;
     ins.push_back(frc.asRaw());
+    BISMORT_DEBUG("[genFetchInstrs] " << frc);
     size_t last_chunk_bytes = frc.dram_block_count * frc.dram_block_size_bytes;
     bytes_left -= last_chunk_bytes;
     frc.dram_base += last_chunk_bytes;
