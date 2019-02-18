@@ -21,7 +21,10 @@ typedef struct {
   InternalLayerType layerType;
   uint32_t accel_buf_in;
   uint32_t accel_buf_out;
+  // actual workload
   gemmbitserial::GEMMContext ctx;
+  // hardware workload (can be smaller when using rhs partition)
+  gemmbitserial::GEMMContext hw_ctx;
   gemmbitserial::ConvBitSerialContext cnv_ctx;
   size_t nbytes_buf_in;
   size_t nbytes_buf_out;
