@@ -172,11 +172,12 @@ public:
   gemmbitserial::GEMMContext allocGEMMContext(
     uint64_t lhsRows, uint64_t depth, uint64_t rhsRows,
     uint64_t lhsBits, uint64_t rhsBits,
-    bool lhsSigned, bool rhsSigned
+    bool lhsSigned, bool rhsSigned, size_t extraLHSAlign = 1,
+    size_t extraRHSAlign = 1, size_t extraKAlign = 1
   ) {
-    const uint64_t regblock_lhs = m_cfg.dpaDimLHS;
-    const uint64_t regblock_d = FETCH_ALIGN / sizeof(PackedBitGroupType);
-    const uint64_t regblock_rhs = m_cfg.dpaDimRHS;
+    const uint64_t regblock_lhs = m_cfg.dpaDimLHS * extraLHSAlign;
+    const uint64_t regblock_d = extraKAlign * (FETCH_ALIGN / sizeof(PackedBitGroupType));
+    const uint64_t regblock_rhs = m_cfg.dpaDimRHS * extraRHSAlign;
     const uint64_t cacheBits = 1;
 
     return gemmbitserial::allocGEMMContext_base(
