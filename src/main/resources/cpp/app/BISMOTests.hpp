@@ -195,6 +195,14 @@ bool test_multibit_onchip_onetile(bismo_inference::HardwareConfig hwcfg) {
   return all_OK;
 }
 
+bool test_multibit_multitile(bismo_inference::HardwareConfig hwcfg) {
+  bool all_OK = true;
+  all_OK &= test("64 x 1024 x 64 1b x 1b", 64, 64, 1024, 1, 1);
+  all_OK &= test("64 x 1024 x 65 1b x 1b", 64, 65, 1024, 1, 1);
+  all_OK &= test("64 x 1024 x 77 1b x 1b", 64, 77, 1024, 1, 1);
+  return all_OK;
+}
+
 bool test_binary_size_independent(bismo_inference::HardwareConfig hwcfg) {
   bool all_OK = true;
   all_OK &= test(
