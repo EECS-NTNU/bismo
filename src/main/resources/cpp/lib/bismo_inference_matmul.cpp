@@ -17,7 +17,8 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   size_t abytes = ctx.rhs.wordsPerBitplane() * ctx.rhs.nbits * sizeof(PackedBitGroupType);
   size_t resbytes = ctx.lhs.nrows_a * ctx.rhs.nrows_a * sizeof(AccumType);
   uint32_t wbase = allocWeightOCM(wbytes);
-  uint32_t abase = allocActivationOCM(abytes);
+  uint32_t abase = 0; // all activations use the same OCM buffer
+  size_t n_act_partitions = getNumPartitionsForActivationOCM(abytes);
   // convert weights to bit serial
   // don't really care about performance here since this is one-off
   ctx.lhs.importRegular(weights);
@@ -53,6 +54,7 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   idsc.mm_dsc = dsc;
   idsc.wbase = wbase;
   idsc.abase = abase;
+  idsc.n_act_partitions = n_act_partitions;
   idsc.accel_buf_in = (uint32_t)(uint64_t)platform->allocAccelBuffer(abytes);
   BISMORT_DEBUG("[initMatMulLayer] accel_buf_in: " << (idsc.accel_buf_in) << " for " << abytes << " bytes");
   // TODO optimization: can use common buffer for all results, since 1 layer

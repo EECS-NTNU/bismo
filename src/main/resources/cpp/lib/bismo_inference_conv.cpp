@@ -26,10 +26,11 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights) {
   size_t abytes_lowered = rhs.wordsPerBitplane() * rhs.nbits * sizeof(PackedBitGroupType);
   size_t abytes_nonlowered = abuf.wordsPerBitplane() * abuf.nbits * sizeof(PackedBitGroupType);
   size_t abytes = dsc.useCPULowering ? abytes_lowered : abytes_nonlowered;
+  size_t n_act_partitions = getNumPartitionsForActivationOCM(abytes);
 
   size_t resbytes = lhs.nrows_a * rhs.nrows_a * sizeof(AccumType);
   uint32_t wbase = allocWeightOCM(wbytes);
-  uint32_t abase = allocActivationOCM(abytes);
+  uint32_t abase = 0; // all activations use the same OCM buffer
 
   // importWeights uses uint64_t here, so Dk must be 64 unless fixed
   assert(cfg.dpaDimCommon == 64);
@@ -69,6 +70,7 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights) {
   idsc.cnv_dsc = dsc;
   idsc.wbase = wbase;
   idsc.abase = abase;
+  idsc.n_act_partitions = n_act_partitions;
   idsc.accel_buf_in = (uint32_t)(uint64_t)platform->allocAccelBuffer(abytes);
   BISMORT_DEBUG("[initConvLayer] accel_buf_in: " << (idsc.accel_buf_in) << " for " << abytes << " bytes");
   // TODO optimization: can use common buffer for all results, since 1 layer

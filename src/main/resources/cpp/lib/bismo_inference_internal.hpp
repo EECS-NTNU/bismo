@@ -31,6 +31,7 @@ typedef struct {
   size_t wbase;
   size_t abase;
   std::vector<BISMOInstruction> instructions_queue;
+  size_t n_act_partitions;
 } InternalLayerDescriptor;
 typedef int32_t AccumType;
 
@@ -47,7 +48,7 @@ extern std::vector<InternalLayerDescriptor> registry;
 // internal helper functions
 uint32_t allocWeightOCM(size_t nbytes);
 uint32_t allocThresOCM(size_t nbytes);
-uint32_t allocActivationOCM(size_t nbytes);
+size_t getNumPartitionsForActivationOCM(size_t nbytes);
 void genFetchInstrs(
   std::vector<BISMOInstruction> & ins,
   size_t bram_base,

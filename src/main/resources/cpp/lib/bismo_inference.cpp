@@ -75,16 +75,16 @@ uint32_t allocThresOCM(size_t nbytes) {
   return 0;
 }
 
-uint32_t allocActivationOCM(size_t nbytes) {
+size_t getNumPartitionsForActivationOCM(size_t nbytes) {
   // since we follow a strictly layer-by-layer strategy where only one
   // layer executes at a time, we simply use the same OCM buffer for all layers
-  // check if enough space in activation OCM
-  BISMORT_DEBUG("[allocActivationOCM] alloc " << nbytes << ", available " << activationOCMBytesLeft);
-  assert(nbytes <= activationOCMBytesLeft);
-  // all layers use the same activation buffer, so no base ptr update
-  return 0;
+  // see how many partitions we need
+  size_t aligned_nbytes = gemmbitserial::alignTo(nbytes, activationOCMBytesLeft);
+  size_t n_partitions = aligned_nbytes / activationOCMBytesLeft;
+  BISMORT_DEBUG("[getNumPartitionsForActivationOCM] alloc " << nbytes << ", available " << activationOCMBytesLeft);
+  BISMORT_DEBUG("[getNumPartitionsForActivationOCM] n_partitions " << n_partitions);
+  return n_partitions;
 }
-
 
 void genFetchInstrs(
   std::vector<BISMOInstruction> & ins,
