@@ -120,7 +120,12 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
     size_t rhs_partition_start_elem =  rhs_partition_start_row * dsc.ctx.rhs.ncols;
     BISMORT_DEBUG("Processing RHS partition " << rhs_p << " row " << rhs_partition_start_row);
     // convert activations into bit-serial format
-    // TODO need to prevent reading past the end of host buffer here?
+    if(rhs_partition_start_row + rhs.nrows > dsc.ctx.rhs.nrows) {
+      BISMORT_DEBUG("Adjusting rhs.nrows to prevent reading past end of host buffer: ");
+      BISMORT_DEBUG("Was " << rhs.nrows << " now " << dsc.ctx.rhs.nrows - rhs_partition_start_row);
+      // prevent reading past the end of host buffer
+      rhs.nrows = dsc.ctx.rhs.nrows - rhs_partition_start_row;
+    }
     p2s(&in[rhs_partition_start_elem], dsc.accel_buf_in, rhs);
     // enable all stages
     acc->set_stage_enables(1, 1, 1);
