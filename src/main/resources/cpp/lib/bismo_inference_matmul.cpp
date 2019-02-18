@@ -42,7 +42,7 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   size_t wbytes = hw_ctx.lhs.wordsPerBitplane() * hw_ctx.lhs.nbits * sizeof(PackedBitGroupType);
   size_t abytes = hw_ctx.rhs.wordsPerBitplane() * hw_ctx.rhs.nbits * sizeof(PackedBitGroupType);
   size_t resbytes = hw_ctx.lhs.nrows_a * hw_ctx.rhs.nrows_a * sizeof(AccumType);
-  assert(abytes < activationOCMBytesLeft);
+  assert(abytes <= activationOCMBytesLeft);
   uint32_t wbase = allocWeightOCM(wbytes);
   uint32_t abase = 0; // all activations use the same OCM buffer
   // allocate DRAM buffer and copy bit-serial weights there
