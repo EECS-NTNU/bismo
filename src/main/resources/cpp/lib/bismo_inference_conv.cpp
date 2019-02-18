@@ -79,145 +79,19 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights) {
   BISMORT_DEBUG("[initConvLayer] accel_buf_out: " << (idsc.accel_buf_out) << " for " << resbytes << " bytes");
   LayerHandle ret = registry.size();
   BISMORT_DEBUG("[initConvLayer] registered new conv layer with id " << ret);
-  /********************** INSTRUCTION GENERATION ************************/
-  // TODO fixes hardware lowering: everything concerning rhs here
+
   assert(dsc.useCPULowering);
   const size_t lhs_tiles = lhs.nrows_a /  cfg.dpaDimLHS;
   const size_t rhs_tiles = rhs.nrows_a /  cfg.dpaDimRHS;
+  const size_t k_tiles = rhs.ncols_a /  cfg.dpaDimCommon;
   const size_t wbits = lhs.nbits;
   const size_t abits = rhs.nbits;
-  uint32_t rptr = idsc.accel_buf_out;
-  assert(cfg.dpaDimCommon == cfg.readChanWidth);
-  const size_t k_tiles = lhs.ncols_a / cfg.dpaDimCommon;
-  auto start_time = std::chrono::high_resolution_clock::now();
-  // fetch the rhs matrix into the on-chip buffer
-  BISMOSyncInstruction sync;
-  sync.isRunCfg = 0;
-  BISMOExecRunInstruction erc;
-  erc.isRunCfg = 1;
-  erc.targetStage = stgExec;
-  erc.writeAddr = 0;
-  BISMOResultRunInstruction rrc;
-  rrc.isRunCfg = 1;
-  rrc.targetStage = stgResult;
-  rrc.resmem_addr = 0;
-  // fetch receive token from exec stage for buffer access
-  // in the current schedule this token represents the entire RHS buffer
-  sync.targetStage = stgFetch;
-  sync.isSendToken = 0;
-  sync.chanID = 0;
-  // acc->pushInstruction(sync.asRaw());
-  idsc.instructions_queue.push_back(sync.asRaw());
-  // generate fetch for activations
-  genFetchInstrs(idsc.instructions_queue, abase, false, idsc.accel_buf_in, lhs.ncols_a / cfg.dpaDimCommon, idsc.nbytes_buf_in);
-  // fetch sends token to execute stage
-  sync.targetStage = stgFetch;
-  sync.isSendToken = 1;
-  sync.chanID = 0;
-  // acc->pushInstruction(sync.asRaw());
-  idsc.instructions_queue.push_back(sync.asRaw());
-  //acc->set_stage_enables(0, 0, 0);
-  // exec receives token from fetch stage
-  sync.targetStage = stgExec;
-  sync.isSendToken = 0;
-  sync.chanID = 0;
-  // acc->pushInstruction(sync.asRaw());
-  idsc.instructions_queue.push_back(sync.asRaw());
-  // /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
-  // TODO current code still assumes CPU lowering -- move to SWU!  //
-  // /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
-
-  // TODO this assumes activations fit into OCM, need extra tiling otherwise
-  // TODO optimization: do this in smaller chunks for fetch-exec concurrency
-  for(size_t lhs_tile = 0; lhs_tile < lhs_tiles; lhs_tile++) {
-    for(size_t rhs_tile = 0; rhs_tile < rhs_tiles; rhs_tile++) {
-      // exec stage ==============================================
-      // exec receives token from result stage (acquire empty res buffer)
-      sync.targetStage = stgExec;
-      sync.isSendToken = 0;
-      sync.chanID = 1;
-      // acc->pushInstruction(sync.asRaw());
-      idsc.instructions_queue.push_back(sync.asRaw());
-      for(size_t wbit = 0; wbit < wbits; wbit++) {
-        for(size_t abit = 0; abit < abits; abit++) {
-          // generate exec instr for current bit position
-          const bool tile_first = (wbit == 0) && (abit == 0);
-          const bool lbit_last = (wbit == wbits-1);
-          const bool rbit_last = (abit == abits-1);
-          const bool tile_last = lbit_last && rbit_last;
-          const bool neg_l = lbit_last && lhs.issigned;
-          const bool neg_r = rbit_last && rhs.issigned;
-          bool isNeg = neg_l ^ neg_r;
-          erc.lhsOffset = wbase + k_tiles * (lhs_tile + wbit * lhs_tiles);
-          erc.rhsOffset = abase + k_tiles * (rhs_tile + abit * rhs_tiles);
-          erc.negate = isNeg ? 1 : 0;
-          erc.numTiles = k_tiles;
-          erc.shiftAmount = (wbit + abit);
-          erc.clear_before_first_accumulation = tile_first ? 1 : 0;
-          erc.writeEn = tile_last ? 1 : 0;
-          erc.cnvAddrGenMode = 0;
-          if(tile_last) {
-            // TODO more flexible multi-buffering here
-            erc.writeAddr = (erc.writeAddr == 0) ? 1 : 0;
-          }
-          // acc->pushInstruction(erc.asRaw());
-          idsc.instructions_queue.push_back(erc.asRaw());
-
-        }
-      }
-      // exec sends token to result stage (send full res buffer)
-      sync.targetStage = stgExec;
-      sync.isSendToken = 1;
-      sync.chanID = 1;
-      // acc->pushInstruction(sync.asRaw());
-      idsc.instructions_queue.push_back(sync.asRaw());
-
-      // result stage =============================================
-      // res receives token from exec stage (acquire full res buffer)
-      sync.targetStage = stgResult;
-      sync.isSendToken = 0;
-      sync.chanID = 0;
-      // acc->pushInstruction(sync.asRaw());
-      idsc.instructions_queue.push_back(sync.asRaw());
-      // generate write instruction
-      uint32_t lhs_ind = cfg.dpaDimLHS * lhs_tile;
-      uint32_t rhs_ind = cfg.dpaDimRHS * rhs_tile;
-      size_t ind = rhs_ind * lhs.nrows_a + lhs_ind;
-      rrc.dram_base = (rptr + (ind * sizeof(AccumType)));
-      rrc.dram_skip = lhs.nrows_a * sizeof(AccumType);
-      rrc.waitCompleteBytes = 0;
-      rrc.resmem_addr = (rrc.resmem_addr == 0) ? 1 : 0;
-      rrc.nop = 0;
-      // acc->pushInstruction(rrc.asRaw());
-      idsc.instructions_queue.push_back(rrc.asRaw());
-      // res sends token to exec stage (send empty res buffer)
-      sync.targetStage = stgResult;
-      sync.isSendToken = 1;
-      sync.chanID = 0;
-      // acc->pushInstruction(sync.asRaw());
-      idsc.instructions_queue.push_back(sync.asRaw());
-    }
-  }
-
-  // exec sends token to fetch stage
-  sync.targetStage = stgExec;
-  sync.isSendToken = 1;
-  sync.chanID = 0;
-  // acc->pushInstruction(sync.asRaw());
-  idsc.instructions_queue.push_back(sync.asRaw());
-  // final result instruction to ensure all writes completed
-  rrc.nop = 1;
-  rrc.waitCompleteBytes = 1;
-  rrc.dram_base = 0;
-  rrc.dram_skip = 0;
-  rrc.resmem_addr = 0;
-  // acc->pushInstruction(rrc.asRaw());
-  idsc.instructions_queue.push_back(rrc.asRaw());
-  auto end_time = std::chrono::high_resolution_clock::now();
-  auto instr_gen_duration_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
-  BISMORT_DEBUG("[initConvLayer] Instruction generation time: " << instr_gen_duration_time << " us" );
-
-  /********************** END of INSTRUCTION GENERATION *****************/
+  const bool wsigned = lhs.issigned;
+  const bool asigned = rhs.issigned;
+  genMatMulInstrs_LHSPreloaded_RHSFitsOnChip(
+    idsc.instructions_queue, lhs_tiles, rhs_tiles, k_tiles, wbits, abits,
+    wsigned, asigned, wbase, abase, idsc.accel_buf_in, idsc.accel_buf_out
+  );
   registry.push_back(idsc);
   // instruction generation for the rest of the execution is done dynamically
   // in the execLayer calls for now
