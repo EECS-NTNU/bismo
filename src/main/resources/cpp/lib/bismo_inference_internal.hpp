@@ -17,6 +17,7 @@
 
 namespace bismo_inference {
 typedef enum {layerMatMul, layerConv, layerThres} InternalLayerType;
+typedef int32_t AccumType;
 typedef struct {
   InternalLayerType layerType;
   uint32_t accel_buf_in;
@@ -35,8 +36,8 @@ typedef struct {
   size_t abase;
   std::vector<BISMOInstruction> instructions_queue;
   size_t n_act_partitions;
+  AccumType * padded_result_host_buffer;
 } InternalLayerDescriptor;
-typedef int32_t AccumType;
 
 // internal global variables
 // global handle for the platform and BISMO driver
