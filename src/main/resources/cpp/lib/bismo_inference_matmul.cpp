@@ -61,7 +61,7 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   // launch weight fetch and wait until complete
   acc->set_stage_enables(1, 0, 0);
   while(acc->fetch_opcount() != 0) {
-    BISMORT_DEBUG("[initMatMulLayer] waiting for weight init, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
+    //BISMORT_DEBUG("[initMatMulLayer] waiting for weight init, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
   };
   acc->set_stage_enables(0, 0, 0);
   BISMORT_DEBUG("[initMatMulLayer] weight init done");
@@ -131,7 +131,7 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
     }
     // wait until all writes are completed
     while(acc->res_opcount() != 0) {
-      BISMORT_DEBUG("[execMatMulLayer] waiting for exec, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
+      //BISMORT_DEBUG("[execMatMulLayer] waiting for exec, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
     };
     // copy padded result buffer to host
     size_t result_partition_start_elem = rhs_partition_start_row * lhs.nrows_a;
