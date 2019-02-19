@@ -48,6 +48,8 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights) {
   idsc.n_act_partitions = 0;
   idsc.accel_buf_in = 0;
   idsc.accel_buf_out = 0;
+  // temporary buffer to help with transposition
+  idsc.transpose_result_host_buffer = new AccumType[lhs.nrows * rhs.nrows];
   LayerHandle ret = registry.size();
   registry.push_back(idsc);
   // instruction generation for the rest of the execution is done dynamically
@@ -78,19 +80,16 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   auto end_time = std::chrono::high_resolution_clock::now();
   auto rhs2bs_duration_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
   BISMORT_DEBUG("[execConvLayer] software p2s+im2row time: " << rhs2bs_duration_time << " us" );
-  // temporary buffer to help with transposition
-  AccumType * transpose_tmp = new AccumType[lhs.nrows * rhs.nrows];
   //AccumType * targetHostBuf = out;
-  AccumType * targetHostBuf = transpose_tmp;
+  AccumType * targetHostBuf = dsc.transpose_result_host_buffer;
   // call the underlying matmul implementation
   execMatMulLayer_Internal_RHSBitSerial(cnv_matmul_handle, targetHostBuf);
   // host-to-host transpose
   for(size_t i = 0; i < rhs.nrows; i++) {
     for(size_t j = 0; j < lhs.nrows; j++) {
-      out[j * rhs.nrows + i] = transpose_tmp[i * lhs.nrows + j];
+      out[j * rhs.nrows + i] = targetHostBuf[i * lhs.nrows + j];
     }
   }
-  delete [] transpose_tmp;
 
 #ifdef BISMORT_CONV_VERIFY_AGAINST_CPU
   // compute result with CPU and compare
