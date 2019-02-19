@@ -97,8 +97,6 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
     wsigned, asigned, wbase, abase, idsc.accel_buf_in, idsc.accel_buf_out
   );
   registry.push_back(idsc);
-  // instruction generation for the rest of the execution is done dynamically
-  // in the execLayer calls for now
   return ret;
 }
 // execute layer with given handle
