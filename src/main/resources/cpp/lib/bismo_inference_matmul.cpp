@@ -135,11 +135,12 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
     }
     // copy the partition from each bitslice into the accelerator memory
     // loop over each bitplane
-    size_t bytes_per_bitplane_part = rhs.nrows * rhs.wordsPerRow() * sizeof(uint64_t);
+    const size_t bytes_per_bitplane_part_host = rhs.nrows * rhs.wordsPerRow() * sizeof(uint64_t);
+    const size_t bytes_per_bitplane_part_accel = rhs.nrows_a * rhs.wordsPerRow() * sizeof(uint64_t);
     for(size_t b = 0; b < rhs.nbits; b++) {
       uint64_t * host_ptr = dsc.ctx.rhs.rowptr(b, rhs_partition_start_row);
-      uint32_t accel_ptr = dsc.accel_buf_in + b * bytes_per_bitplane_part;
-      platform->copyBufferHostToAccel(host_ptr, (void *)accel_ptr, bytes_per_bitplane_part);
+      uint32_t accel_ptr = dsc.accel_buf_in + b * bytes_per_bitplane_part_accel;
+      platform->copyBufferHostToAccel(host_ptr, (void *)accel_ptr, bytes_per_bitplane_part_host);
     }
 
     // enable all stages
@@ -178,7 +179,6 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
 #ifdef BISMORT_MATMUL_VERIFY_AGAINST_CPU
   // compute result with CPU and compare
   size_t actual_res_bytes = sizeof(AccumType) * dsc.ctx.lhs.nrows * dsc.ctx.rhs.nrows;
-  dsc.ctx.rhs.importRegular(in);
   gemmbitserial::gemmBitSerial(dsc.ctx);
   int ret = memcmp(dsc.ctx.res, out, actual_res_bytes);
   cout << "memcmp against golden = " << ret << endl;
