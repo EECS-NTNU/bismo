@@ -107,6 +107,16 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   InternalLayerDescriptor dsc = registry[id];
   gemmbitserial::BitSerialMatrix lhs = dsc.hw_ctx.lhs;
   gemmbitserial::BitSerialMatrix rhs = dsc.hw_ctx.rhs;
+  dsc.ctx.rhs.importRegular(in);
+  execMatMulLayer_Internal_RHSBitSerial(id, out);
+}
+
+// asssumes that the RHS matrix is already in bit-serial format in the ctx
+void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
+  BISMORT_DEBUG("[execMatMulLayer_Internal_RHSBitSerial] id " << id);
+  InternalLayerDescriptor dsc = registry[id];
+  gemmbitserial::BitSerialMatrix lhs = dsc.hw_ctx.lhs;
+  gemmbitserial::BitSerialMatrix rhs = dsc.hw_ctx.rhs;
   AccumType * padded_result_host_buffer = dsc.padded_result_host_buffer;
   uint32_t rptr = dsc.accel_buf_out;
   auto start_time = std::chrono::high_resolution_clock::now();
@@ -115,7 +125,6 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
     // calculate start of rhs partition. each partition has hw_ctx.rhs.nrows_a
     // rows, and the regular amount of columns for the unpadded bit-parallel matrix
     size_t rhs_partition_start_row = rhs.nrows_a * rhs_p;
-    size_t rhs_partition_start_elem =  rhs_partition_start_row * dsc.ctx.rhs.ncols;
     BISMORT_DEBUG("Processing RHS partition " << rhs_p << " row " << rhs_partition_start_row);
     // convert activations into bit-serial format
     if(rhs_partition_start_row + rhs.nrows > dsc.ctx.rhs.nrows) {
@@ -124,7 +133,15 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
       // prevent reading past the end of host buffer
       rhs.nrows = dsc.ctx.rhs.nrows - rhs_partition_start_row;
     }
-    p2s(&in[rhs_partition_start_elem], dsc.accel_buf_in, rhs);
+    // copy the partition from each bitslice into the accelerator memory
+    // loop over each bitplane
+    size_t bytes_per_bitplane_part = rhs.nrows * rhs.wordsPerRow() * sizeof(uint64_t);
+    for(size_t b = 0; b < rhs.nbits; b++) {
+      uint64_t * host_ptr = dsc.ctx.rhs.rowptr(b, rhs_partition_start_row);
+      uint32_t accel_ptr = dsc.accel_buf_in + b * bytes_per_bitplane_part;
+      platform->copyBufferHostToAccel(host_ptr, (void *)accel_ptr, bytes_per_bitplane_part);
+    }
+
     // enable all stages
     acc->set_stage_enables(1, 1, 1);
     start_time = std::chrono::high_resolution_clock::now();
@@ -156,7 +173,7 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   }
   end_time = std::chrono::high_resolution_clock::now();
   auto exec_duration_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
-  BISMORT_DEBUG("[execMatMulLayer] Execution Time: " << exec_duration_time << " us" );
+  BISMORT_DEBUG("[execMatMulLayer_Internal_RHSBitSerial] Execution Time: " << exec_duration_time << " us" );
 
 #ifdef BISMORT_MATMUL_VERIFY_AGAINST_CPU
   // compute result with CPU and compare
@@ -175,4 +192,5 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   }
 #endif
 }
+
 }

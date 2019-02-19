@@ -77,5 +77,7 @@ void p2s(
   uint32_t accel_buf,
   gemmbitserial::BitSerialMatrix & mat
 );
+
+void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out);
 }
 #endif /* end of include guard: BISMORT_INFERENCE_HPP */
