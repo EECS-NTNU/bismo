@@ -20,17 +20,20 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   size_t abytes_workload_total = ctx.rhs.wordsPerBitplane() * ctx.rhs.nbits * sizeof(PackedBitGroupType);
   size_t n_act_partitions = getNumPartitionsForActivationOCM(abytes_workload_total);
   gemmbitserial::GEMMContext hw_ctx;
-  BISMORT_DEBUG("rhs n_act_partitions: " << n_act_partitions);
   if(n_act_partitions > 1) {
-    // compute number of RHS rows that fit into OCM
-    const size_t aligned_rhs_nrows_a = gemmbitserial::alignTo(ctx.rhs.nrows_a, cfg.dpaDimRHS * n_act_partitions);
-    const size_t partition_rhs_nrows_a = aligned_rhs_nrows_a / n_act_partitions;
-    // allocate hw context for block only
+    // how many rhs tiles from all bit positions fit into the RHS OCM?
+    const size_t partition_rhs_ntiles = activationOCMBytesLeft / (ctx.rhs.nbits * ctx.rhs.wordsPerRow() * cfg.dpaDimRHS * sizeof(PackedBitGroupType));
+    // allocate hw context for a single partition
     hw_ctx = acc->allocGEMMContext(
-      dsc.M, dsc.K, partition_rhs_nrows_a, dsc.wbits, dsc.ibits, dsc.wsigned, dsc.isigned
+      dsc.M, dsc.K, partition_rhs_ntiles * cfg.dpaDimRHS, dsc.wbits, dsc.ibits, dsc.wsigned, dsc.isigned
     );
-    // import weights for hw_ctx separately since hw_ctx is not the same as ctx
-    // anymore
+    // make sure we have enough partitions to cover all of rhs
+    while(hw_ctx.rhs.nrows_a * n_act_partitions < ctx.rhs.nrows) {
+      n_act_partitions++;
+    }
+    BISMORT_DEBUG("[initMatMulLayer] RHS partition:");
+    hw_ctx.rhs.printSummary();
+    // import weights separately
     hw_ctx.lhs.importRegular(weights);
   } else {
     // single RHS partition only
@@ -42,6 +45,7 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   size_t wbytes = hw_ctx.lhs.wordsPerBitplane() * hw_ctx.lhs.nbits * sizeof(PackedBitGroupType);
   size_t abytes = hw_ctx.rhs.wordsPerBitplane() * hw_ctx.rhs.nbits * sizeof(PackedBitGroupType);
   size_t resbytes = hw_ctx.lhs.nrows_a * hw_ctx.rhs.nrows_a * sizeof(AccumType);
+  BISMORT_DEBUG("rhs n_act_partitions: " << n_act_partitions << " partition abytes: " << abytes << " available " << activationOCMBytesLeft);
   assert(abytes <= activationOCMBytesLeft);
   uint32_t wbase = allocWeightOCM(wbytes);
   uint32_t abase = 0; // all activations use the same OCM buffer
