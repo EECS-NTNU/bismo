@@ -200,7 +200,9 @@ bool test_multibit_multitile(bismo_inference::HardwareConfig hwcfg) {
   all_OK &= test("64 x 1024 x 64 1b x 1b", 64, 64, 1024, 1, 1);
   all_OK &= test("64 x 1024 x 65 1b x 1b", 64, 65, 1024, 1, 1);
   all_OK &= test("64 x 1024 x 77 1b x 1b", 64, 77, 1024, 1, 1);
+  all_OK &= test("64 x 1024 x 67 2b x 2b", 64, 67, 1024, 1, 2);
   all_OK &= test("64 x 1024 x 77 2b x 2b", 64, 77, 1024, 2, 2);
+  all_OK &= test("64 x 1024 x 64 2b x 3b", 64, 64, 1024, 2, 3);
   return all_OK;
 }
 
