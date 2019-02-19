@@ -133,15 +133,16 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
     size_t rhs_partition_start_row = rhs.nrows_a * rhs_p;
     BISMORT_DEBUG("Processing RHS partition " << rhs_p << " row " << rhs_partition_start_row);
     // convert activations into bit-serial format
-    if(rhs_partition_start_row + rhs.nrows > dsc.ctx.rhs.nrows) {
+    size_t host_rows_in_partition = rhs.nrows;
+    if(rhs_partition_start_row + host_rows_in_partition > dsc.ctx.rhs.nrows) {
       BISMORT_DEBUG("Adjusting rhs.nrows to prevent reading past end of host buffer: ");
       BISMORT_DEBUG("Was " << rhs.nrows << " now " << dsc.ctx.rhs.nrows - rhs_partition_start_row);
       // prevent reading past the end of host buffer
-      rhs.nrows = dsc.ctx.rhs.nrows - rhs_partition_start_row;
+      host_rows_in_partition = dsc.ctx.rhs.nrows - rhs_partition_start_row;
     }
     // copy the partition from each bitslice into the accelerator memory
     // loop over each bitplane
-    const size_t bytes_per_bitplane_part_host = rhs.nrows * rhs.wordsPerRow() * sizeof(uint64_t);
+    const size_t bytes_per_bitplane_part_host = host_rows_in_partition * rhs.wordsPerRow() * sizeof(uint64_t);
     const size_t bytes_per_bitplane_part_accel = rhs.nrows_a * rhs.wordsPerRow() * sizeof(uint64_t);
     for(size_t b = 0; b < rhs.nbits; b++) {
       uint64_t * host_ptr = dsc.ctx.rhs.rowptr(b, rhs_partition_start_row);
