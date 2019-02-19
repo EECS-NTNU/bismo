@@ -37,6 +37,7 @@ typedef struct {
   std::vector<BISMOInstruction> instructions_queue;
   size_t n_act_partitions;
   AccumType * padded_result_host_buffer;
+  LayerHandle cnv_matmul_handle;
 } InternalLayerDescriptor;
 
 // internal global variables
