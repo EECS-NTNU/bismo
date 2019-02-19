@@ -32,7 +32,9 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
       n_act_partitions++;
     }
     BISMORT_DEBUG("[initMatMulLayer] RHS partition:");
+#ifdef DEBUG
     hw_ctx.rhs.printSummary();
+#endif
     // import weights separately
     hw_ctx.lhs.importRegular(weights);
   } else {
