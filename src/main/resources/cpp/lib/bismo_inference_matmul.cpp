@@ -82,10 +82,16 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   const size_t abits = hw_ctx.rhs.nbits;
   const bool wsigned = hw_ctx.lhs.issigned;
   const bool asigned = hw_ctx.rhs.issigned;
+#ifdef BISMORT_USE_INSTRGEN
+  // create an instruction generation descriptor
+  // TODO
+#else
+  // generate instruction sequence on the CPU
   genMatMulInstrs_LHSPreloaded_RHSFitsOnChip(
     idsc.instructions_queue, lhs_tiles, rhs_tiles, k_tiles, wbits, abits,
     wsigned, asigned, wbase, abase, idsc.accel_buf_in, idsc.accel_buf_out
   );
+#endif
   registry.push_back(idsc);
   // set the contents of the LHS matrix for the accelerator
   configMatMulLayer_Internal_SetLHS(ret, hw_ctx.lhs);
@@ -95,6 +101,8 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
 // replace the LHS matrix for a layer
 // specified matrix shape and initialized matrix shape must be the same
 void configMatMulLayer_Internal_SetLHS(LayerHandle id, gemmbitserial::BitSerialMatrix mat) {
+  // instrgen doesn't support only fetching LHS, use manual feed
+  acc->useDirectInstructionFeed();
   InternalLayerDescriptor dsc = registry[id];
   // allocate DRAM buffer and copy bit-serial weights there
   // TODO optimization: can use a single DRAM buffer whose size is the largest
@@ -174,6 +182,11 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
     }
 
     // enable all stages
+#ifdef BISMORT_USE_INSTRGEN
+    acc->useDescriptors();
+    // TODO feed instrgen descriptor and wait until done
+#else
+    acc->useDirectInstructionFeed();
     acc->set_stage_enables(1, 1, 1);
     start_time = std::chrono::high_resolution_clock::now();
     for (auto & instr : dsc.instructions_queue)
@@ -184,6 +197,7 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
     while(acc->res_opcount() != 0) {
       //BISMORT_DEBUG("[execMatMulLayer] waiting for exec, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
     };
+#endif
     // copy padded result buffer to host
     size_t result_partition_start_elem = rhs_partition_start_row * lhs.nrows_a;
     platform->copyBufferAccelToHost((void *)dsc.accel_buf_out, (void *) &padded_result_host_buffer[result_partition_start_elem], dsc.nbytes_buf_out);
