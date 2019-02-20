@@ -22,6 +22,7 @@ typedef struct {
   InternalLayerType layerType;
   uint32_t accel_buf_in;
   uint32_t accel_buf_out;
+  uint32_t accel_lhs_ptr;
   // actual workload
   gemmbitserial::GEMMContext ctx;
   // hardware workload (can be smaller when using rhs partition)
@@ -33,6 +34,7 @@ typedef struct {
   ConvLayerDescriptor cnv_dsc;
   ThresLayerDescriptor thr_dsc;
   size_t wbase;
+  size_t wbytes;
   size_t abase;
   std::vector<BISMOInstruction> instructions_queue;
   size_t n_act_partitions;
@@ -80,6 +82,7 @@ void p2s(
   gemmbitserial::BitSerialMatrix & mat
 );
 
+void configMatMulLayer_Internal_SetLHS(LayerHandle id, gemmbitserial::BitSerialMatrix mat);
 void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out);
 }
 #endif /* end of include guard: BISMORT_INFERENCE_HPP */

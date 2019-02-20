@@ -53,26 +53,6 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   assert(abytes <= activationOCMBytesLeft);
   uint32_t wbase = allocWeightOCM(wbytes);
   uint32_t abase = 0; // all activations use the same OCM buffer
-  // allocate DRAM buffer and copy bit-serial weights there
-  // TODO optimization: can use a single DRAM buffer whose size is the largest
-  // weight buffer since this is done only once per layer
-  uint32_t accel_lhs_ptr = (uint32_t)(uint64_t)platform->allocAccelBuffer(wbytes);
-  platform->copyBufferHostToAccel((void *)hw_ctx.lhs.data, (void *)accel_lhs_ptr, wbytes);
-  // create instruction sequence to fetch weights into OCM
-  std::vector<BISMOInstruction> instrFetchWeights;
-  genFetchInstrs(instrFetchWeights, wbase, true, accel_lhs_ptr, hw_ctx.lhs.ncols_a / cfg.dpaDimCommon, wbytes);
-  acc->set_stage_enables(0, 0, 0);
-  for(auto & fi : instrFetchWeights) {
-    acc->pushInstruction(fi);
-  }
-  BISMORT_DEBUG("[initMatMulLayer] created weight init instructions: " << acc->fetch_opcount());
-  // launch weight fetch and wait until complete
-  acc->set_stage_enables(1, 0, 0);
-  while(acc->fetch_opcount() != 0) {
-    //BISMORT_DEBUG("[initMatMulLayer] waiting for weight init, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
-  };
-  acc->set_stage_enables(0, 0, 0);
-  BISMORT_DEBUG("[initMatMulLayer] weight init done");
   // create entry in layer registry and return layer handle
   InternalLayerDescriptor idsc;
   idsc.layerType = layerMatMul;
@@ -83,6 +63,8 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   idsc.padded_result_host_buffer = new AccumType[hw_ctx.lhs.nrows_a * hw_ctx.rhs.nrows_a * n_act_partitions];
   idsc.mm_dsc = dsc;
   idsc.wbase = wbase;
+  idsc.wbytes = wbytes;
+  idsc.accel_lhs_ptr = (uint32_t)(uint64_t)platform->allocAccelBuffer(wbytes);
   idsc.abase = abase;
   idsc.n_act_partitions = n_act_partitions;
   idsc.accel_buf_in = (uint32_t)(uint64_t)platform->allocAccelBuffer(abytes);
@@ -105,8 +87,42 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
     wsigned, asigned, wbase, abase, idsc.accel_buf_in, idsc.accel_buf_out
   );
   registry.push_back(idsc);
+  // set the contents of the LHS matrix for the accelerator
+  configMatMulLayer_Internal_SetLHS(ret, hw_ctx.lhs);
   return ret;
 }
+
+// replace the LHS matrix for a layer
+// specified matrix shape and initialized matrix shape must be the same
+void configMatMulLayer_Internal_SetLHS(LayerHandle id, gemmbitserial::BitSerialMatrix mat) {
+  InternalLayerDescriptor dsc = registry[id];
+  // allocate DRAM buffer and copy bit-serial weights there
+  // TODO optimization: can use a single DRAM buffer whose size is the largest
+  // weight buffer since this is done only once per layer
+  uint32_t accel_lhs_ptr = dsc.accel_lhs_ptr;
+  const size_t wbytes = dsc.wbytes;
+  const size_t wbase = dsc.wbase;
+  // ensure shapes are compatible
+  assert(mat.nbits == dsc.ctx.lhs.nbits);
+  assert(mat.wordsPerBitplane() == dsc.ctx.lhs.wordsPerBitplane());
+  platform->copyBufferHostToAccel((void *)mat.data, (void *)accel_lhs_ptr, wbytes);
+  // create instruction sequence to fetch weights into OCM
+  std::vector<BISMOInstruction> instrFetchWeights;
+  genFetchInstrs(instrFetchWeights, wbase, true, accel_lhs_ptr, mat.ncols_a / cfg.dpaDimCommon, wbytes);
+  acc->set_stage_enables(0, 0, 0);
+  for(auto & fi : instrFetchWeights) {
+    acc->pushInstruction(fi);
+  }
+  BISMORT_DEBUG("[initMatMulLayer] created weight init instructions: " << acc->fetch_opcount());
+  // launch weight fetch and wait until complete
+  acc->set_stage_enables(1, 0, 0);
+  while(acc->fetch_opcount() != 0) {
+    //BISMORT_DEBUG("[initMatMulLayer] waiting for weight init, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
+  };
+  acc->set_stage_enables(0, 0, 0);
+  BISMORT_DEBUG("[initMatMulLayer] weight init done");
+}
+
 // execute layer with given handle
 // in and out are assumed to be preallocated to appropriate buffer sizes,
 // depending on the type of layer
