@@ -28,12 +28,15 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights) {
   mm_dsc.M = lhs.nrows;
   mm_dsc.K = lhs.ncols;
   mm_dsc.N = rhs.nrows;
-  // register the matrix multiplication layer
-  LayerHandle cnv_matmul_handle = initMatMulLayer(mm_dsc, weights);
   // importWeights uses uint64_t here, so Dk must be 64 unless fixed
   assert(cfg.dpaDimCommon == 64);
   assert(dsc.useCPULowering);
   ctx.importWeights(weights);
+  // register the matrix multiplication layer
+  LayerHandle cnv_matmul_handle = initMatMulLayer(mm_dsc, weights);
+  // set accel LHS contents from imported weights
+  configMatMulLayer_Internal_SetLHS(cnv_matmul_handle, lhs);
+
   // create entry in layer registry and return layer handle
   InternalLayerDescriptor idsc;
   idsc.layerType = layerConv;
@@ -97,6 +100,11 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   gemmbitserial::gemmBitSerial(ctx.gemmctx);
   int ret = memcmp(ctx.gemmctx.res, out, actual_res_bytes);
   BISMORT_DEBUG("[execConvLayer] memcmp against golden = " << ret);
+  const size_t bs_w_bytes = ctx.gemmctx.rhs.nbits * ctx.gemmctx.rhs.wordsPerBitplane() * sizeof(PackedBitGroupType);
+  int cmp_wmat = memcmp(ctx.gemmctx.rhs.data, dsc_matmul.ctx.lhs.data, bs_w_bytes);
+  int cmp_amat = memcmp(ctx.gemmctx.lhs.data, dsc_matmul.ctx.rhs.data, lowered_bs_act_bytes);
+  BISMORT_DEBUG("[execConvLayer] W matrix memcmp = " << cmp_wmat);
+  BISMORT_DEBUG("[execConvLayer] A matrix memcmp = " << cmp_amat);
   if(ret != 0) {
     cout << "expected vs found" << endl;
     for(int i = 0; i < lhs.nrows * rhs.nrows; i++) {
