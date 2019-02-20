@@ -96,7 +96,7 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   size_t actual_res_bytes = sizeof(AccumType) * lhs.nrows * rhs.nrows;
   gemmbitserial::gemmBitSerial(ctx.gemmctx);
   int ret = memcmp(ctx.gemmctx.res, out, actual_res_bytes);
-  cout << "memcmp against golden = " << ret << endl;
+  BISMORT_DEBUG("[execConvLayer] memcmp against golden = " << ret);
   if(ret != 0) {
     cout << "expected vs found" << endl;
     for(int i = 0; i < lhs.nrows * rhs.nrows; i++) {

@@ -188,7 +188,7 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
   size_t actual_res_bytes = sizeof(AccumType) * dsc.ctx.lhs.nrows * dsc.ctx.rhs.nrows;
   gemmbitserial::gemmBitSerial(dsc.ctx);
   int ret = memcmp(dsc.ctx.res, out, actual_res_bytes);
-  cout << "memcmp against golden = " << ret << endl;
+  BISMORT_DEBUG("[execMatMulLayer] memcmp against golden = " << ret);
   if(ret != 0) {
     cout << "expected vs found" << endl;
     for(int i = 0; i < dsc.ctx.lhs.nrows * dsc.ctx.rhs.nrows; i++) {
