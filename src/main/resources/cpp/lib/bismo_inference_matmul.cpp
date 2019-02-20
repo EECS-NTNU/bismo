@@ -198,22 +198,22 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
     }
 
     // enable all stages
-#ifdef BISMORT_USE_INSTRGEN
-    acc->useDescriptors();
-    // TODO feed instrgen descriptor and wait until done
-#else
-    acc->useDirectInstructionFeed();
     acc->set_stage_enables(1, 1, 1);
     start_time = std::chrono::high_resolution_clock::now();
-    for (auto & instr : dsc.instructions_queue)
-    {
+#ifdef BISMORT_USE_INSTRGEN
+    acc->useDescriptors();
+    // feed the instrgen descriptor
+    acc->pushSingleMMDescriptor(dsc.instrgen_dsc);
+#else
+    acc->useDirectInstructionFeed();
+    for (auto & instr : dsc.instructions_queue) {
       acc->pushInstruction(instr);
     }
+#endif
     // wait until all writes are completed
     while(acc->res_opcount() != 0) {
       //BISMORT_DEBUG("[execMatMulLayer] waiting for exec, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
     };
-#endif
     // copy padded result buffer to host
     size_t result_partition_start_elem = rhs_partition_start_row * lhs.nrows_a;
     platform->copyBufferAccelToHost((void *)dsc.accel_buf_out, (void *) &padded_result_host_buffer[result_partition_start_elem], dsc.nbytes_buf_out);
