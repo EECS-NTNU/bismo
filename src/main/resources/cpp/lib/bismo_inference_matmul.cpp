@@ -21,6 +21,8 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   size_t n_act_partitions = getNumPartitionsForActivationOCM(abytes_workload_total);
   gemmbitserial::GEMMContext hw_ctx;
   if(n_act_partitions > 1) {
+    // must have room for at least one tile per bit position
+    assert(activationOCMBytesLeft >= (ctx.rhs.nbits * ctx.rhs.wordsPerRow() * cfg.dpaDimRHS * sizeof(PackedBitGroupType)));
     // how many rhs tiles from all bit positions fit into the RHS OCM?
     const size_t partition_rhs_ntiles = activationOCMBytesLeft / (ctx.rhs.nbits * ctx.rhs.wordsPerRow() * cfg.dpaDimRHS * sizeof(PackedBitGroupType));
     // allocate hw context for a single partition
