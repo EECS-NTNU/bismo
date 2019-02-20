@@ -84,7 +84,23 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   const bool asigned = hw_ctx.rhs.issigned;
 #ifdef BISMORT_USE_INSTRGEN
   // create an instruction generation descriptor
-  // TODO
+  SingleMMDescriptor instrgen_dsc;
+  instrgen_dsc.tiles_m = lhs_tiles;
+  instrgen_dsc.tiles_k = k_tiles;
+  instrgen_dsc.tiles_n = rhs_tiles;
+  instrgen_dsc.bits_l = wbits;
+  instrgen_dsc.bits_r = abits;
+  instrgen_dsc.signed_l = wsigned;
+  instrgen_dsc.signed_r = asigned;
+  instrgen_dsc.base_l = wbase;
+  instrgen_dsc.base_r = abase;
+  instrgen_dsc.base_res = 0;
+  instrgen_dsc.nbufs_res = 2;
+  // LHS already fetched, skip
+  instrgen_dsc.dram_lhs = 0xffffffff;
+  instrgen_dsc.dram_rhs = idsc.accel_buf_in;
+  instrgen_dsc.dram_res = idsc.accel_buf_out;
+  idsc.instrgen_dsc = instrgen_dsc;
 #else
   // generate instruction sequence on the CPU
   genMatMulInstrs_LHSPreloaded_RHSFitsOnChip(
