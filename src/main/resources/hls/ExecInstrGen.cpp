@@ -46,6 +46,7 @@ void ExecInstrGen(
   #pragma HLS INTERFACE ap_ctrl_none port=return
   #pragma HLS INTERFACE axis port=out
   #pragma HLS INTERFACE axis port=in
+  #pragma HLS protocol fixed
 
   BISMOExecRunInstruction exec;
   BISMOSyncInstruction sync;
