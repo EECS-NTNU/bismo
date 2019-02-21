@@ -83,6 +83,9 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   const bool wsigned = hw_ctx.lhs.issigned;
   const bool asigned = hw_ctx.rhs.issigned;
 #ifdef BISMORT_USE_INSTRGEN
+  // TODO handle even distribution of rows to mems with instrgen alignment
+  // TODO enable multiple fetch instrs for larger chunks
+  assert(abytes <= FETCH_BLOCK_MAX);
   // create an instruction generation descriptor
   SingleMMDescriptor instrgen_dsc;
   instrgen_dsc.tiles_m = lhs_tiles;
