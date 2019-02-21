@@ -122,6 +122,9 @@ void ResultInstrGen_Templated(
   // generate a final instruction to ensure all writes completed
   res.nop = 1;
   res.waitCompleteBytes = 1;
+  res.dram_base = 0;
+  res.dram_skip = 0;
+  res.resmem_addr = 0;
   out.write(res.asRaw());
 }
 
