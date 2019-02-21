@@ -207,6 +207,9 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
     acc->useDescriptors();
     // feed the instrgen descriptor
     acc->pushSingleMMDescriptor(dsc.instrgen_dsc);
+    // HACK: make sure at least one op has appeared before checking for completion
+    // proper way to fix this is to singal completion from accel explicitly
+    while(acc->res_opcount() == 0) {};
 #else
     acc->useDirectInstructionFeed();
     for (auto & instr : dsc.instructions_queue) {
