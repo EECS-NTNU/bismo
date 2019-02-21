@@ -313,7 +313,7 @@ class BitSerialMatMulAccel(
     val igFetch = Module(HLSBlackBox(new FetchInstrGen(new FetchInstrGenParams(
       dpaDimLHS = myP.dpaDimLHS, dpaDimCommon = myP.dpaDimCommon,
       dpaDimRHS = myP.dpaDimRHS,
-      execToFetchLeftShift = log2Up(myP.dpaDimCommon / myP.mrp.dataWidth)
+      execToFetchLeftShift = log2Ceil(myP.dpaDimCommon / myP.mrp.dataWidth)
     )))).io
     val igRes = Module(HLSBlackBox(new ResultInstrGen(new ResultInstrGenParams(
       dpaDimLHS = myP.dpaDimLHS, dpaDimRHS = myP.dpaDimRHS,
@@ -362,9 +362,19 @@ class BitSerialMatMulAccel(
 
   /*PrintableBundleStreamMonitor(fetchOpQ.enq, Bool(true), "fetchOpQ", true)
   PrintableBundleStreamMonitor(execOpQ.enq, Bool(true), "execOpQ", true)
-  PrintableBundleStreamMonitor(resultOpQ.enq, Bool(true), "resultOpQ", true)*/
+  PrintableBundleStreamMonitor(resultOpQ.enq, Bool(true), "resultOpQ", true)
 
+  when(fetchOpQ.enq.fire()) {
+    printf("Raw fetch instr: %x \n", fetchOpQ.enq.bits.toBits())
+  }
 
+  when(execOpQ.enq.fire()) {
+    printf("Raw exec instr: %x \n", execOpQ.enq.bits.toBits())
+  }
+
+  when(resultOpQ.enq.fire()) {
+    printf("Raw res instr: %x \n", resultOpQ.enq.bits.toBits())
+  }*/
 
   // wire-up: command queues and pulse generators for fetch stage
   fetchCtrl.enable := io.fetch_enable
