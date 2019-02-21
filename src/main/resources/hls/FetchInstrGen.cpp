@@ -52,6 +52,7 @@ void FetchInstrGen_Templated(
   #pragma HLS INTERFACE ap_ctrl_none port=return
   #pragma HLS INTERFACE axis port=out
   #pragma HLS INTERFACE axis port=in
+io_section:{
   #pragma HLS protocol fixed
 
   BISMOFetchRunInstruction fetch;
@@ -127,6 +128,7 @@ void FetchInstrGen_Templated(
   sync.isSendToken = 1;
   sync.chanID = 0;
   out.write(sync.asRaw());
+}
 }
 
 #include "FetchInstrGen_TemplateDefs.hpp"

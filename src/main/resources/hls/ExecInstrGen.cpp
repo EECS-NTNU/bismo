@@ -46,6 +46,7 @@ void ExecInstrGen(
   #pragma HLS INTERFACE ap_ctrl_none port=return
   #pragma HLS INTERFACE axis port=out
   #pragma HLS INTERFACE axis port=in
+io_section:{
   #pragma HLS protocol fixed
 
   BISMOExecRunInstruction exec;
@@ -71,6 +72,7 @@ void ExecInstrGen(
   uint8_t offset_res = 0;
   // single iteration space for the entire instrgen
   for(size_t i = 0; i < total_iters; i++) {
+    #pragma HLS PIPELINE II=1
     // helper variables based on current loop iteration
     const bool tile_first = (l == 0) && (r == 0);
     const bool tile_last = (l == ins_in.bits_l-1) && (r == ins_in.bits_r-1);
@@ -143,4 +145,5 @@ void ExecInstrGen(
   sync.isSendToken = 1;
   sync.chanID = 0;
   out.write(sync.asRaw());
+}
 }

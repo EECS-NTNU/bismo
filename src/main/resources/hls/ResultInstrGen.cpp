@@ -52,6 +52,7 @@ void ResultInstrGen_Templated(
   #pragma HLS INTERFACE ap_ctrl_none port=return
   #pragma HLS INTERFACE axis port=out
   #pragma HLS INTERFACE axis port=in
+io_section:{
   #pragma HLS protocol fixed
 
   BISMOResultRunInstruction res;
@@ -126,6 +127,7 @@ void ResultInstrGen_Templated(
   res.dram_skip = 0;
   res.resmem_addr = 0;
   out.write(res.asRaw());
+}
 }
 
 #include "ResultInstrGen_TemplateDefs.hpp"
