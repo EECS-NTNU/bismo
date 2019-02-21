@@ -90,7 +90,7 @@ void ResultInstrGen_Templated(
     uint32_t lhs_ind = M * m;
     uint32_t rhs_ind = N * n;
     size_t ind = rhs_ind * lhs_nrows_a + lhs_ind;
-    res.dram_base = ins_in.dram_res + (ind * sizeof(AccumType));
+    res.dram_base = ins_in.dram_res + (ind * bytes_per_acc);
     res.resmem_addr = offset_res;
     res.dram_skip = dram_skip;
     res.nop = 0;

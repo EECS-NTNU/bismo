@@ -83,7 +83,7 @@ class BitSerialMatMulParams(
   // do not instantiate the negate stage
   val noNegate: Boolean = false,
   // instruction generators
-  val instrGen: Boolean = false,
+  val instrGen: Boolean = true,
   val p2sAccelParams: StandAloneP2SParams = new StandAloneP2SParams(maxInBw = 8, nInElemPerWord = 8, outStreamSize = 64,
     fastMode = true, mrp = PYNQZ1Params.toMemReqParams() )
 ) extends PrintableParam {
