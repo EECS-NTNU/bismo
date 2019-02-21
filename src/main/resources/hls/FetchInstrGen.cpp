@@ -79,22 +79,25 @@ void FetchInstrGen_Templated(
   const int bytes_per_lhs_tile = (M * K) / 8;
   const int bytes_per_rhs_tile = (N * K) / 8;
 
-  // prepare fetch instruction for LHS matrix
-  fetch.bram_addr_base = ins_in.base_l << ETF_S;
-  fetch.bram_id_start = first_lhs_id;
-  fetch.bram_id_range = M - 1;
-  // how many DRAM data words are copied before the
-  // fetch interconnect starts targeting the next BRAM
-  fetch.tiles_per_row = ins_in.tiles_k << ETF_S;
-  // DRAM base address for LHS
-  fetch.dram_base = ins_in.dram_lhs;
-  // bytes to read in each contiguous block
-  fetch.dram_block_size_bytes = lhs_tiles * ins_in.bits_l * bytes_per_lhs_tile;
-  // TODO partial matrices will need multiple blocks here
-  fetch.dram_block_count = 1;
-  fetch.dram_block_offset_bytes = 0;
-  // emit fetch instruction for LHS matrix
-  out.write(fetch.asRaw());
+  // do not fetch LHS if addr is 0xFFFFFFFF (already fetched)
+  if(ins_in.dram_lhs != 0xFFFFFFFF) {
+    // prepare fetch instruction for LHS matrix
+    fetch.bram_addr_base = ins_in.base_l << ETF_S;
+    fetch.bram_id_start = first_lhs_id;
+    fetch.bram_id_range = M - 1;
+    // how many DRAM data words are copied before the
+    // fetch interconnect starts targeting the next BRAM
+    fetch.tiles_per_row = ins_in.tiles_k << ETF_S;
+    // DRAM base address for LHS
+    fetch.dram_base = ins_in.dram_lhs;
+    // bytes to read in each contiguous block
+    fetch.dram_block_size_bytes = lhs_tiles * ins_in.bits_l * bytes_per_lhs_tile;
+    // TODO partial matrices will need multiple blocks here
+    fetch.dram_block_count = 1;
+    fetch.dram_block_offset_bytes = 0;
+    // emit fetch instruction for LHS matrix
+    out.write(fetch.asRaw());
+  }
 
   // prepare fetch instruction for RHS matrix
   fetch.bram_addr_base = ins_in.base_r << ETF_S;
