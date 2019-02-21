@@ -57,6 +57,9 @@ void ResultInstrGen_Templated(
   BISMOResultRunInstruction res;
   BISMOSyncInstruction sync;
 
+  const size_t bytes_per_acc = A / 8;
+  const size_t bytes_per_res_tile = M * N * bytes_per_acc;
+
   // set the invariants (values do not depend on loop iter)
   sync.targetStage = stgResult;
   res.targetStage = stgResult;
@@ -67,33 +70,55 @@ void ResultInstrGen_Templated(
   ins_in.fromRaw(in.read());
   ap_wait();
 
-  // start by acquiring buffer from execute stage
-  // receive token from execute stage
-  sync.isSendToken = 0;
-  sync.chanID = 0;
-  out.write(sync.asRaw());
-  ap_wait();
-
-  const size_t bytes_per_acc = A / 8;
-  const size_t bytes_per_res_tile = M * N * bytes_per_acc;
-
-  // TODO expand to support multi-tile
-  res.nop = 0;
-  res.resmem_addr = 0;
-  res.dram_base = ins_in.dram_res;
-  res.dram_skip = bytes_per_acc * M; // TODO multitile will need matrix dim
-  res.waitCompleteBytes = 0;
-  // emit res instruction
-  out.write(res.asRaw());
-  ap_wait();
-
-  // signal that res buffer is now free to be recycled
-  // send token to execute stage
-  sync.isSendToken = 1;
-  sync.chanID = 0;
-  out.write(sync.asRaw());
-  ap_wait();
-
+  // compute the size of the iteration space
+  const size_t total_iters = ins_in.tiles_m * ins_in.tiles_n;
+  /// iteration variables
+  uint16_t m = 0, n = 0;
+  uint8_t offset_res = 0;
+  const size_t lhs_nrows_a = ins_in.tiles_m * M;
+  const size_t dram_skip = bytes_per_acc * lhs_nrows_a;
+  // single iteration space for the entire instrgen
+  for(size_t i = 0; i < total_iters; i++) {
+    // start by acquiring buffer from execute stage
+    // receive token from execute stage
+    sync.isSendToken = 0;
+    sync.chanID = 0;
+    out.write(sync.asRaw());
+    ap_wait();
+    // calculate the write offset
+    // TODO optimize resource usage here by using adds inside iter. tracking
+    uint32_t lhs_ind = M * m;
+    uint32_t rhs_ind = N * n;
+    size_t ind = rhs_ind * lhs_nrows_a + lhs_ind;
+    res.dram_base = ins_in.dram_res + (ind * sizeof(AccumType));
+    res.resmem_addr = offset_res;
+    res.dram_skip = dram_skip;
+    res.nop = 0;
+    res.waitCompleteBytes = 0;
+    // emit res instruction
+    out.write(res.asRaw());
+    ap_wait();
+    // update the result buffer offset
+    offset_res++;
+    if(offset_res == ins_in.nbufs_res) {
+      offset_res = 0;
+    }
+    // signal that res buffer is now free to be recycled
+    // send token to execute stage
+    sync.isSendToken = 1;
+    sync.chanID = 0;
+    out.write(sync.asRaw());
+    ap_wait();
+    // iteration tracking logic: nested loops over tiles
+    n++;
+    if(n == ins_in.tiles_n) {
+      n = 0;
+      m++;
+      if(m == ins_in.tiles_m) {
+        m = 0;
+      }
+    }
+  }
   // generate a final instruction to ensure all writes completed
   res.nop = 1;
   res.waitCompleteBytes = 1;
