@@ -203,12 +203,12 @@ void genMatMulInstrs_LHSPreloaded_RHSFitsOnChip(
           erc.shiftAmount = (wbit + abit);
           erc.clear_before_first_accumulation = tile_first ? 1 : 0;
           erc.writeEn = tile_last ? 1 : 0;
-          if(tile_last) {
-            // TODO more flexible multi-buffering here
-            erc.writeAddr = (erc.writeAddr == 0) ? 1 : 0;
-          }
           // acc->pushInstruction(erc.asRaw());
           ins.push_back(erc.asRaw());
+          if(tile_last) {
+            // update resmem addr
+            erc.writeAddr = (erc.writeAddr == 0) ? 1 : 0;
+          }
         }
       }
       // exec sends token to result stage (send full res buffer)
@@ -230,9 +230,10 @@ void genMatMulInstrs_LHSPreloaded_RHSFitsOnChip(
       rrc.dram_base = (accel_buf_res + (ind * sizeof(AccumType)));
       rrc.dram_skip = lhs_nrows_a * sizeof(AccumType);
       rrc.waitCompleteBytes = 0;
-      rrc.resmem_addr = (rrc.resmem_addr == 0) ? 1 : 0;
       rrc.nop = 0;
       ins.push_back(rrc.asRaw());
+      // update resmem addr
+      rrc.resmem_addr = (rrc.resmem_addr == 0) ? 1 : 0;
       // res sends token to exec stage (send empty res buffer)
       sync.targetStage = stgResult;
       sync.isSendToken = 1;
