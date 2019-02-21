@@ -362,19 +362,18 @@ class BitSerialMatMulAccel(
 
   /*PrintableBundleStreamMonitor(fetchOpQ.enq, Bool(true), "fetchOpQ", true)
   PrintableBundleStreamMonitor(execOpQ.enq, Bool(true), "execOpQ", true)
-  PrintableBundleStreamMonitor(resultOpQ.enq, Bool(true), "resultOpQ", true)
+  PrintableBundleStreamMonitor(resultOpQ.enq, Bool(true), "resultOpQ", true)*/
 
-  when(fetchOpQ.enq.fire()) {
+  /*when(fetchOpQ.enq.fire()) {
     printf("Raw fetch instr: %x \n", fetchOpQ.enq.bits.toBits())
   }
-
   when(execOpQ.enq.fire()) {
     printf("Raw exec instr: %x \n", execOpQ.enq.bits.toBits())
   }
-
   when(resultOpQ.enq.fire()) {
     printf("Raw res instr: %x \n", resultOpQ.enq.bits.toBits())
   }*/
+  //printf("Op counts: %d %d %d \n", fetchOpQ.count, execOpQ.count, resultOpQ.count)
 
   // wire-up: command queues and pulse generators for fetch stage
   fetchCtrl.enable := io.fetch_enable
