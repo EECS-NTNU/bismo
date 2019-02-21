@@ -34,6 +34,7 @@
 # *******************************************************************************/
 
 #include <ap_int.h>
+#include <ap_utils.h>
 #include <hls_stream.h>
 #include <stdint.h>
 #include "BISMOInstruction.hpp"
@@ -51,6 +52,7 @@ void FetchInstrGen_Templated(
   #pragma HLS INTERFACE ap_ctrl_none port=return
   #pragma HLS INTERFACE axis port=out
   #pragma HLS INTERFACE axis port=in
+  #pragma HLS protocol fixed
 
   BISMOFetchRunInstruction fetch;
   BISMOSyncInstruction sync;
@@ -63,12 +65,14 @@ void FetchInstrGen_Templated(
   // read the descriptor
   SingleMMDescriptor ins_in;
   ins_in.fromRaw(in.read());
+  ap_wait();
 
   // start by acquiring buffer to fill
   // receive token from execute stage
   sync.isSendToken = 0;
   sync.chanID = 0;
   out.write(sync.asRaw());
+  ap_wait();
 
   // number of lhs and rhs tiles
   const uint32_t lhs_tiles = ins_in.tiles_m * ins_in.tiles_k;
@@ -97,6 +101,7 @@ void FetchInstrGen_Templated(
     fetch.dram_block_offset_bytes = 0;
     // emit fetch instruction for LHS matrix
     out.write(fetch.asRaw());
+    ap_wait();
   }
 
   // prepare fetch instruction for RHS matrix
@@ -115,6 +120,7 @@ void FetchInstrGen_Templated(
   fetch.dram_block_offset_bytes = 0;
   // emit fetch instruction for RHS matrix
   out.write(fetch.asRaw());
+  ap_wait();
 
   // signal that buffer is now filled
   // send token to execute stage

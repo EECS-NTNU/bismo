@@ -34,6 +34,7 @@
 # *******************************************************************************/
 
 #include <ap_int.h>
+#include <ap_utils.h>
 #include <hls_stream.h>
 #include <stdint.h>
 #include "BISMOInstruction.hpp"
@@ -51,6 +52,7 @@ void ExecInstrGen(
 
   SingleMMDescriptor ins_in;
   ins_in.fromRaw(in.read());
+  ap_wait();
   sync.targetStage = stgExec;
   exec.targetStage = stgExec;
   exec.isRunCfg = 1;
@@ -59,6 +61,7 @@ void ExecInstrGen(
   sync.isSendToken = 0;
   sync.chanID = 0;
   out.write(sync.asRaw());
+  ap_wait();
   // compute the size of the iteration space
   const size_t total_iters = ins_in.tiles_m * ins_in.tiles_n * ins_in.bits_l * ins_in.bits_r;
   /// iteration variables
@@ -77,6 +80,7 @@ void ExecInstrGen(
       sync.isSendToken = 0;
       sync.chanID = 1;
       out.write(sync.asRaw());
+      ap_wait();
     }
     const uint8_t weight = l + r;
     // whether the current bit position is negative for
@@ -102,12 +106,14 @@ void ExecInstrGen(
     exec.writeEn = tile_last ? 1 : 0;
     exec.writeAddr = ins_in.base_res + offset_res;
     out.write(exec.asRaw());
+    ap_wait();
     if(tile_last) {
       // finished computing result tile
       // release the result buffer
       sync.isSendToken = 1;
       sync.chanID = 1;
       out.write(sync.asRaw());
+      ap_wait();
     }
     // iteration tracking logic: result buffer offset
     offset_res++;
