@@ -117,11 +117,11 @@ io_section:{
       sync.chanID = 1;
       out.write(sync.asRaw());
       ap_wait();
-    }
-    // iteration tracking logic: result buffer offset
-    offset_res++;
-    if(offset_res == ins_in.nbufs_res) {
-      offset_res = 0;
+      // iteration tracking logic: result buffer offset
+      offset_res++;
+      if(offset_res == ins_in.nbufs_res) {
+        offset_res = 0;
+      }
     }
     // iteration tracking logic: nested loops over tiles and bits
     r++;
