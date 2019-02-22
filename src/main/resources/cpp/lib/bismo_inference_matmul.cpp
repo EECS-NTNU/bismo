@@ -209,6 +209,9 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
     TIMER_SAMPLE();
     TIMER_REPORT("execMatMulLayer host->accel copy");
 
+#ifdef BISMORT_INSTRUMENTATION
+    acc->perf_set_cc_enable(1);
+#endif
     // enable all stages
     acc->set_stage_enables(1, 1, 1);
 #ifdef BISMORT_USE_INSTRGEN
@@ -228,6 +231,9 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
     while(acc->res_opcount() != 0) {
       //BISMORT_DEBUG("[execMatMulLayer] waiting for exec, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
     };
+#ifdef BISMORT_INSTRUMENTATION
+    acc->perf_set_cc_enable(0);
+#endif
     TIMER_SAMPLE();
     TIMER_REPORT("execMatMulLayer hardware execution");
     // copy padded result buffer to host
@@ -235,6 +241,10 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
     platform->copyBufferAccelToHost((void *)dsc.accel_buf_out, (void *) &padded_result_host_buffer[result_partition_start_elem], dsc.nbytes_buf_out);
     TIMER_SAMPLE();
     TIMER_REPORT("execMatMulLayer accel->host copy");
+#ifdef BISMORT_INSTRUMENTATION
+    acc->updateStateBreakdown();
+    acc->printStateBreakdown();
+#endif
   }
   // get rid of padding as needed
   if((lhs.nrows_a == dsc.ctx.lhs.nrows) && (dsc.n_act_partitions * rhs.nrows_a == dsc.ctx.rhs.nrows)) {
