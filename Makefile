@@ -30,18 +30,18 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # target frequency for Vivado FPGA synthesis
-FREQ_MHZ ?= 150.0
+FREQ_MHZ ?= 300.0
 # controls whether Vivado will run in command-line or GUI mode
 VIVADO_MODE ?= batch # or gui
 # which C++ compiler to use
 CC = g++
 # scp/rsync target to copy files to board
-PLATFORM ?= PYNQZ1
+PLATFORM ?= PYNQU96
 URI = $($(PLATFORM)_URI)
 # overlay dims
-M ?= 8
-K ?= 256
-N ?= 8
+M ?= 2
+K ?= 64
+N ?= 2
 O ?= 64
 F ?= true
 OVERLAY_CFG = $(M)x$(K)x$(N)
