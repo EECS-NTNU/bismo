@@ -42,6 +42,8 @@ URI = $($(PLATFORM)_URI)
 M ?= 2
 K ?= 64
 N ?= 2
+LMEM ?= 1024
+RMEM ?= 1024
 O ?= 64
 F ?= true
 OVERLAY_CFG = $(M)x$(K)x$(N)
@@ -179,10 +181,10 @@ $(BUILD_DIR_HWDRV)/EmuTestP2SAccel.hpp:
 hw_verilog: $(HW_VERILOG)
 
 $(HW_VERILOG):
-	$(SBT) $(SBT_FLAGS) "runMain bismo.ChiselMain $(PLATFORM) $(BUILD_DIR_VERILOG) $M $K $N"
+	$(SBT) $(SBT_FLAGS) "runMain bismo.ChiselMain $(PLATFORM) $(BUILD_DIR_VERILOG) $M $K $N $LMEM $RMEM"
 
 resmodel:
-	$(SBT) $(SBT_FLAGS) "runMain bismo.ResModelMain $(PLATFORM) $(BUILD_DIR_VERILOG) $M $K $N"
+	$(SBT) $(SBT_FLAGS) "runMain bismo.ResModelMain $(PLATFORM) $(BUILD_DIR_VERILOG) $M $K $N $LMEM $RMEM"
 #generate for p2s
 p2s:
 	$(SBT) $(SBT_FLAGS) "runMain bismo.P2SMain $(PLATFORM) $(BUILD_DIR_VERILOG) $M $N $O $F"

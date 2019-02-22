@@ -56,7 +56,7 @@ object Settings {
   // smaller accelerator config for emu for faster testing
   val emuInstParams = new BitSerialMatMulParams(
     dpaDimLHS = 2, dpaDimRHS = 2, dpaDimCommon = 64, lhsEntriesPerMem = 8192,
-    rhsEntriesPerMem = 16384, mrp = PYNQZ1Params.toMemReqParams(),
+    rhsEntriesPerMem = 128, mrp = PYNQZ1Params.toMemReqParams(),
     cmdQueueEntries = 4096
   )
 
@@ -103,11 +103,13 @@ object ChiselMain {
     val dpaDimLHS: Int = args(2).toInt
     val dpaDimCommon: Int = args(3).toInt
     val dpaDimRHS: Int = args(4).toInt
+    val memLHS: Int = args(5).toInt
+    val memRHS: Int = args(6).toInt
     val accInst = Settings.makeInstFxn(
       //TODO updated for BOB :)
       new BitSerialMatMulParams(
         dpaDimLHS = dpaDimLHS, dpaDimRHS = dpaDimRHS, dpaDimCommon = dpaDimCommon,
-        lhsEntriesPerMem = 8192, rhsEntriesPerMem = 8192,
+        lhsEntriesPerMem = memLHS, rhsEntriesPerMem = memRHS,
         cmdQueueEntries = 512, mrp = PYNQZ1Params.toMemReqParams()
       )
     )
@@ -149,10 +151,11 @@ object ResModelMain {
     val dpaDimLHS: Int = args(2).toInt
     val dpaDimCommon: Int = args(3).toInt
     val dpaDimRHS: Int = args(4).toInt
+    val memLHS: Int = args(5).toInt
+    val memRHS: Int = args(6).toInt
     val params = new BitSerialMatMulParams(
       dpaDimLHS = dpaDimLHS, dpaDimRHS = dpaDimRHS, dpaDimCommon = dpaDimCommon,
-      lhsEntriesPerMem = 1024,
-      rhsEntriesPerMem = 1024,
+      lhsEntriesPerMem = memLHS, rhsEntriesPerMem = memRHS,
       mrp = PYNQZ1Params.toMemReqParams())
     params.estimateResources()
   }
