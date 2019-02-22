@@ -151,11 +151,12 @@ object ResModelMain {
     val dpaDimRHS: Int = args(4).toInt
     val memLHS: Int = args(5).toInt
     val memRHS: Int = args(6).toInt
+    val freqMHz: Float = args(7).toFloat
     val params = new BitSerialMatMulParams(
       dpaDimLHS = dpaDimLHS, dpaDimRHS = dpaDimRHS, dpaDimCommon = dpaDimCommon,
       lhsEntriesPerMem = memLHS, rhsEntriesPerMem = memRHS,
       mrp = PYNQZ1Params.toMemReqParams())
-    params.estimateResources()
+    params.estimateResources(freqMHz)
   }
 }
 
