@@ -2,6 +2,8 @@
 //#define DEBUG
 // use instruction generators instead
 #define BISMORT_USE_INSTRGEN
+// enable instrumentation for detailed measurements
+#define BISMORT_INSTRUMENTATION
 // enable to compare hw-produced results against sw-produced ones
 //#define BISMORT_CONV_VERIFY_AGAINST_CPU
 //#define BISMORT_MATMUL_VERIFY_AGAINST_CPU

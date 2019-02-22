@@ -15,6 +15,16 @@
 #define BISMORT_DEBUG(x) ;
 #endif
 
+#ifndef BISMORT_INSTRUMENTATION
+#define TIMER_INIT() ;
+#define TIMER_SAMPLE() ;
+#define TIMER_REPORT(name) ;
+#else
+#define TIMER_INIT() auto time_prev = std::chrono::high_resolution_clock::now(); auto time_now = std::chrono::high_resolution_clock::now();
+#define TIMER_SAMPLE() time_prev = time_now; time_now = std::chrono::high_resolution_clock::now();
+#define TIMER_REPORT(name) cout << "[Instrumentation] " << name << " = " << std::chrono::duration_cast<std::chrono::microseconds>(time_now-time_prev).count() << " us" << endl;
+#endif
+
 namespace bismo_inference {
 typedef enum {layerMatMul, layerConv, layerThres} InternalLayerType;
 typedef int32_t AccumType;

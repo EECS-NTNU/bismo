@@ -2,6 +2,8 @@
 
 namespace bismo_inference {
 
+TIMER_INIT();
+
 // initialize layer of given type and return handle
 // parameter shape: weights[M][K]
 LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights) {
@@ -120,6 +122,7 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
 // replace the LHS matrix for a layer
 // specified matrix shape and initialized matrix shape must be the same
 void configMatMulLayer_Internal_SetLHS(LayerHandle id, gemmbitserial::BitSerialMatrix mat) {
+  TIMER_SAMPLE();
   // instrgen doesn't support only fetching LHS, use manual feed
   acc->useDirectInstructionFeed();
   InternalLayerDescriptor dsc = registry[id];
@@ -151,14 +154,16 @@ void configMatMulLayer_Internal_SetLHS(LayerHandle id, gemmbitserial::BitSerialM
   for(auto & fi : instrFetchWeights) {
     acc->pushInstruction(fi);
   }
-  BISMORT_DEBUG("[initMatMulLayer] created weight init instructions: " << acc->fetch_opcount());
+  BISMORT_DEBUG("[configMatMulLayer_Internal_SetLHS] created weight init instructions: " << acc->fetch_opcount());
   // launch weight fetch and wait until complete
   acc->set_stage_enables(1, 0, 0);
   while(acc->fetch_opcount() != 0) {
     //BISMORT_DEBUG("[initMatMulLayer] waiting for weight init, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
   };
   acc->set_stage_enables(0, 0, 0);
-  BISMORT_DEBUG("[initMatMulLayer] weight init done");
+  BISMORT_DEBUG("[configMatMulLayer_Internal_SetLHS] weight init done");
+  TIMER_SAMPLE();
+  TIMER_REPORT("configMatMulLayer_Internal_SetLHS total");
 }
 
 // execute layer with given handle
@@ -181,9 +186,8 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
   gemmbitserial::BitSerialMatrix rhs = dsc.hw_ctx.rhs;
   AccumType * padded_result_host_buffer = dsc.padded_result_host_buffer;
   uint32_t rptr = dsc.accel_buf_out;
-  auto start_time = std::chrono::high_resolution_clock::now();
-  auto end_time = std::chrono::high_resolution_clock::now();
   for(size_t rhs_p = 0; rhs_p < dsc.n_act_partitions; rhs_p++) {
+    TIMER_SAMPLE();
     // calculate start of rhs partition. each partition has hw_ctx.rhs.nrows_a
     // rows, and the regular amount of columns for the unpadded bit-parallel matrix
     size_t rhs_partition_start_row = rhs.nrows_a * rhs_p;
@@ -205,10 +209,11 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
       uint32_t accel_ptr = dsc.accel_buf_in + b * bytes_per_bitplane_part_accel;
       platform->copyBufferHostToAccel(host_ptr, (void *)accel_ptr, bytes_per_bitplane_part_host);
     }
+    TIMER_SAMPLE();
+    TIMER_REPORT("execMatMulLayer host->accel copy");
 
     // enable all stages
     acc->set_stage_enables(1, 1, 1);
-    start_time = std::chrono::high_resolution_clock::now();
 #ifdef BISMORT_USE_INSTRGEN
     acc->useDescriptors();
     // feed the instrgen descriptor
@@ -226,11 +231,14 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
     while(acc->res_opcount() != 0) {
       //BISMORT_DEBUG("[execMatMulLayer] waiting for exec, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
     };
+    TIMER_SAMPLE();
+    TIMER_REPORT("execMatMulLayer hardware execution");
     // copy padded result buffer to host
     size_t result_partition_start_elem = rhs_partition_start_row * lhs.nrows_a;
     platform->copyBufferAccelToHost((void *)dsc.accel_buf_out, (void *) &padded_result_host_buffer[result_partition_start_elem], dsc.nbytes_buf_out);
+    TIMER_SAMPLE();
+    TIMER_REPORT("execMatMulLayer accel->host copy");
   }
-
   // get rid of padding as needed
   if((lhs.nrows_a == dsc.ctx.lhs.nrows) && (dsc.n_act_partitions * rhs.nrows_a == dsc.ctx.rhs.nrows)) {
     // no padding was necessary, copy directly
@@ -244,9 +252,8 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
       memcpy((void *)(&out[ind_actual]), &padded_result_host_buffer[ind_padded], nbytes_row_nonpadded);
     }
   }
-  end_time = std::chrono::high_resolution_clock::now();
-  auto exec_duration_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
-  BISMORT_DEBUG("[execMatMulLayer_Internal_RHSBitSerial] Execution Time: " << exec_duration_time << " us" );
+  TIMER_SAMPLE();
+  TIMER_REPORT("execMatMulLayer remove padding");
 
 #ifdef BISMORT_MATMUL_VERIFY_AGAINST_CPU
   // compute result with CPU and compare
