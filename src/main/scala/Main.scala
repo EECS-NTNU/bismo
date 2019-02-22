@@ -68,8 +68,6 @@ object Settings {
     // HW-SW cosimulation tests
     // for these tests (EmuTest*) the same name is assumed to be the cpp file
     // that defines the software part of the test under test/cosim
-    "EmuTestExecStage" -> {p => new EmuTestExecStage(emuP)},
-    "EmuTestFetchStage" -> {p => new EmuTestFetchStage(2, 2, emuP)},
     "EmuTestResultStage" -> {p => new EmuTestResultStage(2, emuP)},
     "EmuTestInstrEncoding" -> {p => new EmuTestInstrEncoding(emuP)},
     "EmuTestVerifyHLSInstrEncoding" -> {p => new EmuTestVerifyHLSInstrEncoding(emuP)},
@@ -276,7 +274,7 @@ object CharacterizeMain {
       numLHSMems = n, numRHSMems = n,
       numAddrBits = 10, mrp = PYNQZ1Params.toMemReqParams())
   }
-  val instFxn_FetchStage = { p: FetchStageParams ⇒ Module(new FetchStage(p)) }
+  val instFxn_FetchStage = { p: FetchStageParams ⇒ Module(new FetchDecoupledStage(p)) }
 
     def makeParamSpace_THU(): Seq[ThresholdingUnitParams] = {
     return for {
