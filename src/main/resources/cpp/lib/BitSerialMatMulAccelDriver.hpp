@@ -295,7 +295,7 @@ public:
       f.fromRaw(ins);
       // ensure all fields are within limits
       ASSERT_BITS(f.bram_id_start, BISMO_LIMIT_FETCHID_BITS);
-      ASSERT_BITS(f.bram_id_range, BISMO_LIMIT_FETCHID_BITS);
+      ASSERT_BITS(f.bram_id_range, 1);
       ASSERT_BITS(f.bram_addr_base, BISMO_LIMIT_INBUFADDR_BITS);
       ASSERT_BITS(f.dram_base, BISMO_LIMIT_DRAMADDR_BITS);
       ASSERT_BITS(f.dram_block_size_bytes, BISMO_LIMIT_DRAM_BSIZE_BITS);
@@ -312,7 +312,7 @@ public:
       assert(f.dram_block_size_bytes % FETCH_SIZEALIGN == 0);
       // ensure that BRAM accesses are within existing range
       assert(f.bram_id_start < get_num_fetch_nodes());
-      assert(f.bram_id_start + f.bram_id_range < get_num_fetch_nodes());
+      //assert(f.bram_id_start + f.bram_id_range < get_num_fetch_nodes());
       if(f.bram_id_start < get_fetch_first_rhs_id()) {
         assert(f.bram_addr_base < m_cfg.lhsEntriesPerMem * exec_to_fetch_width_ratio);
       } else {

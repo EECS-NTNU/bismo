@@ -159,8 +159,8 @@ class FetchStageCtrlIO() extends PrintableBundle {
 
   // base BRAM address to start from for writes
   val bram_addr_base = UInt(width = BISMOLimits.inpBufAddrBits)
-  // ID range of BRAM to end at. start+range will be included.
-  val bram_id_range = UInt(width = BISMOLimits.fetchIDBits)
+  // ID range of BRAM: 0 for LHS, 1 for RHS
+  val bram_id_range = Bool()
   // ID of BRAM to start from
   val bram_id_start = UInt(width = BISMOLimits.fetchIDBits)
 
@@ -303,7 +303,10 @@ class FetchStage(val myP: FetchStageParams) extends Module {
   routegen.tiles_per_row := io.csr.tiles_per_row
   routegen.bram_addr_base := io.csr.bram_addr_base
   routegen.bram_id_start := io.csr.bram_id_start
-  routegen.bram_id_range := io.csr.bram_id_range
+  val lhs_range = Reg(next=UInt(myP.numLHSMems-1, width=BISMOLimits.fetchIDBits))
+  val rhs_range = Reg(next=UInt(myP.numRHSMems-1, width=BISMOLimits.fetchIDBits))
+  val sel_idrange = Mux(io.csr.bram_id_range, rhs_range, lhs_range)
+  routegen.bram_id_range := sel_idrange
   FPGAQueue(routegen.out, 2) <> conn.in
 
   // assign IDs to LHS and RHS memories for interconnect
@@ -417,7 +420,10 @@ class FetchDecoupledStage(val myP: FetchStageParams) extends Module {
   routegen.tiles_per_row := current_runcfg.tiles_per_row
   routegen.bram_addr_base := current_runcfg.bram_addr_base
   routegen.bram_id_start := current_runcfg.bram_id_start
-  routegen.bram_id_range := current_runcfg.bram_id_range
+  val lhs_range = Reg(next=UInt(myP.numLHSMems-1, width=BISMOLimits.fetchIDBits))
+  val rhs_range = Reg(next=UInt(myP.numRHSMems-1, width=BISMOLimits.fetchIDBits))
+  val sel_idrange = Mux(current_runcfg.bram_id_range, rhs_range, lhs_range)
+  routegen.bram_id_range := sel_idrange
   FPGAQueue(routegen.out, 2) <> conn.in
 
   // assign IDs to LHS and RHS memories for interconnect

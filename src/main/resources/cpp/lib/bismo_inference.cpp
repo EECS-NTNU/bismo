@@ -101,7 +101,7 @@ void genFetchInstrs(
   frc.isRunCfg = 1;
   frc.targetStage = stgFetch;
   frc.bram_id_start = bram_start;
-  frc.bram_id_range = bram_range;
+  frc.bram_id_range = lhsNotRhs ? 0 : 1;
   frc.tiles_per_row = tiles_per_row;
   frc.bram_addr_base = bram_base;
   frc.dram_base = dram_base;

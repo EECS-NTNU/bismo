@@ -89,7 +89,7 @@ io_section:{
     // prepare fetch instruction for LHS matrix
     fetch.bram_addr_base = ins_in.base_l << ETF_S;
     fetch.bram_id_start = first_lhs_id;
-    fetch.bram_id_range = M - 1;
+    fetch.bram_id_range = 0;
     // how many DRAM data words are copied before the
     // fetch interconnect starts targeting the next BRAM
     fetch.tiles_per_row = ins_in.tiles_k << ETF_S;
@@ -108,7 +108,7 @@ io_section:{
   // prepare fetch instruction for RHS matrix
   fetch.bram_addr_base = ins_in.base_r << ETF_S;
   fetch.bram_id_start = first_rhs_id;
-  fetch.bram_id_range = N - 1;
+  fetch.bram_id_range = 1;
   // how many DRAM data words are copied before the
   // fetch interconnect starts targeting the next BRAM
   fetch.tiles_per_row = ins_in.tiles_k << ETF_S;

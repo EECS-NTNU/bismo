@@ -69,6 +69,9 @@ void exec_and_wait() {
   dut->set_start(0);
 }
 
+// TODO: this test needs to be updated to respect the fact that we only allow
+// fetching for either all LHS or all RHS BRANs, not single ones
+
 void set_up_transfer_singletarget(
   void * accel_buf, uint32_t nbytes,
   uint32_t bram_sel, uint32_t bram_base, uint32_t bram_nwrites) {
