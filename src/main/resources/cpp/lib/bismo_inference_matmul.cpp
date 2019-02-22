@@ -1,9 +1,6 @@
 #include "bismo_inference_internal.hpp"
 
 namespace bismo_inference {
-
-TIMER_INIT();
-
 // initialize layer of given type and return handle
 // parameter shape: weights[M][K]
 LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights) {

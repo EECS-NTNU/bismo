@@ -20,7 +20,7 @@
 #define TIMER_SAMPLE() ;
 #define TIMER_REPORT(name) ;
 #else
-#define TIMER_INIT() auto time_prev = std::chrono::high_resolution_clock::now(); auto time_now = std::chrono::high_resolution_clock::now();
+#define TIMER_INIT() std::chrono::time_point<std::chrono::high_resolution_clock> time_prev = std::chrono::high_resolution_clock::now(); std::chrono::time_point<std::chrono::high_resolution_clock> time_now = std::chrono::high_resolution_clock::now();
 #define TIMER_SAMPLE() time_prev = time_now; time_now = std::chrono::high_resolution_clock::now();
 #define TIMER_REPORT(name) cout << "[Instrumentation] " << name << " = " << std::chrono::duration_cast<std::chrono::microseconds>(time_now-time_prev).count() << " us" << endl;
 #endif
@@ -66,7 +66,9 @@ extern uint32_t weightOCMBase, weightOCMBytesLeft;
 extern uint32_t activationOCMBase, activationOCMBytesLeft;
 extern uint32_t thresholdOCMBase, thresholdOCMBytesLeft;
 extern std::vector<InternalLayerDescriptor> registry;
-
+#ifdef BISMORT_INSTRUMENTATION
+extern std::chrono::time_point<std::chrono::high_resolution_clock> time_prev, time_now;
+#endif
 // internal helper functions
 uint32_t allocWeightOCM(size_t nbytes);
 uint32_t allocThresOCM(size_t nbytes);
