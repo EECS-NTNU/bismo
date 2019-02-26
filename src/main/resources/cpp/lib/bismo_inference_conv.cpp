@@ -3,7 +3,7 @@
 namespace bismo_inference {
 // parameter shape: weights[ofm][ifm][ksize][ksize]
 LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights) {
-  gemmbitserial::ConvBitSerialContext ctx = acc->allocConvBitSerialContext(
+  gemmbitserial::ConvBitSerialContext ctx = gemmbitserial::allocConvBitSerialContext(
     dsc.ifm, dsc.ofm, dsc.idim, dsc.ksize, dsc.stride, dsc.pad, dsc.ibits,
     dsc.wbits, dsc.isigned, dsc.wsigned
   );
@@ -63,11 +63,11 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights) {
 
 void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   BISMORT_DEBUG("[execConvLayer] id " << id);
-  const InternalLayerDescriptor dsc = registry[id];
-  const LayerHandle cnv_matmul_handle = dsc.cnv_matmul_handle;
-  const InternalLayerDescriptor dsc_matmul = registry[cnv_matmul_handle];
+  InternalLayerDescriptor dsc = registry[id];
+  LayerHandle cnv_matmul_handle = dsc.cnv_matmul_handle;
+  InternalLayerDescriptor dsc_matmul = registry[cnv_matmul_handle];
   // NOTE: lhs and rhs are swapped, see note in initConvLayer
-  const gemmbitserial::BitSerialMatrix lhs = dsc.ctx.rhs;
+  gemmbitserial::BitSerialMatrix lhs = dsc.ctx.rhs;
   gemmbitserial::BitSerialMatrix rhs = dsc.ctx.lhs;
   gemmbitserial::ConvBitSerialContext ctx = dsc.cnv_ctx;
 
@@ -77,9 +77,11 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   assert(dsc.cnv_dsc.useCPULowering);
   auto start_time = std::chrono::high_resolution_clock::now();
   ctx.importActivations(in);
+  dsc_matmul.ctx.rhs.copyFrom(rhs);
+  const size_t lowered_bs_act_bytes = dsc_matmul.ctx.rhs.nbits * dsc_matmul.ctx.rhs.wordsPerBitplane() * sizeof(PackedBitGroupType);
+  /*
   // TODO import into matmul ctx directly instead of copying
-  const size_t lowered_bs_act_bytes = rhs.nbits * rhs.wordsPerBitplane() * sizeof(PackedBitGroupType);
-  memcpy(dsc_matmul.ctx.rhs.data, rhs.data, lowered_bs_act_bytes);
+  memcpy(dsc_matmul.ctx.rhs.data, rhs.data, lowered_bs_act_bytes);*/
   auto end_time = std::chrono::high_resolution_clock::now();
   auto rhs2bs_duration_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
   BISMORT_DEBUG("[execConvLayer] software p2s+im2row time: " << rhs2bs_duration_time << " us" );

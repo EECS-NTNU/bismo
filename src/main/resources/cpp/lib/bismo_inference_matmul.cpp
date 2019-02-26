@@ -135,15 +135,10 @@ void configMatMulLayer_Internal_SetLHS(LayerHandle id, gemmbitserial::BitSerialM
   BISMORT_DEBUG("[configMatMulLayer_Internal_SetLHS] HW shape matrix:");
   dsc.ctx.lhs.printSummary();
 #endif
-  // ensure shapes are compatible
-  assert(mat.nbits == dsc.ctx.lhs.nbits);
-  assert(mat.wordsPerBitplane() == dsc.ctx.lhs.wordsPerBitplane());
-  platform->copyBufferHostToAccel((void *)mat.data, (void *)accel_lhs_ptr, wbytes);
-  // if bit serial matrix data is coming from an external source, copy to
-  // internal as well for debug purposes
   if(dsc.ctx.lhs.data != mat.data) {
-    memcpy(dsc.ctx.lhs.data, mat.data, wbytes);
+    dsc.ctx.lhs.copyFrom(mat);
   }
+  platform->copyBufferHostToAccel((void *)dsc.ctx.lhs.data, (void *)accel_lhs_ptr, wbytes);
   // create instruction sequence to fetch weights into OCM
   std::vector<BISMOInstruction> instrFetchWeights;
   genFetchInstrs(instrFetchWeights, wbase, true, accel_lhs_ptr, mat.ncols_a / cfg.dpaDimCommon, wbytes);
