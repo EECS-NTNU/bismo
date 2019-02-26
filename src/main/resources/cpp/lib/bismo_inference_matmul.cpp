@@ -129,6 +129,12 @@ void configMatMulLayer_Internal_SetLHS(LayerHandle id, gemmbitserial::BitSerialM
   uint32_t accel_lhs_ptr = dsc.accel_lhs_ptr;
   const size_t wbytes = dsc.wbytes;
   const size_t wbase = dsc.wbase;
+#ifdef DEBUG
+  BISMORT_DEBUG("[configMatMulLayer_Internal_SetLHS] Source matrix:");
+  mat.printSummary();
+  BISMORT_DEBUG("[configMatMulLayer_Internal_SetLHS] HW shape matrix:");
+  dsc.ctx.lhs.printSummary();
+#endif
   // ensure shapes are compatible
   assert(mat.nbits == dsc.ctx.lhs.nbits);
   assert(mat.wordsPerBitplane() == dsc.ctx.lhs.wordsPerBitplane());

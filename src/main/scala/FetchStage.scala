@@ -159,8 +159,8 @@ class FetchStageCtrlIO() extends PrintableBundle {
 
   // base BRAM address to start from for writes
   val bram_addr_base = UInt(width = BISMOLimits.inpBufAddrBits)
-  // ID range of BRAM to end at. start+range will be included.
-  val bram_id_range = UInt(width = BISMOLimits.fetchIDBits)
+  // ID range of BRAM: 0 for LHS, 1 for RHS
+  val bram_id_range = Bool()
   // ID of BRAM to start from
   val bram_id_start = UInt(width = BISMOLimits.fetchIDBits)
 
@@ -254,120 +254,6 @@ class FetchRouteGen(myP: FetchStageParams) extends Module {
   }
 }
 
-class FetchStage(val myP: FetchStageParams) extends Module {
-  val io = new Bundle {
-    // base control signals
-    val start = Bool(INPUT)                   // hold high while running
-    val done = Bool(OUTPUT)                   // high when done until start=0
-    val csr = new FetchStageCtrlIO().asInput
-    val perf = new FetchStagePerfIO(myP)
-    val bram = new FetchStageBRAMIO(myP)
-    val dram = new FetchStageDRAMIO(myP)
-  }
-
-  /*when(io.start) {
-    printf("Fetch stage runcfg: " + io.csr.printfStr, io.csr.printfElems():_*)
-  }*/
-  // instantiate FetchGroup components
-  val reader = Module(new BlockStridedRqGen(myP.mrp, false, 0)).io
-  val routegen = Module(new FetchRouteGen(myP)).io
-  val conn = Module(new FetchInterconnect(myP)).io
-
-  // wire up the BlockStridedRqGen
-  val startPulseRising = io.start & Reg(next = !io.start)
-  reader.in.valid := startPulseRising
-  // outer loop
-  reader.in.bits.base := Reg(next = io.csr.dram_base)
-  // bytes to jump between each block
-  reader.in.bits.block_step := Reg(next = io.csr.dram_block_offset_bytes)
-  // number of blocks
-  reader.in.bits.block_count := Reg(next = io.csr.dram_block_count)
-  // inner loop
-  // bytes for beat for each block
-  val bytesPerBeat = myP.mrp.dataWidth/8
-  val bytesPerBurst = BISMOLimits.fetchBurstBeats * bytesPerBeat
-  Predef.assert(isPow2(bytesPerBurst))
-  val bytesToBurstsRightShift = log2Up(bytesPerBurst)
-  reader.block_intra_step := UInt(bytesPerBurst)
-  // #beats for each block
-  reader.block_intra_count := Reg(next = io.csr.dram_block_size_bytes >> bytesToBurstsRightShift)
-
-  // supply read requests to DRAM from BlockStridedRqGen
-  reader.out <> io.dram.rd_req
-  // filter read responses from DRAM and push into route generator
-  ReadRespFilter(io.dram.rd_rsp) <> routegen.in
-
-  // wire up routing info generation
-  // use rising edge detect on start to set init_new high for 1 cycle
-  routegen.init_new := io.start & !Reg(init = Bool(false), next = io.start)
-  routegen.tiles_per_row := io.csr.tiles_per_row
-  routegen.bram_addr_base := io.csr.bram_addr_base
-  routegen.bram_id_start := io.csr.bram_id_start
-  routegen.bram_id_range := io.csr.bram_id_range
-  FPGAQueue(routegen.out, 2) <> conn.in
-
-  // assign IDs to LHS and RHS memories for interconnect
-  // 0...numLHSMems are the LHS IDs
-  // numLHSMems..numLHSMems+numRHSMems-1 are the RHS IDs
-  // numLHSMems+numRHSMems are the Thr ID
-  for (i <- 0 until myP.numLHSMems) {
-    val lhs_mem_ind = i
-    val node_ind = i
-    io.bram.lhs_req(lhs_mem_ind) := conn.node_out(node_ind)
-    println(s"LHS $lhs_mem_ind assigned to node# $node_ind")
-  }
-  for(i <- 0 until myP.numRHSMems) {
-    val rhs_mem_ind = i
-    val node_ind = myP.numLHSMems + i
-    io.bram.rhs_req(rhs_mem_ind) := conn.node_out(node_ind)
-    println(s"RHS $rhs_mem_ind assigned to node# $node_ind")
-  }
-
-  //Adding thresholds memory
-  /*
-    for(i <- 0 until myP.numLHSMems)
-    for(j <- 0 until myP.thsCols) {
-    val thr_mem_ind_row = i
-    val thr_mem_ind_col = j
-    val node_ind = myP.numLHSMems + myP.numRHSMems + i + j
-    io.bram.thr_rq(thr_mem_ind_row)(thr_mem_ind_col) := conn.node_out(node_ind)
-    println(s"THS $thr_mem_ind_row $thr_mem_ind_col assigned to node# $node_ind")
-  }*/
-
-  // count responses to determine done
-  val regBlockBytesReceived = Reg(init = UInt(0, 32))
-  val regBlocksReceived = Reg(init = UInt(0, 32))
-  val regBlockBytesAlmostFinished = Reg(next = io.csr.dram_block_size_bytes - UInt(bytesPerBeat))
-  when(io.start) {
-    when(routegen.in.valid & routegen.in.ready) {
-      // count responses
-      when(regBlockBytesReceived === regBlockBytesAlmostFinished) {
-        regBlockBytesReceived := UInt(0)
-        regBlocksReceived := regBlocksReceived + UInt(1)
-      }.otherwise {
-        regBlockBytesReceived := regBlockBytesReceived + UInt(bytesPerBeat)
-      }
-    }
-  }
-  val dmaDone = io.start & (regBlocksReceived === io.csr.dram_block_count)
-  // reset byte counter when just completed
-  val startPulseFalling = !io.start & Reg(next = io.start)
-  when(startPulseFalling) {
-    regBlockBytesReceived := UInt(0)
-    regBlocksReceived := UInt(0)
-  }
-
-  // signal done when BRAM writes are complete
-  io.done := ShiftRegister(dmaDone, myP.getDMAtoBRAMLatency())
-
-  // performance counters
-  // clock cycles from start to done
-  val regCycles = Reg(outType = UInt(width = 32))
-  when(!io.start) { regCycles := UInt(0) }
-    .elsewhen(io.start & !io.done) { regCycles := regCycles + UInt(1) }
-  io.perf.cycles := regCycles
-}
-
 class FetchDecoupledStage(val myP: FetchStageParams) extends Module {
   val io = new Bundle {
     val stage_run = Decoupled(new FetchStageCtrlIO()).flip
@@ -417,7 +303,10 @@ class FetchDecoupledStage(val myP: FetchStageParams) extends Module {
   routegen.tiles_per_row := current_runcfg.tiles_per_row
   routegen.bram_addr_base := current_runcfg.bram_addr_base
   routegen.bram_id_start := current_runcfg.bram_id_start
-  routegen.bram_id_range := current_runcfg.bram_id_range
+  val lhs_range = Reg(next=UInt(myP.numLHSMems-1, width=BISMOLimits.fetchIDBits))
+  val rhs_range = Reg(next=UInt(myP.numRHSMems-1, width=BISMOLimits.fetchIDBits))
+  val sel_idrange = Mux(current_runcfg.bram_id_range, rhs_range, lhs_range)
+  routegen.bram_id_range := sel_idrange
   FPGAQueue(routegen.out, 2) <> conn.in
 
   // assign IDs to LHS and RHS memories for interconnect

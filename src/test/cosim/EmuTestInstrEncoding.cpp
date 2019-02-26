@@ -102,7 +102,7 @@ int main()
     sw_fetch.tiles_per_row = 0xb00b;
     sw_fetch.bram_addr_base = 0xd00d;
     sw_fetch.bram_id_start = 10;
-    sw_fetch.bram_id_range = 20;
+    sw_fetch.bram_id_range = 1;
 
     write_sw_instruction();
 

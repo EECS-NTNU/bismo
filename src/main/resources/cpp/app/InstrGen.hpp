@@ -36,7 +36,7 @@ void FetchInstrGenSingleMM(
   fetch.targetStage = stgFetch;
   fetch.isRunCfg = 1;
   fetch.bram_id_start = 0;
-  fetch.bram_id_range = M-1;
+  fetch.bram_id_range = 0;
   fetch.bram_addr_base = in.base_l << ETF_S;
   fetch.tiles_per_row = in.tiles_k << ETF_S;
   fetch.dram_base = in.dram_lhs;
@@ -50,7 +50,7 @@ void FetchInstrGenSingleMM(
   fetch.targetStage = stgFetch;
   fetch.isRunCfg = 1;
   fetch.bram_id_start = M;
-  fetch.bram_id_range = N-1;
+  fetch.bram_id_range = 1;
   fetch.bram_addr_base = in.base_r << ETF_S;
   fetch.tiles_per_row = in.tiles_k << ETF_S;
   fetch.dram_base = in.dram_rhs;

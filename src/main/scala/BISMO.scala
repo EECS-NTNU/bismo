@@ -87,7 +87,7 @@ class BitSerialMatMulParams(
   val p2sAccelParams: StandAloneP2SParams = new StandAloneP2SParams(maxInBw = 8, nInElemPerWord = 8, outStreamSize = 64,
     fastMode = true, mrp = PYNQZ1Params.toMemReqParams() )
 ) extends PrintableParam {
-  def estimateResources() = {
+  def estimateResources(freqMHz: Float = 200) = {
     import Math.ceil
     val a_dpu = 2.04
     val b_dpu = 109.41
@@ -96,12 +96,12 @@ class BitSerialMatMulParams(
     val lut_array = dpaDimLHS * dpaDimRHS * (lut_per_dpu + lut_per_res)
     val bram_array = ceil(dpaDimCommon / 32) * (dpaDimLHS * ceil(lhsEntriesPerMem / 1024) + dpaDimRHS * ceil(rhsEntriesPerMem / 1024))
     val binops_per_cycle = 2 * dpaDimLHS * dpaDimRHS * dpaDimCommon
-    val tops_per_sec_200MHz = (binops_per_cycle * 200) / 1000000.0
+    val tops_per_sec = (binops_per_cycle * freqMHz) / 1000000.0
      println("Resource predictions from cost model")
      println("=====================================")
      println(s"DPA LUT: $lut_array")
      println(s"DPA BRAM: $bram_array")
-     println(s"TOPS at 200 MHz: $tops_per_sec_200MHz")
+     println(s"TOPS at $freqMHz MHz: $tops_per_sec")
   }
 
   def headersAsList(): List[String] = {

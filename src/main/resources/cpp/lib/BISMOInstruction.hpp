@@ -10,7 +10,7 @@ enum BISMOTargetStage {
 };
 
 // these should match the values defined in BISMOLimits.scala
-#define BISMO_LIMIT_FETCHID_BITS    5
+#define BISMO_LIMIT_FETCHID_BITS    9
 #define BISMO_LIMIT_INBUFADDR_BITS  16
 #define BISMO_LIMIT_DRAMADDR_BITS   32
 #define BISMO_LIMIT_DRAM_BSIZE_BITS 16
@@ -72,8 +72,8 @@ struct BISMOFetchRunInstruction {
   ap_uint<2> targetStage;
   ap_uint<1> isRunCfg;
   ap_uint<3> unused0;
-  ap_uint<5> bram_id_start;
-  ap_uint<5> bram_id_range;
+  ap_uint<9> bram_id_start;
+  ap_uint<1> bram_id_range;
   ap_uint<16> bram_addr_base;
   ap_uint<32> dram_base;
   ap_uint<16> dram_block_size_bytes;
@@ -86,8 +86,8 @@ struct BISMOFetchRunInstruction {
     ret(1, 0) = targetStage;
     ret(2, 2) = isRunCfg;
     ret(5, 3) = unused0;
-    ret(10, 6) = bram_id_start;
-    ret(15, 11) = bram_id_range;
+    ret(14, 6) = bram_id_start;
+    ret(15, 15) = bram_id_range;
     ret(31, 16) = bram_addr_base;
     ret(63, 32) = dram_base;
     ret(79, 64) = dram_block_size_bytes;
@@ -101,8 +101,8 @@ struct BISMOFetchRunInstruction {
     targetStage = ret(1, 0);
     isRunCfg = ret(2, 2);
     unused0 = ret(5, 3);
-    bram_id_start = ret(10, 6);
-    bram_id_range = ret(15, 11);
+    bram_id_start = ret(14, 6);
+    bram_id_range = ret(15, 15);
     bram_addr_base = ret(31, 16);
     dram_base = ret(63, 32);
     dram_block_size_bytes = ret(79, 64);
