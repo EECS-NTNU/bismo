@@ -1,6 +1,7 @@
 #include "bismo_inference_internal.hpp"
 
 namespace bismo_inference {
+TIMER_INIT();
 // global handle for the platform and BISMO driver
 WrapperRegDriver * platform;
 BitSerialMatMulAccelDriver * acc;

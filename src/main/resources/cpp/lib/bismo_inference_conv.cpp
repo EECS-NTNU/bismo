@@ -75,26 +75,28 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   // TODO switch to hardware SWU
   // TODO fixes hardware lowering: everything concerning rhs here
   assert(dsc.cnv_dsc.useCPULowering);
-  auto start_time = std::chrono::high_resolution_clock::now();
+  TIMER_SAMPLE();
   ctx.importActivations(in);
+  TIMER_SAMPLE();
+  TIMER_REPORT("execConvLayer CPU lowering");
+  // TODO import into matmul ctx directly instead of copying
   dsc_matmul.ctx.rhs.copyFrom(rhs);
   const size_t lowered_bs_act_bytes = dsc_matmul.ctx.rhs.nbits * dsc_matmul.ctx.rhs.wordsPerBitplane() * sizeof(PackedBitGroupType);
-  /*
-  // TODO import into matmul ctx directly instead of copying
-  memcpy(dsc_matmul.ctx.rhs.data, rhs.data, lowered_bs_act_bytes);*/
-  auto end_time = std::chrono::high_resolution_clock::now();
-  auto rhs2bs_duration_time = std::chrono::duration_cast<std::chrono::microseconds>(end_time-start_time).count();
-  BISMORT_DEBUG("[execConvLayer] software p2s+im2row time: " << rhs2bs_duration_time << " us" );
+  TIMER_SAMPLE();
+  TIMER_REPORT("execConvLayer copy to matmul rhs");
   //AccumType * targetHostBuf = out;
   AccumType * targetHostBuf = dsc.transpose_result_host_buffer;
   // call the underlying matmul implementation
   execMatMulLayer_Internal_RHSBitSerial(cnv_matmul_handle, targetHostBuf);
   // host-to-host transpose
+  TIMER_SAMPLE();
   for(size_t i = 0; i < rhs.nrows; i++) {
     for(size_t j = 0; j < lhs.nrows; j++) {
       out[j * rhs.nrows + i] = targetHostBuf[i * lhs.nrows + j];
     }
   }
+  TIMER_SAMPLE();
+  TIMER_REPORT("transpose result on CPU");
 
 #ifdef BISMORT_CONV_VERIFY_AGAINST_CPU
   // compute result with CPU and compare
