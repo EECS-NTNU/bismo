@@ -160,6 +160,48 @@ bool test_small_conv(bismo_inference::HardwareConfig hwcfg) {
   return all_OK;
 }
 
+bool test_big_conv(bismo_inference::HardwareConfig hwcfg) {
+  bool all_OK = true;
+  bismo_inference::ConvLayerDescriptor cnv;
+  vector<size_t> bits {2, 3};
+  vector<size_t> pad {0, 1};
+  vector<size_t> ksize {2, 3};
+  vector<size_t> stride {1, 2};
+  vector<size_t> dim {10, 13, 16};
+  vector<size_t> fm {10, 16};
+  size_t testnum = 0;
+  cnv.wsigned = true;
+  cnv.isigned = false;
+  cnv.useCPULowering = true;
+  for(auto & wbit: bits) {
+    for(auto & ibit: bits) {
+      for(auto & p: pad) {
+        for(auto & k: ksize) {
+          for(auto & s: stride) {
+            for(auto & d: dim) {
+              for(auto & ifm: fm) {
+                for(auto & ofm: fm) {
+                  cnv.wbits = wbit;
+                  cnv.ibits = ibit;
+                  cnv.pad = p;
+                  cnv.ksize = k;
+                  cnv.stride = s;
+                  cnv.idim = d;
+                  cnv.ifm = ifm;
+                  cnv.ofm = ofm;
+                  all_OK &= test_conv("BigConv-"+to_string(testnum), cnv);
+                  testnum++;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return all_OK;
+}
+
 bool test_binary_onchip_onetile(bismo_inference::HardwareConfig hwcfg) {
   bool all_OK = true;
   vector<size_t> cols_div_factor {2, 4, 8};

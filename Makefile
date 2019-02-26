@@ -148,9 +148,10 @@ emu: $(BUILD_DIR_EMU)/verilator-build.sh
 
 # generate dynamic lib for inference, emulated hardware
 inflib_emu: $(BUILD_DIR_EMU)/verilator-build.sh
+	rm -rf $(BUILD_DIR_INFLIB); \
 	mkdir -p $(BUILD_DIR_INFLIB); \
-	cp -rf $(INFLIB_SRC_DIR)/* $(BUILD_DIR_INFLIB)/; \
 	cp -rf $(BUILD_DIR_EMU)/* $(BUILD_DIR_INFLIB)/; \
+	cp -rf $(INFLIB_SRC_DIR)/* $(BUILD_DIR_INFLIB)/; \
 	cd $(BUILD_DIR_INFLIB); \
 	verilator -Iother-verilog --cc TesterWrapper.v -Wno-assignin -Wno-fatal -Wno-lint -Wno-style -Wno-COMBDLY -Wno-STMTDLY --Mdir verilated --trace; \
 	cp -rf $(VERILATOR_SRC_DIR)/verilated.cpp .; \

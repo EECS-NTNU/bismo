@@ -186,54 +186,6 @@ public:
     );
   }
 
-  gemmbitserial::ConvBitSerialContext allocConvBitSerialContext(
-    const uint64_t ifm,         // channels in input
-    const uint64_t ofm,         // channels in output
-    const uint64_t in_dim,      // input dimension (assumed to be square)
-    const uint64_t k,           // convolution kernel size
-    const uint64_t stride,      // convolution kernel stride
-    const uint64_t pad,         // padded pixels on each edge
-    const uint64_t ibits,       // bits per input
-    const uint64_t wbits,       // bits per weight
-    const bool isigned,         // whether inputs are signed
-    const bool wsigned          // whether weights are signed
-  ) {
-    // there's currently a bug with ofm=1 configs, assert until resolved
-    assert(ofm != 1);
-    gemmbitserial::ConvBitSerialContext ctx;
-    ctx.ifm = ifm;
-    ctx.ofm = ofm;
-    ctx.in_dim = in_dim;
-    ctx.k = k;
-    ctx.stride = stride;
-    ctx.pad = pad;
-    const uint64_t pack_bits = m_cfg.dpaDimCommon;
-    // determine the output dimension based on input
-    ctx.padded_idim = ctx.in_dim + 2*ctx.pad;
-    ctx.out_dim = ((ctx.padded_idim - ctx.k) / ctx.stride) + 1;
-    // round up number of input channels to be divisible by packing size
-    ctx.aligned_ifm = gemmbitserial::alignTo(ctx.ifm, pack_bits);
-    // number of channels after packing
-    ctx.packed_ifm = ctx.aligned_ifm / pack_bits;
-    // determine the matrix sizes for the lowered convolution
-    // lhs is inputs, rhs is weights
-    const uint64_t lhs_rows = ctx.out_dim * ctx.out_dim;
-    const uint64_t depth = ctx.aligned_ifm * ctx.k * ctx.k;
-    const uint64_t rhs_rows = ofm;
-    // allocate the context
-    ctx.gemmctx = this->allocGEMMContext(
-      lhs_rows, depth, rhs_rows, ibits, wbits, isigned, wsigned
-    );
-    // allocate the buffer for converted activations
-    ctx.abuf = gemmbitserial::BitSerialMatrix::alloc(
-      ibits, ctx.in_dim * ctx.in_dim, ctx.ifm, isigned, 1, pack_bits
-    );
-    // bipolar not supported yet
-    assert(!(ctx.gemmctx.lhs.isBipolar()));
-    assert(!(ctx.gemmctx.rhs.isBipolar()));
-    return ctx;
-  }
-
   // enable/disable the cycle counter
   // cleared on rising edge (i.e. 0->1 transition)
   // increments by 1 every cycle while enabled
