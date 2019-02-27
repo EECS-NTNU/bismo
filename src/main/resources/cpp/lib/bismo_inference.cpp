@@ -260,7 +260,7 @@ void genMatMulInstrs_LHSPreloaded_RHSFitsOnChip(
 }
 
 // parameter shape: thresholds[nthresholds][nchannels]
-LayerHandle initThresLayer(ThresLayerDescriptor & dsc, const uint8_t * thresholds) {
+LayerHandle initThresLayer(ThresLayerDescriptor & dsc, const uint8_t * thresholds, bool cpu_only) {
   // TODO allocate OCM space for thresholds
   // TODO write thresholds into OCM
   // TODO create instruction sequence for execution, store for later

@@ -98,11 +98,11 @@ typedef struct {
 
 // initialize layer of given type and return handle
 // parameter shape: weights[M][K]
-LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights);
+LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights, bool cpu_only = false);
 // parameter shape: thresholds[nthresholds][nchannels]
-LayerHandle initThresLayer(ThresLayerDescriptor & dsc, const uint8_t * thresholds);
+LayerHandle initThresLayer(ThresLayerDescriptor & dsc, const uint8_t * thresholds, bool cpu_only = false);
 // parameter shape: weights[ofm][ifm][ksize][ksize]
-LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights);
+LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights, bool cpu_only = false);
 
 // execute layer with given handle
 // in and out are assumed to be preallocated to appropriate buffer sizes,

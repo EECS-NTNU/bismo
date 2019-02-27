@@ -55,6 +55,7 @@ typedef struct {
   AccumType * padded_result_host_buffer;
   AccumType * transpose_result_host_buffer;
   LayerHandle cnv_matmul_handle;
+  bool cpu_only;
 } InternalLayerDescriptor;
 
 // internal global variables
