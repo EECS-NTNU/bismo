@@ -196,6 +196,17 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   } else {
     execMatMulLayer_Internal_RHSBitSerial(id, out);
   }
+#ifdef BISMORT_MATMUL_VERIFY_AGAINST_CPU
+  uint64_t checksum_lhs = 0;
+  uint64_t checksum_rhs = 0;
+  uint32_t checksum_res = 0;
+  for(size_t i = 0; i < dsc.ctx.lhs.nbits * dsc.ctx.lhs.wordsPerBitplane(); i++) checksum_lhs += dsc.ctx.lhs.data[i];
+  for(size_t i = 0; i < dsc.ctx.rhs.nbits * dsc.ctx.rhs.wordsPerBitplane(); i++) checksum_rhs += dsc.ctx.rhs.data[i];
+  for(size_t i = 0; i < dsc.ctx.lhs.nrows * dsc.ctx.rhs.nrows; i++) checksum_res += dsc.ctx.res[i];
+  BISMORT_DEBUG("[execMatMulLayer] LHS checksum = " << hex << checksum_lhs << dec << endl);
+  BISMORT_DEBUG("[execMatMulLayer] RHS checksum = " << hex << checksum_rhs << dec << endl);
+  BISMORT_DEBUG("[execMatMulLayer] res checksum = " << hex << checksum_res << dec << endl);
+#endif
 }
 
 // asssumes that the RHS matrix is already in bit-serial format in the ctx
