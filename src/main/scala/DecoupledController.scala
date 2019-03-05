@@ -92,32 +92,29 @@ class DecoupledController[Ts <: Bundle, Ti <: Bundle](
     regOutstandingRunCmds := regOutstandingRunCmds - UInt(1)
   }
 
-  val sGetCmd :: sDispatch :: sWaitComplete :: sSend :: sReceive :: Nil = Enum(UInt(), 5)
-  val regState = Reg(init = UInt(sGetCmd))
+  val sDispatch :: sWaitComplete :: sSend :: sReceive :: Nil = Enum(UInt(), 4)
+  val regState = Reg(init = UInt(sDispatch))
 
   // NOTE: the following finite state machine assumes that valid will not go
   // once it has gone high. to ensure this, add a FIFO queue to feed the op
   // and runcfg inputs of the controller.
   // TODO maybe get rid of wait states for higher performance
   switch(regState) {
-    is(sGetCmd) {
+    is(sDispatch) {
       when(io.op.valid & io.enable) {
         when(instrAsSync.isRunCfg) {
-          // runcfg instruction, go to dispatch
-          regState := sDispatch
+          // runcfg instruction, dispatch
+          io.stage_run.valid := Bool(true)
+          when(io.stage_run.ready) {
+            // fetch next instruction
+            regState := sDispatch
+            // pop from command queue when done
+            io.op.ready := Bool(true)
+          }
         } .elsewhen(!instrAsSync.isRunCfg) {
           // sync instruction, wait for run completion
           regState := sWaitComplete
         }
-      }
-    }
-    is(sDispatch) {
-      io.stage_run.valid := Bool(true)
-      when(io.stage_run.ready) {
-        // fetch next instruction
-        regState := sGetCmd
-        // pop from command queue when done
-        io.op.ready := Bool(true)
       }
     }
     is(sWaitComplete) {
@@ -131,7 +128,7 @@ class DecoupledController[Ts <: Bundle, Ti <: Bundle](
       val sendChannel = io.sync_out(instrAsSync.chanID)
       sendChannel.valid := Bool(true)
       when(sendChannel.ready) {
-        regState := sGetCmd
+        regState := sDispatch
         io.op.ready := Bool(true)
       }
     }
@@ -140,7 +137,7 @@ class DecoupledController[Ts <: Bundle, Ti <: Bundle](
       val receiveChannel = io.sync_in(instrAsSync.chanID)
       receiveChannel.ready := Bool(true)
       when(receiveChannel.valid) {
-        regState := sGetCmd
+        regState := sDispatch
         io.op.ready := Bool(true)
       }
     }

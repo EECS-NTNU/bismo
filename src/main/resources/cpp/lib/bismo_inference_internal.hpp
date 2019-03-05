@@ -15,6 +15,16 @@
 #define BISMORT_DEBUG(x) ;
 #endif
 
+#ifndef BISMORT_INSTRUMENTATION
+#define TIMER_INIT() ;
+#define TIMER_SAMPLE() ;
+#define TIMER_REPORT(name) ;
+#else
+#define TIMER_INIT() std::chrono::time_point<std::chrono::high_resolution_clock> time_prev = std::chrono::high_resolution_clock::now(); std::chrono::time_point<std::chrono::high_resolution_clock> time_now = std::chrono::high_resolution_clock::now();
+#define TIMER_SAMPLE() time_prev = time_now; time_now = std::chrono::high_resolution_clock::now();
+#define TIMER_REPORT(name) cout << "[Instrumentation] " << name << " = " << std::chrono::duration_cast<std::chrono::microseconds>(time_now-time_prev).count() << " us" << endl;
+#endif
+
 namespace bismo_inference {
 typedef enum {layerMatMul, layerConv, layerThres} InternalLayerType;
 typedef int32_t AccumType;
@@ -45,6 +55,7 @@ typedef struct {
   AccumType * padded_result_host_buffer;
   AccumType * transpose_result_host_buffer;
   LayerHandle cnv_matmul_handle;
+  bool cpu_only;
 } InternalLayerDescriptor;
 
 // internal global variables
@@ -56,7 +67,9 @@ extern uint32_t weightOCMBase, weightOCMBytesLeft;
 extern uint32_t activationOCMBase, activationOCMBytesLeft;
 extern uint32_t thresholdOCMBase, thresholdOCMBytesLeft;
 extern std::vector<InternalLayerDescriptor> registry;
-
+#ifdef BISMORT_INSTRUMENTATION
+extern std::chrono::time_point<std::chrono::high_resolution_clock> time_prev, time_now;
+#endif
 // internal helper functions
 uint32_t allocWeightOCM(size_t nbytes);
 uint32_t allocThresOCM(size_t nbytes);

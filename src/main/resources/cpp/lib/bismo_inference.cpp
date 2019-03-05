@@ -1,6 +1,7 @@
 #include "bismo_inference_internal.hpp"
 
 namespace bismo_inference {
+TIMER_INIT();
 // global handle for the platform and BISMO driver
 WrapperRegDriver * platform;
 BitSerialMatMulAccelDriver * acc;
@@ -259,7 +260,7 @@ void genMatMulInstrs_LHSPreloaded_RHSFitsOnChip(
 }
 
 // parameter shape: thresholds[nthresholds][nchannels]
-LayerHandle initThresLayer(ThresLayerDescriptor & dsc, const uint8_t * thresholds) {
+LayerHandle initThresLayer(ThresLayerDescriptor & dsc, const uint8_t * thresholds, bool cpu_only) {
   // TODO allocate OCM space for thresholds
   // TODO write thresholds into OCM
   // TODO create instruction sequence for execution, store for later
