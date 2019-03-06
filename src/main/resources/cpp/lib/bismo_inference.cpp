@@ -25,7 +25,9 @@ void init() {
   weightOCMBase = 0;
   weightOCMBytesLeft = acc->get_lhs_total_BRAM_bytes();
   activationOCMBase = 0;
-  activationOCMBytesLeft = acc->get_rhs_total_BRAM_bytes();
+  // workaround for current fetch instrgen limitations: make it appear as though
+  // the activation buffer available is always <= FETCH_BLOCK_MAX
+  activationOCMBytesLeft = std::min((size_t) acc->get_rhs_total_BRAM_bytes(), (size_t) FETCH_BLOCK_MAX);
   thresholdOCMBase = 0;
   // TODO set thresholdOCMBytesLeft from hwcfg
 }
