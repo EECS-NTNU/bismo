@@ -105,6 +105,18 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
     TIMER_SAMPLE();
     TIMER_REPORT("transpose result on CPU");
 
+#ifdef BISMORT_CONV_VERIFY_AGAINST_CPU
+    uint64_t checksum_lhs = 0;
+    uint64_t checksum_rhs = 0;
+    uint32_t checksum_res = 0;
+    for(size_t i = 0; i < lhs.nbits * lhs.wordsPerBitplane(); i++) checksum_lhs += lhs.data[i];
+    for(size_t i = 0; i < rhs.nbits * rhs.wordsPerBitplane(); i++) checksum_rhs += rhs.data[i];
+    for(size_t i = 0; i < lhs.nrows * rhs.nrows; i++) checksum_res += out[i];
+    BISMORT_DEBUG("[execConvLayer] LHS checksum = " << hex << checksum_lhs << dec << endl);
+    BISMORT_DEBUG("[execConvLayer] RHS checksum = " << hex << checksum_rhs << dec << endl);
+    BISMORT_DEBUG("[execConvLayer] res checksum = " << hex << checksum_res << dec << endl);
+#endif
+
     #ifdef BISMORT_CONV_VERIFY_AGAINST_CPU
     // compute result with CPU and compare
     size_t actual_res_bytes = sizeof(AccumType) * lhs.nrows * rhs.nrows;
