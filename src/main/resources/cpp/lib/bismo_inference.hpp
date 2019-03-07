@@ -56,6 +56,9 @@ typedef struct {
 void init();
 void deinit();
 
+// benchmark host<->accel transfer times
+void benchmark_host_accel_transfer();
+
 // retrieve hardware configuration for the instance
 HardwareConfig getHardwareConfig();
 

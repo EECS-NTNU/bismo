@@ -37,6 +37,26 @@ void deinit() {
   deinitPlatform(platform);
 }
 
+void benchmark_host_accel_transfer() {
+  std::vector<size_t> vsize {1, 2, 4, 8, 16, 32};
+  for(auto & s : vsize) {
+    size_t nbytes = s * 1024;
+    uint8_t * hostbuf = new uint8_t[nbytes];
+    memset(hostbuf, 0x1f, nbytes);
+    void * accelbuf = platform->allocAccelBuffer(nbytes);
+    TIMER_SAMPLE();
+    platform->copyBufferHostToAccel(hostbuf, accelbuf, nbytes);
+    TIMER_SAMPLE();
+    TIMER_REPORT("host to accel " << nbytes << ": ");
+    TIMER_SAMPLE();
+    platform->copyBufferAccelToHost(accelbuf, hostbuf, nbytes);
+    TIMER_SAMPLE();
+    TIMER_REPORT("accel to host " << nbytes << ": ");
+    delete [] hostbuf;
+    platform->deallocAccelBuffer(accelbuf);
+  }  
+}
+
 HardwareConfig getHardwareConfig() {
   HardwareConfig ret;
   ret.accWidth = cfg.accWidth;
