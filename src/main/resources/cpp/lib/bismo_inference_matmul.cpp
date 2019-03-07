@@ -283,7 +283,10 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
     TIMER_REPORT("execMatMulLayer accel->host copy");
 #ifdef BISMORT_INSTRUMENTATION
     acc->updateStateBreakdown();
-    acc->printStateBreakdown();
+    //acc->printStateBreakdown();
+    //cout << "[Instrumentation] #cycles = "  << acc->perf_get_cc() << endl;
+    dsc.printPerfSummary();
+    dsc.printPerfDetails();
 #endif
   }
   // get rid of padding as needed

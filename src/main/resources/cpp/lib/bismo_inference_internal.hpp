@@ -56,6 +56,25 @@ typedef struct {
   AccumType * transpose_result_host_buffer;
   LayerHandle cnv_matmul_handle;
   bool cpu_only;
+#ifdef BISMORT_INSTRUMENTATION
+  size_t getNumBytesToFetch() const;
+  size_t getNumBytesToWrite() const;
+  size_t lhsBytes() const;
+  size_t rhsBytes() const;
+  size_t resBytes() const;
+  float getWorkloadOpCount(bool inclPadding = true) const;
+  float getWorkloadBinaryOpCount(bool inclPadding = true) const;
+  float getLastRunBinaryGOPS(bool inclPadding = true) const;
+  float getWorkloadReadOI() const;
+  float getWorkloadWriteOI() const;
+  float getWorkloadOI() const;
+  float getHWReadBW() const;
+  float getHWWriteBW() const;
+  float getHWCompBoundReadOI() const;
+  float getHWCompBoundWriteOI() const;
+  void printPerfSummary();
+  void printPerfDetails();
+#endif
 } InternalLayerDescriptor;
 
 // internal global variables
@@ -101,5 +120,17 @@ void p2s(
 
 void configMatMulLayer_Internal_SetLHS(LayerHandle id, gemmbitserial::BitSerialMatrix mat);
 void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out);
+
+// utility functions for instrumentation
+// hardware metrics (non-workload-dependent)
+float getHWPeakBinaryOpsPerCycle();
+float getHWPeakBinaryGOPS();
+size_t getHWBufSizeLHS();
+size_t getHWBufSizeRHS();
+size_t getHWBufSize();
+float getNanosecondsPerCycle();
+float getLastRuntimeCycles();
+float getLastRuntimeNanoseconds();
+
 }
 #endif /* end of include guard: BISMORT_INFERENCE_HPP */
