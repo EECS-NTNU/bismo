@@ -142,12 +142,24 @@ class DecoupledController[Ts <: Bundle, Ti <: Bundle](
       }
     }
   }
-
+  // define an easier-to-interpret "profile state":
+  // 0 - no commands to execute, idle
+  // 1 - running
+  // 2 - send token
+  // 3 - receive token
+  val regProfileState = Reg(init = UInt(0, width = log2Up(4)))
+  when(regOutstandingRunCmds > UInt(0)) {
+    regProfileState := UInt(1)
+  } .elsewhen(io.op.valid === Bool(false)) {
+    regProfileState := UInt(0)
+  } .otherwise {
+    regProfileState := regState
+  }
   // state profiler
-  val profiler = Module(new StateProfiler(5)).io
+  val profiler = Module(new StateProfiler(4)).io
   profiler <> io.perf
   profiler.start := io.perf.start & io.enable
-  profiler.probe := regState
+  profiler.probe := regProfileState
 }
 
 // derived classes for each type of controller.
