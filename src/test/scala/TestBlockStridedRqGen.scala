@@ -44,7 +44,8 @@ class BlockStridedRqGenTester(c: BlockStridedRqGen) extends Tester(c) {
   val nblocks: Int = 2
   val block_offs: Int = 0x100
   val intra_step: Int = 1
-  val block_size: Int = 4
+  val intra_burst: Int = 8
+  val block_size: Int = 20
 
   poke(c.io.block_intra_step, intra_step)
   poke(c.io.block_intra_count, block_size)
@@ -58,11 +59,20 @@ class BlockStridedRqGenTester(c: BlockStridedRqGen) extends Tester(c) {
   poke(c.io.in.valid, 0)
 
   poke(c.io.out.ready, 1)
+
+  var bytes_left_in_block: Int = 0
   for (b ← 0 until nblocks) {
-    for (i ← 0 until block_size) {
+    bytes_left_in_block = block_size
+    while(bytes_left_in_block > 0) {
       while (peek(c.io.out.valid) != 1) { step(1) }
-      expect(c.io.out.bits.addr, base_offs + block_offs * b + i * intra_step)
-      expect(c.io.out.bits.numBytes, intra_step)
+      expect(c.io.out.bits.addr, base_offs + block_offs * b + (block_size - bytes_left_in_block))
+      if(bytes_left_in_block >= intra_burst) {
+        expect(c.io.out.bits.numBytes, intra_burst)
+        bytes_left_in_block -= intra_burst
+      } else {
+        expect(c.io.out.bits.numBytes, intra_step)
+        bytes_left_in_block -= intra_step
+      }
       expect(c.io.out.bits.isWrite, 1)
       step(1)
     }

@@ -65,8 +65,8 @@ class BlockStridedRqGen(
   val outer_sg = Module(new MultiSeqGen(new MultiSeqGenParams(
     w = mrp.addrWidth, a = mrp.addrWidth))).io
 
-  val inner_sg = Module(new MultiSeqGen(new MultiSeqGenParams(
-    w = mrp.addrWidth, a = mrp.addrWidth))).io
+  val inner_sg = Module(new BurstyMultiSeqGen(new BurstyMultiSeqGenParams(
+    w = mrp.addrWidth, a = mrp.addrWidth, burstShift = 3))).io
 
   outer_sg.in.valid := io.in.valid
   /*when(io.in.valid){
@@ -89,8 +89,8 @@ class BlockStridedRqGen(
   inner_seq.ready := io.out.ready
   io.out.bits.channelID := UInt(chanID)
   io.out.bits.isWrite := Bool(writeEn)
-  io.out.bits.addr := inner_seq.bits
-  io.out.bits.numBytes := io.block_intra_step
+  io.out.bits.addr := inner_seq.bits.ind
+  io.out.bits.numBytes := inner_seq.bits.step
   io.out.bits.metaData := UInt(0)
   /*
   when(inner_seq.valid){
