@@ -17,7 +17,10 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   // don't really care about performance here since this is one-off
   memset(ctx.lhs.data, 0, ctx.lhs.nbits*ctx.lhs.wordsPerBitplane() * sizeof(PackedBitGroupType));
   memset(ctx.rhs.data, 0, ctx.rhs.nbits*ctx.rhs.wordsPerBitplane() * sizeof(PackedBitGroupType));
-  ctx.lhs.importRegular(weights);
+  // allow skipping weight import (if e.g. Internal_SetLHS will be used)
+  if(weights != 0) {
+    ctx.lhs.importRegular(weights);
+  }
   // create entry in layer registry and return layer handle
   LayerHandle ret = registry.size();
   InternalLayerDescriptor idsc;
