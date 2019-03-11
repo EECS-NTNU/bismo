@@ -64,7 +64,7 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
       hw_ctx.rhs.printSummary();
 #endif
       memset(hw_ctx.lhs.data, 0, hw_ctx.lhs.nbits*hw_ctx.lhs.wordsPerBitplane() * sizeof(PackedBitGroupType));
-      memset(hw_ctx.rhs.data, 0, hw_ctx.rhs.nbits*hw_ctx.lhs.wordsPerBitplane() * sizeof(PackedBitGroupType));
+      memset(hw_ctx.rhs.data, 0, hw_ctx.rhs.nbits*hw_ctx.rhs.wordsPerBitplane() * sizeof(PackedBitGroupType));
       // import weights separately
       hw_ctx.lhs.importRegular(weights);
     } else {
