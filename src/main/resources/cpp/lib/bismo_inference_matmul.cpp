@@ -66,7 +66,10 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
       memset(hw_ctx.lhs.data, 0, hw_ctx.lhs.nbits*hw_ctx.lhs.wordsPerBitplane() * sizeof(PackedBitGroupType));
       memset(hw_ctx.rhs.data, 0, hw_ctx.rhs.nbits*hw_ctx.rhs.wordsPerBitplane() * sizeof(PackedBitGroupType));
       // import weights separately
-      hw_ctx.lhs.importRegular(weights);
+      // allow skipping weight import (if e.g. Internal_SetLHS will be used)
+      if(weights != 0) {
+        hw_ctx.lhs.importRegular(weights);
+      }
     } else {
       // single RHS partition only
       hw_ctx = ctx;
