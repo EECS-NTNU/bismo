@@ -82,4 +82,16 @@ std::ostream& operator<<(std::ostream& os, const BISMOInstruction& dt)
     return os;
 }
 
+std::ostream& operator<<(std::ostream& os, const SingleMMDescriptor& dt)
+{
+  os << "[SingleMMDescriptor]" << std::endl;
+  os << "===========================" << std::endl;
+  os << "Tiles: " << dt.tiles_m << " x " << dt.tiles_k << " x " << dt.tiles_n << std::endl;
+  os << "Bits: " << (int)dt.bits_l << "b x " << (int)dt.bits_r << "b signed? " << dt.signed_l << " " << dt.signed_r << std::endl;
+  os << "OCM base addresses lhs rhs res: " << dt.base_l << " " << dt.base_r << " " << dt.base_res << std::endl;
+  os << "DRAM addresses lhs rhs res: " << std::hex << dt.dram_lhs << " " << dt.dram_rhs << " " << dt.dram_res << std::dec << std::endl;
+  os << "===========================" << std::endl;
+  return os;
+}
+
 #endif

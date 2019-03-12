@@ -320,4 +320,5 @@ std::ostream& operator<<(std::ostream& os, const BISMOFetchRunInstruction& r);
 std::ostream& operator<<(std::ostream& os, const BISMOExecRunInstruction& r);
 std::ostream& operator<<(std::ostream& os, const BISMOResultRunInstruction& r);
 std::ostream& operator<<(std::ostream& os, const BISMOInstruction& dt);
+std::ostream& operator<<(std::ostream& os, const SingleMMDescriptor& dt);
 #endif
