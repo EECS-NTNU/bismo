@@ -217,7 +217,7 @@ void FetchInstrGen(
   #pragma HLS INTERFACE axis port=out
   #pragma HLS INTERFACE axis port=in
 
-  FetchInstrGen_Templated<
+  FetchInstrGen_RHSTiling_Templated<
     TEMPLATE_PARAM_M, TEMPLATE_PARAM_K, TEMPLATE_PARAM_N,
     TEMPLATE_PARAM_ETF_S
   >(

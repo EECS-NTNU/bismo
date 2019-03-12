@@ -230,7 +230,7 @@ void ResultInstrGen(
   #pragma HLS INTERFACE axis port=out
   #pragma HLS INTERFACE axis port=in
 
-  ResultInstrGen_Templated<
+  ResultInstrGen_RHSTiling_Templated<
     TEMPLATE_PARAM_M, TEMPLATE_PARAM_N, TEMPLATE_PARAM_A
   >(
     in, out

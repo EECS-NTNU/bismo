@@ -39,7 +39,7 @@
 #include <stdint.h>
 #include "BISMOInstruction.hpp"
 
-void ExecInstrGen(
+void ExecInstrGen_NoTiling(
   hls::stream<ap_uint<BISMO_MMDESCR_BITS>> & in,
   hls::stream<ap_uint<BISMO_INSTR_BITS>> & out
 ) {
@@ -267,4 +267,15 @@ io_section:{
     }
   }
 }
+}
+
+void ExecInstrGen(
+  hls::stream<ap_uint<BISMO_MMDESCR_BITS>> & in,
+  hls::stream<ap_uint<BISMO_INSTR_BITS>> & out
+) {
+  #pragma HLS INTERFACE ap_ctrl_none port=return
+  #pragma HLS INTERFACE axis port=out
+  #pragma HLS INTERFACE axis port=in
+
+  ExecInstrGen_RHSTiling(in, out);
 }
