@@ -48,7 +48,9 @@ class FetchInstrGenParams(
   val dpaDimLHS: Int,
   val dpaDimCommon: Int,
   val dpaDimRHS: Int,
-  val execToFetchLeftShift: Int
+  val execToFetchLeftShift: Int,
+  val lhsEntriesPerMem: Int,
+  val rhsEntriesPerMem: Int
 )
 
 class FetchInstrGen(val p: FetchInstrGenParams) extends TemplatedHLSBlackBox {
@@ -72,6 +74,8 @@ class FetchInstrGen(val p: FetchInstrGenParams) extends TemplatedHLSBlackBox {
     "M" -> p.dpaDimLHS.toString,
     "K" -> p.dpaDimCommon.toString,
     "N" -> p.dpaDimRHS.toString,
-    "ETF_S" -> p.execToFetchLeftShift.toString
+    "ETF_S" -> p.execToFetchLeftShift.toString,
+    "LMEM" -> p.lhsEntriesPerMem.toString,
+    "RMEM" -> p.rhsEntriesPerMem.toString
   )
 }

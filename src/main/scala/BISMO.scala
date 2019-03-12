@@ -313,7 +313,9 @@ class BitSerialMatMulAccel(
     val igFetch = Module(HLSBlackBox(new FetchInstrGen(new FetchInstrGenParams(
       dpaDimLHS = myP.dpaDimLHS, dpaDimCommon = myP.dpaDimCommon,
       dpaDimRHS = myP.dpaDimRHS,
-      execToFetchLeftShift = log2Ceil(myP.dpaDimCommon / myP.mrp.dataWidth)
+      execToFetchLeftShift = log2Ceil(myP.dpaDimCommon / myP.mrp.dataWidth),
+      lhsEntriesPerMem = myP.lhsEntriesPerMem,
+      rhsEntriesPerMem = myP.rhsEntriesPerMem
     )))).io
     val igRes = Module(HLSBlackBox(new ResultInstrGen(new ResultInstrGenParams(
       dpaDimLHS = myP.dpaDimLHS, dpaDimRHS = myP.dpaDimRHS,

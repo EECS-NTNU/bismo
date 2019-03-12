@@ -43,7 +43,9 @@ template <
   // matmul array dimensions: rows, common, cols
   size_t M, size_t K, size_t N,
   // exec-to-fetch left-shift ratio: log2(K / fetch width)
-  size_t ETF_S
+  size_t ETF_S,
+  // capacity of LHS and RHS memories (in elements)
+  size_t LMEM, size_t RMEM
 >
 void FetchInstrGen_Templated(
   hls::stream<ap_uint<BISMO_MMDESCR_BITS>> & in,
@@ -135,7 +137,9 @@ template <
   // matmul array dimensions: rows, common, cols
   size_t M, size_t K, size_t N,
   // exec-to-fetch left-shift ratio: log2(K / fetch width)
-  size_t ETF_S
+  size_t ETF_S,
+  // capacity of LHS and RHS memories (in elements)
+  size_t LMEM, size_t RMEM
 >
 void FetchInstrGen_RHSTiling_Templated(
   hls::stream<ap_uint<BISMO_MMDESCR_BITS>> & in,
@@ -219,7 +223,7 @@ void FetchInstrGen(
 
   FetchInstrGen_RHSTiling_Templated<
     TEMPLATE_PARAM_M, TEMPLATE_PARAM_K, TEMPLATE_PARAM_N,
-    TEMPLATE_PARAM_ETF_S
+    TEMPLATE_PARAM_ETF_S, TEMPLATE_PARAM_LMEM, TEMPLATE_PARAM_RMEM
   >(
     in, out
   );
