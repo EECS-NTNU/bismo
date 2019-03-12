@@ -131,6 +131,83 @@ io_section:{
 }
 }
 
+template <
+  // matmul array dimensions: rows, common, cols
+  size_t M, size_t K, size_t N,
+  // exec-to-fetch left-shift ratio: log2(K / fetch width)
+  size_t ETF_S
+>
+void FetchInstrGen_RHSTiling_Templated(
+  hls::stream<ap_uint<BISMO_MMDESCR_BITS>> & in,
+  hls::stream<ap_uint<BISMO_INSTR_BITS>> & out
+) {
+  #pragma HLS INTERFACE ap_ctrl_none port=return
+  #pragma HLS INTERFACE axis port=out
+  #pragma HLS INTERFACE axis port=in
+io_section:{
+  #pragma HLS protocol fixed
+
+  BISMOFetchRunInstruction fetch;
+  BISMOSyncInstruction sync;
+
+  // set the invariants (values do not depend on loop iter)
+  sync.targetStage = stgFetch;
+  fetch.targetStage = stgFetch;
+  fetch.isRunCfg = 1;
+  sync.isRunCfg = 0;
+  // read the descriptor
+  SingleMMDescriptor ins_in;
+  ins_in.fromRaw(in.read());
+  ap_wait();
+
+  for(uint16_t n = 0; n < ins_in.tiles_n; n++) {
+    // start by acquiring buffer to fill
+    // receive token from execute stage
+    sync.isSendToken = 0;
+    sync.chanID = 0;
+    out.write(sync.asRaw());
+    ap_wait();
+
+    // do not fetch LHS; assume already fetched
+    // create fetch instruction for all bit positions of
+    // current RHS slice
+    const int first_lhs_id = 0;
+    const int first_rhs_id = M;
+    const int bytes_per_rhs_tile = (N * K) / 8;
+
+    // each bit position is one block
+    fetch.dram_block_count = ins_in.bits_r;
+    // each block is a group of Dn rows' worth of bits
+    fetch.dram_block_size_bytes = ins_in.tiles_k * bytes_per_rhs_tile;
+    // block stride/skip is one bit position worth of bits
+    fetch.dram_block_offset_bytes = ins_in.tiles_n * ins_in.tiles_k * bytes_per_rhs_tile;
+    // IMPORTANT TODO: put in SW assertions around sizes of these, especially
+    // dram_block_offset_bytes! other option is to generate one
+    // fetch instruction per bit position...
+    // DRAM base address for LHS
+    fetch.dram_base = ins_in.dram_rhs + n * ins_in.tiles_k * bytes_per_rhs_tile;
+
+    // TODO set base address for F-E concurrency as desired
+    fetch.bram_addr_base = ins_in.base_r << ETF_S;
+    fetch.bram_id_start = first_rhs_id;
+    fetch.bram_id_range = 1;
+    // how many DRAM data words are copied before the
+    // fetch interconnect starts targeting the next BRAM
+    fetch.tiles_per_row = ins_in.tiles_k << ETF_S;
+
+    // emit fetch instruction for RHS matrix
+    out.write(fetch.asRaw());
+    ap_wait();
+
+    // signal that buffer is now filled
+    // send token to execute stage
+    sync.isSendToken = 1;
+    sync.chanID = 0;
+    out.write(sync.asRaw());
+  }
+}
+}
+
 #include "FetchInstrGen_TemplateDefs.hpp"
 void FetchInstrGen(
   hls::stream<ap_uint<BISMO_MMDESCR_BITS>> & in,
