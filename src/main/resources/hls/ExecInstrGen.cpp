@@ -123,7 +123,7 @@ io_section:{
       ap_wait();
       // iteration tracking logic: result buffer offset
       offset_res++;
-      if(offset_res == ins_in.nbufs_res) {
+      if(offset_res == 2) {
         offset_res = 0;
       }
     }
@@ -248,7 +248,7 @@ io_section:{
       ap_wait();
       // iteration tracking logic: result buffer offset
       offset_res++;
-      if(offset_res == ins_in.nbufs_res) {
+      if(offset_res == 2) {
         offset_res = 0;
       }
     }
