@@ -167,8 +167,8 @@ class FetchStageCtrlIO() extends PrintableBundle {
   override def cloneType: this.type =
     new FetchStageCtrlIO().asInstanceOf[this.type]
 
-  val printfStr = "(dram (base = %x, bsize = %d, boffs = %d, bcnt = %d), bramstart = %d, bramrange = %d, tiles = %d)\n"
-  val printfElems = { () ⇒ Seq(dram_base, dram_block_size_bytes, dram_block_offset_bytes, dram_block_count, bram_id_start, bram_id_range, tiles_per_row) }
+  val printfStr = "(dram (base = %x, bsize = %d, boffs = %d, bcnt = %d), bram (idstart = %d, idrange = %d, base = %d), tiles = %d)\n"
+  val printfElems = { () ⇒ Seq(dram_base, dram_block_size_bytes, dram_block_offset_bytes, dram_block_count, bram_id_start, bram_id_range, bram_addr_base, tiles_per_row) }
 }
 
 // fetch stage IO: BRAM writes
