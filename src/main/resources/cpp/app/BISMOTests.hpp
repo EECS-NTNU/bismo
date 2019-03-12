@@ -221,16 +221,19 @@ bool test_binary_onchip_onetile(bismo_inference::HardwareConfig hwcfg) {
 bool test_multibit_onchip_onetile(bismo_inference::HardwareConfig hwcfg) {
   bool all_OK = true;
   vector<size_t> bits {2, 4};
+  vector<size_t> cols_div_factor {2, 4, 8};
   const size_t memsize = min(hwcfg.lhsEntriesPerMem, hwcfg.rhsEntriesPerMem);
   for(auto & lbits: bits) {
     for(auto & rbits: bits) {
-      const size_t maxbits = max(lbits, rbits);
-      all_OK &= test(
-        "multibit_onchip_onetile_" + to_string(lbits) + "bx" + to_string(rbits) + "b",
-        hwcfg.dpaDimLHS, hwcfg.dpaDimRHS,
-        hwcfg.dpaDimCommon * memsize / maxbits,
-        lbits, rbits
-      );
+      for(auto & col_div : cols_div_factor) {
+        const size_t maxbits = max(lbits, rbits);
+        all_OK &= test(
+          "multibit_onchip_onetile_" + to_string(lbits) + "bx" + to_string(rbits) + "b",
+          hwcfg.dpaDimLHS, hwcfg.dpaDimRHS,
+          (hwcfg.dpaDimCommon * memsize) / (maxbits * col_div),
+          lbits, rbits
+        );
+      }
     }
   }
 
