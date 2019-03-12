@@ -101,7 +101,8 @@ io_section:{
     ap_wait();
     // update the result buffer offset
     offset_res++;
-    if(offset_res == ins_in.nbufs_res) {
+    // TODO: pass #exec-res buffers as template parameter as well
+    if(offset_res == 2) {
       offset_res = 0;
     }
     // signal that res buffer is now free to be recycled
@@ -192,7 +193,8 @@ io_section:{
     ap_wait();
     // update the result buffer offset
     offset_res++;
-    if(offset_res == ins_in.nbufs_res) {
+    // TODO: pass #exec-res buffers as template parameter as well
+    if(offset_res == 2) {
       offset_res = 0;
     }
     // signal that res buffer is now free to be recycled
