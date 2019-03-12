@@ -184,6 +184,11 @@ io_section:{
   uint16_t m = 0, n = 0;
   uint8_t l = 0, r = 0;
   uint8_t offset_res = 0;
+  // mems are divided into regions to provide fetch-exec concurrency
+  const uint8_t rmem_num_regions = (1 << ins_in.nbufs_res);
+  const uint16_t rmem_region_size = (RMEM >> ins_in.nbufs_res);
+  uint8_t rmem_region = 0;
+  uint16_t rmem_region_offset = 0;
   // single iteration space for the entire instrgen
   for(size_t i = 0; i < total_iters; i++) {
     #pragma HLS PIPELINE II=1
@@ -223,7 +228,7 @@ io_section:{
     // bit stripe of rhs while on chip
     const uint16_t offset_r = ins_in.tiles_k * r;
     exec.lhsOffset = ins_in.base_l + offset_l;
-    exec.rhsOffset = ins_in.base_r + offset_r;
+    exec.rhsOffset = ins_in.base_r + rmem_region_offset + offset_r;
     exec.numTiles = ins_in.tiles_k;
     exec.shiftAmount = weight;
     exec.negate = negate ? 1 : 0;
@@ -255,6 +260,13 @@ io_section:{
       sync.chanID = 0;
       out.write(sync.asRaw());
       ap_wait();
+      // use the next rmem region for following fetch
+      rmem_region++;
+      rmem_region_offset += rmem_region_size;
+      if(rmem_region == rmem_num_regions) {
+        rmem_region = 0;
+        rmem_region_offset = 0;
+      }
     }
     // iteration tracking logic: nested loops over tiles and bits
     r++;

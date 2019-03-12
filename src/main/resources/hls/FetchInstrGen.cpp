@@ -164,6 +164,12 @@ io_section:{
   ins_in.fromRaw(in.read());
   ap_wait();
 
+  // mems are divided into regions to provide fetch-exec concurrency
+  const uint8_t rmem_num_regions = (1 << ins_in.nbufs_res);
+  const uint16_t rmem_region_size = (RMEM >> ins_in.nbufs_res);
+  uint8_t rmem_region = 0;
+  uint16_t rmem_region_offset = 0;
+
   for(uint16_t n = 0; n < ins_in.tiles_n; n++) {
     // start by acquiring buffer to fill
     // receive token from execute stage
@@ -191,8 +197,8 @@ io_section:{
     // DRAM base address for LHS
     fetch.dram_base = ins_in.dram_rhs + n * ins_in.tiles_k * bytes_per_rhs_tile;
 
-    // TODO set base address for F-E concurrency as desired
-    fetch.bram_addr_base = ins_in.base_r << ETF_S;
+
+    fetch.bram_addr_base = (ins_in.base_r + rmem_region_offset) << ETF_S;
     fetch.bram_id_start = first_rhs_id;
     fetch.bram_id_range = 1;
     // how many DRAM data words are copied before the
@@ -208,6 +214,14 @@ io_section:{
     sync.isSendToken = 1;
     sync.chanID = 0;
     out.write(sync.asRaw());
+
+    // use the next rmem region for following fetch
+    rmem_region++;
+    rmem_region_offset += rmem_region_size;
+    if(rmem_region == rmem_num_regions) {
+      rmem_region = 0;
+      rmem_region_offset = 0;
+    }
   }
 }
 }
