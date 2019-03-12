@@ -251,7 +251,7 @@ public:
       ASSERT_BITS(f.bram_addr_base, BISMO_LIMIT_INBUFADDR_BITS);
       ASSERT_BITS(f.dram_base, BISMO_LIMIT_DRAMADDR_BITS);
       ASSERT_BITS(f.dram_block_size_bytes, BISMO_LIMIT_DRAM_BSIZE_BITS);
-      ASSERT_BITS(f.dram_block_offset_bytes, BISMO_LIMIT_DRAM_BSIZE_BITS);
+      ASSERT_BITS(f.dram_block_offset_bytes, BISMO_LIMIT_DRAM_BOFF_BITS);
       ASSERT_BITS(f.dram_block_count, BISMO_LIMIT_DRAM_BCNT_BITS);
       ASSERT_BITS(f.tiles_per_row, BISMO_LIMIT_INBUFADDR_BITS);
       // catch 0-sized transfers, may be due to overflow

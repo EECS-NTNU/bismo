@@ -14,7 +14,8 @@ enum BISMOTargetStage {
 #define BISMO_LIMIT_INBUFADDR_BITS  16
 #define BISMO_LIMIT_DRAMADDR_BITS   32
 #define BISMO_LIMIT_DRAM_BSIZE_BITS 16
-#define BISMO_LIMIT_DRAM_BCNT_BITS  16
+#define BISMO_LIMIT_DRAM_BCNT_BITS  8
+#define BISMO_LIMIT_DRAM_BOFF_BITS  24
 #define BISMO_LIMIT_MAXSHIFT_BITS   5
 #define BISMO_LIMIT_RESADDR_BITS    1
 #define BISMO_MMDESCR_BITS          208
@@ -77,8 +78,8 @@ struct BISMOFetchRunInstruction {
   ap_uint<16> bram_addr_base;
   ap_uint<32> dram_base;
   ap_uint<16> dram_block_size_bytes;
-  ap_uint<16> dram_block_offset_bytes;
-  ap_uint<16> dram_block_count;
+  ap_uint<24> dram_block_offset_bytes;
+  ap_uint<8> dram_block_count;
   ap_uint<16> tiles_per_row;
 
   ap_uint<BISMO_INSTR_BITS> asRaw() {
@@ -91,8 +92,8 @@ struct BISMOFetchRunInstruction {
     ret(31, 16) = bram_addr_base;
     ret(63, 32) = dram_base;
     ret(79, 64) = dram_block_size_bytes;
-    ret(95, 80) = dram_block_offset_bytes;
-    ret(111, 96) = dram_block_count;
+    ret(103, 80) = dram_block_offset_bytes;
+    ret(111, 104) = dram_block_count;
     ret(127, 112) = tiles_per_row;
     return ret;
   }
@@ -106,8 +107,8 @@ struct BISMOFetchRunInstruction {
     bram_addr_base = ret(31, 16);
     dram_base = ret(63, 32);
     dram_block_size_bytes = ret(79, 64);
-    dram_block_offset_bytes = ret(95, 80);
-    dram_block_count = ret(111, 96);
+    dram_block_offset_bytes = ret(103, 80);
+    dram_block_count = ret(111, 104);
     tiles_per_row = ret(127, 112);
   }
 

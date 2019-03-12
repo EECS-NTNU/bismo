@@ -151,7 +151,7 @@ class FetchStageCtrlIO() extends PrintableBundle {
   // number of blocks to fetch for each group
   val dram_block_count = UInt(width = BISMOLimits.dramBlockCountBits)
   // offset (in bytes) to start of next block in DRAM
-  val dram_block_offset_bytes = UInt(width = BISMOLimits.dramBlockSizeBits)
+  val dram_block_offset_bytes = UInt(width = BISMOLimits.dramBlockOffsBits)
   // size of each block (contiguous read) from DRAM
   val dram_block_size_bytes = UInt(width = BISMOLimits.dramBlockSizeBits)
   // DRAM base address for all fetch groups
