@@ -35,8 +35,6 @@ typedef struct {
   uint32_t accel_lhs_ptr;
   // actual workload
   gemmbitserial::GEMMContext ctx;
-  // hardware workload (can be smaller when using rhs partition)
-  gemmbitserial::GEMMContext hw_ctx;
   gemmbitserial::ConvBitSerialContext cnv_ctx;
   size_t nbytes_buf_in;
   size_t nbytes_buf_out;
@@ -51,7 +49,6 @@ typedef struct {
 #else
   std::vector<BISMOInstruction> instructions_queue;
 #endif
-  size_t n_act_partitions;
   AccumType * padded_result_host_buffer;
   AccumType * transpose_result_host_buffer;
   LayerHandle cnv_matmul_handle;

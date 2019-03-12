@@ -32,7 +32,6 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights, bo
   idsc.cnv_dsc = dsc;
   idsc.wbase = 0;
   idsc.abase = 0;
-  idsc.n_act_partitions = 0;
   idsc.accel_buf_in = 0;
   idsc.accel_buf_out = 0;
   if(cpu_only) {

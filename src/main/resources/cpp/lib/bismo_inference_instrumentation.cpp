@@ -38,15 +38,15 @@ float getLastRuntimeNanoseconds() {
 // workload-specific functions as members of InternalLayerDescriptor
 #ifdef BISMORT_INSTRUMENTATION
 size_t InternalLayerDescriptor::lhsBytes() const {
-  return hw_ctx.lhs.wordsPerBitplane() * hw_ctx.lhs.nbits * sizeof(PackedBitGroupType);
+  return ctx.lhs.wordsPerBitplane() * ctx.lhs.nbits * sizeof(PackedBitGroupType);
 }
 
 size_t InternalLayerDescriptor::rhsBytes() const {
-  return hw_ctx.rhs.wordsPerBitplane() * hw_ctx.rhs.nbits * sizeof(PackedBitGroupType);
+  return ctx.rhs.wordsPerBitplane() * ctx.rhs.nbits * sizeof(PackedBitGroupType);
 }
 
 size_t InternalLayerDescriptor::resBytes() const {
-  return hw_ctx.lhs.nrows_a * hw_ctx.rhs.nrows_a * sizeof(ResultType);
+  return ctx.lhs.nrows_a * ctx.rhs.nrows_a * sizeof(ResultType);
 }
 
 size_t InternalLayerDescriptor::getNumBytesToFetch() const {
@@ -59,14 +59,14 @@ size_t InternalLayerDescriptor::getNumBytesToWrite() const {
 
 float InternalLayerDescriptor::getWorkloadOpCount(bool inclPadding) const {
   if(inclPadding) {
-    return 2 * hw_ctx.lhs.nrows_a * hw_ctx.rhs.nrows_a * hw_ctx.lhs.ncols_a;
+    return 2 * ctx.lhs.nrows_a * ctx.rhs.nrows_a * ctx.lhs.ncols_a;
   } else {
-    return 2 * hw_ctx.lhs.nrows * hw_ctx.rhs.nrows * hw_ctx.lhs.ncols;
+    return 2 * ctx.lhs.nrows * ctx.rhs.nrows * ctx.lhs.ncols;
   }
 }
 
 float InternalLayerDescriptor::getWorkloadBinaryOpCount(bool inclPadding) const {
-  return getWorkloadOpCount(inclPadding) * hw_ctx.lhs.nbits * hw_ctx.rhs.nbits;
+  return getWorkloadOpCount(inclPadding) * ctx.lhs.nbits * ctx.rhs.nbits;
 }
 
 float InternalLayerDescriptor::getLastRunBinaryGOPS(bool inclPadding) const {

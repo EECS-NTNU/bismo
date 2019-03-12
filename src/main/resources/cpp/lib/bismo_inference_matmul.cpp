@@ -35,85 +35,47 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
     idsc.abase = 0;
     idsc.nbytes_buf_in = 0;
     idsc.nbytes_buf_out = 0;
-    //idsc.hw_ctx = 0;
-    idsc.n_act_partitions = 0;
     idsc.padded_result_host_buffer = 0;
     idsc.accel_lhs_ptr = 0;
     idsc.accel_buf_in = 0;
     idsc.accel_buf_out = 0;
   } else {
-    // compute RHS partitions as needed
     size_t abytes_workload_total = ctx.rhs.wordsPerBitplane() * ctx.rhs.nbits * sizeof(PackedBitGroupType);
-    size_t n_act_partitions = getNumPartitionsForActivationOCM(abytes_workload_total);
-    gemmbitserial::GEMMContext hw_ctx;
-    if(n_act_partitions > 1) {
-      // must have room for at least one tile per bit position
-      assert(activationOCMBytesLeft >= (ctx.rhs.nbits * ctx.rhs.wordsPerRow() * cfg.dpaDimRHS * sizeof(PackedBitGroupType)));
-      // how many rhs tiles from all bit positions fit into the RHS OCM?
-      const size_t partition_rhs_ntiles = activationOCMBytesLeft / (ctx.rhs.nbits * ctx.rhs.wordsPerRow() * cfg.dpaDimRHS * sizeof(PackedBitGroupType));
-      // allocate hw context for a single partition
-      hw_ctx = acc->allocGEMMContext(
-        dsc.M, dsc.K, partition_rhs_ntiles * cfg.dpaDimRHS, dsc.wbits, dsc.ibits, dsc.wsigned, dsc.isigned
-      );
-      // make sure we have enough partitions to cover all of rhs
-      while(hw_ctx.rhs.nrows_a * n_act_partitions < ctx.rhs.nrows) {
-        n_act_partitions++;
-      }
-      BISMORT_DEBUG("[initMatMulLayer] RHS partition:");
-#ifdef DEBUG
-      hw_ctx.rhs.printSummary();
-#endif
-      memset(hw_ctx.lhs.data, 0, hw_ctx.lhs.nbits*hw_ctx.lhs.wordsPerBitplane() * sizeof(PackedBitGroupType));
-      memset(hw_ctx.rhs.data, 0, hw_ctx.rhs.nbits*hw_ctx.rhs.wordsPerBitplane() * sizeof(PackedBitGroupType));
-      // import weights separately
-      // allow skipping weight import (if e.g. Internal_SetLHS will be used)
-      if(weights != 0) {
-        hw_ctx.lhs.importRegular(weights);
-      }
-    } else {
-      // single RHS partition only
-      hw_ctx = ctx;
-    }
+    // must have room for at least one stripe per bit position, as this is the
+    // granularity we at which we do RHS tiling
+    assert(activationOCMBytesLeft >= (ctx.rhs.nbits * ctx.rhs.wordsPerRow() * cfg.dpaDimRHS * sizeof(PackedBitGroupType)));
+    assert((ctx.rhs.nbits * ctx.rhs.wordsPerRow() * cfg.dpaDimRHS * sizeof(PackedBitGroupType)) <= FETCH_BLOCK_MAX);
     // TODO this needs to be checked for fetch width != exec width
     // (see exec_to_fetch_width_ratio in BitSerialMatMulExecutor)
     assert(cfg.dpaDimCommon == cfg.readChanWidth);
-    size_t wbytes = hw_ctx.lhs.wordsPerBitplane() * hw_ctx.lhs.nbits * sizeof(PackedBitGroupType);
-    size_t abytes = hw_ctx.rhs.wordsPerBitplane() * hw_ctx.rhs.nbits * sizeof(PackedBitGroupType);
-    size_t resbytes = hw_ctx.lhs.nrows_a * hw_ctx.rhs.nrows_a * sizeof(AccumType);
-    BISMORT_DEBUG("rhs n_act_partitions: " << n_act_partitions << " partition abytes: " << abytes << " available " << activationOCMBytesLeft);
-    assert(abytes <= activationOCMBytesLeft);
+    size_t wbytes = ctx.lhs.wordsPerBitplane() * ctx.lhs.nbits * sizeof(PackedBitGroupType);
+    size_t abytes = ctx.rhs.wordsPerBitplane() * ctx.rhs.nbits * sizeof(PackedBitGroupType);
+    size_t resbytes = ctx.lhs.nrows_a * ctx.rhs.nrows_a * sizeof(AccumType);
     uint32_t wbase = allocWeightOCM(wbytes);
     uint32_t abase = 0; // all activations use the same OCM buffer
-
-    BISMORT_DEBUG("[initMatMulLayer] accel_buf_in: " << (idsc.accel_buf_in) << " for " << abytes << " bytes");
-    BISMORT_DEBUG("[initMatMulLayer] accel_buf_out: " << (idsc.accel_buf_out) << " for " << resbytes << " bytes");
-    BISMORT_DEBUG("[initMatMulLayer] registered new matmul layer with id " << ret);
-    const size_t lhs_tiles = hw_ctx.lhs.nrows_a /  cfg.dpaDimLHS;
-    const size_t rhs_tiles = hw_ctx.rhs.nrows_a /  cfg.dpaDimRHS;
-    const size_t k_tiles = hw_ctx.rhs.ncols_a /  cfg.dpaDimCommon;
-    const size_t wbits = hw_ctx.lhs.nbits;
-    const size_t abits = hw_ctx.rhs.nbits;
-    const bool wsigned = hw_ctx.lhs.issigned;
-    const bool asigned = hw_ctx.rhs.issigned;
+    const size_t lhs_tiles = ctx.lhs.nrows_a /  cfg.dpaDimLHS;
+    const size_t rhs_tiles = ctx.rhs.nrows_a /  cfg.dpaDimRHS;
+    const size_t k_tiles = ctx.rhs.ncols_a /  cfg.dpaDimCommon;
+    const size_t wbits = ctx.lhs.nbits;
+    const size_t abits = ctx.rhs.nbits;
+    const bool wsigned = ctx.lhs.issigned;
+    const bool asigned = ctx.rhs.issigned;
     // fill out rest of descriptor
     idsc.wbase = wbase;
     idsc.wbytes = wbytes;
     idsc.abase = abase;
     idsc.nbytes_buf_in = abytes;
-    idsc.nbytes_buf_out = hw_ctx.lhs.nrows_a * hw_ctx.rhs.nrows_a * sizeof(AccumType) ;
-    idsc.hw_ctx = hw_ctx;
-    idsc.n_act_partitions = n_act_partitions;
-    idsc.padded_result_host_buffer = new AccumType[hw_ctx.lhs.nrows_a * hw_ctx.rhs.nrows_a * n_act_partitions];
+    idsc.nbytes_buf_out = ctx.lhs.nrows_a * ctx.rhs.nrows_a * sizeof(AccumType) ;
+    idsc.padded_result_host_buffer = new AccumType[ctx.lhs.nrows_a * ctx.rhs.nrows_a];
     idsc.accel_lhs_ptr = (uint32_t)(uint64_t)platform->allocAccelBuffer(wbytes);
     idsc.accel_buf_in = (uint32_t)(uint64_t)platform->allocAccelBuffer(abytes);
     // TODO optimization: can use common buffer for all results, since 1 layer
     // at a time
     idsc.accel_buf_out = (uint32_t)(uint64_t)platform->allocAccelBuffer(resbytes);
+    BISMORT_DEBUG("[initMatMulLayer] accel_buf_in: " << (idsc.accel_buf_in) << " for " << abytes << " bytes");
+    BISMORT_DEBUG("[initMatMulLayer] accel_buf_out: " << (idsc.accel_buf_out) << " for " << resbytes << " bytes");
     // fill out instructions or descriptors for matmul
 #ifdef BISMORT_USE_INSTRGEN
-    // TODO handle even distribution of rows to mems with instrgen alignment
-    // TODO enable multiple fetch instrs for larger chunks
-    assert(abytes <= FETCH_BLOCK_MAX);
     // create an instruction generation descriptor
     SingleMMDescriptor instrgen_dsc;
     instrgen_dsc.tiles_m = lhs_tiles;
@@ -144,8 +106,9 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
 
   if(!cpu_only) {
     // set the contents of the LHS matrix for the accelerator
-    configMatMulLayer_Internal_SetLHS(ret, idsc.hw_ctx.lhs);
+    configMatMulLayer_Internal_SetLHS(ret, idsc.ctx.lhs);
   }
+  BISMORT_DEBUG("[initMatMulLayer] registered new matmul layer with id " << ret);
   return ret;
 }
 
@@ -225,86 +188,65 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
   InternalLayerDescriptor dsc = registry[id];
   // all code here is for hw exec only
   assert(!dsc.cpu_only);
-  gemmbitserial::BitSerialMatrix lhs = dsc.hw_ctx.lhs;
-  gemmbitserial::BitSerialMatrix rhs = dsc.hw_ctx.rhs;
+  gemmbitserial::BitSerialMatrix lhs = dsc.ctx.lhs;
+  gemmbitserial::BitSerialMatrix rhs = dsc.ctx.rhs;
   AccumType * padded_result_host_buffer = dsc.padded_result_host_buffer;
   uint32_t rptr = dsc.accel_buf_out;
-  for(size_t rhs_p = 0; rhs_p < dsc.n_act_partitions; rhs_p++) {
-    TIMER_SAMPLE();
-    // calculate start of rhs partition. each partition has hw_ctx.rhs.nrows_a
-    // rows, and the regular amount of columns for the unpadded bit-parallel matrix
-    size_t rhs_partition_start_row = rhs.nrows_a * rhs_p;
-    BISMORT_DEBUG("Processing RHS partition " << rhs_p << " row " << rhs_partition_start_row);
-    // convert activations into bit-serial format
-    size_t host_rows_in_partition = rhs.nrows;
-    if(rhs_partition_start_row + host_rows_in_partition > dsc.ctx.rhs.nrows) {
-      BISMORT_DEBUG("Adjusting rhs.nrows to prevent reading past end of host buffer: ");
-      BISMORT_DEBUG("Was " << rhs.nrows << " now " << dsc.ctx.rhs.nrows - rhs_partition_start_row);
-      // prevent reading past the end of host buffer
-      host_rows_in_partition = dsc.ctx.rhs.nrows - rhs_partition_start_row;
-    }
-    // copy the partition from each bitslice into the accelerator memory
-    // loop over each bitplane
-    const size_t bytes_per_bitplane_part_host = host_rows_in_partition * rhs.wordsPerRow() * sizeof(uint64_t);
-    const size_t bytes_per_bitplane_part_accel = rhs.nrows_a * rhs.wordsPerRow() * sizeof(uint64_t);
-    for(size_t b = 0; b < rhs.nbits; b++) {
-      uint64_t * host_ptr = dsc.ctx.rhs.rowptr(b, rhs_partition_start_row);
-      uint32_t accel_ptr = dsc.accel_buf_in + b * bytes_per_bitplane_part_accel;
-      platform->copyBufferHostToAccel(host_ptr, (void *)accel_ptr, bytes_per_bitplane_part_host);
-    }
-    TIMER_SAMPLE();
-    TIMER_REPORT("execMatMulLayer host->accel copy");
-
+  TIMER_SAMPLE();
+  platform->copyBufferHostToAccel(rhs.data, (void *) dsc.accel_buf_in, dsc.nbytes_buf_in);
+  TIMER_SAMPLE();
+  TIMER_REPORT("execMatMulLayer host->accel copy");
 #ifdef BISMORT_INSTRUMENTATION
-    acc->perf_set_cc_enable(1);
+  acc->perf_set_cc_enable(1);
 #endif
-    // enable all stages
-    acc->set_stage_enables(1, 1, 1);
+  // enable all stages
+  acc->set_stage_enables(1, 1, 1);
 #ifdef BISMORT_USE_INSTRGEN
-    acc->useDescriptors();
-    // feed the instrgen descriptor
-    acc->pushSingleMMDescriptor(dsc.instrgen_dsc);
-    // HACK: make sure at least one op has appeared before checking for completion
-    // proper way to fix this is to singal completion from accel explicitly
-    while(acc->res_opcount() == 0) {};
+#ifdef BISMORT_DEBUG
+  cout << dsc.instrgen_dsc;
+#endif
+  acc->useDescriptors();
+  // feed the instrgen descriptor
+  acc->pushSingleMMDescriptor(dsc.instrgen_dsc);
+  // HACK: make sure at least one op has appeared before checking for completion
+  // proper way to fix this is to singal completion from accel explicitly
+  while(acc->res_opcount() == 0) {};
 #else
-    acc->useDirectInstructionFeed();
-    for (auto & instr : dsc.instructions_queue) {
-      acc->pushInstruction(instr);
-    }
-#endif
-    // wait until all writes are completed
-    while(acc->res_opcount() != 0) {
-      //BISMORT_DEBUG("[execMatMulLayer] waiting for exec, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
-    };
-#ifdef BISMORT_INSTRUMENTATION
-    acc->perf_set_cc_enable(0);
-#endif
-    TIMER_SAMPLE();
-    TIMER_REPORT("execMatMulLayer hardware execution");
-    // copy padded result buffer to host
-    size_t result_partition_start_elem = rhs_partition_start_row * lhs.nrows_a;
-    platform->copyBufferAccelToHost((void *)dsc.accel_buf_out, (void *) &padded_result_host_buffer[result_partition_start_elem], dsc.nbytes_buf_out);
-    TIMER_SAMPLE();
-    TIMER_REPORT("execMatMulLayer accel->host copy");
-#ifdef BISMORT_INSTRUMENTATION
-    acc->updateStateBreakdown();
-    //acc->printStateBreakdown();
-    //cout << "[Instrumentation] #cycles = "  << acc->perf_get_cc() << endl;
-    dsc.printPerfSummary();
-    dsc.printPerfDetails();
-#endif
+  acc->useDirectInstructionFeed();
+  for (auto & instr : dsc.instructions_queue) {
+    acc->pushInstruction(instr);
   }
+#endif
+  // wait until all writes are completed
+  while(acc->res_opcount() != 0) {
+    //BISMORT_DEBUG("[execMatMulLayer] waiting for exec, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
+  };
+#ifdef BISMORT_INSTRUMENTATION
+  acc->perf_set_cc_enable(0);
+#endif
+  TIMER_SAMPLE();
+  TIMER_REPORT("execMatMulLayer hardware execution");
+  // copy padded result buffer to host
+  TIMER_SAMPLE();
+  platform->copyBufferAccelToHost((void *)dsc.accel_buf_out, (void *) padded_result_host_buffer, dsc.nbytes_buf_out);
+  TIMER_SAMPLE();
+  TIMER_REPORT("execMatMulLayer accel->host copy");
+#ifdef BISMORT_INSTRUMENTATION
+  acc->updateStateBreakdown();
+  dsc.printPerfSummary();
+  dsc.printPerfDetails();
+#endif
+  TIMER_SAMPLE();
   // get rid of padding as needed
-  if((lhs.nrows_a == dsc.ctx.lhs.nrows) && (dsc.n_act_partitions * rhs.nrows_a == dsc.ctx.rhs.nrows)) {
+  if((lhs.nrows_a == lhs.nrows) && (rhs.nrows_a == rhs.nrows)) {
     // no padding was necessary, copy directly
-    memcpy(out, padded_result_host_buffer, lhs.nrows_a * rhs.nrows_a * dsc.n_act_partitions * sizeof(AccumType));
+    memcpy(out, padded_result_host_buffer, lhs.nrows_a * rhs.nrows_a * sizeof(AccumType));
   } else {
     // accelerator computed a padded result matrix, copy actual parts only
-    size_t nbytes_row_nonpadded = sizeof(AccumType) * dsc.ctx.lhs.nrows;
-    for(size_t row = 0; row < dsc.ctx.rhs.nrows; row++) {
+    size_t nbytes_row_nonpadded = sizeof(AccumType) * lhs.nrows;
+    for(size_t row = 0; row < rhs.nrows; row++) {
       size_t ind_padded = row * lhs.nrows_a;
-      size_t ind_actual = row * dsc.ctx.lhs.nrows;
+      size_t ind_actual = row * lhs.nrows;
       memcpy((void *)(&out[ind_actual]), &padded_result_host_buffer[ind_padded], nbytes_row_nonpadded);
     }
   }
@@ -313,7 +255,7 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
 
 #ifdef BISMORT_MATMUL_VERIFY_AGAINST_CPU
   // compute result with CPU and compare
-  size_t actual_res_bytes = sizeof(AccumType) * dsc.ctx.lhs.nrows * dsc.ctx.rhs.nrows;
+  size_t actual_res_bytes = sizeof(AccumType) * lhs.nrows * rhs.nrows;
   gemmbitserial::gemmBitSerial(dsc.ctx);
   int ret = memcmp(dsc.ctx.res, out, actual_res_bytes);
   BISMORT_DEBUG("[execMatMulLayer] memcmp against golden = " << ret);
