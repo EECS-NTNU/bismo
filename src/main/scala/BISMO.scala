@@ -309,7 +309,10 @@ class BitSerialMatMulAccel(
 
   if(myP.instrGen) {
     // instantiate the instruction generators
-    val igExec = Module(HLSBlackBox(new ExecInstrGen())).io
+    val igExec = Module(HLSBlackBox(new ExecInstrGen(new ExecInstrGenParams(
+      lhsEntriesPerMem = myP.lhsEntriesPerMem,
+      rhsEntriesPerMem = myP.rhsEntriesPerMem
+    )))).io
     val igFetch = Module(HLSBlackBox(new FetchInstrGen(new FetchInstrGenParams(
       dpaDimLHS = myP.dpaDimLHS, dpaDimCommon = myP.dpaDimCommon,
       dpaDimRHS = myP.dpaDimRHS,

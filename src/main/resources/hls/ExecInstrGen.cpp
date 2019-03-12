@@ -39,6 +39,10 @@
 #include <stdint.h>
 #include "BISMOInstruction.hpp"
 
+template <
+  // capacity of LHS and RHS memories (in elements)
+  size_t LMEM, size_t RMEM
+>
 void ExecInstrGen_NoTiling(
   hls::stream<ap_uint<BISMO_MMDESCR_BITS>> & in,
   hls::stream<ap_uint<BISMO_INSTR_BITS>> & out
@@ -148,6 +152,10 @@ io_section:{
 }
 }
 
+template <
+  // capacity of LHS and RHS memories (in elements)
+  size_t LMEM, size_t RMEM
+>
 void ExecInstrGen_RHSTiling(
   hls::stream<ap_uint<BISMO_MMDESCR_BITS>> & in,
   hls::stream<ap_uint<BISMO_INSTR_BITS>> & out
@@ -269,6 +277,7 @@ io_section:{
 }
 }
 
+#include "ExecInstrGen_TemplateDefs.hpp"
 void ExecInstrGen(
   hls::stream<ap_uint<BISMO_MMDESCR_BITS>> & in,
   hls::stream<ap_uint<BISMO_INSTR_BITS>> & out
@@ -277,5 +286,5 @@ void ExecInstrGen(
   #pragma HLS INTERFACE axis port=out
   #pragma HLS INTERFACE axis port=in
 
-  ExecInstrGen_RHSTiling(in, out);
+  ExecInstrGen_RHSTiling<TEMPLATE_PARAM_LMEM, TEMPLATE_PARAM_RMEM>(in, out);
 }
