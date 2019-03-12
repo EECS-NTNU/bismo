@@ -43,7 +43,7 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
     size_t abytes_workload_total = ctx.rhs.wordsPerBitplane() * ctx.rhs.nbits * sizeof(PackedBitGroupType);
     // must have room for at least one stripe per bit position, as this is the
     // granularity we at which we do RHS tiling
-    assert(activationOCMBytesLeft >= (ctx.rhs.nbits * ctx.rhs.wordsPerRow() * cfg.dpaDimRHS * sizeof(PackedBitGroupType)));
+    assert(activationOCMBytesLeft >= FETCHEXEC_TOKENS*(ctx.rhs.nbits * ctx.rhs.wordsPerRow() * cfg.dpaDimRHS * sizeof(PackedBitGroupType)));
     assert((ctx.rhs.nbits * ctx.rhs.wordsPerRow() * cfg.dpaDimRHS * sizeof(PackedBitGroupType)) <= FETCH_BLOCK_MAX);
     // TODO this needs to be checked for fetch width != exec width
     // (see exec_to_fetch_width_ratio in BitSerialMatMulExecutor)
