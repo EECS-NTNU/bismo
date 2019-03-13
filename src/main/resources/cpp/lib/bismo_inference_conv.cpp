@@ -99,10 +99,13 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
 
   if(dsc.cnv_fewifm_mode) {
     // directly lower 8-byte data
+    TIMER_SAMPLE();
     gemmbitserial::im2row(
       in, ctx.ifm, ctx.in_dim, ctx.in_dim, ctx.k, ctx.stride, ctx.pad,
       dsc.cnv_fewifm_buf
     );
+    TIMER_SAMPLE();
+    TIMER_REPORT("[execConvLayer] im2row")
     // call corresponding matrix multiply
     LayerHandle cnv_matmul_handle = dsc.cnv_matmul_handle;
     InternalLayerDescriptor dsc_matmul = registry[cnv_matmul_handle];
@@ -116,7 +119,7 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
       }
     }
     TIMER_SAMPLE();
-    TIMER_REPORT("transpose result on CPU");
+    TIMER_REPORT("[execConvLayer] transpose result on CPU");
   } else {
     // NOTE: lhs and rhs are swapped, see note in initConvLayer
     gemmbitserial::BitSerialMatrix lhs = dsc.ctx.rhs;
@@ -128,7 +131,7 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
     TIMER_SAMPLE();
     ctx.importActivations(in);
     TIMER_SAMPLE();
-    TIMER_REPORT("execConvLayer CPU lowering");
+    TIMER_REPORT("[execConvLayer] bit serial lowering");
     if(dsc.cpu_only) {
       gemmbitserial::gemmBitSerial(ctx.gemmctx);
       memcpy(out, ctx.gemmctx.res, sizeof(AccumType) * lhs.nrows * rhs.nrows);
@@ -140,7 +143,7 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
       dsc_matmul.ctx.rhs.copyFrom(rhs);
       const size_t lowered_bs_act_bytes = dsc_matmul.ctx.rhs.nbits * dsc_matmul.ctx.rhs.wordsPerBitplane() * sizeof(PackedBitGroupType);
       TIMER_SAMPLE();
-      TIMER_REPORT("execConvLayer copy to matmul rhs");
+      TIMER_REPORT("[execConvLayer] copy to matmul rhs");
       //AccumType * targetHostBuf = out;
       AccumType * targetHostBuf = dsc.transpose_result_host_buffer;
       // call the underlying matmul implementation
@@ -153,7 +156,7 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
         }
       }
       TIMER_SAMPLE();
-      TIMER_REPORT("transpose result on CPU");
+      TIMER_REPORT("[execConvLayer] transpose result on CPU");
 
   #ifdef BISMORT_CONV_VERIFY_AGAINST_CPU
       uint64_t checksum_lhs = 0;
