@@ -196,15 +196,10 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
   platform->copyBufferHostToAccel(rhs.data, (void *) dsc.accel_buf_in, dsc.nbytes_buf_in);
   TIMER_SAMPLE();
   TIMER_REPORT("execMatMulLayer host->accel copy");
-#ifdef BISMORT_INSTRUMENTATION
-  acc->perf_set_cc_enable(1);
-#endif
-  // enable all stages
-  acc->set_stage_enables(1, 1, 1);
+
+  TIMER_SAMPLE();
+  acc->set_stage_enables(0, 0, 0);
 #ifdef BISMORT_USE_INSTRGEN
-#ifdef BISMORT_DEBUG
-  cout << dsc.instrgen_dsc;
-#endif
   acc->useDescriptors();
   // feed the instrgen descriptor
   acc->pushSingleMMDescriptor(dsc.instrgen_dsc);
@@ -217,6 +212,15 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
     acc->pushInstruction(instr);
   }
 #endif
+  TIMER_SAMPLE();
+  TIMER_REPORT("execMatMulLayer hw setup");
+
+  TIMER_SAMPLE();
+#ifdef BISMORT_INSTRUMENTATION
+  acc->perf_set_cc_enable(1);
+#endif
+  // enable all stages
+  acc->set_stage_enables(1, 1, 1);
   // wait until all writes are completed
   while(acc->res_opcount() != 0) {
     //BISMORT_DEBUG("[execMatMulLayer] waiting for exec, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
