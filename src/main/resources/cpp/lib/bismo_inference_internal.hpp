@@ -53,6 +53,8 @@ typedef struct {
   AccumType * transpose_result_host_buffer;
   LayerHandle cnv_matmul_handle;
   bool cpu_only;
+  bool cnv_fewifm_mode;
+  uint8_t * cnv_fewifm_buf;
 #ifdef BISMORT_INSTRUMENTATION
   size_t getNumBytesToFetch() const;
   size_t getNumBytesToWrite() const;
