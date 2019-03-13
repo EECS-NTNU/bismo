@@ -162,7 +162,10 @@ void configMatMulLayer_Internal_SetLHS(LayerHandle id, gemmbitserial::BitSerialM
 void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   BISMORT_DEBUG("[execMatMulLayer] id " << id);
   InternalLayerDescriptor dsc = registry[id];
+  TIMER_SAMPLE();
   dsc.ctx.rhs.importRegular(in);
+  TIMER_SAMPLE();
+  TIMER_REPORT("[execMatMulLayer] importRegular");
   if(dsc.cpu_only) {
     gemmbitserial::gemmBitSerial(dsc.ctx);
     memcpy(out, dsc.ctx.res, sizeof(int32_t)*dsc.ctx.lhs.nrows*dsc.ctx.rhs.nrows);
