@@ -34,14 +34,15 @@
 
 int main(int argc, char const *argv[]) {
   try {
-    int mode;
-    cout << "Enter 0 to exit, 1 to run benchmarking, 2 to run tests:" << endl;
-    cin >> mode;
-    if(mode == 0) {
-      return 0;
-    } else if(mode == 1) {
+    if(argc != 2) {
+      cout << "Run with cmdline argument c to run CaffeNet benchmarking, i to run interactive benchmarking, t to run tests" << endl;
+      return -1;
+    }
+    if(argv[1][0] == 'c') {
+      benchmark_caffenet_gemm();
+    } else if(argv[1][0] == 'i') {
       benchmark_gemm_interactive();
-    } else if(mode == 2) {
+    } else if(argv[1][0] == 't') {
       bismo_inference::init();
       bismo_inference::HardwareConfig hwcfg = bismo_inference::getHardwareConfig();
       bismo_inference::deinit();
