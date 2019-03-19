@@ -1,4 +1,5 @@
-// Copyright (c) 2018 Norwegian University of Science and Technology (NTNU)
+// Copyright (c) 2019 Xilinx
+// Author: Yaman Umuroglu
 //
 // BSD v3 License
 //
@@ -29,35 +30,50 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "BISMOTests.hpp"
-#include "benchmark.hpp"
+using namespace std;
+#include <iostream>
+using namespace std;
+#include "gemmbitserial/test/testhelpers.hpp"
+#include "bismo_inference.hpp"
 
-int main(int argc, char const *argv[]) {
-  try {
-    int mode;
-    cout << "Enter 0 to exit, 1 to run benchmarking, 2 to run tests:" << endl;
-    cin >> mode;
-    if(mode == 0) {
-      return 0;
-    } else if(mode == 1) {
-      benchmark_gemm_interactive();
-    } else if(mode == 2) {
-      bismo_inference::init();
-      bismo_inference::HardwareConfig hwcfg = bismo_inference::getHardwareConfig();
-      bismo_inference::deinit();
-      bool all_OK = true;
-      all_OK &= test_binary_onchip_onetile(hwcfg);
-      all_OK &= test_multibit_onchip_onetile(hwcfg);
-      all_OK &= test_multibit_multitile(hwcfg);
-      all_OK &= test_small_conv(hwcfg);
-      if(all_OK) {
-        cout << "All tests passed succesfully" << endl;
-      } else {
-        cout << "Some tests failed!" << endl;
-      }
+void run_benchmark_matmul(
+  size_t nrows_lhs, size_t nrows_rhs, size_t ncols, size_t nbits_lhs,
+  size_t nbits_rhs
+) {
+  uint8_t * lhs = new uint8_t[nrows_lhs * ncols];
+  uint8_t * rhs = new uint8_t[nrows_rhs * ncols];
+  gemmbitserial::generateRandomVector(nbits_lhs, nrows_lhs*ncols, lhs);
+  gemmbitserial::generateRandomVector(nbits_rhs, nrows_rhs*ncols, rhs);
+  bismo_inference::MatMulLayerDescriptor dscr;
+  dscr.wbits = nbits_lhs;
+  dscr.ibits = nbits_rhs;
+  dscr.wsigned = false;
+  dscr.isigned = false;
+  dscr.M = nrows_lhs;
+  dscr.K = ncols;
+  dscr.N = nrows_rhs;
+  bismo_inference::init();
+  bismo_inference::LayerHandle id = bismo_inference::initMatMulLayer(dscr, lhs);
+  int32_t * accel_res = new int32_t[nrows_lhs*nrows_rhs];
+  bismo_inference::execMatMulLayer(id, rhs, accel_res);
+  bismo_inference::deinit();
+
+  delete [] lhs;
+  delete [] rhs;
+  delete [] accel_res;
+}
+
+void benchmark_gemm_interactive() {
+  while(1) {
+    int rows, depth, cols, lhsbits, rhsbits;
+    cout << "Enter rows depth cols, 0 to exit " << endl;
+    cin >> rows;
+    if(rows == 0) {
+      return;
     }
-  } catch (const char * e) {
-    cout << "Exception: " << e << endl;
+    cin >> depth >> cols;
+    cout << "Enter lhs and rhs bits: " << endl;
+    cin >> lhsbits >> rhsbits;
+    run_benchmark_matmul(rows, cols, depth, lhsbits, rhsbits);
   }
-  return 0;
 }
