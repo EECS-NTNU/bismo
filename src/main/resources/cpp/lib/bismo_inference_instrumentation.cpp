@@ -152,6 +152,7 @@ void InternalLayerDescriptor::printPerfDetails() {
   instrumentationData["workload_dram_write_bytes"] = getNumBytesToWrite();
   instrumentationData["hw_peak_read_bw"] = getHWReadBW();
   instrumentationData["hw_peak_write_bw"] = getHWWriteBW();
+  // per-stage state breakdown
   instrumentationData["stg_fetch_idle"] = acc->getStateBreakdown(stgFetch, csGetCmd);
   instrumentationData["stg_exec_idle"] = acc->getStateBreakdown(stgExec, csGetCmd);
   instrumentationData["stg_result_idle"] = acc->getStateBreakdown(stgResult, csGetCmd);
@@ -164,6 +165,10 @@ void InternalLayerDescriptor::printPerfDetails() {
   instrumentationData["stg_fetch_rcv"] = acc->getStateBreakdown(stgFetch, csReceive);
   instrumentationData["stg_exec_rcv"] = acc->getStateBreakdown(stgExec, csReceive);
   instrumentationData["stg_result_rcv"] = acc->getStateBreakdown(stgResult, csReceive);
+  // derived per-stage efficiency metrics
+  instrumentationData["run_eff%_fetch"] = 100*rd_fetchact_bw/getHWReadBW();
+  instrumentationData["run_eff%_exec"] = 100*exec_eff;
+  instrumentationData["run_eff%_result"] = 100*wr_resact_bw/getHWWriteBW();
 #ifdef BISMORT_INSTRUMENTATION_VERBOSE
   int colwidth = 11;
   acc->printStateBreakdown();
