@@ -29,6 +29,8 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#ifndef BISMO_INFERENCE_HPP
+#define BISMO_INFERENCE_HPP
 #include <stdint.h>
 
 namespace bismo_inference {
@@ -117,3 +119,4 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out);
 // destroy layer with given handle
 void deinitLayer(LayerHandle id);
 }
+#endif
