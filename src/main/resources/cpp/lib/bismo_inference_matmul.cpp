@@ -194,6 +194,14 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
   gemmbitserial::BitSerialMatrix lhs = dsc.ctx.lhs;
   gemmbitserial::BitSerialMatrix rhs = dsc.ctx.rhs;
   AccumType * padded_result_host_buffer = dsc.padded_result_host_buffer;
+  instrumentationData["M"] = lhs.nrows;
+  instrumentationData["K"] = lhs.ncols;
+  instrumentationData["N"] = rhs.nrows;
+  instrumentationData["M_pad"] = lhs.nrows_a;
+  instrumentationData["K_pad"] = lhs.ncols_a;
+  instrumentationData["N_pad"] = rhs.nrows_a;
+  instrumentationData["lbits"] = lhs.nbits;
+  instrumentationData["rbits"] = rhs.nbits;
   uint32_t rptr = dsc.accel_buf_out;
   TIMER_SAMPLE();
   platform->copyBufferHostToAccel(rhs.data, (void *) dsc.accel_buf_in, dsc.nbytes_buf_in);
