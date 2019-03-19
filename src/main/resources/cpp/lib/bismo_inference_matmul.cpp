@@ -153,7 +153,7 @@ void configMatMulLayer_Internal_SetLHS(LayerHandle id, gemmbitserial::BitSerialM
   acc->set_stage_enables(0, 0, 0);
   BISMORT_DEBUG("[configMatMulLayer_Internal_SetLHS] weight init done");
   TIMER_SAMPLE();
-  TIMER_REPORT("[configMatMulLayer_Internal_SetLHS] total");
+  TIMER_REPORT("setLHS");
 }
 
 // execute layer with given handle
@@ -165,7 +165,7 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   TIMER_SAMPLE();
   dsc.ctx.rhs.importRegular(in);
   TIMER_SAMPLE();
-  TIMER_REPORT("[execMatMulLayer] importRegular");
+  TIMER_REPORT("importRegular");
   if(dsc.cpu_only) {
     gemmbitserial::gemmBitSerial(dsc.ctx);
     memcpy(out, dsc.ctx.res, sizeof(int32_t)*dsc.ctx.lhs.nrows*dsc.ctx.rhs.nrows);
@@ -198,9 +198,8 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
   TIMER_SAMPLE();
   platform->copyBufferHostToAccel(rhs.data, (void *) dsc.accel_buf_in, dsc.nbytes_buf_in);
   TIMER_SAMPLE();
-  TIMER_REPORT("[execMatMulLayer] host->accel copy");
+  TIMER_REPORT("host2accel");
 
-  TIMER_SAMPLE();
   acc->set_stage_enables(0, 0, 0);
 #ifdef BISMORT_USE_INSTRGEN
   acc->useDescriptors();
@@ -215,8 +214,6 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
     acc->pushInstruction(instr);
   }
 #endif
-  TIMER_SAMPLE();
-  TIMER_REPORT("[execMatMulLayer] hw setup");
 
   TIMER_SAMPLE();
 #ifdef BISMORT_INSTRUMENTATION
@@ -232,12 +229,12 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
   acc->perf_set_cc_enable(0);
 #endif
   TIMER_SAMPLE();
-  TIMER_REPORT("[execMatMulLayer] hardware execution");
+  TIMER_REPORT("hwexec");
   // copy padded result buffer to host
   TIMER_SAMPLE();
   platform->copyBufferAccelToHost((void *)dsc.accel_buf_out, (void *) padded_result_host_buffer, dsc.nbytes_buf_out);
   TIMER_SAMPLE();
-  TIMER_REPORT("[execMatMulLayer] accel->host copy");
+  TIMER_REPORT("accel2host");
 #ifdef BISMORT_INSTRUMENTATION
   acc->updateStateBreakdown();
   dsc.printPerfSummary();
@@ -258,7 +255,7 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
     }
   }
   TIMER_SAMPLE();
-  TIMER_REPORT("[execMatMulLayer] remove padding");
+  TIMER_REPORT("rmpad");
 
 #ifdef BISMORT_MATMUL_VERIFY_AGAINST_CPU
   // compute result with CPU and compare
