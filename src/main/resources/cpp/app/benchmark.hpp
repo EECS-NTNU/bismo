@@ -30,13 +30,28 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-using namespace std;
 #include <iostream>
 using namespace std;
 #include "gemmbitserial/test/testhelpers.hpp"
 #include "bismo_inference.hpp"
 
-void run_benchmark_matmul(
+void printInstrumentationHeaders(bismo_inference::InstrumentationData & data) {
+  bismo_inference::InstrumentationData::iterator it;
+  for(it = data.begin(); it != data.end(); it++) {
+    cout << it->first << "\t";
+  }
+  cout << endl;
+}
+
+void printInstrumentationData(bismo_inference::InstrumentationData & data) {
+  bismo_inference::InstrumentationData::iterator it;
+  for(it = data.begin(); it != data.end(); it++) {
+    cout << it->second << "\t";
+  }
+  cout << endl;
+}
+
+bismo_inference::InstrumentationData run_benchmark_matmul(
   size_t nrows_lhs, size_t nrows_rhs, size_t ncols, size_t nbits_lhs,
   size_t nbits_rhs
 ) {
@@ -56,11 +71,13 @@ void run_benchmark_matmul(
   bismo_inference::LayerHandle id = bismo_inference::initMatMulLayer(dscr, lhs);
   int32_t * accel_res = new int32_t[nrows_lhs*nrows_rhs];
   bismo_inference::execMatMulLayer(id, rhs, accel_res);
+  bismo_inference::InstrumentationData ret = bismo_inference::getInstrumentationData();
   bismo_inference::deinit();
 
   delete [] lhs;
   delete [] rhs;
   delete [] accel_res;
+  return ret;
 }
 
 void benchmark_gemm_interactive() {
@@ -74,6 +91,8 @@ void benchmark_gemm_interactive() {
     cin >> depth >> cols;
     cout << "Enter lhs and rhs bits: " << endl;
     cin >> lhsbits >> rhsbits;
-    run_benchmark_matmul(rows, cols, depth, lhsbits, rhsbits);
+    bismo_inference::InstrumentationData ret = run_benchmark_matmul(rows, cols, depth, lhsbits, rhsbits);
+    printInstrumentationHeaders(ret);
+    printInstrumentationData(ret);
   }
 }
