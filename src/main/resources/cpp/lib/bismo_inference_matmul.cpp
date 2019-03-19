@@ -156,7 +156,7 @@ void configMatMulLayer_Internal_SetLHS(LayerHandle id, gemmbitserial::BitSerialM
   acc->set_stage_enables(0, 0, 0);
   BISMORT_DEBUG("[configMatMulLayer_Internal_SetLHS] weight init done");
   TIMER_SAMPLE();
-  TIMER_REPORT("setLHS");
+  TIMER_REPORT("cpu_setLHS");
 }
 
 // execute layer with given handle
@@ -168,7 +168,7 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   TIMER_SAMPLE();
   dsc.ctx.rhs.importRegular(in);
   TIMER_SAMPLE();
-  TIMER_REPORT("importRegular");
+  TIMER_REPORT("cpu_importRegular");
   if(dsc.cpu_only) {
     gemmbitserial::gemmBitSerial(dsc.ctx);
     memcpy(out, dsc.ctx.res, sizeof(int32_t)*dsc.ctx.lhs.nrows*dsc.ctx.rhs.nrows);
@@ -197,19 +197,19 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
   gemmbitserial::BitSerialMatrix lhs = dsc.ctx.lhs;
   gemmbitserial::BitSerialMatrix rhs = dsc.ctx.rhs;
   AccumType * padded_result_host_buffer = dsc.padded_result_host_buffer;
-  instrumentationData["M"] = lhs.nrows;
-  instrumentationData["K"] = lhs.ncols;
-  instrumentationData["N"] = rhs.nrows;
-  instrumentationData["M_pad"] = lhs.nrows_a;
-  instrumentationData["K_pad"] = lhs.ncols_a;
-  instrumentationData["N_pad"] = rhs.nrows_a;
-  instrumentationData["lbits"] = lhs.nbits;
-  instrumentationData["rbits"] = rhs.nbits;
+  instrumentationData["workload_M"] = lhs.nrows;
+  instrumentationData["workload_K"] = lhs.ncols;
+  instrumentationData["workload_N"] = rhs.nrows;
+  instrumentationData["workload_M_pad"] = lhs.nrows_a;
+  instrumentationData["workload_K_pad"] = lhs.ncols_a;
+  instrumentationData["workload_N_pad"] = rhs.nrows_a;
+  instrumentationData["workload_lbits"] = lhs.nbits;
+  instrumentationData["workload_rbits"] = rhs.nbits;
   uint32_t rptr = dsc.accel_buf_out;
   TIMER_SAMPLE();
   platform->copyBufferHostToAccel(rhs.data, (void *) dsc.accel_buf_in, dsc.nbytes_buf_in);
   TIMER_SAMPLE();
-  TIMER_REPORT("host2accel");
+  TIMER_REPORT("cpu_host2accel");
 
   acc->set_stage_enables(0, 0, 0);
 #ifdef BISMORT_USE_INSTRGEN
@@ -240,12 +240,12 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
   acc->perf_set_cc_enable(0);
 #endif
   TIMER_SAMPLE();
-  TIMER_REPORT("hwexec");
+  TIMER_REPORT("run_hwexec_us");
   // copy padded result buffer to host
   TIMER_SAMPLE();
   platform->copyBufferAccelToHost((void *)dsc.accel_buf_out, (void *) padded_result_host_buffer, dsc.nbytes_buf_out);
   TIMER_SAMPLE();
-  TIMER_REPORT("accel2host");
+  TIMER_REPORT("cpu_accel2host");
 #ifdef BISMORT_INSTRUMENTATION
   acc->updateStateBreakdown();
   dsc.printPerfSummary();
@@ -266,7 +266,7 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
     }
   }
   TIMER_SAMPLE();
-  TIMER_REPORT("rmpad");
+  TIMER_REPORT("cpu_rmpad");
 
 #ifdef BISMORT_MATMUL_VERIFY_AGAINST_CPU
   // compute result with CPU and compare

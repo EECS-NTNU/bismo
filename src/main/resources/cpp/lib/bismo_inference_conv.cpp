@@ -105,7 +105,7 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
       dsc.cnv_fewifm_buf
     );
     TIMER_SAMPLE();
-    TIMER_REPORT("im2row_8b")
+    TIMER_REPORT("cpu_im2row_8b")
     // call corresponding matrix multiply
     LayerHandle cnv_matmul_handle = dsc.cnv_matmul_handle;
     InternalLayerDescriptor dsc_matmul = registry[cnv_matmul_handle];
@@ -119,7 +119,7 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
       }
     }
     TIMER_SAMPLE();
-    TIMER_REPORT("transpose");
+    TIMER_REPORT("cpu_transpose");
   } else {
     // NOTE: lhs and rhs are swapped, see note in initConvLayer
     gemmbitserial::BitSerialMatrix lhs = dsc.ctx.rhs;
@@ -131,7 +131,7 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
     TIMER_SAMPLE();
     ctx.importActivations(in);
     TIMER_SAMPLE();
-    TIMER_REPORT("im2row_bs");
+    TIMER_REPORT("cpu_im2row_bs");
     if(dsc.cpu_only) {
       gemmbitserial::gemmBitSerial(ctx.gemmctx);
       memcpy(out, ctx.gemmctx.res, sizeof(AccumType) * lhs.nrows * rhs.nrows);
@@ -153,7 +153,7 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
         }
       }
       TIMER_SAMPLE();
-      TIMER_REPORT("transpose");
+      TIMER_REPORT("cpu_transpose");
 
   #ifdef BISMORT_CONV_VERIFY_AGAINST_CPU
       uint64_t checksum_lhs = 0;
