@@ -85,6 +85,7 @@ extern uint32_t weightOCMBase, weightOCMBytesLeft;
 extern uint32_t activationOCMBase, activationOCMBytesLeft;
 extern uint32_t thresholdOCMBase, thresholdOCMBytesLeft;
 extern std::vector<InternalLayerDescriptor> registry;
+extern InstrumentationData instrumentationData;
 #ifdef BISMORT_INSTRUMENTATION
 extern std::chrono::time_point<std::chrono::high_resolution_clock> time_prev, time_now;
 #endif

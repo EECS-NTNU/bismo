@@ -32,6 +32,8 @@
 #ifndef BISMO_INFERENCE_HPP
 #define BISMO_INFERENCE_HPP
 #include <stdint.h>
+#include <map>
+#include <string>
 
 namespace bismo_inference {
 // handle representing a particular layer instance that BISMO knows
@@ -54,12 +56,16 @@ typedef struct {
   uint64_t writeChanWidth;
 } HardwareConfig;
 
+typedef std::map<std::string,float> InstrumentationData;
+
 // global init/deinit for the runtime library
 void init();
 void deinit();
 
 // benchmark host<->accel transfer times
 void benchmark_host_accel_transfer();
+// retrieve a map of all instrumentation data from the previous run
+InstrumentationData getInstrumentationData();
 
 // retrieve hardware configuration for the instance
 HardwareConfig getHardwareConfig();

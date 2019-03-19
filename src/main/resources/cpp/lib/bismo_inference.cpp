@@ -10,6 +10,7 @@ uint32_t weightOCMBase, weightOCMBytesLeft;
 uint32_t activationOCMBase, activationOCMBytesLeft;
 uint32_t thresholdOCMBase, thresholdOCMBytesLeft;
 std::vector<InternalLayerDescriptor> registry;
+std::map<std::string,float> instrumentationData;
 
 // global init/deinit for the runtime library
 void init() {
@@ -33,6 +34,10 @@ void init() {
 void deinit() {
   delete acc;
   deinitPlatform(platform);
+}
+
+InstrumentationData getInstrumentationData() {
+  return instrumentationData;
 }
 
 void benchmark_host_accel_transfer() {
