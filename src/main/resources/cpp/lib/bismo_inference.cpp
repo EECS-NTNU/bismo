@@ -79,7 +79,9 @@ uint32_t allocWeightOCM(size_t nbytes) {
   // check if enough weight OCM is left
   // TODO: if not enough space, fail gracefully to permit SW execution
   BISMORT_DEBUG("[allocWeightOCM] alloc " << nbytes << ", available " << weightOCMBytesLeft);
-  assert(nbytes <= weightOCMBytesLeft);
+  if(nbytes > weightOCMBytesLeft) {
+    throw "Not enough LHS OCM bytes for workload";
+  }
   // increment pointer to next available OCM slot
   weightOCMBytesLeft -= nbytes;
   uint32_t ret = weightOCMBase;
@@ -94,7 +96,9 @@ uint32_t allocWeightOCM(size_t nbytes) {
 
 uint32_t allocThresOCM(size_t nbytes) {
   // check if enough threshold OCM is left
-  assert(nbytes <= thresholdOCMBytesLeft);
+  if(nbytes > thresholdOCMBytesLeft) {
+    throw "Not enough threshold OCM bytes for workload";
+  }
   thresholdOCMBytesLeft -= nbytes;
   // TODO implement allocThresOCM
   // TOOD return allocated base address
