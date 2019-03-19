@@ -50,11 +50,11 @@ void benchmark_host_accel_transfer() {
     TIMER_SAMPLE();
     platform->copyBufferHostToAccel(hostbuf, accelbuf, nbytes);
     TIMER_SAMPLE();
-    TIMER_REPORT("host to accel " << nbytes << ": ");
+    TIMER_REPORT("host to accel");
     TIMER_SAMPLE();
     platform->copyBufferAccelToHost(accelbuf, hostbuf, nbytes);
     TIMER_SAMPLE();
-    TIMER_REPORT("accel to host " << nbytes << ": ");
+    TIMER_REPORT("accel to host");
     delete [] hostbuf;
     platform->deallocAccelBuffer(accelbuf);
   }

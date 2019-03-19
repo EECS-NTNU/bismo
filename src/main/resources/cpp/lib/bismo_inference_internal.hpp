@@ -22,7 +22,11 @@
 #else
 #define TIMER_INIT() std::chrono::time_point<std::chrono::high_resolution_clock> time_prev = std::chrono::high_resolution_clock::now(); std::chrono::time_point<std::chrono::high_resolution_clock> time_now = std::chrono::high_resolution_clock::now();
 #define TIMER_SAMPLE() time_prev = time_now; time_now = std::chrono::high_resolution_clock::now();
-#define TIMER_REPORT(name) cout << "[Instrumentation] " << name << " = " << std::chrono::duration_cast<std::chrono::microseconds>(time_now-time_prev).count() << " us" << endl;
+#ifdef BISMORT_INSTRUMENTATION_VERBOSE
+#define TIMER_REPORT(name) cout << "[Instrumentation] " << name << " = " << std::chrono::duration_cast<std::chrono::microseconds>(time_now-time_prev).count() << " us" << endl; instrumentationData[name] = (float) (std::chrono::duration_cast<std::chrono::microseconds>(time_now-time_prev).count());
+#else
+#define TIMER_REPORT(name) instrumentationData[name] = (float) (std::chrono::duration_cast<std::chrono::microseconds>(time_now-time_prev).count());
+#endif
 #endif
 
 namespace bismo_inference {
