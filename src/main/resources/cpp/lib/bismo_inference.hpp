@@ -66,6 +66,8 @@ void deinit();
 void benchmark_host_accel_transfer();
 // retrieve a map of all instrumentation data from the previous run
 InstrumentationData getInstrumentationData();
+// run a small self-test for the p2s accelerator
+bool selftest_p2s();
 
 // retrieve hardware configuration for the instance
 HardwareConfig getHardwareConfig();
