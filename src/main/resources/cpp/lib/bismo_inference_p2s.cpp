@@ -23,6 +23,9 @@ void p2s(
   if(nbytes_aligned > BISMORT_P2S_BITPAR_BYTES) {
     throw "Insufficient p2s bit-parallel buffer size";
   }
+  if(issigned) {
+    throw "P2S accelerator does not yet support signed import";
+  }
   // clean the p2s buffer if desired
   if(zeropad) {
     // hand in a "cleanly padded" buffer to p2s
