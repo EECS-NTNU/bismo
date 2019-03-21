@@ -122,7 +122,8 @@ void p2s(
   uint32_t accel_buf_dst,         // output matrix buffer (destination)
   size_t nrows, size_t ncols,     // matrix size
   size_t nbits,                   // actual bits per element in source matrix
-  bool issigned                   // whether source matrix is signed
+  bool issigned,                  // whether source matrix is signed
+  bool zeropad = false            // use zero instead of random padding
 );
 
 void configMatMulLayer_Internal_SetLHS(LayerHandle id, gemmbitserial::BitSerialMatrix mat);
