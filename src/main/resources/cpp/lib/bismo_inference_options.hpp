@@ -11,5 +11,5 @@
 // #define BISMORT_P2S_VERIFY_AGAINST_CPU
 // clean p2s target buffer (set to zeros) before performing p2s
 // #define P2S_CLEAR_IN_BUF
-// force sw (instead of hw) p2s
-#define FORCE_SW_P2S
+// number of bytes for the p2s bit-parallel buffer on the accelerator side
+#define BISMORT_P2S_BITPAR_BYTES  (1024*1024)

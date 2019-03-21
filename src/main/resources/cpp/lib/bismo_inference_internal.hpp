@@ -88,6 +88,7 @@ extern HardwareCfg cfg;
 extern uint32_t weightOCMBase, weightOCMBytesLeft;
 extern uint32_t activationOCMBase, activationOCMBytesLeft;
 extern uint32_t thresholdOCMBase, thresholdOCMBytesLeft;
+extern uint32_t accel_p2s_bitpar_buffer;
 extern std::vector<InternalLayerDescriptor> registry;
 extern InstrumentationData instrumentationData;
 #ifdef BISMORT_INSTRUMENTATION
@@ -117,9 +118,11 @@ void genMatMulInstrs_LHSPreloaded_RHSFitsOnChip(
 );
 
 void p2s(
-  const uint8_t * host_buf,
-  uint32_t accel_buf,
-  gemmbitserial::BitSerialMatrix & mat
+  const uint8_t * host_buf_src,   // input matrix buffer (source)
+  uint32_t accel_buf_dst,         // output matrix buffer (destination)
+  size_t nrows, size_t ncols,     // matrix size
+  size_t nbits,                   // actual bits per element in source matrix
+  bool issigned                   // whether source matrix is signed
 );
 
 void configMatMulLayer_Internal_SetLHS(LayerHandle id, gemmbitserial::BitSerialMatrix mat);

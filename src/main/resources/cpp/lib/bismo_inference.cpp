@@ -29,6 +29,8 @@ void init() {
   activationOCMBytesLeft = acc->get_rhs_total_BRAM_bytes();
   thresholdOCMBase = 0;
   // TODO set thresholdOCMBytesLeft from hwcfg
+  // allocate shared buffer for p2s
+  accel_p2s_bitpar_buffer = (uint32_t)(uint64_t) platform->allocAccelBuffer(BISMORT_P2S_BITPAR_BYTES);
 }
 
 void deinit() {
