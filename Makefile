@@ -144,7 +144,7 @@ $(BUILD_DIR_EMU)/verilator-build.sh:
 emu: $(BUILD_DIR_EMU)/verilator-build.sh
 	cp -rf $(APP_SRC_DIR)/* $(BUILD_DIR_EMU)/;
 	cp -rf $(INFLIB_SRC_DIR)/* $(BUILD_DIR_EMU)/; \
-	cd $(BUILD_DIR_EMU); sh verilator-build.sh -I$(HLS_SIM_INCL); mv VerilatedTesterWrapper emu; ./emu
+	cd $(BUILD_DIR_EMU); sh verilator-build.sh -I$(HLS_SIM_INCL); mv VerilatedTesterWrapper emu; ./emu t
 
 # generate dynamic lib for inference, emulated hardware
 inflib_emu: $(BUILD_DIR_EMU)/verilator-build.sh
