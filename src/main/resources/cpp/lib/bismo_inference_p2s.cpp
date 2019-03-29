@@ -79,7 +79,7 @@ bool selftest_p2s() {
             }
           }
         }*/
-        cout << test_name << "\t" << ret << endl;
+        cout << test_name << "\tok? = " << ret << "\tcycles = " << instrumentationData["run_p2s"] << endl;
         platform->deallocAccelBuffer((void *)accel_buf);
         delete [] accel_mat_bs;
         delete [] mat_bp;
