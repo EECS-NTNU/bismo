@@ -30,9 +30,11 @@ sw: $(BUILD_DIR_HWDRV)/$(HW_SW_DRIVER)
 	mkdir -p $(BUILD_DIR_DEPLOY)/driver; \
 	mkdir -p $(BUILD_DIR_DEPLOY)/test; \
 	mkdir -p $(BUILD_DIR_DEPLOY)/inflib; \
+	mkdir -p $(BUILD_DIR_DEPLOY)/hls_include; \
 	cp -rf $(BUILD_DIR_HWDRV)/* $(BUILD_DIR_DEPLOY)/driver/; \
 	cp -rf $(APP_SRC_DIR)/* $(BUILD_DIR_DEPLOY)/test/;
 	cp -rf $(INFLIB_SRC_DIR)/* $(BUILD_DIR_DEPLOY)/inflib; \
+	cp -rf $(HLS_SIM_INCL)/* $(BUILD_DIR_DEPLOY)/hls_include;
 
 report: $(GEN_BITFILE_PATH)
 	cat $(BITFILE_PRJDIR)/$(BITFILE_PRJNAME).runs/impl_1/procsys_wrapper_utilization_placed.rpt | grep "CLB LUTs" -B 3 -A 15
