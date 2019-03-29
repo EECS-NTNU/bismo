@@ -195,7 +195,7 @@ p2ssw: $(BUILD_DIR_HWDRV)/EmuTestP2SAccel.hpp
 
 # copy scripts to the deployment folder
 script:
-	cp -f $(PLATFORM_SCRIPT_DIR)/* $(BUILD_DIR_DEPLOY)/
+	mkdir -p $(BUILD_DIR_DEPLOY); cp -f $(PLATFORM_SCRIPT_DIR)/* $(BUILD_DIR_DEPLOY)/
 
 # get everything ready to copy onto the platform and create a deployment folder
 all: hw sw script
