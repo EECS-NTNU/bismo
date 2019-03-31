@@ -27,21 +27,19 @@ void p2s(
   if(issigned) {
     throw "P2S accelerator does not yet support signed import";
   }
+  // TODO optimization: allocate this only once
+  uint8_t * in_clean = new uint8_t[nbytes_aligned];
   // clean the p2s buffer if desired
   if(zeropad) {
     // hand in a "cleanly padded" buffer to p2s
-    uint8_t * in_clean = new uint8_t[nbytes_aligned];
     memset(in_clean, 0, nbytes_aligned);
-    platform->copyBufferHostToAccel((void *)in_clean, (void *)accel_p2s_bitpar_buffer, nbytes_aligned);
-    delete [] in_clean;
   }
   // aligned copy the bit-parallel matrix into the accelerator
   for(size_t r = 0; r < nrows; r++) {
-    platform->copyBufferHostToAccel(
-      (void *)&host_buf_src[r * nbytes_row],
-      (void *)(accel_p2s_bitpar_buffer + (r * nbytes_aligned_row)),
-      nbytes_row);
+    std::memcpy((void *)(in_clean + (r * nbytes_aligned_row)), (void *)&host_buf_src[r * nbytes_row], nbytes_row);
   }
+  platform->copyBufferHostToAccel((void *)in_clean, (void *)accel_p2s_bitpar_buffer, nbytes_aligned);
+  delete [] in_clean;
   // setup and call the p2s hardware accelerator
   acc->setup_p2s((void *)accel_p2s_bitpar_buffer, nbytes_bitser, (void *) accel_buf_dst, nrows, ncols_a, nbits);
   uint32_t cycles = acc->p2s_exec_and_wait();
