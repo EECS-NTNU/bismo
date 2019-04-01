@@ -152,12 +152,12 @@ class StandAloneP2SAccel(
     }
   }
 
-  readRg.block_intra_step := UInt(myP.dramWordBytes) * UInt(myP.maxInBw)
+  readRg.block_intra_step := UInt(myP.dramWordBytes)
   // number of steps within block = number of DRAM words per row
   // = (number of column groups) * (elements per group) / (elements per DRAM word)
   // since elements per group = maxInBw * elements per word:
   // = number of column groups * maxInBw
-  readRg.block_intra_count := regCmd.matrixColsGroup //* UInt(myP.maxInBw)
+  readRg.block_intra_count := UInt(myP.maxInBw) * regCmd.matrixColsGroup //* UInt(myP.maxInBw)
 
   // at the moment reads are actually on a single continuous block, so the
   // block-inter step here is simply the product of block-intra step and count
