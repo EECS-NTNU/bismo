@@ -104,7 +104,6 @@ object ChiselMain {
     val memLHS: Int = args(5).toInt
     val memRHS: Int = args(6).toInt
     val accInst = Settings.makeInstFxn(
-      //TODO updated for BOB :)
       new BitSerialMatMulParams(
         dpaDimLHS = dpaDimLHS, dpaDimRHS = dpaDimRHS, dpaDimCommon = dpaDimCommon,
         lhsEntriesPerMem = memLHS, rhsEntriesPerMem = memRHS,
@@ -112,35 +111,31 @@ object ChiselMain {
       )
     )
     val platformInst = TidbitsMakeUtils.platformMap(platformName)
-
     val chiselArgs = Array("--backend", "v", "--targetDir", targetDir)
     chiselMain(chiselArgs, () => Module(platformInst(accInst)))
-    Settings.makeHLSDependencies(accInst, targetDir)
   }
 }
 
-/*
-TODO bring back as needed
-// call this object's main method to generate Chisel Verilog for the P2S
-object P2SMain {
+// call this object's main method to generate the HLS dependencies for top level
+object HLSMain {
   def main(args: Array[String]): Unit = {
     val platformName: String = args(0)
     val targetDir: String = args(1)
-    val maxInBw: Int = args(2).toInt
-    val nInElemPerWord: Int = args(3).toInt
-    val outStreamSize: Int = args(4).toInt
-    val fast: Boolean = args(5).toBoolean
-
+    val dpaDimLHS: Int = args(2).toInt
+    val dpaDimCommon: Int = args(3).toInt
+    val dpaDimRHS: Int = args(4).toInt
+    val memLHS: Int = args(5).toInt
+    val memRHS: Int = args(6).toInt
     val accInst = Settings.makeInstFxn(
-      m = maxInBw, n = nInElemPerWord, o = outStreamSize, fast = fast)
-    val platformInst = TidbitsMakeUtils.platformMap(platformName)
-
-    val chiselArgs = Array("--backend", "v", "--targetDir", targetDir)
-    chiselMain(chiselArgs, () ⇒ Module(platformInst(accInst)))
-    // TODO may need Settings.makeHLSDependencies here
+      new BitSerialMatMulParams(
+        dpaDimLHS = dpaDimLHS, dpaDimRHS = dpaDimRHS, dpaDimCommon = dpaDimCommon,
+        lhsEntriesPerMem = memLHS, rhsEntriesPerMem = memRHS,
+        cmdQueueEntries = 512, mrp = PYNQZ1Params.toMemReqParams()
+      )
+    )
+    Settings.makeHLSDependencies(accInst, targetDir)
   }
 }
-*/
 
 object ResModelMain {
   def main(args: Array[String]): Unit = {
@@ -184,7 +179,6 @@ object EmuLibMain {
     } else {
       throw new Exception("Unknown mode for EmuLibMain")
     }
-    Settings.makeHLSDependencies(accInst, emuDir)
   }
 }
 

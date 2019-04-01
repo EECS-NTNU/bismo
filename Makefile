@@ -74,7 +74,7 @@ VIVADO_IN_PATH := $(shell command -v vivado 2> /dev/null)
 ZSH_IN_PATH := $(shell command -v zsh 2> /dev/null)
 CPPTEST_SRC_DIR := $(TOP)/src/test/cosim
 HW_VERILOG := $(BUILD_DIR_VERILOG)/$(PLATFORM)Wrapper.v
-HW_TO_SYNTH ?= $(HW_VERILOG)
+HW_TO_SYNTH ?= $(HW_VERILOG) $(BUILD_DIR_VERILOG)/ExecInstrGen.v
 HW_SW_DRIVER ?= BitSerialMatMulAccel.hpp
 PLATFORM_SCRIPT_DIR := $(TOP)/src/main/script/$(PLATFORM)/target
 VIVADOHLS_ROOT ?= $(shell dirname $(shell which vivado_hls))/..
@@ -137,8 +137,10 @@ EmuTest%:
 	mkdir -p $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ cpp $(DEBUG_CHISEL)"; cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; cp -r $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@; cd $(BUILD_DIR)/$@; g++ -std=c++11 *.cpp driver.a -o $@; ./$@
 
 # generate cycle-accurate C++ emulator for the whole system via Verilator
-$(BUILD_DIR_EMU)/verilator-build.sh:
-	mkdir -p $(BUILD_DIR_EMU); $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain main $(BUILD_DIR_EMU) verilator $(DEBUG_CHISEL)"
+$(BUILD_DIR_EMU)/verilator-build.sh: $(BUILD_DIR_VERILOG)/ExecInstrGen.v
+	mkdir -p $(BUILD_DIR_EMU); \
+	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain main $(BUILD_DIR_EMU) verilator $(DEBUG_CHISEL)"; \
+	cp -rf $(BUILD_DIR_VERILOG)/* $(BUILD_DIR_EMU)/
 
 # generate emulator executable including software sources
 emu: $(BUILD_DIR_EMU)/verilator-build.sh
@@ -183,6 +185,12 @@ hw_verilog: $(HW_VERILOG)
 
 $(HW_VERILOG):
 	$(SBT) $(SBT_FLAGS) "runMain bismo.ChiselMain $(PLATFORM) $(BUILD_DIR_VERILOG) $(M) $(K) $(N) $(LMEM) $(RMEM)"
+
+hls: $(BUILD_DIR_VERILOG)/ExecInstrGen.v
+
+$(BUILD_DIR_VERILOG)/ExecInstrGen.v:
+	mkdir -p $(BUILD_DIR_VERILOG); \
+	$(SBT) $(SBT_FLAGS) "runMain bismo.HLSMain $(PLATFORM) $(BUILD_DIR_VERILOG) $(M) $(K) $(N) $(LMEM) $(RMEM)"
 
 resmodel:
 	$(SBT) $(SBT_FLAGS) "runMain bismo.ResModelMain $(PLATFORM) $(BUILD_DIR_VERILOG) $(M) $(K) $(N) $(LMEM) $(RMEM) $(FREQ_MHZ)"
