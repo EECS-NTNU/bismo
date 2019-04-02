@@ -62,7 +62,10 @@ bool selftest_p2s() {
         gemmbitserial::BitSerialMatrix mat_bs = gemmbitserial::BitSerialMatrix::alloc(
           nbits, nrows, ncols, issigned, 1, P2S_ALIGN
         );
+        TIMER_SAMPLE();
         mat_bs.importRegular(mat_bp);
+        TIMER_SAMPLE();
+        TIMER_REPORT("run_p2s_benchmark_sw");
         size_t nbytes_bitser = mat_bs.wordsPerBitplane() * nbits * sizeof(PackedBitGroupType);
         uint32_t accel_buf = (uint32_t)(uint64_t)platform->allocAccelBuffer(nbytes_bitser);
         // call p2s with forced zero-padding
@@ -78,7 +81,8 @@ bool selftest_p2s() {
             }
           }
         }*/
-        cout << test_name << "\tok? = " << ret << "\tcycles = " << instrumentationData["run_p2s"] << endl;
+        cout << test_name << "\tok? = " << ret << "\tcycles = " << instrumentationData["run_p2s"];
+        cout << " software importRegular us = " << instrumentationData["run_p2s_benchmark_sw"] << endl;
         platform->deallocAccelBuffer((void *)accel_buf);
         delete [] accel_mat_bs;
         delete [] mat_bp;
