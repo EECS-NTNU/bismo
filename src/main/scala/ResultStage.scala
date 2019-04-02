@@ -142,7 +142,8 @@ class ResultStage(val myP: ResultStageParams) extends Module {
     inWidth = myP.getTotalAccBits(), outWidth = myP.mrp.dataWidth)).io
   // instantiate request generator
   val rg = Module(new BlockStridedRqGen(
-    mrp = myP.mrp, writeEn = true)).io
+    mrp = myP.mrp, writeEn = true, chanID = BISMOLimits.resDRAMChanID
+  )).io
 
   // wire up resmem_req
   for {

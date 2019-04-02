@@ -267,7 +267,9 @@ class FetchDecoupledStage(val myP: FetchStageParams) extends Module {
     printf("Fetch stage runcfg: " + current_runcfg.printfStr, current_runcfg.printfElems():_*)
   }*/
   // instantiate FetchGroup components
-  val reader = Module(new BlockStridedRqGen(myP.mrp, false, 0)).io
+  val reader = Module(new BlockStridedRqGen(
+    mrp = myP.mrp, writeEn = false, chanID = BISMOLimits.fetchDRAMChanID
+  )).io
   val routegen = Module(new FetchRouteGen(myP)).io
   val conn = Module(new FetchInterconnect(myP)).io
   val current_runcfg = Reg(init = io.stage_run.bits)

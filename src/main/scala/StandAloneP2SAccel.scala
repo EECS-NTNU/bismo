@@ -83,8 +83,12 @@ class StandAloneP2SAccel(
   val regCmd = Reg(outType = io.p2sCmd.bits)
 
   // instantiate the actual P2SKernel and request generators
-  val readRg = Module(new BlockStridedRqGen(mrp = myP.mrp, writeEn = false)).io
-  val writeRg = Module(new BlockStridedRqGen(mrp = myP.mrp, writeEn = true)).io
+  val readRg = Module(new BlockStridedRqGen(
+    mrp = myP.mrp, writeEn = false, chanID = BISMOLimits.p2sDRAMChanID
+  )).io
+  val writeRg = Module(new BlockStridedRqGen(
+    mrp = myP.mrp, writeEn = true, chanID = BISMOLimits.p2sDRAMChanID
+  )).io
   val p2skrnl = Module(
     if (myP.fastMode) { new P2SKernel_Fast(myP.p2sparams) }
     else { new P2SKernel_Slow(myP.p2sparams) }).io
