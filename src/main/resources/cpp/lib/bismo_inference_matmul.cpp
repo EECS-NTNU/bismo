@@ -165,14 +165,16 @@ void configMatMulLayer_Internal_SetLHS(LayerHandle id, gemmbitserial::BitSerialM
 void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   BISMORT_DEBUG("[execMatMulLayer] id " << id);
   InternalLayerDescriptor dsc = registry[id];
-  TIMER_SAMPLE();
-  dsc.ctx.rhs.importRegular(in);
-  TIMER_SAMPLE();
-  TIMER_REPORT("cpu_importRegular");
+
   if(dsc.cpu_only) {
+    dsc.ctx.rhs.importRegular(in);
     gemmbitserial::gemmBitSerial(dsc.ctx);
     memcpy(out, dsc.ctx.res, sizeof(int32_t)*dsc.ctx.lhs.nrows*dsc.ctx.rhs.nrows);
   } else {
+    p2s(
+      in, dsc.accel_buf_in, dsc.ctx.rhs.nrows, dsc.ctx.rhs.ncols,
+      dsc.ctx.rhs.nbits, dsc.ctx.rhs.issigned, false
+    );
     execMatMulLayer_Internal_RHSBitSerial(id, out);
   }
 #ifdef BISMORT_MATMUL_VERIFY_AGAINST_CPU
@@ -206,11 +208,6 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
   instrumentationData["workload_lbits"] = lhs.nbits;
   instrumentationData["workload_rbits"] = rhs.nbits;
   uint32_t rptr = dsc.accel_buf_out;
-  TIMER_SAMPLE();
-  platform->copyBufferHostToAccel(rhs.data, (void *) dsc.accel_buf_in, dsc.nbytes_buf_in);
-  TIMER_SAMPLE();
-  TIMER_REPORT("cpu_host2accel");
-
   acc->set_stage_enables(0, 0, 0);
 #ifdef BISMORT_USE_INSTRGEN
   acc->useDescriptors();

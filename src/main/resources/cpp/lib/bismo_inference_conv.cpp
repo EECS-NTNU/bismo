@@ -140,6 +140,10 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
       InternalLayerDescriptor dsc_matmul = registry[cnv_matmul_handle];
       // TODO import into matmul ctx directly instead of copying
       dsc_matmul.ctx.rhs.copyFrom(rhs);
+      // TODO remove all support for non-p2s conv
+      platform->copyBufferHostToAccel(
+        dsc_matmul.ctx.rhs.data, (void *) dsc_matmul.accel_buf_in, dsc_matmul.nbytes_buf_in
+      );
       const size_t lowered_bs_act_bytes = dsc_matmul.ctx.rhs.nbits * dsc_matmul.ctx.rhs.wordsPerBitplane() * sizeof(PackedBitGroupType);
       //AccumType * targetHostBuf = out;
       AccumType * targetHostBuf = dsc.transpose_result_host_buffer;
