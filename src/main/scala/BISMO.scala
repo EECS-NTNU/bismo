@@ -199,7 +199,7 @@ object Stages {
 class BitSerialMatMulAccel(
   val myP: BitSerialMatMulParams, p: PlatformWrapperParams
 ) extends GenericAccelerator(p) {
-    val numMemPorts = 2
+    val numMemPorts = 1
   val io = new GenericAcceleratorIF(numMemPorts, p) {
     // enable/disable execution for each stage
     val fetch_enable = Bool(INPUT)
@@ -406,9 +406,6 @@ class BitSerialMatMulAccel(
   resultCtrl.done := resultStage.done
   resultStage.csr := resultCtrl.stageO
 
-  // wire-up: read channels to fetch stage
-  fetchStage.dram.rd_req <> io.memPort(0).memRdReq
-  io.memPort(0).memRdRsp <> fetchStage.dram.rd_rsp
   // wire-up: BRAM ports (fetch and exec stages)
   // port 0 used by fetch stage for writes
   // port 1 used by execute stage for reads
@@ -460,11 +457,6 @@ class BitSerialMatMulAccel(
     resmem(m)(n).ports(1).req := resultStage.resmem_req(m)(n)
     resultStage.resmem_rsp(m)(n) := resmem(m)(n).ports(1).rsp
   }
-  // wire-up: write channels from result stage
-  resultStage.dram.wr_req <> io.memPort(0).memWrReq
-  resultStage.dram.wr_dat <> io.memPort(0).memWrDat
-  io.memPort(0).memWrRsp <> resultStage.dram.wr_rsp
-
   // set default signature
   io.signature := makeDefaultSignature()
 
@@ -497,7 +489,7 @@ class BitSerialMatMulAccel(
 
     /*** Parallel to Serial Accelerator***/
   val p2saccel = Module(new StandAloneP2SAccel(myP.p2sAccelParams, p)).io
-  io.memPort(1) <> p2saccel.memPort(0)
+
   // instantiate and connect cmd and ack queues
   val cmdQ = Module(new FPGAQueue(io.cmdqueue.bits, 16)).io
   val ackQ = Module(new FPGAQueue(io.ackqueue.bits, 16)).io
@@ -519,6 +511,27 @@ class BitSerialMatMulAccel(
   cmdQ.enq.valid := io.cmdqueue.valid & !Reg(next = io.cmdqueue.valid)
   ackQ.deq.ready := io.ackqueue.ready & !Reg(next = io.ackqueue.ready)
   /*** End p2s***/
+
+  // DRAM channels
+  DecoupledInputMux(
+    io.enable, Seq(fetchStage.dram.rd_req, p2saccel.memPort(0).memRdReq)
+  ) <> io.memPort(0).memRdReq
+
+  DecoupledInputMux(
+    io.enable, Seq(resultStage.dram.wr_req, p2saccel.memPort(0).memWrReq)
+  ) <> io.memPort(0).memWrReq
+
+  DecoupledInputMux(
+    io.enable, Seq(resultStage.dram.wr_dat, p2saccel.memPort(0).memWrDat)
+  ) <> io.memPort(0).memWrDat
+
+  io.memPort(0).memRdRsp <> DecoupledOutputDemux(
+    io.enable, Seq(fetchStage.dram.rd_rsp, p2saccel.memPort(0).memRdRsp)
+  )
+
+  io.memPort(0).memWrRsp <> DecoupledOutputDemux(
+    io.enable, Seq(resultStage.dram.wr_rsp, p2saccel.memPort(0).memWrRsp)
+  )
 }
 
 class ResultBufParams(
