@@ -229,8 +229,8 @@ io_section:{
     // note that we don't use tiles_n and n here -- always operate on a single
     // bit stripe of rhs while on chip
     const uint16_t offset_r = ins_in.tiles_k * r;
-    exec.lhsOffset = ins_in.base_l + offset_l;
-    exec.rhsOffset = ins_in.base_r + rmem_region_offset + offset_r;
+    exec.lhsOffset = (ins_in.base_l + offset_l) << ETF_S;
+    exec.rhsOffset = (ins_in.base_r + rmem_region_offset + offset_r) << ETF_S;
     exec.numTiles = ins_in.tiles_k;
     exec.shiftAmount = weight;
     exec.negate = negate ? 1 : 0;
