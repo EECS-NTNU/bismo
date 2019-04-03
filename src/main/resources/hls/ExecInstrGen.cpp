@@ -154,7 +154,9 @@ io_section:{
 
 template <
   // capacity of LHS and RHS memories (in elements)
-  size_t LMEM, size_t RMEM
+  size_t LMEM, size_t RMEM,
+  // exec-to-fetch left-shift ratio: log2(K / fetch width)
+  size_t ETF_S
 >
 void ExecInstrGen_RHSTiling(
   hls::stream<ap_uint<BISMO_MMDESCR_BITS>> & in,
@@ -298,5 +300,7 @@ void ExecInstrGen(
   #pragma HLS INTERFACE axis port=out
   #pragma HLS INTERFACE axis port=in
 
-  ExecInstrGen_RHSTiling<TEMPLATE_PARAM_LMEM, TEMPLATE_PARAM_RMEM>(in, out);
+  ExecInstrGen_RHSTiling<
+    TEMPLATE_PARAM_LMEM, TEMPLATE_PARAM_RMEM, TEMPLATE_PARAM_ETF_S
+  >(in, out);
 }

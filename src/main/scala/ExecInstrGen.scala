@@ -46,7 +46,8 @@ import fpgatidbits.hlstools.TemplatedHLSBlackBox
 
 class ExecInstrGenParams(
   val lhsEntriesPerMem: Int,
-  val rhsEntriesPerMem: Int
+  val rhsEntriesPerMem: Int,
+  val execToFetchLeftShift: Int
 )
 
 class ExecInstrGen(val p: ExecInstrGenParams) extends TemplatedHLSBlackBox {
@@ -66,9 +67,9 @@ class ExecInstrGen(val p: ExecInstrGenParams) extends TemplatedHLSBlackBox {
 	addClock(Driver.implicitClock)
   renameClock("clk", "ap_clk")
 
-  // no template parameters for HLS
   val hlsTemplateParams: Map[String, String] = Map(
     "LMEM" -> p.lhsEntriesPerMem.toString,
-    "RMEM" -> p.rhsEntriesPerMem.toString
+    "RMEM" -> p.rhsEntriesPerMem.toString,
+    "ETF_S" -> p.execToFetchLeftShift.toString
   )
 }
