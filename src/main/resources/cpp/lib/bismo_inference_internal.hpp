@@ -57,8 +57,7 @@ typedef struct {
   AccumType * transpose_result_host_buffer;
   LayerHandle cnv_matmul_handle;
   bool cpu_only;
-  bool cnv_fewifm_mode;
-  uint8_t * cnv_fewifm_buf;
+  uint8_t * cnv_lowering_buf;
 #ifdef BISMORT_INSTRUMENTATION
   size_t getNumBytesToFetch() const;
   size_t getNumBytesToWrite() const;
@@ -140,5 +139,11 @@ float getNanosecondsPerCycle();
 float getLastRuntimeCycles();
 float getLastRuntimeNanoseconds();
 
+// functions for internal verification
+void verifyConv(
+  gemmbitserial::ConvBitSerialContext ctx,
+  const uint8_t * in,
+  const int32_t * out
+);
 }
 #endif /* end of include guard: BISMORT_INFERENCE_HPP */
