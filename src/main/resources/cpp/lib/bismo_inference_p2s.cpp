@@ -24,7 +24,8 @@ void p2s(
   mat.importRegular(host_buf_src);
   platform->copyBufferHostToAccel((void *)mat.data, (void *)accel_buf_dst, nbytes_aligned);
 #else
-  // TODO need row alignment here?
+  // TODO need row and col alignment to match accel reqs here
+  assert(cfg.dpaDimCommon == P2S_ALIGN);
   // the p2s accelerator requires an aligned number of columns
   size_t ncols_a = gemmbitserial::alignTo(ncols, P2S_ALIGN);
   size_t nbytes_aligned_row = ncols_a * sizeof(uint8_t);
