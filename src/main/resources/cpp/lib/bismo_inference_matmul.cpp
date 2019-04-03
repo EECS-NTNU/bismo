@@ -48,9 +48,6 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
     if(!rhs_tile_is_one_fetchblock || !rhs_tile_fits_in_ocm) {
       throw "RHS tile is too large and not currently supported in current BISMO";
     }
-    // TODO this needs to be checked for fetch width != exec width
-    // (see exec_to_fetch_width_ratio in BitSerialMatMulExecutor)
-    assert(cfg.dpaDimCommon == cfg.readChanWidth);
     size_t wbytes = ctx.lhs.wordsPerBitplane() * ctx.lhs.nbits * sizeof(PackedBitGroupType);
     size_t abytes = ctx.rhs.wordsPerBitplane() * ctx.rhs.nbits * sizeof(PackedBitGroupType);
     size_t resbytes = ctx.lhs.nrows_a * ctx.rhs.nrows_a * sizeof(AccumType);

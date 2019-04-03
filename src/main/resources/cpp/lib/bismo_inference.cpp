@@ -88,8 +88,6 @@ uint32_t allocWeightOCM(size_t nbytes) {
   weightOCMBytesLeft -= nbytes;
   uint32_t ret = weightOCMBase;
   // convert bytes to LHS mem address
-  // TODO this conversion needs to be checked for fetch width != exec width
-  assert(cfg.dpaDimCommon == cfg.readChanWidth);
   const size_t bytesPerWeightOCMEntry = (cfg.dpaDimLHS * cfg.dpaDimCommon) / 8;
   weightOCMBase += nbytes / bytesPerWeightOCMEntry;
   // return allocated base address

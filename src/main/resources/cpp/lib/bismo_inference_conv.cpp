@@ -49,8 +49,6 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights, bo
     mm_dsc.M = ctx.ofm;
     mm_dsc.K = lowered_cols;
     mm_dsc.N = lowered_rows;
-    // importWeights uses uint64_t here, so Dk must be 64 unless fixed
-    assert(cfg.dpaDimCommon == 64);
     assert(dsc.useCPULowering);
     // register the matrix multiplication layer
     LayerHandle cnv_matmul_handle = initMatMulLayer(mm_dsc, weights);
