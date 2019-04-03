@@ -15,6 +15,16 @@ void p2s(
   bool issigned,                  // whether source matrix is signed
   bool zeropad                    // use zero instead of random padding
 ) {
+#ifdef BISMORT_USE_SW_P2S
+  // use gemmbitserial to do CPU import
+  gemmbitserial::BitSerialMatrix mat = gemmbitserial::BitSerialMatrix::alloc(
+    nbits, nrows, ncols, issigned, cfg.dpaDimRHS, cfg.dpaDimCommon
+  );
+  size_t nbytes_aligned = nbits * mat.wordsPerBitplane() * sizeof(PackedBitGroupType);
+  mat.importRegular(host_buf_src);
+  platform->copyBufferHostToAccel((void *)mat.data, (void *)accel_buf_dst, nbytes_aligned);
+#else
+  // TODO need row alignment here?
   // the p2s accelerator requires an aligned number of columns
   size_t ncols_a = gemmbitserial::alignTo(ncols, P2S_ALIGN);
   size_t nbytes_aligned_row = ncols_a * sizeof(uint8_t);
@@ -44,6 +54,7 @@ void p2s(
   acc->setup_p2s((void *)accel_p2s_bitpar_buffer, nbytes_bitser, (void *) accel_buf_dst, nrows, ncols_a, nbits);
   uint32_t cycles = acc->p2s_exec_and_wait();
   instrumentationData["run_p2s"] = (float) cycles;
+#endif
 }
 
 bool selftest_p2s() {
