@@ -177,7 +177,7 @@ public:
     size_t extraRHSAlign = 1, size_t extraKAlign = 1
   ) {
     const uint64_t regblock_lhs = m_cfg.dpaDimLHS * extraLHSAlign;
-    const uint64_t regblock_d = extraKAlign * (FETCH_ALIGN / sizeof(PackedBitGroupType));
+    const uint64_t regblock_d = extraKAlign * (m_cfg.dpaDimCommon / m_cfg.readChanWidth) * (FETCH_ALIGN / sizeof(PackedBitGroupType));
     const uint64_t regblock_rhs = m_cfg.dpaDimRHS * extraRHSAlign;
     const uint64_t cacheBits = 1;
 
