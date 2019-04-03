@@ -45,7 +45,7 @@ class EmuTestExecInstrGen(p: PlatformWrapperParams) extends GenericAccelerator(p
   }
   io.signature := makeDefaultSignature()
   val bb = Module(HLSBlackBox(new ExecInstrGen(new ExecInstrGenParams(
-    lhsEntriesPerMem = 1024, rhsEntriesPerMem = 1024
+    lhsEntriesPerMem = 1024, rhsEntriesPerMem = 1024, execToFetchLeftShift = 0
   )))).io
   bb.rst_n := !this.reset
   bb.out <> io.out
