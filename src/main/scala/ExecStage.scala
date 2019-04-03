@@ -195,8 +195,6 @@ class ExecDecoupledStage(val myP: ExecStageParams) extends Module {
   addrgen_ins.isRunCfg := Bool(true)
   addrgen_ins.targetStage := UInt(1)
 
-  // TODO re-enable wider execute stage
-  Predef.assert(myP.tileMemAddrUnit == 1)
   // ugly hack:  to add child's HLS blackboxes to own list (in order to generate
   // dependencies in parent), instantiate the addrgen without .io here first
   // TODO is there some way to handle this directly in Chisel?
