@@ -21,13 +21,13 @@ void p2s(
     nbits, nrows, ncols, issigned, cfg.dpaDimRHS, cfg.dpaDimCommon
   );
   size_t nbytes_aligned = nbits * mat.wordsPerBitplane() * sizeof(PackedBitGroupType);
+  memset(mat.data, 0, nbytes_aligned);
   mat.importRegular(host_buf_src);
   platform->copyBufferHostToAccel((void *)mat.data, (void *)accel_buf_dst, nbytes_aligned);
 #else
   // TODO need row and col alignment to match accel reqs here
-  assert(cfg.dpaDimCommon == P2S_ALIGN);
   // the p2s accelerator requires an aligned number of columns
-  size_t ncols_a = gemmbitserial::alignTo(ncols, P2S_ALIGN);
+  size_t ncols_a = gemmbitserial::alignTo(ncols, cfg.dpaDimCommon);
   size_t nbytes_aligned_row = ncols_a * sizeof(uint8_t);
   size_t nbytes_row = ncols * sizeof(uint8_t);
   size_t nbytes_aligned = nrows * ncols_a * sizeof(uint8_t);
@@ -72,7 +72,7 @@ bool selftest_p2s() {
         uint8_t * mat_bp = new uint8_t[nrows * ncols];
         gemmbitserial::generateRandomVector(nbits, nrows*ncols, mat_bp);
         gemmbitserial::BitSerialMatrix mat_bs = gemmbitserial::BitSerialMatrix::alloc(
-          nbits, nrows, ncols, issigned, 1, P2S_ALIGN
+          nbits, nrows, ncols, issigned, cfg.dpaDimRHS, cfg.dpaDimCommon
         );
         TIMER_SAMPLE();
         mat_bs.importRegular(mat_bp);
