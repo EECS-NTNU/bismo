@@ -87,6 +87,11 @@ bool test(
     gemmbitserial::printmatrix(ctx.res, nrows_rhs, nrows_lhs);
     cout << "Produced: " << endl;
     gemmbitserial::printmatrix(accel_res, nrows_rhs, nrows_lhs);
+    /*cout << "LHS bit serial matrix:" << endl;
+    ctx.lhs.printHex();
+    cout << "=======================" << endl;
+    cout << "RHS bit serial matrix:" << endl;
+    ctx.rhs.printHex();*/
   }
 
   delete [] lhs;
@@ -204,14 +209,13 @@ bool test_big_conv(bismo_inference::HardwareConfig hwcfg) {
 
 bool test_binary_onchip_onetile(bismo_inference::HardwareConfig hwcfg) {
   bool all_OK = true;
-  vector<size_t> cols_div_factor {2, 4, 8};
+  vector<size_t> k_tiles {1};
   const size_t memsize = min(hwcfg.lhsEntriesPerMem, hwcfg.rhsEntriesPerMem);
 
-  for(auto & col_div : cols_div_factor) {
+  for(auto & k_tile : k_tiles) {
     all_OK &= test(
-      "binary_onchip_onetile_coldiv" + to_string(col_div),
-      hwcfg.dpaDimLHS, hwcfg.dpaDimRHS,
-      hwcfg.dpaDimCommon * memsize / col_div
+      "binary_onchip_onetile_ktile" + to_string(k_tile),
+      hwcfg.dpaDimLHS, hwcfg.dpaDimRHS, hwcfg.dpaDimCommon * k_tile
     );
   }
 
