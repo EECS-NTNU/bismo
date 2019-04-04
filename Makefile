@@ -62,9 +62,7 @@ BUILD_DIR_CLEAN ?= $(TOP)/build/$(OVERLAY_CFG)
 BUILD_DIR_CHARACTERIZE := $(BUILD_DIR)/characterize
 BUILD_DIR_DEPLOY := $(BUILD_DIR)/deploy
 BUILD_DIR_VERILOG := $(BUILD_DIR)/hw/verilog
-BUILD_DIR_EMU := $(BUILD_DIR)/emu
 BUILD_DIR_HWDRV := $(BUILD_DIR)/hw/driver
-BUILD_DIR_EMULIB_CPP := $(BUILD_DIR)/hw/cpp_emulib
 BUILD_DIR_INFLIB := $(BUILD_DIR)/inflib
 VERILOG_SRC_DIR := $(TOP)/src/main/verilog
 VHDL_SRC_DIR := $(TOP)/src/main/vhdl
@@ -81,12 +79,11 @@ VIVADOHLS_ROOT ?= $(shell dirname $(shell which vivado_hls))/..
 HLS_SIM_INCL := $(VIVADOHLS_ROOT)/include
 DEBUG_CHISEL ?= 0
 CC_FLAG =
-VERILATOR_SRC_DIR = /usr/share/verilator/include
 # platform-specific Makefile include for bitfile synthesis
 include platforms/$(PLATFORM).mk
 
 # note that all targets are phony targets, no proper dependency tracking
-.PHONY: hw_verilog emulib hw_driver hw_vivadoproj bitfile hw sw all rsync test
+.PHONY: hw_verilog hw_driver hw_vivadoproj bitfile hw sw all rsync test
 .PHONY: resmodel characterize check_vivado pretty p2saccel benchmark
 
 check_vivado:
@@ -99,66 +96,9 @@ ifndef ZSH_IN_PATH
     $(error "zsh not in path; needed by oh-my-xilinx for characterization")
 endif
 
-# hw-sw cosimulation tests with extra HLS dependencies
-EmuTestVerifyHLSInstrEncoding:
-	mkdir -p $(BUILD_DIR)/$@;
-	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator $(DEBUG_CHISEL)";
-	cp -rf $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
-	ln -s $(INFLIB_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
-	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
-	cd $(BUILD_DIR)/$@; sh verilator-build.sh -I$(HLS_SIM_INCL); ./VerilatedTesterWrapper
-
-EmuTestExecInstrGen:
-	mkdir -p $(BUILD_DIR)/$@;
-	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator $(DEBUG_CHISEL)";
-	cp -rf $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
-	ln -s $(INFLIB_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
-	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
-	cd $(BUILD_DIR)/$@; sh verilator-build.sh -I$(HLS_SIM_INCL); ./VerilatedTesterWrapper
-
-EmuTestFetchInstrGen:
-	mkdir -p $(BUILD_DIR)/$@;
-	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator $(DEBUG_CHISEL)";
-	cp -rf $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
-	ln -s $(INFLIB_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
-	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
-	cd $(BUILD_DIR)/$@; sh verilator-build.sh -I$(HLS_SIM_INCL); ./VerilatedTesterWrapper
-
 # run Scala/Chisel tests
 Test%:
 	$(SBT) $(SBT_FLAGS) "test-only $@"
-
-# run hardware-software cosimulation tests (in debug mode with waveform dump)
-DebugEmuTest%:
-	mkdir -p $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain EmuTest$* $(BUILD_DIR)/$@ cpp 1"; cp -r $(CPPTEST_SRC_DIR)/EmuTest$*.cpp $(BUILD_DIR)/$@; cp -r $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@; cd $(BUILD_DIR)/$@; g++ -std=c++11 -DDEBUG *.cpp driver.a -o $@; ./$@
-
-# run hardware-software cosimulation tests
-EmuTest%:
-	mkdir -p $(BUILD_DIR)/$@; $(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ cpp $(DEBUG_CHISEL)"; cp -r $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; cp -r $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@; cd $(BUILD_DIR)/$@; g++ -std=c++11 *.cpp driver.a -o $@; ./$@
-
-# generate cycle-accurate C++ emulator for the whole system via Verilator
-$(BUILD_DIR_EMU)/verilator-build.sh: $(BUILD_DIR_VERILOG)/ExecInstrGen.v
-	mkdir -p $(BUILD_DIR_EMU); \
-	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain main $(BUILD_DIR_EMU) verilator $(DEBUG_CHISEL)"; \
-	cp -rf $(BUILD_DIR_VERILOG)/* $(BUILD_DIR_EMU)/
-
-# generate emulator executable including software sources
-emu: $(BUILD_DIR_EMU)/verilator-build.sh
-	cp -rf $(APP_SRC_DIR)/* $(BUILD_DIR_EMU)/;
-	cp -rf $(INFLIB_SRC_DIR)/* $(BUILD_DIR_EMU)/; \
-	cd $(BUILD_DIR_EMU); sh verilator-build.sh -I$(HLS_SIM_INCL); mv VerilatedTesterWrapper emu; ./emu t
-
-# generate dynamic lib for inference, emulated hardware
-inflib_emu: $(BUILD_DIR_EMU)/verilator-build.sh
-	rm -rf $(BUILD_DIR_INFLIB); \
-	mkdir -p $(BUILD_DIR_INFLIB); \
-	cp -rf $(BUILD_DIR_EMU)/* $(BUILD_DIR_INFLIB)/; \
-	cp -rf $(INFLIB_SRC_DIR)/* $(BUILD_DIR_INFLIB)/; \
-	cd $(BUILD_DIR_INFLIB); \
-	verilator -Iother-verilog --cc TesterWrapper.v -Wno-assignin -Wno-fatal -Wno-lint -Wno-style -Wno-COMBDLY -Wno-STMTDLY --Mdir verilated --trace; \
-	cp -rf $(VERILATOR_SRC_DIR)/verilated.cpp .; \
-	cp -rf $(VERILATOR_SRC_DIR)/verilated_vcd_c.cpp .; \
-	g++ -std=c++11 -I$(HLS_SIM_INCL) -I$(BUILD_DIR_EMU) -Iverilated -I$(VERILATOR_SRC_DIR) -I$(APP_SRC_DIR) -fPIC verilated/*.cpp *.cpp -shared -o $(BUILD_DIR_INFLIB)/libbismo_inference.so
 
 inflib: hw_driver
 	mkdir -p $(BUILD_DIR_INFLIB); \
@@ -176,9 +116,6 @@ hw_driver: $(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp
 
 $(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp:
 	mkdir -p "$(BUILD_DIR_HWDRV)"; $(SBT) $(SBT_FLAGS) "runMain bismo.DriverMain $(PLATFORM) $(BUILD_DIR_HWDRV) $(TIDBITS_REGDRV_ROOT)"
-#driver for the p2s
-$(BUILD_DIR_HWDRV)/EmuTestP2SAccel.hpp:
-	mkdir -p "$(BUILD_DIR_HWDRV)";$(SBT) $(SBT_FLAGS) "runMain bismo.P2SDriverMain $(PLATFORM) $(BUILD_DIR_HWDRV) $(TIDBITS_REGDRV_ROOT)"
 
 # generate Verilog for the Chisel accelerator
 hw_verilog: $(HW_VERILOG)
@@ -194,12 +131,6 @@ $(BUILD_DIR_VERILOG)/ExecInstrGen.v:
 
 resmodel:
 	$(SBT) $(SBT_FLAGS) "runMain bismo.ResModelMain $(PLATFORM) $(BUILD_DIR_VERILOG) $(M) $(K) $(N) $(LMEM) $(RMEM) $(FREQ_MHZ)"
-#generate for p2s
-p2s:
-	$(SBT) $(SBT_FLAGS) "runMain bismo.P2SMain $(PLATFORM) $(BUILD_DIR_VERILOG) $M $N $O $F"
-#generate the drivers and copy into the deploy
-p2ssw: $(BUILD_DIR_HWDRV)/EmuTestP2SAccel.hpp
-	mkdir -p $(BUILD_DIR_DEPLOY); cp $(BUILD_DIR_HWDRV)/* $(BUILD_DIR_DEPLOY)/; cp -r $(CPPTEST_SRC_DIR)/EmuTestP2SAccel.cpp $(BUILD_DIR_DEPLOY)/; cp -r $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR_DEPLOY)/
 
 # copy scripts to the deployment folder
 script:
@@ -207,8 +138,6 @@ script:
 
 # get everything ready to copy onto the platform and create a deployment folder
 all: hw sw script
-
-p2saccel:hw p2ssw script
 
 # use rsync to synchronize contents of the deployment folder onto the platform
 rsync:
