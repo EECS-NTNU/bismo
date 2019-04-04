@@ -43,11 +43,11 @@ int main(int argc, char const *argv[]) {
     } else if(argv[1][0] == 'i') {
       benchmark_gemm_interactive();
     } else if(argv[1][0] == 't') {
+      bool all_OK = true;
       bismo_inference::init();
       bismo_inference::HardwareConfig hwcfg = bismo_inference::getHardwareConfig();
-      bismo_inference::selftest_p2s();
+      all_OK &= bismo_inference::selftest_p2s();
       bismo_inference::deinit();
-      bool all_OK = true;
       all_OK &= test_binary_onchip_onetile(hwcfg);
       all_OK &= test_multibit_onchip_onetile(hwcfg);
       all_OK &= test_multibit_multitile(hwcfg);
