@@ -124,9 +124,10 @@ void genFetchInstrs(
   size_t tiles_per_row,
   size_t nbytes
 ) {
-  BISMOFetchRunInstruction frc;
+  BISMOFetchRunInstruction frc, frc_ratio_fixed;
   size_t bram_start = lhsNotRhs ? acc->get_fetch_first_lhs_id() : acc->get_fetch_first_rhs_id();
   size_t bram_range = (lhsNotRhs ? cfg.dpaDimLHS : cfg.dpaDimRHS) - 1;
+  size_t exec_to_fetch_width_ratio = cfg.dpaDimCommon / cfg.readChanWidth;
 
   frc.isRunCfg = 1;
   frc.targetStage = stgFetch;
@@ -146,7 +147,10 @@ void genFetchInstrs(
     frc.dram_block_size_bytes = std::min(max_block, bytes_left);
     frc.dram_block_offset_bytes = frc.dram_block_size_bytes;
     frc.dram_block_count = bytes_left / frc.dram_block_size_bytes;
-    ins.push_back(frc.asRaw());
+    frc_ratio_fixed = frc;
+    frc_ratio_fixed.tiles_per_row *= exec_to_fetch_width_ratio;
+    frc_ratio_fixed.bram_addr_base *= exec_to_fetch_width_ratio;
+    ins.push_back(frc_ratio_fixed.asRaw());
     BISMORT_DEBUG("[genFetchInstrs] " << frc);
     size_t last_chunk_bytes = frc.dram_block_count * frc.dram_block_size_bytes;
     bytes_left -= last_chunk_bytes;
