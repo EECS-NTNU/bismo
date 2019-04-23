@@ -70,16 +70,13 @@ object Settings {
     // that defines the software part of the test under test/cosim
     "EmuTestResultStage" -> {p => new EmuTestResultStage(2, emuP)},
     "EmuTestInstrEncoding" -> {p => new EmuTestInstrEncoding(emuP)},
-    "EmuTestVerifyHLSInstrEncoding" -> {p => new EmuTestVerifyHLSInstrEncoding(emuP)},
-    "EmuTestExecInstrGen" -> {p => new EmuTestExecInstrGen(emuP)},
-    "EmuTestFetchInstrGen" -> {p => new EmuTestFetchInstrGen(emuP)
+    "EmuTestVerifyHLSInstrEncoding" -> {p => new EmuTestVerifyHLSInstrEncoding(emuP)}
     /*
     TODO bring back as needed
     "EmuTestThrStage" -> {p => new EmuTestThrStage(mRows = 2, mCols = 2, inBits = 32,outBits =  4, thUnroll= 15, emuP)},
     "EmuTestP2BSStage" -> {p => new EmuTestP2BSStage(2,3,4,1,16,emuP)},
     "EmuTestP2SAccel" -> { p ⇒ new EmuTestP2SAccel(8, 8, 64, true, emuP) }
     */
-    }
   )
 
   def makeHLSDependencies(accInst: AccelInstFxn, targetDir: String) = {
