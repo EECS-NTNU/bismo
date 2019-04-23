@@ -106,16 +106,6 @@ void genFetchInstrs(
   size_t nbytes
 );
 
-void genMatMulInstrs_LHSPreloaded_RHSFitsOnChip(
-  std::vector<BISMOInstruction> & ins,
-  size_t lhs_tiles, size_t rhs_tiles, size_t k_tiles,
-  size_t wbits, size_t abits,
-  bool wsigned, bool asigned,
-  size_t wbase_ocm, size_t abase_ocm,
-  uint32_t accel_buf_rhs,
-  uint32_t accel_buf_res
-);
-
 void p2s(
   const uint8_t * host_buf_src,   // input matrix buffer (source)
   uint32_t accel_buf_dst,         // output matrix buffer (destination)

@@ -1,7 +1,5 @@
 // enable to print debug info
 //#define DEBUG
-// use instruction generators instead
-#define BISMORT_USE_INSTRGEN
 // enable instrumentation for detailed measurements
 #define BISMORT_INSTRUMENTATION
 //#define BISMORT_INSTRUMENTATION_VERBOSE

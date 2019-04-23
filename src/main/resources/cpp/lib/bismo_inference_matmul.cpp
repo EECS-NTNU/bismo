@@ -74,8 +74,7 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
     idsc.accel_buf_out = (uint32_t)(uint64_t)platform->allocAccelBuffer(resbytes);
     BISMORT_DEBUG("[initMatMulLayer] accel_buf_in: " << (idsc.accel_buf_in) << " for " << abytes << " bytes");
     BISMORT_DEBUG("[initMatMulLayer] accel_buf_out: " << (idsc.accel_buf_out) << " for " << resbytes << " bytes");
-    // fill out instructions or descriptors for matmul
-#ifdef BISMORT_USE_INSTRGEN
+    // fill out descriptor for matmul
     // create an instruction generation descriptor
     SingleMMDescriptor instrgen_dsc;
     instrgen_dsc.tiles_m = lhs_tiles;
@@ -94,13 +93,6 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
     instrgen_dsc.dram_rhs = idsc.accel_buf_in;
     instrgen_dsc.dram_res = idsc.accel_buf_out;
     idsc.instrgen_dsc = instrgen_dsc;
-#else
-    // generate instruction sequence on the CPU
-    genMatMulInstrs_LHSPreloaded_RHSFitsOnChip(
-      idsc.instructions_queue, lhs_tiles, rhs_tiles, k_tiles, wbits, abits,
-      wsigned, asigned, wbase, abase, idsc.accel_buf_in, idsc.accel_buf_out
-    );
-#endif
   }
   registry.push_back(idsc);
 
@@ -206,20 +198,12 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
   instrumentationData["workload_rbits"] = rhs.nbits;
   uint32_t rptr = dsc.accel_buf_out;
   acc->set_stage_enables(0, 0, 0);
-#ifdef BISMORT_USE_INSTRGEN
   acc->useDescriptors();
   // feed the instrgen descriptor
   acc->pushSingleMMDescriptor(dsc.instrgen_dsc);
   // HACK: make sure at least one op has appeared before checking for completion
   // proper way to fix this is to singal completion from accel explicitly
   while(acc->res_opcount() == 0) {};
-#else
-  acc->useDirectInstructionFeed();
-  for (auto & instr : dsc.instructions_queue) {
-    acc->pushInstruction(instr);
-  }
-#endif
-
   TIMER_SAMPLE();
 #ifdef BISMORT_INSTRUMENTATION
   acc->perf_set_cc_enable(1);
