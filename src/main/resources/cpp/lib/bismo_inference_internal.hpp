@@ -48,11 +48,7 @@ typedef struct {
   size_t wbase;
   size_t wbytes;
   size_t abase;
-#ifdef BISMORT_USE_INSTRGEN
   SingleMMDescriptor instrgen_dsc;
-#else
-  std::vector<BISMOInstruction> instructions_queue;
-#endif
   AccumType * padded_result_host_buffer;
   AccumType * transpose_result_host_buffer;
   LayerHandle cnv_matmul_handle;
