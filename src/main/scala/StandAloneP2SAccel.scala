@@ -12,6 +12,7 @@ import Chisel._
 import fpgatidbits.dma._
 import fpgatidbits.ocm._
 import fpgatidbits.streams.{ PrintableBundle, PrintableBundleStreamMonitor, ReadRespFilter }
+import fpgatidbits.synthutils.PrintableParam
 
 // parameters that control the accelerator instantiation
 class StandAloneP2SParams(

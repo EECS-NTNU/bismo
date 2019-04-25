@@ -3,6 +3,7 @@
 // Revision: 0
 package bismo
 import Chisel._
+import fpgatidbits.synthutils.PrintableParam
 
 class ThresholdingBuildingBlockParams(
   //input precision, how many bits

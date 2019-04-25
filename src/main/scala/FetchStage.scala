@@ -36,6 +36,7 @@ import fpgatidbits.dma._
 import fpgatidbits.ocm._
 import fpgatidbits.streams._
 import fpgatidbits.PlatformWrapper._
+import fpgatidbits.synthutils.PrintableParam
 
 // ExecStage is one of thre three components of the BISMO pipeline, which
 // contains infrastructure to concurrently fetch data from DRAM into BRAMs while

@@ -32,6 +32,7 @@
 package bismo
 
 import Chisel._
+import fpgatidbits.synthutils.PrintableParam
 
 // The DotProductArray is a two-dimensional array of DotProductUnits,
 // computing/accumulating a bit-serial matrix multiplication every cycle.

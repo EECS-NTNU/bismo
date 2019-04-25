@@ -4,6 +4,7 @@
 package bismo
 import Chisel.{ Bool, _ }
 import fpgatidbits.ocm._
+import fpgatidbits.synthutils.PrintableParam
 
 // The Thresholding Unit quantizes an input matrix,
 // with a rolling factor or a complete unrolled version

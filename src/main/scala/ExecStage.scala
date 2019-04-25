@@ -35,6 +35,7 @@ import Chisel._
 import fpgatidbits.ocm._
 import fpgatidbits.streams._
 import fpgatidbits.PlatformWrapper._
+import fpgatidbits.synthutils.PrintableParam
 
 // ExecStage is one of thre three components of the BISMO pipeline, which
 // contains the actual DotProductArray, BRAMs for input matrix storage, and

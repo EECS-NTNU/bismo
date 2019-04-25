@@ -4,6 +4,7 @@
 
 package bismo
 import Chisel._
+import fpgatidbits.synthutils.PrintableParam
 
 // Counter that dynamically counts till the count max value
 class DynamicCounterParams(

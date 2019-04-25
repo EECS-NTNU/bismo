@@ -36,6 +36,7 @@ import fpgatidbits.dma._
 import fpgatidbits.ocm._
 import fpgatidbits.streams._
 import fpgatidbits.PlatformWrapper._
+import fpgatidbits.synthutils.PrintableParam
 
 // ResultStage is one of the three components of the BISMO pipeline, which
 // contains infrastructure to concurrently write result data to DRAM from DPA

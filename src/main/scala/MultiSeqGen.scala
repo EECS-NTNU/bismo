@@ -32,6 +32,7 @@
 package bismo
 
 import Chisel._
+import fpgatidbits.synthutils.PrintableParam
 
 // TODO: reusable component, move into tidbits
 

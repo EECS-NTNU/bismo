@@ -6,6 +6,7 @@
 package bismo
 
 import Chisel._
+import fpgatidbits.synthutils.PrintableParam
 
 // wraps the FPGA-optimized VHDL compressor generator originally developed by
 // Thomas Preusser. although the generator supports multi-bit operands, we only

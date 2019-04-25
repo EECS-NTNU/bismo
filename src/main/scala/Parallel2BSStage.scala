@@ -6,6 +6,7 @@ package bismo
 import Chisel._
 import fpgatidbits.ocm._
 import fpgatidbits.streams._
+import fpgatidbits.synthutils.PrintableParam
 
 // TODO: Brainstorm on the DL for the next stage: I write K (elem bit-width) times
 // TODO: with M (matrix rows) parallel requests with bit-width of 1b times N (matrix columns)

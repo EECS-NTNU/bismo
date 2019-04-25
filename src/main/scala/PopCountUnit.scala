@@ -32,6 +32,7 @@
 package bismo
 
 import Chisel._
+import fpgatidbits.synthutils.PrintableParam
 
 // a popcount module with configurable pipelining
 // note: retiming must be enabled for pipelining to work as intended

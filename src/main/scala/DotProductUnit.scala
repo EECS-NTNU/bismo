@@ -32,6 +32,7 @@
 package bismo
 
 import Chisel._
+import fpgatidbits.synthutils.PrintableParam
 
 // The DotProductUnit computes a binary dot product over time,
 // with possibilities for shifting (for weighting by powers-of-two)

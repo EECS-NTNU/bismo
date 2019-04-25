@@ -6,6 +6,7 @@ package bismo
 import Chisel._
 import fpgatidbits.ocm._
 import fpgatidbits.streams._
+import fpgatidbits.synthutils.PrintableParam
 
 class ThrStageParams(
                       // building block params
@@ -188,11 +189,11 @@ class ThrStage(val myP: ThrStageParams) extends Module {
   for(i <- 0 until myP.getUnrollRows()) {
     for (j <- 0 until myP.getUnrollCols()) {
       thu.inputMatrix.bits.i(i)(j) := io.inMemory.act_rsp(i)(j).readData//(myP.getInBits() * (1 + j) - 1, myP.getInBits() * j)
-      
+
       /************* DEBUG PRINT ************/
       when(start_pulse){
         // Debugger.log("[HW: Thr Stage] Matrix elem "+ UInt(i) + " " +
-        //  UInt(j) +" Read elem from Unit: " + 
+        //  UInt(j) +" Read elem from Unit: " +
         //  io.inMemory.act_rsp(i)(j).readData + "\n", 1)
         //printf("[HW: Thr Stage] Matrix elem %d, %d Read elem from Unit: %d\n",UInt(i), , io.inMemory.act_rsp(i)(j).readData)//(myP.getInBits() * (1 + j) - 1, myP.getInBits() * j))
       }

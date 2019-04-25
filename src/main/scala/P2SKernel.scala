@@ -10,6 +10,7 @@ import fpgatidbits.ocm._
 import fpgatidbits.streams._
 import fpgatidbits.dma._
 import fpgatidbits.math.Counter
+import fpgatidbits.synthutils.PrintableParam
 
 class P2SKernelParams(
   val maxInBw: Int = 8,

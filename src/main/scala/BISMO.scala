@@ -37,6 +37,7 @@ import fpgatidbits.dma._
 import fpgatidbits.ocm._
 import fpgatidbits.streams._
 import fpgatidbits.hlstools.TemplatedHLSBlackBox
+import fpgatidbits.synthutils.PrintableParam
 
 // This is the top-level source file that cobbles together the stages,
 // controllers and token queues into a BISMO instance.

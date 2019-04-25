@@ -4,6 +4,7 @@
 
 package bismo
 import Chisel._
+import fpgatidbits.synthutils.PrintableParam
 
 class SerializerUnitParams(
   //input precision, how many bits
