@@ -1,9 +1,6 @@
 [submodule "src/main/cpp/app/gemmbitserial"]
 	path = src/main/resources/cpp/app/gemmbitserial
 	url = https://github.com/maltanar/gemmbitserial.git
-[submodule "oh-my-xilinx"]
-	path = oh-my-xilinx
-	url = https://bitbucket.org/maltanar/oh-my-xilinx.git
 [submodule "fpga-tidbits"]
 	path = fpga-tidbits
 	url = https://github.com/maltanar/fpga-tidbits.git
