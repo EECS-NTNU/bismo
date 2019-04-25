@@ -37,6 +37,7 @@ import sys.process._
 import fpgatidbits.PlatformWrapper._
 import fpgatidbits.TidbitsMakeUtils
 import fpgatidbits.hlstools.TemplatedHLSBlackBox
+import fpgatidbits.synthutils.VivadoSynth
 
 // Main entry points into the different functionalities provided by this repo.
 // There are four different entry points:

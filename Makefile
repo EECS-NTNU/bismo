@@ -55,8 +55,6 @@ SBT_FLAGS ?= -Dsbt.log.noformat=true
 TOP ?= $(shell readlink -f .)
 TIDBITS_ROOT ?= $(TOP)/fpga-tidbits
 TIDBITS_REGDRV_ROOT ?= $(TIDBITS_ROOT)/src/main/resources/cpp/platform-wrapper-regdriver
-export OHMYXILINX := $(TOP)/oh-my-xilinx
-export PATH := $(PATH):$(OHMYXILINX)
 BUILD_DIR ?= $(TOP)/build/$(OVERLAY_CFG)/$(PLATFORM)
 BUILD_DIR_CLEAN ?= $(TOP)/build/$(OVERLAY_CFG)
 BUILD_DIR_CHARACTERIZE := $(BUILD_DIR)/characterize
@@ -69,7 +67,6 @@ VHDL_SRC_DIR := $(TOP)/src/main/vhdl
 APP_SRC_DIR := $(TOP)/src/main/resources/cpp/app
 INFLIB_SRC_DIR := $(TOP)/src/main/resources/cpp/lib
 VIVADO_IN_PATH := $(shell command -v vivado 2> /dev/null)
-ZSH_IN_PATH := $(shell command -v zsh 2> /dev/null)
 CPPTEST_SRC_DIR := $(TOP)/src/test/cosim
 HW_VERILOG := $(BUILD_DIR_VERILOG)/$(PLATFORM)Wrapper.v
 HW_TO_SYNTH ?= $(HW_VERILOG) $(BUILD_DIR_VERILOG)/ExecInstrGen.v
@@ -89,11 +86,6 @@ include platforms/$(PLATFORM).mk
 check_vivado:
 ifndef VIVADO_IN_PATH
     $(error "vivado not found in path")
-endif
-
-check_zsh:
-ifndef ZSH_IN_PATH
-    $(error "zsh not in path; needed by oh-my-xilinx for characterization")
 endif
 
 # run Scala/Chisel tests
