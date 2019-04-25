@@ -1,8 +1,8 @@
 val chiselVersion = System.getProperty("chiselVersion", "2.+")
 val scalaVer = System.getProperty("scalaVer", "2.11.6")
 
-lazy val rosettaSettings = Seq (
-  name := "rosetta_template",
+lazy val bismoSettings = Seq (
+  name := "bismo",
   version := "0.1",
   scalaVersion := scalaVer,
   libraryDependencies ++= ( if (chiselVersion != "None" ) ("edu.berkeley.cs" %% "chisel" % chiselVersion) :: Nil; else Nil),
@@ -16,4 +16,4 @@ unmanagedSourceDirectories in Compile += baseDirectory.value / "fpga-tidbits" / 
 // fpga-tidbits stores compile scripts, drivers etc. in the resource dir
 unmanagedResourceDirectories in Compile += baseDirectory.value / "fpga-tidbits" / "src" / "main" / "resources"
 
-lazy val rosetta_template = (project in file(".")).settings(rosettaSettings: _*)
+lazy val bismo_template = (project in file(".")).settings(bismoSettings: _*)
