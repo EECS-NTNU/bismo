@@ -23,12 +23,16 @@ sw: $(BUILD_DIR_HWDRV)/$(HW_SW_DRIVER)
 	cp -rf $(INFLIB_SRC_DIR)/* $(BUILD_DIR_DEPLOY)/inflib; \
 	cp -rf $(HLS_SIM_INCL)/* $(BUILD_DIR_DEPLOY)/hls_include;
 
-emu: hw sw script
+emu: inflib_emu
 	cd $(BUILD_DIR_DEPLOY); \
-	sh compile_inflib.sh; \
 	sh compile_testapp.sh; \
 	LD_LIBRARY_PATH=$(BUILD_DIR_DEPLOY) ./testapp t;
 
+$(BUILD_DIR_DEPLOY)/libbismo_inference.so: hw sw script
+	cd $(BUILD_DIR_DEPLOY); \
+	sh compile_inflib.sh;
+
+inflib_emu: $(BUILD_DIR_DEPLOY)/libbismo_inference.so
 
 #BUILD_DIR_EMU := $(BUILD_DIR)/emu
 #BUILD_DIR_EMULIB_CPP := $(BUILD_DIR)/hw/cpp_emulib
