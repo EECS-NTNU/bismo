@@ -120,7 +120,7 @@ hls: $(BUILD_DIR_VERILOG)/ExecInstrGen.v
 
 $(BUILD_DIR_VERILOG)/ExecInstrGen.v:
 	mkdir -p $(BUILD_DIR_VERILOG); \
-	$(SBT) $(SBT_FLAGS) "runMain bismo.HLSMain $(PLATFORM) $(BUILD_DIR_VERILOG) $(M) $(K) $(N) $(LMEM) $(RMEM)"
+	$(SBT) $(SBT_FLAGS) "runMain bismo.HLSMain $(PLATFORM) $(FREQ_MHZ) $(BUILD_DIR_VERILOG) $(M) $(K) $(N) $(LMEM) $(RMEM)"
 
 resmodel:
 	$(SBT) $(SBT_FLAGS) "runMain bismo.ResModelMain $(PLATFORM) $(BUILD_DIR_VERILOG) $(M) $(K) $(N) $(LMEM) $(RMEM) $(FREQ_MHZ)"

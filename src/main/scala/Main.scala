@@ -80,14 +80,15 @@ object Settings {
   )
 
   def makeHLSDependencies(
-    accInst: AccelInstFxn, targetDir: String, fpgaPart: String
+    accInst: AccelInstFxn, targetDir: String, fpgaPart: String, freqMHz: Double
   ) = {
+    val clkNs = (1000.0 / freqMHz).toString
     val hlsSrcDir = getClass.getResource("/hls").getPath
     val inclDirs: Seq[String] = Seq(
       getClass.getResource("/cpp/lib").getPath
     )
     TidbitsMakeUtils.makeHLSDependencies(
-      accInst, hlsSrcDir, targetDir, inclDirs, fpgaPart
+      accInst, hlsSrcDir, targetDir, inclDirs, fpgaPart, clkNs
     )
   }
 }
@@ -119,12 +120,13 @@ object ChiselMain {
 object HLSMain {
   def main(args: Array[String]): Unit = {
     val platformName: String = args(0)
-    val targetDir: String = args(1)
-    val dpaDimLHS: Int = args(2).toInt
-    val dpaDimCommon: Int = args(3).toInt
-    val dpaDimRHS: Int = args(4).toInt
-    val memLHS: Int = args(5).toInt
-    val memRHS: Int = args(6).toInt
+    val freqMHz: Double = args(1).toDouble
+    val targetDir: String = args(2)
+    val dpaDimLHS: Int = args(3).toInt
+    val dpaDimCommon: Int = args(4).toInt
+    val dpaDimRHS: Int = args(5).toInt
+    val memLHS: Int = args(6).toInt
+    val memRHS: Int = args(7).toInt
     val accInst = Settings.makeInstFxn(
       new BitSerialMatMulParams(
         dpaDimLHS = dpaDimLHS, dpaDimRHS = dpaDimRHS, dpaDimCommon = dpaDimCommon,
@@ -133,7 +135,7 @@ object HLSMain {
       )
     )
     val fpgaPart = TidbitsMakeUtils.fpgaPartMap(platformName)
-    Settings.makeHLSDependencies(accInst, targetDir, fpgaPart)
+    Settings.makeHLSDependencies(accInst, targetDir, fpgaPart, freqMHz)
   }
 }
 
