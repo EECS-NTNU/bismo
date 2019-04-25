@@ -35,6 +35,7 @@ import sys.process._
 import java.io._
 import scala.collection.mutable.ArrayBuffer
 import Chisel._
+import fpgatidbits.TidbitsMakeUtils.fpgaPartMap
 
 // Utilities for estimating FPGA resource and Fmax from a parametrizable Chisel
 // Module. Uses the oh-my-xilinx scripts to perform Vivado out-of-context
@@ -72,13 +73,6 @@ class CharacterizeResult(
 }
 
 object VivadoSynth {
-  // handy to have a few commonly available Xilinx FPGA boards here
-  val fpgaPartMap = Map(
-    "PYNQZ1" -> "xc7z020clg400-1",
-    "ZC706" -> "xc7z045ffg900-2",
-    "TULKU115" -> "xcku115-flvb2104-2-e",
-    "VU9P" -> "xcvu9p-flgb2104-2-i",
-    "PYNQU96" -> "xczu3eg-sbva484-1-i")
   // given an instantiation function instFxn that generates a Chisel module
   // from parameters p, return the FPGA synthesis results
   def characterizePoint[Tp <: PrintableParam, Tm <: Module](

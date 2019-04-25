@@ -79,13 +79,15 @@ object Settings {
     */
   )
 
-  def makeHLSDependencies(accInst: AccelInstFxn, targetDir: String) = {
+  def makeHLSDependencies(
+    accInst: AccelInstFxn, targetDir: String, fpgaPart: String
+  ) = {
     val hlsSrcDir = getClass.getResource("/hls").getPath
     val inclDirs: Seq[String] = Seq(
       getClass.getResource("/cpp/lib").getPath
     )
     TidbitsMakeUtils.makeHLSDependencies(
-      accInst, hlsSrcDir, targetDir, inclDirs
+      accInst, hlsSrcDir, targetDir, inclDirs, fpgaPart
     )
   }
 }
@@ -130,7 +132,8 @@ object HLSMain {
         cmdQueueEntries = 512, mrp = PYNQZ1Params.toMemReqParams()
       )
     )
-    Settings.makeHLSDependencies(accInst, targetDir)
+    val fpgaPart = TidbitsMakeUtils.fpgaPartMap(platformName)
+    Settings.makeHLSDependencies(accInst, targetDir, fpgaPart)
   }
 }
 
@@ -393,7 +396,7 @@ val instFxn_thrStage = {p: ThrStageParams => Module(new ThrStage(p))}
     val chPath: String = args(1)
     val platform: String = args(2)
     val chLog = chName + ".log"
-    val fpgaPart: String = VivadoSynth.fpgaPartMap(platform)
+    val fpgaPart: String = TidbitsMakeUtils.fpgaPartMap(platform)
 
     if (chName == "CharacterizePC") {
       VivadoSynth.characterizeSpace(makeParamSpace_PC(), instFxn_PC, chPath, chLog, fpgaPart)
