@@ -165,14 +165,15 @@ class TestNewDotProductUnit extends JUnitSuite {
           val negbitB = negB & (bitB == precB-1)
           val doNeg = if(negbitA ^ negbitB) 1 else 0
           for(s <- 0 to seq_len-1) {
+            poke(c.io.in.bits.neg, doNeg)
             if(j == slice - z2 && s == 0) {
               // new wavefront
               // shift accumulator then accumulate
-              poke(c.io.in.bits.acc_mode, 2 | (doNeg << 2))
+              poke(c.io.in.bits.acc_mode, 2)
             } else {
               // within same wavefront (sum of bit positions)
               // regular accumulate
-              poke(c.io.in.bits.acc_mode, 1 | (doNeg << 2))
+              poke(c.io.in.bits.acc_mode, 1)
             }
             // push in next slice of bit vector from correct bit position
             val curA = seqA_bs(bitA).slice(s*pc_len, (s+1)*pc_len)
