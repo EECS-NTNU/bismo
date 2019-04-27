@@ -44,9 +44,9 @@ class TestDotProductArray extends JUnitSuite {
       // number of re-runs for each test
       val num_seqs = 100
       // number of bits in each operand
-      val pc_len = c.p.dpuParams.pcParams.numInputBits
+      val pc_len = c.p.dpuParams.inpWidth
       // max shift steps for random input
-      val max_shift = c.p.dpuParams.maxShiftSteps
+      val max_shift = BISMOLimits.maxShift
       // spatial dimensions of the array
       val m = c.p.m
       val n = c.p.n
@@ -81,6 +81,7 @@ class TestDotProductArray extends JUnitSuite {
         val b = RosettaTestHelpers.randomIntMatrix(m_test, k_test, precB, negB)
         val golden = RosettaTestHelpers.matrixProduct(a, b)
         // iterate over each combination of bit positions for bit serial
+        // TODO this needs to be fixed for the NewDPU
         for (bitA ← 0 to precA - 1) {
           val negbitA = negA & (bitA == precA - 1)
           for (bitB ← 0 to precB - 1) {
@@ -129,8 +130,7 @@ class TestDotProductArray extends JUnitSuite {
     // Chisel arguments to pass to chiselMainTest
     def testArgs = RosettaTestHelpers.stdArgs
     // function that instantiates the Module to be tested
-    val pPC = new PopCountUnitParams(36)
-    val pDP = new DotProductUnitParams(pPC, 32, 16)
+    val pDP = new NewDotProductUnitParams(36, 32)
     val p = new DotProductArrayParams(pDP, 4, 4, 0)
     def testModuleInstFxn = () ⇒ { Module(new DotProductArray(p)) }
     // function that instantiates the Tester to test the Module
