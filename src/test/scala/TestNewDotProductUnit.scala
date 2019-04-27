@@ -65,9 +65,10 @@ class TestNewDotProductUnit extends JUnitSuite {
       // but this also works.
       poke(c.io.in.bits.a, 0)
       poke(c.io.in.bits.b, 0)
-      poke(c.io.in.bits.acc_mode, 0)
+      poke(c.io.in.bits.clear, 1)
       poke(c.io.in.valid, 1)
       step(1)
+      poke(c.io.in.bits.clear, 0)
       poke(c.io.in.valid, 0)
       if(waitUntilCleared) {
         step(latency)
@@ -91,7 +92,9 @@ class TestNewDotProductUnit extends JUnitSuite {
       val golden = RosettaTestHelpers.dotProduct(seqA, seqB)
       poke(c.io.in.bits.a, scala.math.BigInt.apply(seqA.mkString, 2))
       poke(c.io.in.bits.b, scala.math.BigInt.apply(seqB.mkString, 2))
-      poke(c.io.in.bits.acc_mode, 1)
+      poke(c.io.in.bits.acc_shift, 0)
+      poke(c.io.in.bits.neg, 0)
+      poke(c.io.in.bits.clear, 0)
       poke(c.io.in.valid, 1)
       step(1)
       // remove valid input in next cycle
@@ -119,7 +122,9 @@ class TestNewDotProductUnit extends JUnitSuite {
         val curB = seqB.slice(j*pc_len, (j+1)*pc_len)
         poke(c.io.in.bits.a, scala.math.BigInt.apply(curA.mkString, 2))
         poke(c.io.in.bits.b, scala.math.BigInt.apply(curB.mkString, 2))
-        poke(c.io.in.bits.acc_mode, 1)
+        poke(c.io.in.bits.acc_shift, 0)
+        poke(c.io.in.bits.neg, 0)
+        poke(c.io.in.bits.clear, 0)
         poke(c.io.in.valid, 1)
         step(1)
         // emulate random pipeline bubbles
@@ -166,14 +171,15 @@ class TestNewDotProductUnit extends JUnitSuite {
           val doNeg = if(negbitA ^ negbitB) 1 else 0
           for(s <- 0 to seq_len-1) {
             poke(c.io.in.bits.neg, doNeg)
+            poke(c.io.in.bits.clear, 0)
             if(j == slice - z2 && s == 0) {
               // new wavefront
               // shift accumulator then accumulate
-              poke(c.io.in.bits.acc_mode, 2)
+              poke(c.io.in.bits.acc_shift, 1)
             } else {
               // within same wavefront (sum of bit positions)
               // regular accumulate
-              poke(c.io.in.bits.acc_mode, 1)
+              poke(c.io.in.bits.acc_shift, 0)
             }
             // push in next slice of bit vector from correct bit position
             val curA = seqA_bs(bitA).slice(s*pc_len, (s+1)*pc_len)

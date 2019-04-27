@@ -87,8 +87,9 @@ class DotProductArray(val p: DotProductArrayParams) extends Module {
     for (j ← 0 to p.n - 1) {
       // common broadcast inputs
       dpu(i)(j).in.valid := ShiftRegister(io.valid, p.myLatency)
-      dpu(i)(j).in.bits.acc_mode := ShiftRegister(io.shiftAmount, p.myLatency)
+      dpu(i)(j).in.bits.acc_shift := ShiftRegister(io.shiftAmount, p.myLatency)
       dpu(i)(j).in.bits.neg := ShiftRegister(io.negate, p.myLatency)
+      dpu(i)(j).in.bits.clear := ShiftRegister(io.clear_acc, p.myLatency)
       // dot product bit inputs, connect along rows and columns
       dpu(i)(j).in.bits.a := ShiftRegister(io.a(i), p.myLatency)
       dpu(i)(j).in.bits.b := ShiftRegister(io.b(j), p.myLatency)

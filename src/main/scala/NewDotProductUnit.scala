@@ -72,9 +72,11 @@ class NewDotProductStage0(p: NewDotProductUnitParams) extends Bundle {
   val a = Bits(width = p.inpWidth)
   val b = Bits(width = p.inpWidth)
   // accumulation mode
-  val acc_mode = UInt(width = 2)
+  val acc_shift = Bool()
   // negate contribution before accumulating
   val neg = Bool()
+  // zero accumulator before adding
+  val clear = Bool()
 
   override def cloneType: this.type =
     new NewDotProductStage0(p).asInstanceOf[this.type]
@@ -84,9 +86,11 @@ class NewDotProductStage1(p: NewDotProductUnitParams) extends Bundle {
   // result of AND of inputs
   val popcountResult = UInt(width = log2Up(p.inpWidth+1))
   // accumulation mode
-  val acc_mode = UInt(width = 2)
+  val acc_shift = Bool()
   // negate contribution before accumulating
   val neg = Bool()
+  // zero accumulator before adding
+  val clear = Bool()
 
   override def cloneType: this.type =
     new NewDotProductStage1(p).asInstanceOf[this.type]
@@ -108,8 +112,9 @@ class NewDotProductUnit(val p: NewDotProductUnitParams) extends Module {
     // give input directly to compressor
     compressor.io.c := io.in.bits.a
     compressor.io.d := io.in.bits.b
-    stage1_b.acc_mode := ShiftRegister(io.in.bits.acc_mode, compLatency)
+    stage1_b.acc_shift := ShiftRegister(io.in.bits.acc_shift, compLatency)
     stage1_b.neg := ShiftRegister(io.in.bits.neg, compLatency)
+    stage1_b.clear := ShiftRegister(io.in.bits.clear, compLatency)
     stage1_v := ShiftRegister(io.in.valid, compLatency)
   } else {
     // pipeline stage 0: register the input
@@ -117,8 +122,9 @@ class NewDotProductUnit(val p: NewDotProductUnitParams) extends Module {
     val regStage0_b = Reg(next = io.in.bits)
     compressor.io.c := regStage0_b.a
     compressor.io.d := regStage0_b.b
-    stage1_b.acc_mode := ShiftRegister(regStage0_b.acc_mode, compLatency)
+    stage1_b.acc_shift := ShiftRegister(regStage0_b.acc_shift, compLatency)
     stage1_b.neg := ShiftRegister(regStage0_b.neg, compLatency)
+    stage1_b.clear := ShiftRegister(regStage0_b.clear, compLatency)
     stage1_v := ShiftRegister(regStage0_v, compLatency)
   }
   val regStage1_b = Reg(next = stage1_b)
@@ -127,13 +133,10 @@ class NewDotProductUnit(val p: NewDotProductUnitParams) extends Module {
   val regAcc = Reg(outType = SInt(width = p.accWidth))
   // accumulate new input when valid
   when(regStage1_v) {
-    val modes = Vec(Seq[SInt](
-      SInt(0, width = p.accWidth), regAcc, regAcc << 1, regAcc << 1
-    ))
-    val acc = modes(regStage1_b.acc_mode)
+    val acc_modes = Vec(Seq[SInt](regAcc, regAcc << 1))
+    val acc = acc_modes(regStage1_b.acc_shift)
     val contr = regStage1_b.popcountResult.zext()
-
-    regAcc := acc + Mux(regStage1_b.neg, -contr, contr)
+    regAcc := Mux(regStage1_b.clear, SInt(0, width = p.accWidth), acc) + Mux(regStage1_b.neg, -contr, contr)
   }
   // expose the accumulator output directly
   io.out := regAcc
