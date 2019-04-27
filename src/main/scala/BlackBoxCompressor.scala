@@ -59,6 +59,17 @@ class BlackBoxCompressor(p: BlackBoxCompressorParams) extends Module {
   inst <> io
 }
 
+// synthesizable model of BlackBoxCompressor
+class BlackBoxCompressorModel(p: BlackBoxCompressorParams) extends Module {
+  def outputbits = log2Up(p.N) + 1
+  val io = new Bundle {
+    val c = Bits(INPUT, width = p.N)
+    val d = Bits(INPUT, width = p.N)
+    val r = Bits(OUTPUT, width = outputbits)
+  }
+  io.r := ShiftRegister(PopCount(io.c & io.d), p.getLatency())
+}
+
 // actual BlackBox that instantiates the VHDL unit
 class mac(
   BB_WA: Int, // result precision

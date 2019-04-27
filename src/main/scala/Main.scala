@@ -104,11 +104,15 @@ object ChiselMain {
     val dpaDimRHS: Int = args(4).toInt
     val memLHS: Int = args(5).toInt
     val memRHS: Int = args(6).toInt
+    // don't use the VHDL compressor if we are in emu mode (use model instead)
+    // since we can't process VHDL in the verilator flow
+    val useVhdlCompressor = (platformName != "VerilatedTester")
     val accInst = Settings.makeInstFxn(
       new BitSerialMatMulParams(
         dpaDimLHS = dpaDimLHS, dpaDimRHS = dpaDimRHS, dpaDimCommon = dpaDimCommon,
         lhsEntriesPerMem = memLHS, rhsEntriesPerMem = memRHS,
-        cmdQueueEntries = 512, mrp = PYNQZ1Params.toMemReqParams()
+        cmdQueueEntries = 512, mrp = PYNQZ1Params.toMemReqParams(),
+        useVhdlCompressor = useVhdlCompressor
       )
     )
     val platformInst = TidbitsMakeUtils.platformMap(platformName)

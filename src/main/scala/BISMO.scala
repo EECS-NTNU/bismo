@@ -85,6 +85,8 @@ class BitSerialMatMulParams(
   val noNegate: Boolean = false,
   // instruction generators
   val instrGen: Boolean = true,
+  // use an optimized VHDL compressor generator
+  val useVhdlCompressor: Boolean = true,
   val p2sAccelParams: StandAloneP2SParams = new StandAloneP2SParams(maxInBw = 8, nInElemPerWord = 8, outStreamSize = 64,
     fastMode = true, mrp = PYNQZ1Params.toMemReqParams() )
 ) extends PrintableParam {
@@ -142,7 +144,8 @@ class BitSerialMatMulParams(
     mrp = mrp, bramWrLat = bramPipelineBefore
   )
   val dpuParams = new NewDotProductUnitParams(
-    inpWidth = dpaDimCommon, accWidth = accWidth
+    inpWidth = dpaDimCommon, accWidth = accWidth,
+    useVhdlCompressor = useVhdlCompressor
   )
   val dpaParams = new DotProductArrayParams(
     dpuParams = dpuParams, m = dpaDimLHS, n = dpaDimRHS,

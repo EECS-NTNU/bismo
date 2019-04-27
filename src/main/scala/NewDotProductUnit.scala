@@ -43,7 +43,9 @@ class NewDotProductUnitParams(
   // -1 gives maximum pipelining (= compressor tree depth)
   val vhdlCompressorRegs: Int = -1,
   // whether to add an input register at the DPU input
-  val doNotRegisterInput: Boolean = false
+  val doNotRegisterInput: Boolean = false,
+  // use an optimized VHDL compressor generator
+  val useVhdlCompressor: Boolean = true
 ) extends PrintableParam {
   // parameters for BlackBoxCompressor (if any)
   val bbCompParams = new BlackBoxCompressorParams(
@@ -102,7 +104,10 @@ class NewDotProductUnit(val p: NewDotProductUnitParams) extends Module {
     val out = UInt(OUTPUT, width = p.accWidth)
   }
   // instantiate the compressor
-  val compressor = Module(new BlackBoxCompressor(p.bbCompParams))
+  val compressor = Module(
+    if(p.useVhdlCompressor) {new BlackBoxCompressor(p.bbCompParams)}
+    else {new BlackBoxCompressorModel(p.bbCompParams)}
+  )
   val compLatency = p.bbCompParams.getLatency()
   // pipeline stage 1: compressor
   val stage1_b = (new NewDotProductStage1(p)).asDirectionless
