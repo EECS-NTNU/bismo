@@ -159,7 +159,6 @@ class TestNewDotProductUnit extends JUnitSuite {
         val z1 = if(slice < precB) {0} else {slice - precB + 1}
         val z2 = if(slice < precA) {0} else {slice - precA + 1}
         for(j <- slice - z2 to z1 by -1) {
-          println("%d %d sum %d", j, slice-j, slice)
           val bitA = j
           val bitB = slice-j
           val negbitA = negA & (bitA == precA-1)
