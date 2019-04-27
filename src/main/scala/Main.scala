@@ -229,6 +229,13 @@ object CharacterizeMain {
   }
   val instFxn_DPU = { p: DotProductUnitParams ⇒ Module(new DotProductUnit(p)) }
 
+  def makeParamSpace_NewDPU(): Seq[NewDotProductUnitParams] = {
+    return for {
+      popc ← for (i ← 5 to 10) yield (1 << i)
+    } yield new NewDotProductUnitParams(inpWidth = popc, accWidth = 32)
+  }
+  val instFxn_NewDPU = { p: NewDotProductUnitParams ⇒ Module(new NewDotProductUnit(p)) }
+
   def makeParamSpace_Main(): Seq[BitSerialMatMulParams] = {
     return for {
       lhs ← for (i ← 1 to 5) yield (2 * i)
@@ -404,6 +411,8 @@ val instFxn_thrStage = {p: ThrStageParams => Module(new ThrStage(p))}
       VivadoSynth.characterizeSpace(makeParamSpace_PC(), instFxn_PC, chPath, chLog, fpgaPart)
     } else if (chName == "CharacterizeDPU") {
       VivadoSynth.characterizeSpace(makeParamSpace_DPU(), instFxn_DPU, chPath, chLog, fpgaPart)
+    } else if (chName == "CharacterizeNewDPU") {
+      VivadoSynth.characterizeSpace(makeParamSpace_NewDPU(), instFxn_NewDPU, chPath, chLog, fpgaPart)
     } else if (chName == "CharacterizeDPA") {
       VivadoSynth.characterizeSpace(makeParamSpace_DPA(), instFxn_DPA, chPath, chLog, fpgaPart)
     } else if (chName == "CharacterizeMain") {
