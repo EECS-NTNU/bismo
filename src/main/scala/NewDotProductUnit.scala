@@ -72,7 +72,9 @@ class NewDotProductStage0(p: NewDotProductUnitParams) extends Bundle {
   val a = Bits(width = p.inpWidth)
   val b = Bits(width = p.inpWidth)
   // accumulation mode
-  val acc_mode = UInt(width = 3)
+  val acc_mode = UInt(width = 2)
+  // negate contribution before accumulating
+  val neg = Bool()
 
   override def cloneType: this.type =
     new NewDotProductStage0(p).asInstanceOf[this.type]
@@ -82,7 +84,9 @@ class NewDotProductStage1(p: NewDotProductUnitParams) extends Bundle {
   // result of AND of inputs
   val popcountResult = UInt(width = log2Up(p.inpWidth+1))
   // accumulation mode
-  val acc_mode = UInt(width = 3)
+  val acc_mode = UInt(width = 2)
+  // negate contribution before accumulating
+  val neg = Bool()
 
   override def cloneType: this.type =
     new NewDotProductStage1(p).asInstanceOf[this.type]
@@ -105,6 +109,7 @@ class NewDotProductUnit(val p: NewDotProductUnitParams) extends Module {
     compressor.io.c := io.in.bits.a
     compressor.io.d := io.in.bits.b
     stage1_b.acc_mode := ShiftRegister(io.in.bits.acc_mode, compLatency)
+    stage1_b.neg := ShiftRegister(io.in.bits.neg, compLatency)
     stage1_v := ShiftRegister(io.in.valid, compLatency)
   } else {
     // pipeline stage 0: register the input
@@ -113,6 +118,7 @@ class NewDotProductUnit(val p: NewDotProductUnitParams) extends Module {
     compressor.io.c := regStage0_b.a
     compressor.io.d := regStage0_b.b
     stage1_b.acc_mode := ShiftRegister(regStage0_b.acc_mode, compLatency)
+    stage1_b.neg := ShiftRegister(regStage0_b.neg, compLatency)
     stage1_v := ShiftRegister(regStage0_v, compLatency)
   }
   val regStage1_b = Reg(next = stage1_b)
@@ -124,10 +130,10 @@ class NewDotProductUnit(val p: NewDotProductUnitParams) extends Module {
     val modes = Vec(Seq[SInt](
       SInt(0, width = p.accWidth), regAcc, regAcc << 1, regAcc << 1
     ))
-    val acc = modes(regStage1_b.acc_mode(1,0))
+    val acc = modes(regStage1_b.acc_mode)
     val contr = regStage1_b.popcountResult.zext()
 
-    regAcc := acc + Mux(regStage1_b.acc_mode(2), -contr, contr)
+    regAcc := acc + Mux(regStage1_b.neg, -contr, contr)
   }
   // expose the accumulator output directly
   io.out := regAcc
