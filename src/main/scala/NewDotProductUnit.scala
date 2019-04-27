@@ -32,7 +32,7 @@
 package bismo
 
 import Chisel._
-
+import fpgatidbits.synthutils.PrintableParam
 
 class NewDotProductUnitParams(
   // width of inputs
