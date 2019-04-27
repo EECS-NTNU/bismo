@@ -196,9 +196,8 @@ object CharacterizeMain {
       n ← spatial_dim
       k ← popcount_dim
     } yield new DotProductArrayParams(
-      m = m, n = n, dpuParams = new DotProductUnitParams(
-      maxShiftSteps = 16, accWidth = 32, pcParams = new PopCountUnitParams(
-      numInputBits = k)))
+      m = m, n = n, dpuParams = new NewDotProductUnitParams(
+        inpWidth = k, accWidth = 32))
     // (m, n) resource-wise equivalent, so keep half the cases to avoid duplicates
     return ret.filter(x ⇒ (x.m >= x.n))
   }

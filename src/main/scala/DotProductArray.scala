@@ -39,7 +39,7 @@ import fpgatidbits.synthutils.PrintableParam
 
 class DotProductArrayParams(
   // parameters for each DotProductUnit
-  val dpuParams: DotProductUnitParams,
+  val dpuParams: NewDotProductUnitParams,
   // dot product array dimensions
   val m: Int, // rows of left-hand-side matrix (LHS) per cycle
   val n: Int, // cols of right-hand-side matrix (RHS) per cycle
@@ -65,12 +65,12 @@ class DotProductArray(val p: DotProductArrayParams) extends Module {
   val io = new Bundle {
     // inputs broadcasted to each DPU
     val valid = Bool(INPUT)
-    val shiftAmount = UInt(INPUT, width = log2Up(p.dpuParams.maxShiftSteps + 1))
+    val shiftAmount = UInt(INPUT, width = BISMOLimits.maxShiftBits)
     val negate = Bool(INPUT)
     val clear_acc = Bool(INPUT)
     // DPU bit inputs, connected appropriately to 2D array
-    val a = Vec.fill(p.m) { Bits(INPUT, width = p.dpuParams.pcParams.numInputBits) }
-    val b = Vec.fill(p.n) { Bits(INPUT, width = p.dpuParams.pcParams.numInputBits) }
+    val a = Vec.fill(p.m) { Bits(INPUT, width = p.dpuParams.inpWidth) }
+    val b = Vec.fill(p.n) { Bits(INPUT, width = p.dpuParams.inpWidth) }
     // DPU outputs from each accumulator
     val out = Vec.fill(p.m) { Vec.fill(p.n) { UInt(OUTPUT, width = p.dpuParams.accWidth) } }
   }
@@ -78,7 +78,7 @@ class DotProductArray(val p: DotProductArrayParams) extends Module {
   // instantiate the array of DPUs
   val dpu = Vec.fill(p.m) {
     Vec.fill(p.n) {
-      Module(new DotProductUnit(p.dpuParams)).io
+      Module(new NewDotProductUnit(p.dpuParams)).io
     }
   }
 
@@ -87,9 +87,7 @@ class DotProductArray(val p: DotProductArrayParams) extends Module {
     for (j ← 0 to p.n - 1) {
       // common broadcast inputs
       dpu(i)(j).in.valid := ShiftRegister(io.valid, p.myLatency)
-      dpu(i)(j).in.bits.shiftAmount := ShiftRegister(io.shiftAmount, p.myLatency)
-      dpu(i)(j).in.bits.negate := ShiftRegister(io.negate, p.myLatency)
-      dpu(i)(j).in.bits.clear_acc := ShiftRegister(io.clear_acc, p.myLatency)
+      dpu(i)(j).in.bits.acc_mode := ShiftRegister(io.shiftAmount, p.myLatency)
       // dot product bit inputs, connect along rows and columns
       dpu(i)(j).in.bits.a := ShiftRegister(io.a(i), p.myLatency)
       dpu(i)(j).in.bits.b := ShiftRegister(io.b(j), p.myLatency)

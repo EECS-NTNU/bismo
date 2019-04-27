@@ -88,7 +88,7 @@ class ExecStageParams(
   }
   // popcount width
   def getK(): Int = {
-    return dpaParams.dpuParams.pcParams.numInputBits
+    return dpaParams.dpuParams.inpWidth
   }
   // RHS rows
   def getN(): Int = {
