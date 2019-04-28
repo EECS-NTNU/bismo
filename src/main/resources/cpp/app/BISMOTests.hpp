@@ -59,7 +59,8 @@ bool test(
   ctx.rhs.importRegular(rhs);
   gemmbitserial::gemmBitSerial(ctx);
   cout << testName << ": " << nrows_lhs << "x" << ncols << "x" << nrows_rhs;
-  cout << " " << nbits_lhs << "bx" << nbits_rhs << "b" << endl;
+  cout << " " << nbits_lhs << "bx" << nbits_rhs << "b ";
+  cout << "signed? " << sgn_lhs << " " << sgn_rhs << endl;
 
   bismo_inference::MatMulLayerDescriptor dscr;
   dscr.wbits = nbits_lhs;
