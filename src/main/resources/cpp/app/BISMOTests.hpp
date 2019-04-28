@@ -98,6 +98,7 @@ bool test(
   delete [] lhs;
   delete [] rhs;
   delete [] accel_res;
+  gemmbitserial::deallocGEMMContext(ctx);
 
   return res == 0;
 }
@@ -226,18 +227,20 @@ bool test_binary_onchip_onetile(bismo_inference::HardwareConfig hwcfg) {
 bool test_multibit_onchip_onetile(bismo_inference::HardwareConfig hwcfg) {
   bool all_OK = true;
   vector<size_t> bits {2, 4};
-  vector<size_t> cols_div_factor {2, 4, 8};
+  vector<int> tf {0, 1};
   const size_t memsize = min(hwcfg.lhsEntriesPerMem, hwcfg.rhsEntriesPerMem);
   for(auto & lbits: bits) {
     for(auto & rbits: bits) {
-      for(auto & col_div : cols_div_factor) {
-        const size_t maxbits = max(lbits, rbits);
-        all_OK &= test(
-          "multibit_onchip_onetile_" + to_string(lbits) + "bx" + to_string(rbits) + "b",
-          hwcfg.dpaDimLHS, hwcfg.dpaDimRHS,
-          (hwcfg.dpaDimCommon * memsize) / (maxbits * col_div),
-          lbits, rbits
-        );
+      for(auto & wsgn : tf) {
+        for(auto & asgn : tf) {
+          const size_t maxbits = max(lbits, rbits);
+          all_OK &= test(
+            "multibit_onchip_onetile_" + to_string(lbits) + "bx" + to_string(rbits) + "b",
+            hwcfg.dpaDimLHS, hwcfg.dpaDimRHS,
+            (hwcfg.dpaDimCommon * memsize) / (maxbits * 8),
+            lbits, rbits, wsgn == 1, asgn == 1
+          );
+        }
       }
     }
   }
