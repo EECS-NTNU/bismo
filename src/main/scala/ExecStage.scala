@@ -136,10 +136,10 @@ class ExecStageCtrlIO() extends PrintableBundle {
   override def cloneType: this.type =
     new ExecStageCtrlIO().asInstanceOf[this.type]
 
-  val printfStr = "(offs lhs/rhs = %d/%d, ntiles = %d, << %d, w? %d/%d)\n"
+  val printfStr = "(offs lhs/rhs = %d/%d, ntiles = %d, clr? %d, neg? %d, << %d, wr? %d, wrto %d)\n"
   val printfElems = { () ⇒
     Seq(
-      lhsOffset, rhsOffset, numTiles, shiftAmount, writeEn, writeAddr)
+      lhsOffset, rhsOffset, numTiles, clear_before_first_accumulation, negate, shiftAmount, writeEn, writeAddr)
   }
 }
 
