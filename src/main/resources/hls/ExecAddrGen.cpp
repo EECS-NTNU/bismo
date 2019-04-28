@@ -180,6 +180,7 @@ void ExecAddrGen_Templated(
       addr.rhsIsPadding = 0;
       addr.last = (ins.numTiles - i == 1);
       addr.clear = ins.clear_before_first_accumulation & (i == 0);
+      addr.shift = ins.shiftAmount & (i == 0);
       out.write(addr.asRaw());
       addr.lhsAddr += ADDR_UNIT;
       addr.rhsAddr += ADDR_UNIT;
