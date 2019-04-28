@@ -92,8 +92,8 @@ class BitSerialMatMulParams(
 ) extends PrintableParam {
   def estimateResources(freqMHz: Float = 200) = {
     import Math.ceil
-    val a_dpu = 2.04
-    val b_dpu = 109.41
+    val a_dpu = 1.17
+    val b_dpu = 44.1
     val lut_per_res = 120.1
     val lut_per_dpu = a_dpu * dpaDimCommon + b_dpu
     val lut_array = dpaDimLHS * dpaDimRHS * (lut_per_dpu + lut_per_res)
