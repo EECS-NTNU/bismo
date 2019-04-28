@@ -109,6 +109,7 @@ class NewDotProductUnit(val p: NewDotProductUnitParams) extends Module {
     else {new BlackBoxCompressorModel(p.bbCompParams)}
   )
   val compLatency = p.bbCompParams.getLatency()
+  //when(io.in.valid) { printf("Input: a %x b %x shift %d neg %d clear %d\n", io.in.bits.a, io.in.bits.b, io.in.bits.acc_shift, io.in.bits.neg, io.in.bits.clear)}
   // pipeline stage 1: compressor
   val stage1_b = (new NewDotProductStage1(p)).asDirectionless
   val stage1_v = Bool()
@@ -142,6 +143,7 @@ class NewDotProductUnit(val p: NewDotProductUnitParams) extends Module {
     val acc = acc_modes(regStage1_b.acc_shift)
     val contr = regStage1_b.popcountResult.zext()
     regAcc := Mux(regStage1_b.clear, SInt(0, width = p.accWidth), acc) + Mux(regStage1_b.neg, -contr, contr)
+    //printf("Accumulate: regAcc = %d shiftAcc? %d clear? %d contr %d \n", regAcc, regStage1_b.acc_shift, regStage1_b.clear, contr)
   }
   // expose the accumulator output directly
   io.out := regAcc
