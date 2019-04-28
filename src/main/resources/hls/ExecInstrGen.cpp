@@ -174,6 +174,9 @@ io_section:{
       j = slice - z2;
       if(slice == ins_in.bits_l + ins_in.bits_r - 1) {
         slice = 0;
+        z1 = slice < ins_in.bits_r ? 0 : slice - ins_in.bits_r + 1;
+        z2 = slice < ins_in.bits_l ? 0 : slice - ins_in.bits_l + 1;
+        j = slice - z2;
         m++;
         if(m == ins_in.tiles_m) {
           m = 0;
