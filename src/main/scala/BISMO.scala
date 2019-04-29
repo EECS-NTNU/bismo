@@ -79,10 +79,6 @@ class BitSerialMatMulParams(
   val maxShiftSteps: Int = 16,
   val cmdQueueEntries: Int = 16,
   val dscQueueEntries: Int = 4,
-  // do not instantiate the shift stage
-  val noShifter: Boolean = false,
-  // do not instantiate the negate stage
-  val noNegate: Boolean = false,
   // instruction generators
   val instrGen: Boolean = true,
   // use an optimized VHDL compressor generator
@@ -110,15 +106,14 @@ class BitSerialMatMulParams(
   def headersAsList(): List[String] = {
     return List(
       "dpaLHS", "dpaRHS", "dpaCommon", "lhsMem", "rhsMem", "DRAM_rd", "DRAM_wr",
-      "noShifter", "noNegate", "extraRegDPA", "extraRegDPU", "extraRegPC"
+      "extraRegDPA", "extraRegDPU", "extraRegPC"
     )
   }
 
   def contentAsList(): List[String] = {
     return List(
       dpaDimLHS, dpaDimRHS, dpaDimCommon, lhsEntriesPerMem, rhsEntriesPerMem,
-      mrp.dataWidth, mrp.dataWidth, noShifter,
-      noNegate, extraRegs_DPA, extraRegs_DPU, extraRegs_PC
+      mrp.dataWidth, mrp.dataWidth, extraRegs_DPA, extraRegs_DPU, extraRegs_PC
     ).map(_.toString)
   }
 
