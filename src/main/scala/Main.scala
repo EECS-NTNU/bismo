@@ -173,6 +173,9 @@ object EmuLibMain {
     val mode: String = args(2)
     val debugMode: Int = args(3).toInt
     val accInst: Settings.AccelInstFxn = Settings.emuMap(emuName)
+    val fpgaPart = "xczu3eg-sbva484-1-i"
+    val freqMHz = 5.0
+    Settings.makeHLSDependencies(accInst, emuDir, fpgaPart, freqMHz)
     if(mode == "verilator") {
       // TODO pass on debugMode info to makeVerilator here
       TidbitsMakeUtils.makeVerilator(accInst, emuDir)

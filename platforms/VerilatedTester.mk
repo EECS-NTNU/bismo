@@ -34,17 +34,18 @@ $(BUILD_DIR_DEPLOY)/libbismo_inference.so: hw sw script
 
 inflib_emu: $(BUILD_DIR_DEPLOY)/libbismo_inference.so
 
+# hw-sw cosimulation tests with extra HLS dependencies
+EmuTestVerifyHLSInstrEncoding:
+	mkdir -p $(BUILD_DIR)/$@; \
+	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator $(DEBUG_CHISEL)"; \
+	cp -rf $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; \
+	ln -s $(INFLIB_SRC_DIR)/BISMOInstruction.* $(BUILD_DIR)/$@/; \
+	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@; \
+	cd $(BUILD_DIR)/$@; sh verilator-build.sh -I$(HLS_SIM_INCL); ./VerilatedTesterWrapper
+
 #BUILD_DIR_EMU := $(BUILD_DIR)/emu
 #BUILD_DIR_EMULIB_CPP := $(BUILD_DIR)/hw/cpp_emulib
 #
-## hw-sw cosimulation tests with extra HLS dependencies
-#EmuTestVerifyHLSInstrEncoding:
-#	mkdir -p $(BUILD_DIR)/$@;
-#	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator $(DEBUG_CHISEL)";
-#	cp -rf $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
-#	ln -s $(INFLIB_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
-#	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
-#	cd $(BUILD_DIR)/$@; sh verilator-build.sh -I$(HLS_SIM_INCL); ./VerilatedTesterWrapper
 #
 #EmuTestExecInstrGen:
 #	mkdir -p $(BUILD_DIR)/$@;
