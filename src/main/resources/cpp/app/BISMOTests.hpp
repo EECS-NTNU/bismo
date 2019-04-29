@@ -59,7 +59,8 @@ bool test(
   ctx.rhs.importRegular(rhs);
   gemmbitserial::gemmBitSerial(ctx);
   cout << testName << ": " << nrows_lhs << "x" << ncols << "x" << nrows_rhs;
-  cout << " " << nbits_lhs << "bx" << nbits_rhs << "b" << endl;
+  cout << " " << nbits_lhs << "bx" << nbits_rhs << "b ";
+  cout << "signed? " << sgn_lhs << " " << sgn_rhs << endl;
 
   bismo_inference::MatMulLayerDescriptor dscr;
   dscr.wbits = nbits_lhs;
@@ -97,6 +98,7 @@ bool test(
   delete [] lhs;
   delete [] rhs;
   delete [] accel_res;
+  gemmbitserial::deallocGEMMContext(ctx);
 
   return res == 0;
 }
@@ -225,18 +227,20 @@ bool test_binary_onchip_onetile(bismo_inference::HardwareConfig hwcfg) {
 bool test_multibit_onchip_onetile(bismo_inference::HardwareConfig hwcfg) {
   bool all_OK = true;
   vector<size_t> bits {2, 4};
-  vector<size_t> cols_div_factor {2, 4, 8};
+  vector<int> tf {0, 1};
   const size_t memsize = min(hwcfg.lhsEntriesPerMem, hwcfg.rhsEntriesPerMem);
   for(auto & lbits: bits) {
     for(auto & rbits: bits) {
-      for(auto & col_div : cols_div_factor) {
-        const size_t maxbits = max(lbits, rbits);
-        all_OK &= test(
-          "multibit_onchip_onetile_" + to_string(lbits) + "bx" + to_string(rbits) + "b",
-          hwcfg.dpaDimLHS, hwcfg.dpaDimRHS,
-          (hwcfg.dpaDimCommon * memsize) / (maxbits * col_div),
-          lbits, rbits
-        );
+      for(auto & wsgn : tf) {
+        for(auto & asgn : tf) {
+          const size_t maxbits = max(lbits, rbits);
+          all_OK &= test(
+            "multibit_onchip_onetile_" + to_string(lbits) + "bx" + to_string(rbits) + "b",
+            hwcfg.dpaDimLHS, hwcfg.dpaDimRHS,
+            (hwcfg.dpaDimCommon * memsize) / (maxbits * 8),
+            lbits, rbits, wsgn == 1, asgn == 1
+          );
+        }
       }
     }
   }
@@ -246,6 +250,8 @@ bool test_multibit_onchip_onetile(bismo_inference::HardwareConfig hwcfg) {
 
 bool test_multibit_multitile(bismo_inference::HardwareConfig hwcfg) {
   bool all_OK = true;
+  all_OK &= test("2*Dm x 1024 x 2*Dn 1b x 1b", 2*hwcfg.dpaDimLHS, 2*hwcfg.dpaDimLHS, 1024, 1, 1);
+  all_OK &= test("2*Dm x 1024 x 2*Dn 2b x 2b", 2*hwcfg.dpaDimLHS, 2*hwcfg.dpaDimLHS, 1024, 2, 2);
   all_OK &= test("64 x 1024 x 64 1b x 1b", 64, 64, 1024, 1, 1);
   all_OK &= test("64 x 1024 x 65 1b x 1b", 64, 65, 1024, 1, 1);
   all_OK &= test("64 x 1024 x 77 1b x 1b", 64, 77, 1024, 1, 1);

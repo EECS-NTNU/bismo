@@ -85,13 +85,15 @@ class BitSerialMatMulParams(
   val noNegate: Boolean = false,
   // instruction generators
   val instrGen: Boolean = true,
+  // use an optimized VHDL compressor generator
+  val useVhdlCompressor: Boolean = true,
   val p2sAccelParams: StandAloneP2SParams = new StandAloneP2SParams(maxInBw = 8, nInElemPerWord = 8, outStreamSize = 64,
     fastMode = true, mrp = PYNQZ1Params.toMemReqParams() )
 ) extends PrintableParam {
   def estimateResources(freqMHz: Float = 200) = {
     import Math.ceil
-    val a_dpu = 2.04
-    val b_dpu = 109.41
+    val a_dpu = 1.17
+    val b_dpu = 44.1
     val lut_per_res = 120.1
     val lut_per_dpu = a_dpu * dpaDimCommon + b_dpu
     val lut_array = dpaDimLHS * dpaDimRHS * (lut_per_dpu + lut_per_res)
@@ -141,12 +143,9 @@ class BitSerialMatMulParams(
     numAddrBits = log2Up(math.max(lhsEntriesPerMem, rhsEntriesPerMem) * dpaDimCommon / mrp.dataWidth),
     mrp = mrp, bramWrLat = bramPipelineBefore
   )
-  val pcParams = new PopCountUnitParams(
-    numInputBits = dpaDimCommon, extraPipelineRegs = extraRegs_PC
-  )
   val dpuParams = new DotProductUnitParams(
-    pcParams = pcParams, accWidth = accWidth, maxShiftSteps = maxShiftSteps,
-    noShifter = noShifter, noNegate = noNegate, extraPipelineRegs = extraRegs_DPU
+    inpWidth = dpaDimCommon, accWidth = accWidth,
+    useVhdlCompressor = useVhdlCompressor
   )
   val dpaParams = new DotProductArrayParams(
     dpuParams = dpuParams, m = dpaDimLHS, n = dpaDimRHS,

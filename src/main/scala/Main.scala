@@ -104,11 +104,15 @@ object ChiselMain {
     val dpaDimRHS: Int = args(4).toInt
     val memLHS: Int = args(5).toInt
     val memRHS: Int = args(6).toInt
+    // don't use the VHDL compressor if we are in emu mode (use model instead)
+    // since we can't process VHDL in the verilator flow
+    val useVhdlCompressor = (platformName != "VerilatedTester")
     val accInst = Settings.makeInstFxn(
       new BitSerialMatMulParams(
         dpaDimLHS = dpaDimLHS, dpaDimRHS = dpaDimRHS, dpaDimCommon = dpaDimCommon,
         lhsEntriesPerMem = memLHS, rhsEntriesPerMem = memRHS,
-        cmdQueueEntries = 512, mrp = PYNQZ1Params.toMemReqParams()
+        cmdQueueEntries = 512, mrp = PYNQZ1Params.toMemReqParams(),
+        useVhdlCompressor = useVhdlCompressor
       )
     )
     val platformInst = TidbitsMakeUtils.platformMap(platformName)
@@ -197,8 +201,7 @@ object CharacterizeMain {
       k ← popcount_dim
     } yield new DotProductArrayParams(
       m = m, n = n, dpuParams = new DotProductUnitParams(
-      maxShiftSteps = 16, accWidth = 32, pcParams = new PopCountUnitParams(
-      numInputBits = k)))
+        inpWidth = k, accWidth = 32))
     // (m, n) resource-wise equivalent, so keep half the cases to avoid duplicates
     return ret.filter(x ⇒ (x.m >= x.n))
   }
@@ -213,22 +216,12 @@ object CharacterizeMain {
   }
   val instFxn_PC = { p: PopCountUnitParams ⇒ Module(new PopCountUnit(p)) }
 
-  def makeParamSpace_DPU(): Seq[DotProductUnitParams] = {
-    val noshift = Seq(false, true)
-    val noneg = Seq(false, true)
+  def makeParamSpace_NewDPU(): Seq[DotProductUnitParams] = {
     return for {
       popc ← for (i ← 5 to 10) yield (1 << i)
-      ns ← noshift
-      nn ← noneg
-      extra_regs_pc ← 0 to 1
-      extra_regs_dpu ← 0 to 1
-    } yield new DotProductUnitParams(
-      pcParams = new PopCountUnitParams(
-        numInputBits = popc, extraPipelineRegs = extra_regs_pc),
-      noShifter = ns, noNegate = nn, accWidth = 32, maxShiftSteps = 16,
-      extraPipelineRegs = extra_regs_dpu)
+    } yield new DotProductUnitParams(inpWidth = popc, accWidth = 32)
   }
-  val instFxn_DPU = { p: DotProductUnitParams ⇒ Module(new DotProductUnit(p)) }
+  val instFxn_NewDPU = { p: DotProductUnitParams ⇒ Module(new DotProductUnit(p)) }
 
   def makeParamSpace_Main(): Seq[BitSerialMatMulParams] = {
     return for {
@@ -403,8 +396,8 @@ val instFxn_thrStage = {p: ThrStageParams => Module(new ThrStage(p))}
 
     if (chName == "CharacterizePC") {
       VivadoSynth.characterizeSpace(makeParamSpace_PC(), instFxn_PC, chPath, chLog, fpgaPart)
-    } else if (chName == "CharacterizeDPU") {
-      VivadoSynth.characterizeSpace(makeParamSpace_DPU(), instFxn_DPU, chPath, chLog, fpgaPart)
+    } else if (chName == "CharacterizeNewDPU") {
+      VivadoSynth.characterizeSpace(makeParamSpace_NewDPU(), instFxn_NewDPU, chPath, chLog, fpgaPart)
     } else if (chName == "CharacterizeDPA") {
       VivadoSynth.characterizeSpace(makeParamSpace_DPA(), instFxn_DPA, chPath, chLog, fpgaPart)
     } else if (chName == "CharacterizeMain") {
