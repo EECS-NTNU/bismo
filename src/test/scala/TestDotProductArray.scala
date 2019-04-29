@@ -60,6 +60,23 @@ class TestDotProductArray extends JUnitSuite {
         poke(c.io.valid, 0)
         step(numNoValidCycles)
       }
+      def clearAcc(waitUntilCleared: Boolean = false) = {
+        // note that clearing happens right before the regular binary dot
+        // product result is added -- so also set inputs explicitly to zero.
+        // normally the testbench would just set the clear_acc of the very
+        // first test vector to 1 alongside the regular data, and to 0 after,
+        // but this also works.
+        for (i_m ← 0 to m - 1) { poke(c.io.a(i_m), 0) }
+        for (i_n ← 0 to n - 1) { poke(c.io.b(i_n), 0) }
+        poke(c.io.clear_acc, 1)
+        poke(c.io.valid, 1)
+        step(1)
+        poke(c.io.clear_acc, 0)
+        poke(c.io.valid, 0)
+        if(waitUntilCleared) {
+          step(latency)
+        }
+      }
 
       for (i ← 1 to num_seqs) {
         // generate two random int matrices a[m_test][k_test] and b[n_test][k_test] s.t.
@@ -80,31 +97,40 @@ class TestDotProductArray extends JUnitSuite {
         val a = RosettaTestHelpers.randomIntMatrix(m_test, k_test, precA, negA)
         val b = RosettaTestHelpers.randomIntMatrix(m_test, k_test, precB, negB)
         val golden = RosettaTestHelpers.matrixProduct(a, b)
+        // clear the accumulator
+        clearAcc(true)
         // iterate over each combination of bit positions for bit serial
-        // TODO this needs to be fixed for the NewDPU
-        for (bitA ← 0 to precA - 1) {
-          val negbitA = negA & (bitA == precA - 1)
-          for (bitB ← 0 to precB - 1) {
-            // enable negation if combination of bit positions is negative
-            val negbitB = negB & (bitB == precB - 1)
-            val doNeg = if (negbitA ^ negbitB) 1 else 0
-            poke(c.io.negate, doNeg)
-            // shift is equal to sum of current bit positions
-            poke(c.io.shiftAmount, bitA + bitB)
-            for (j ← 0 to seq_len - 1) {
-              // set clear bit only on the very first iteration
-              val doClear = if (j == 0 & bitA == 0 & bitB == 0) 1 else 0
-              poke(c.io.clear_acc, doClear)
+        for(slice <- precA + precB - 2 to 0 by -1) {
+          val z1 = if(slice < precB) {0} else {slice - precB + 1}
+          val z2 = if(slice < precA) {0} else {slice - precA + 1}
+          for(j <- slice - z2 to z1 by -1) {
+            val bitA = j
+            val bitB = slice-j
+            val negbitA = negA & (bitA == precA-1)
+            val negbitB = negB & (bitB == precB-1)
+            val doNeg = if(negbitA ^ negbitB) 1 else 0
+            for(s <- 0 to seq_len-1) {
+              poke(c.io.clear_acc, 0)
+              poke(c.io.negate, doNeg)
+              if(j == slice - z2 && s == 0) {
+                // new wavefront
+                // shift accumulator then accumulate
+                poke(c.io.shiftAmount, 1)
+              } else {
+                // within same wavefront (sum of bit positions)
+                // regular accumulate
+                poke(c.io.shiftAmount, 0)
+              }
               // insert stimulus for left-hand-side matrix tile
               for (i_m ← 0 to m - 1) {
                 val seqA_bs = RosettaTestHelpers.intVectorToBitSerial(a(i_m), precA)
-                val curA = seqA_bs(bitA).slice(j * pc_len, (j + 1) * pc_len)
+                val curA = seqA_bs(bitA).slice(s * pc_len, (s + 1) * pc_len)
                 poke(c.io.a(i_m), scala.math.BigInt.apply(curA.mkString, 2))
               }
               // insert stimulus for right-hand-side matrix tile
               for (i_n ← 0 to n - 1) {
                 val seqB_bs = RosettaTestHelpers.intVectorToBitSerial(b(i_n), precB)
-                val curB = seqB_bs(bitB).slice(j * pc_len, (j + 1) * pc_len)
+                val curB = seqB_bs(bitB).slice(s * pc_len, (s + 1) * pc_len)
                 poke(c.io.b(i_n), scala.math.BigInt.apply(curB.mkString, 2))
               }
               poke(c.io.valid, 1)
@@ -130,7 +156,7 @@ class TestDotProductArray extends JUnitSuite {
     // Chisel arguments to pass to chiselMainTest
     def testArgs = RosettaTestHelpers.stdArgs
     // function that instantiates the Module to be tested
-    val pDP = new DotProductUnitParams(36, 32)
+    val pDP = new DotProductUnitParams(32, 32)
     val p = new DotProductArrayParams(pDP, 4, 4, 0)
     def testModuleInstFxn = () ⇒ { Module(new DotProductArray(p)) }
     // function that instantiates the Tester to test the Module
