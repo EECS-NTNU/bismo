@@ -216,23 +216,6 @@ object CharacterizeMain {
   }
   val instFxn_PC = { p: PopCountUnitParams ⇒ Module(new PopCountUnit(p)) }
 
-  def makeParamSpace_DPU(): Seq[DotProductUnitParams] = {
-    val noshift = Seq(false, true)
-    val noneg = Seq(false, true)
-    return for {
-      popc ← for (i ← 5 to 10) yield (1 << i)
-      ns ← noshift
-      nn ← noneg
-      extra_regs_pc ← 0 to 1
-      extra_regs_dpu ← 0 to 1
-    } yield new DotProductUnitParams(
-      pcParams = new PopCountUnitParams(
-        numInputBits = popc, extraPipelineRegs = extra_regs_pc),
-      noShifter = ns, noNegate = nn, accWidth = 32, maxShiftSteps = 16,
-      extraPipelineRegs = extra_regs_dpu)
-  }
-  val instFxn_DPU = { p: DotProductUnitParams ⇒ Module(new DotProductUnit(p)) }
-
   def makeParamSpace_NewDPU(): Seq[NewDotProductUnitParams] = {
     return for {
       popc ← for (i ← 5 to 10) yield (1 << i)
@@ -413,8 +396,6 @@ val instFxn_thrStage = {p: ThrStageParams => Module(new ThrStage(p))}
 
     if (chName == "CharacterizePC") {
       VivadoSynth.characterizeSpace(makeParamSpace_PC(), instFxn_PC, chPath, chLog, fpgaPart)
-    } else if (chName == "CharacterizeDPU") {
-      VivadoSynth.characterizeSpace(makeParamSpace_DPU(), instFxn_DPU, chPath, chLog, fpgaPart)
     } else if (chName == "CharacterizeNewDPU") {
       VivadoSynth.characterizeSpace(makeParamSpace_NewDPU(), instFxn_NewDPU, chPath, chLog, fpgaPart)
     } else if (chName == "CharacterizeDPA") {
