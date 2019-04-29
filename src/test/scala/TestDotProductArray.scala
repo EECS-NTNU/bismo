@@ -130,7 +130,7 @@ class TestDotProductArray extends JUnitSuite {
     // Chisel arguments to pass to chiselMainTest
     def testArgs = RosettaTestHelpers.stdArgs
     // function that instantiates the Module to be tested
-    val pDP = new NewDotProductUnitParams(36, 32)
+    val pDP = new DotProductUnitParams(36, 32)
     val p = new DotProductArrayParams(pDP, 4, 4, 0)
     def testModuleInstFxn = () ⇒ { Module(new DotProductArray(p)) }
     // function that instantiates the Tester to test the Module

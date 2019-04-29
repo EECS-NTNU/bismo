@@ -35,10 +35,10 @@ import org.scalatest.junit.JUnitSuite
 import org.junit.Test
 import RosettaTestHelpers._
 
-class TestNewDotProductUnit extends JUnitSuite {
+class TestDotProductUnit extends JUnitSuite {
   // Tester-derived class to give stimulus and observe the outputs for the
   // Module to be tested
-  class NewDotProductUnitTester(c: NewDotProductUnit) extends Tester(c) {
+  class DotProductUnitTester(c: DotProductUnit) extends Tester(c) {
     val r = scala.util.Random
     // number of re-runs for each test
     val num_seqs = 100
@@ -211,12 +211,12 @@ class TestNewDotProductUnit extends JUnitSuite {
       popc_width <- for(b <- 5 to 5) yield 1 << b
     } {
       // function that instantiates the Module to be tested
-      val p = new NewDotProductUnitParams(
+      val p = new DotProductUnitParams(
         accWidth = 32, inpWidth = popc_width
       )
-      def testModuleInstFxn = () => { Module(new NewDotProductUnit(p)) }
+      def testModuleInstFxn = () => { Module(new DotProductUnit(p)) }
       // function that instantiates the Tester to test the Module
-      def testTesterInstFxn = (c: NewDotProductUnit) => new NewDotProductUnitTester(c)
+      def testTesterInstFxn = (c: DotProductUnit) => new DotProductUnitTester(c)
 
       // actually run the test
       chiselMainTest(

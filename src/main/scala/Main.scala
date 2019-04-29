@@ -200,7 +200,7 @@ object CharacterizeMain {
       n ← spatial_dim
       k ← popcount_dim
     } yield new DotProductArrayParams(
-      m = m, n = n, dpuParams = new NewDotProductUnitParams(
+      m = m, n = n, dpuParams = new DotProductUnitParams(
         inpWidth = k, accWidth = 32))
     // (m, n) resource-wise equivalent, so keep half the cases to avoid duplicates
     return ret.filter(x ⇒ (x.m >= x.n))
@@ -216,12 +216,12 @@ object CharacterizeMain {
   }
   val instFxn_PC = { p: PopCountUnitParams ⇒ Module(new PopCountUnit(p)) }
 
-  def makeParamSpace_NewDPU(): Seq[NewDotProductUnitParams] = {
+  def makeParamSpace_NewDPU(): Seq[DotProductUnitParams] = {
     return for {
       popc ← for (i ← 5 to 10) yield (1 << i)
-    } yield new NewDotProductUnitParams(inpWidth = popc, accWidth = 32)
+    } yield new DotProductUnitParams(inpWidth = popc, accWidth = 32)
   }
-  val instFxn_NewDPU = { p: NewDotProductUnitParams ⇒ Module(new NewDotProductUnit(p)) }
+  val instFxn_NewDPU = { p: DotProductUnitParams ⇒ Module(new DotProductUnit(p)) }
 
   def makeParamSpace_Main(): Seq[BitSerialMatMulParams] = {
     return for {

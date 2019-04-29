@@ -39,7 +39,7 @@ import fpgatidbits.synthutils.PrintableParam
 
 class DotProductArrayParams(
   // parameters for each DotProductUnit
-  val dpuParams: NewDotProductUnitParams,
+  val dpuParams: DotProductUnitParams,
   // dot product array dimensions
   val m: Int, // rows of left-hand-side matrix (LHS) per cycle
   val n: Int, // cols of right-hand-side matrix (RHS) per cycle
@@ -78,7 +78,7 @@ class DotProductArray(val p: DotProductArrayParams) extends Module {
   // instantiate the array of DPUs
   val dpu = Vec.fill(p.m) {
     Vec.fill(p.n) {
-      Module(new NewDotProductUnit(p.dpuParams)).io
+      Module(new DotProductUnit(p.dpuParams)).io
     }
   }
 

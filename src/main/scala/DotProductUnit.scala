@@ -34,7 +34,7 @@ package bismo
 import Chisel._
 import fpgatidbits.synthutils.PrintableParam
 
-class NewDotProductUnitParams(
+class DotProductUnitParams(
   // width of inputs
   val inpWidth: Int,
   // width of accumulator register
@@ -69,7 +69,7 @@ class NewDotProductUnitParams(
   }
 }
 
-class NewDotProductStage0(p: NewDotProductUnitParams) extends Bundle {
+class NewDotProductStage0(p: DotProductUnitParams) extends Bundle {
   // bit vectors for dot product
   val a = Bits(width = p.inpWidth)
   val b = Bits(width = p.inpWidth)
@@ -84,7 +84,7 @@ class NewDotProductStage0(p: NewDotProductUnitParams) extends Bundle {
     new NewDotProductStage0(p).asInstanceOf[this.type]
 }
 
-class NewDotProductStage1(p: NewDotProductUnitParams) extends Bundle {
+class NewDotProductStage1(p: DotProductUnitParams) extends Bundle {
   // result of AND of inputs
   val popcountResult = UInt(width = log2Up(p.inpWidth+1))
   // accumulation mode
@@ -98,7 +98,7 @@ class NewDotProductStage1(p: NewDotProductUnitParams) extends Bundle {
     new NewDotProductStage1(p).asInstanceOf[this.type]
 }
 
-class NewDotProductUnit(val p: NewDotProductUnitParams) extends Module {
+class DotProductUnit(val p: DotProductUnitParams) extends Module {
   val io = new Bundle {
     val in = Valid(new NewDotProductStage0(p)).asInput
     val out = UInt(OUTPUT, width = p.accWidth)

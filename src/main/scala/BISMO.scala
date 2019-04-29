@@ -143,7 +143,7 @@ class BitSerialMatMulParams(
     numAddrBits = log2Up(math.max(lhsEntriesPerMem, rhsEntriesPerMem) * dpaDimCommon / mrp.dataWidth),
     mrp = mrp, bramWrLat = bramPipelineBefore
   )
-  val dpuParams = new NewDotProductUnitParams(
+  val dpuParams = new DotProductUnitParams(
     inpWidth = dpaDimCommon, accWidth = accWidth,
     useVhdlCompressor = useVhdlCompressor
   )
