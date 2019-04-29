@@ -26,11 +26,18 @@ hw: $(GEN_BITFILE_PATH)
 
 # copy all user sources and driver sources to the deployment folder
 sw: $(BUILD_DIR_HWDRV)/$(HW_SW_DRIVER)
-	mkdir -p $(BUILD_DIR_DEPLOY); cp $(BUILD_DIR_HWDRV)/* $(BUILD_DIR_DEPLOY)/; cp -r $(APP_SRC_DIR)/* $(BUILD_DIR_DEPLOY)/
+	mkdir -p $(BUILD_DIR_DEPLOY); \
+	mkdir -p $(BUILD_DIR_DEPLOY)/driver; \
+	mkdir -p $(BUILD_DIR_DEPLOY)/test; \
+	mkdir -p $(BUILD_DIR_DEPLOY)/inflib; \
+	mkdir -p $(BUILD_DIR_DEPLOY)/hls_include; \
+	cp -rf $(BUILD_DIR_HWDRV)/* $(BUILD_DIR_DEPLOY)/driver/; \
+	cp -rf $(APP_SRC_DIR)/* $(BUILD_DIR_DEPLOY)/test/;
+	cp -rf $(INFLIB_SRC_DIR)/* $(BUILD_DIR_DEPLOY)/inflib; \
+	cp -rf $(HLS_SIM_INCL)/* $(BUILD_DIR_DEPLOY)/hls_include;
 
 report: $(GEN_BITFILE_PATH)
 	cat $(BITFILE_PRJDIR)/$(BITFILE_PRJNAME).runs/impl_1/procsys_wrapper_utilization_placed.rpt | grep "CLB LUTs" -B 3 -A 15
 	cat $(BITFILE_PRJDIR)/$(BITFILE_PRJNAME).runs/impl_1/procsys_wrapper_utilization_placed.rpt | grep "RAMB36/FIFO" -B 4 -A 4
 	cat $(BITFILE_PRJDIR)/$(BITFILE_PRJNAME).runs/impl_1/procsys_wrapper_utilization_placed.rpt | grep "DSP48E2 only" -B 4 -A 1
 	cat $(BITFILE_PRJDIR)/$(BITFILE_PRJNAME).runs/impl_1/procsys_wrapper_timing_summary_postroute_physopted.rpt | grep "Design Timing Summary" -B 1 -A 10
-
