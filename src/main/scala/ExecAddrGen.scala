@@ -37,10 +37,6 @@ import fpgatidbits.hlstools.TemplatedHLSBlackBox
 
 class ExecAddrGenParams(
   val addrUnit: Int,
-  val imgSizeBitwidth: Int,
-  val krnlSizeBitwidth: Int,
-  val strideBitwidth: Int,
-  val paddingBitwidth: Int,
   val outAddrBitwidth: Int,
   val constAddr: Int
 )
@@ -52,15 +48,14 @@ class ExecAddrGenOutput extends PrintableBundle {
   val negate = UInt(width = 1)
   val clear = UInt(width = 1)
   val last = UInt(width = 1)
-  val rhsIsPadding = UInt(width = 1)
   val rhsAddr = UInt(width = 16)
   val lhsAddr = UInt(width = 16)
 
   override def cloneType: this.type =
     new ExecAddrGenOutput().asInstanceOf[this.type]
 
-  val printfStr = "(lhs = %d, rhs = %d, shift %d, wen? %d, waddr? %d rhs_pad? %d last? %d clear? %d neg? %d)\n"
-  val printfElems = { () ⇒ Seq(lhsAddr, rhsAddr, shiftAmount, writeEn, writeAddr, rhsIsPadding, last, clear, negate) }
+  val printfStr = "(lhs = %d, rhs = %d, shift %d, wen? %d, waddr? %d last? %d clear? %d neg? %d)\n"
+  val printfElems = { () ⇒ Seq(lhsAddr, rhsAddr, shiftAmount, writeEn, writeAddr, last, clear, negate) }
 }
 
 class ExecAddrGen(val p: ExecAddrGenParams) extends TemplatedHLSBlackBox {
@@ -82,10 +77,6 @@ class ExecAddrGen(val p: ExecAddrGenParams) extends TemplatedHLSBlackBox {
 
   val hlsTemplateParams: Map[String, String] = Map(
     "ADDR_UNIT" -> p.addrUnit.toString,
-    "IMG_SIZE_BITWIDTH" -> p.imgSizeBitwidth.toString,
-    "KRNL_SIZE_BITWIDTH" -> p.krnlSizeBitwidth.toString,
-    "STRIDE_BITWIDTH" -> p.strideBitwidth.toString,
-    "PADDING_BITWIDTH" -> p.paddingBitwidth.toString,
     "OUT_ADDR_BITWIDTH" -> p.outAddrBitwidth.toString,
     "CONSTANT_ADDRESS" -> p.constAddr.toString
   )

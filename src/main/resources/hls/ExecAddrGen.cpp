@@ -38,12 +38,11 @@
 #include <stdint.h>
 #include "BISMOInstruction.hpp"
 
-#define BISMO_EXECADDRSTRUCT_BITS 43
+#define BISMO_EXECADDRSTRUCT_BITS 42
 
 struct ExecAddr {
   ap_uint<16> lhsAddr;
   ap_uint<16> rhsAddr;
-  ap_uint<1> rhsIsPadding;
   ap_uint<1> last;
   ap_uint<1> clear;
   ap_uint<1> negate;
@@ -55,32 +54,29 @@ struct ExecAddr {
     ap_uint<BISMO_EXECADDRSTRUCT_BITS> ret = 0;
     ret(15, 0) = lhsAddr;
     ret(31, 16) = rhsAddr;
-    ret(32, 32) = rhsIsPadding;
-    ret(33, 33) = last;
-    ret(34, 34) = clear;
-    ret(35, 35) = negate;
-    ret(40, 36) = shift;
-    ret(41, 41) = writeEn;
-    ret(42, 42) = writeAddr;
+    ret(32, 32) = last;
+    ret(33, 33) = clear;
+    ret(34, 34) = negate;
+    ret(39, 35) = shift;
+    ret(40, 40) = writeEn;
+    ret(41, 41) = writeAddr;
     return ret;
   }
 
   void fromRaw(ap_uint<BISMO_EXECADDRSTRUCT_BITS> raw) {
     lhsAddr = raw(15, 0);
     rhsAddr = raw(31, 16);
-    rhsIsPadding = raw(32, 32);
-    last = raw(33, 33);
-    clear = raw(34, 34);
-    negate = raw(35, 35);
-    shift = raw(40, 36);
-    writeEn = raw(41, 41);
-    writeAddr = raw(42, 42);
+    last = raw(32, 32);
+    clear = raw(33, 33);
+    negate = raw(34, 34);
+    shift = raw(39, 35);
+    writeEn = raw(40, 40);
+    writeAddr = raw(41, 41);
   }
 
   ExecAddr() {
     lhsAddr = 0;
     rhsAddr = 0;
-    rhsIsPadding = 0;
     last = 0;
     clear = 0;
     negate = 0;
@@ -92,10 +88,6 @@ struct ExecAddr {
 
 template <
   size_t ADDR_UNIT,
-  size_t IMG_SIZE_BITWIDTH,
-  size_t KRNL_SIZE_BITWIDTH,
-  size_t STRIDE_BITWIDTH,
-  size_t PADDING_BITWIDTH,
   size_t OUT_ADDR_BITWIDTH,
   size_t CONSTANT_ADDRESS
 >
@@ -115,24 +107,18 @@ void ExecAddrGen_Templated(
   addr.negate = ins.negate;
   addr.writeEn = ins.writeEn;
   addr.writeAddr = ins.writeAddr;
-
-  if(ins.cnvAddrGenMode == 1) {
-    // convolution mode not implemented (do not use)
-  } else {
-    // use sequential access mode for both memories
-    addr.lhsAddr = ins.lhsOffset;
-    addr.rhsAddr = ins.rhsOffset;
-    for(ap_uint<16> i = 0; i < ins.numTiles; i += 1) {
-      // produce one address every cycle
-      #pragma HLS PIPELINE II=1
-      addr.rhsIsPadding = 0;
-      addr.last = (ins.numTiles - i == 1);
-      addr.clear = ins.clear_before_first_accumulation & (i == 0);
-      addr.shift = ins.shiftAmount & (i == 0);
-      out.write(addr.asRaw());
-      addr.lhsAddr += ADDR_UNIT;
-      addr.rhsAddr += ADDR_UNIT;
-    }
+  // use sequential access mode for both memories
+  addr.lhsAddr = ins.lhsOffset;
+  addr.rhsAddr = ins.rhsOffset;
+  for(ap_uint<16> i = 0; i < ins.numTiles; i += 1) {
+    // produce one address every cycle
+    #pragma HLS PIPELINE II=1
+    addr.last = (ins.numTiles - i == 1);
+    addr.clear = ins.clear_before_first_accumulation & (i == 0);
+    addr.shift = ins.shiftAmount & (i == 0);
+    out.write(addr.asRaw());
+    addr.lhsAddr += ADDR_UNIT;
+    addr.rhsAddr += ADDR_UNIT;
   }
 }
 
@@ -146,9 +132,7 @@ void ExecAddrGen(
   #pragma HLS INTERFACE axis port=in
 
   ExecAddrGen_Templated<
-  TEMPLATE_PARAM_ADDR_UNIT, TEMPLATE_PARAM_IMG_SIZE_BITWIDTH,
-  TEMPLATE_PARAM_KRNL_SIZE_BITWIDTH, TEMPLATE_PARAM_STRIDE_BITWIDTH,
-  TEMPLATE_PARAM_PADDING_BITWIDTH, TEMPLATE_PARAM_OUT_ADDR_BITWIDTH,
+  TEMPLATE_PARAM_ADDR_UNIT, TEMPLATE_PARAM_OUT_ADDR_BITWIDTH,
   TEMPLATE_PARAM_CONSTANT_ADDRESS
   >(
     in, out

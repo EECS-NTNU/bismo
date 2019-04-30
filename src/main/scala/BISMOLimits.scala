@@ -35,10 +35,6 @@ package bismo
 import Chisel._
 
 object BISMOLimits {
-  val cnvImgSizeBits = 8
-  val cnvKernelSizeBits = 4
-  val cnvStrideBits = 4
-  val cnvPadBits = 4
   val fetchIDBits = 9
   val fetchBurstBeats = 1
   val inpBufAddrBits = 16
@@ -54,11 +50,12 @@ object BISMOLimits {
   val maxBufRegionBits = log2Up(maxBufRegions)
   val maxRepBits = 16
   val descrBits = 208
-  val swuDescrInBits = inpBufAddrBits + cnvImgSizeBits + cnvKernelSizeBits + cnvStrideBits
-  val swuDescrOutBits = inpBufAddrBits
   val numStages = 3
-  val execAddrGenOutBits = 43
+  val execAddrGenOutBits = 42
   val fetchDRAMChanID = 0
   val resDRAMChanID = 0
   val p2sDRAMChanID = 1
+  // sliding window unit, currently unused
+  val swuDescrInBits = inpBufAddrBits + 16
+  val swuDescrOutBits = inpBufAddrBits
 }

@@ -127,12 +127,6 @@ class ExecStageCtrlIO() extends PrintableBundle {
   val numTiles = UInt(width = BISMOLimits.inpBufAddrBits)    // num of L0 tiles to execute
   val rhsOffset = UInt(width = BISMOLimits.inpBufAddrBits)   // start offset for RHS tiles
   val lhsOffset = UInt(width = BISMOLimits.inpBufAddrBits)   // start offset for LHS tiles
-  val cnvStride = UInt(width = BISMOLimits.cnvStrideBits)
-  val cnvKernelSize = UInt(width = BISMOLimits.cnvStrideBits)
-  val cnvImgSize = UInt(width = BISMOLimits.cnvImgSizeBits)
-  val cnvAddrGenMode = Bool()
-  val cnvPad = UInt(width = BISMOLimits.cnvPadBits)
-
   override def cloneType: this.type =
     new ExecStageCtrlIO().asInstanceOf[this.type]
 
@@ -201,10 +195,6 @@ class ExecDecoupledStage(val myP: ExecStageParams) extends Module {
   // TODO is there some way to handle this directly in Chisel?
   val addrgen_d = Module(new ExecAddrGen(new ExecAddrGenParams(
     addrUnit = myP.tileMemAddrUnit,
-    imgSizeBitwidth = BISMOLimits.cnvImgSizeBits,
-    krnlSizeBitwidth = BISMOLimits.cnvKernelSizeBits,
-    strideBitwidth = BISMOLimits.cnvStrideBits,
-    paddingBitwidth = BISMOLimits.cnvPadBits,
     outAddrBitwidth = BISMOLimits.inpBufAddrBits,
     constAddr = 0
   )))
