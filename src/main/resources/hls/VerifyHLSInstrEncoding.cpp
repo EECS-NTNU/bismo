@@ -58,7 +58,7 @@ void VerifyHLSInstrEncoding(
     exec.lhsOffset = i;
     exec.rhsOffset = 10 - i;
     exec.numTiles = 2 * i;
-    exec.shiftAmount = i+1;
+    exec.shiftAmount = i & 2;
     exec.cnvAddrGenMode = 1;
     exec.cnvImgSize = i;
     exec.cnvKernelSize = 10 - i;
