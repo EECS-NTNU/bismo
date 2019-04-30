@@ -16,7 +16,7 @@ enum BISMOTargetStage {
 #define BISMO_LIMIT_DRAM_BSIZE_BITS 16
 #define BISMO_LIMIT_DRAM_BCNT_BITS  8
 #define BISMO_LIMIT_DRAM_BOFF_BITS  24
-#define BISMO_LIMIT_MAXSHIFT_BITS   5
+#define BISMO_LIMIT_MAXSHIFT_BITS   1
 #define BISMO_LIMIT_RESADDR_BITS    1
 #define BISMO_MMDESCR_BITS          208
 #define BISMO_INSTR_BITS            128
@@ -139,7 +139,7 @@ struct BISMOExecRunInstruction {
   ap_uint<16> lhsOffset;
   ap_uint<16> rhsOffset;
   ap_uint<16> numTiles;
-  ap_uint<5> shiftAmount;
+  ap_uint<1> shiftAmount;
   ap_uint<1> negate;
   ap_uint<1> clear_before_first_accumulation;
   ap_uint<1> writeEn;
@@ -158,11 +158,11 @@ struct BISMOExecRunInstruction {
     ret(86, 71) = lhsOffset;
     ret(102, 87) = rhsOffset;
     ret(118, 103) = numTiles;
-    ret(123, 119) = shiftAmount;
-    ret(124, 124) = negate;
-    ret(125, 125) = clear_before_first_accumulation;
-    ret(126, 126) = writeEn;
-    ret(127, 127) = writeAddr;
+    ret(119, 119) = shiftAmount;
+    ret(120, 120) = negate;
+    ret(121, 121) = clear_before_first_accumulation;
+    ret(122, 122) = writeEn;
+    ret(123, 123) = writeAddr;
     return ret;
   }
 
@@ -178,11 +178,11 @@ struct BISMOExecRunInstruction {
     lhsOffset = ret(86, 71);
     rhsOffset = ret(102, 87);
     numTiles = ret(118, 103);
-    shiftAmount = ret(123, 119);
-    negate = ret(124, 124);
-    clear_before_first_accumulation = ret(125, 125);
-    writeEn = ret(126, 126);
-    writeAddr = ret(127, 127);
+    shiftAmount = ret(119, 119);
+    negate = ret(120, 120);
+    clear_before_first_accumulation = ret(121, 121);
+    writeEn = ret(122, 122);
+    writeAddr = ret(123, 123);
   }
 
   BISMOExecRunInstruction() {

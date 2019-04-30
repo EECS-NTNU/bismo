@@ -162,7 +162,6 @@ class BitSerialMatMulParams(
   Predef.assert(isPow2(dpaDimCommon / mrp.dataWidth))
   Predef.assert(log2Up(lhsEntriesPerMem) <= BISMOLimits.inpBufAddrBits)
   Predef.assert(log2Up(rhsEntriesPerMem) <= BISMOLimits.inpBufAddrBits)
-  Predef.assert(maxShiftSteps <= BISMOLimits.maxShift)
   Predef.assert(log2Up(resEntriesPerMem) <= BISMOLimits.resAddrBits)
 }
 

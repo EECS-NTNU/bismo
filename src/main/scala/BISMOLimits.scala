@@ -46,8 +46,7 @@ object BISMOLimits {
   val dramBlockSizeBits = 16
   val dramBlockCountBits = 8
   val dramBlockOffsBits = 24
-  val maxShift = 16
-  val maxShiftBits = log2Up(maxShift+1)
+  val maxShiftBits = 1
   val resAddrBits = 1
   val instrBits = 128
   val ifgBits = 32
