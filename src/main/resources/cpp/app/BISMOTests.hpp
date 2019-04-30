@@ -74,6 +74,7 @@ bool test(
   bismo_inference::LayerHandle id = bismo_inference::initMatMulLayer(dscr, lhs);
   int32_t * accel_res = new int32_t[nrows_lhs*nrows_rhs];
   bismo_inference::execMatMulLayer(id, rhs, accel_res);
+  bismo_inference::deinitLayer(id);
   bismo_inference::deinit();
 
   int res = memcmp(ctx.res, accel_res, nrows_lhs*nrows_rhs*sizeof(int32_t));

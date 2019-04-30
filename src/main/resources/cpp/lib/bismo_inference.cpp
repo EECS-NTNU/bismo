@@ -175,8 +175,34 @@ void execThresLayer(LayerHandle id, const int32_t * in, uint8_t * out) {
 
 // destroy layer with given handle
 void deinitLayer(LayerHandle id) {
-  // for now this does nothing -- we rely on global init/deinit
-  // TODO implement a better resource management strategy
+  InternalLayerDescriptor dsc = registry[id];
+  switch (dsc.layerType) {
+    case layerMatMul:
+      // dealloc associated sw gemmbitserial context
+      gemmbitserial::deallocGEMMContext(dsc.ctx);
+      if(!dsc.cpu_only) {
+        platform->deallocAccelBuffer((void *) dsc.accel_lhs_ptr);
+        platform->deallocAccelBuffer((void *) dsc.accel_buf_in);
+        platform->deallocAccelBuffer((void *) dsc.accel_buf_out);
+        delete [] dsc.padded_result_host_buffer;
+      }
+      // TODO free up associated weight OCM
+      break;
+    case layerConv:
+      // deinit sw impl
+      gemmbitserial::deallocConvBitSerialContext(dsc.cnv_ctx);
+      delete [] dsc.cnv_lowering_buf;
+      delete [] dsc.transpose_result_host_buffer;
+      // deinit associated matmul layer
+      deinitLayer(dsc.cnv_matmul_handle);
+      break;
+    case layerThres:
+    // TODO deallocate once we have threshold layers accelerated
+      break;
+    default:
+      throw "Unrecognized layer type in deinitLayer";
+  }
+  // TODO mark descriptor as invalid or remove from registry
 }
 
 }
