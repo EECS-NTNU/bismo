@@ -91,6 +91,7 @@ public:
   }
 
   ~BitSerialMatMulAccelDriver() {
+    delete m_accel;
   }
 
   // use descriptors and instruction generation hardware
