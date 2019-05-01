@@ -35,6 +35,7 @@ void init() {
 
 void deinit() {
   delete acc;
+  platform->deallocAccelBuffer((void *) accel_p2s_bitpar_buffer);
   deinitPlatform(platform);
 }
 
