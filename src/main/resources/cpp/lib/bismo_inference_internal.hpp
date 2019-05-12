@@ -108,7 +108,8 @@ void p2s(
   size_t nrows, size_t ncols,     // matrix size
   size_t nbits,                   // actual bits per element in source matrix
   bool issigned,                  // whether source matrix is signed
-  bool zeropad = false            // use zero instead of random padding
+  bool zeropad = false,           // use zero instead of random padding
+  size_t row_align = 1            // align rows to multiple of this
 );
 
 void configMatMulLayer_Internal_SetLHS(LayerHandle id, gemmbitserial::BitSerialMatrix mat);
