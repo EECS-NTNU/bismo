@@ -46,9 +46,9 @@ class StandAloneP2SParams(
   }
 }
 
-class StreamingSignCorrection(myP: P2SKernelParams) extends Module {
+class StreamingSignCorrection(myP: StandAloneP2SParams) extends Module {
   val io = new Bundle {
-    val actualPrecision = UInt(width = log2Up(myP.maxInBw) + 1)
+    val actualPrecision = UInt(INPUT, width = log2Up(myP.maxInBw) + 1)
     val signed = Bool(INPUT)
     val in = Decoupled(UInt(width = myP.outStreamSize)).flip()
     val out = Decoupled(UInt(width = myP.outStreamSize))
@@ -62,9 +62,9 @@ class StreamingSignCorrection(myP: P2SKernelParams) extends Module {
   io.out <> io.in
   // override output bits depending on signedness
   io.out.bits := Mux(io.signed, io.in.bits | sign_actual_prec, io.in.bits)
-  when(io.out.fire()) {
+  /*when(io.out.fire()) {
     printf("[SignCorrection] signed? %d prec %x in %x out %x\n", io.signed, io.actualPrecision, io.in.bits, io.out.bits)
-  }
+  }*/
 }
 
 class P2SCmdIO(myP: P2SKernelParams) extends PrintableBundle {
@@ -194,8 +194,12 @@ class StandAloneP2SAccel(
   //  inRg.in.bits.block_count := UInt(1)
 
   io.memPort(0).memRdReq <> readRg.out
-  // TODO Davide: why are these queues 256 elements? can they be smaller?
-  FPGAQueue(ReadRespFilter(io.memPort(0).memRdRsp), 4) <> p2skrnl.inputStream
+  val ssc = Module(new StreamingSignCorrection(myP)).io
+  ssc.actualPrecision := regCmd.actualPrecision
+  ssc.signed := Bool(false)
+
+  FPGAQueue(ReadRespFilter(io.memPort(0).memRdRsp), 4) <> ssc.in
+  ssc.out <> p2skrnl.inputStream
 
 /*****************************DEBUG PRINT********************************************/
   // add PrintableBundleStreamMonitor to print all mem rd req/rsp transactions
