@@ -41,9 +41,6 @@ void p2s(
   if(nbytes_bitpar_aligned > BISMORT_P2S_BITPAR_BYTES) {
     throw "Insufficient p2s bit-parallel buffer size";
   }
-  if(issigned) {
-    throw "P2S accelerator does not yet support signed import";
-  }
   // TODO optimization: allocate this only once
   uint8_t * host_p2s_bitpar_buffer = new uint8_t[nbytes_bitpar_aligned];
   // clean the p2s buffer if desired
@@ -61,7 +58,8 @@ void p2s(
     (void *)accel_p2s_bitpar_buffer,  // source buffer
     nbytes_bitser,                    // num bytes to be written to dest
     (void *) accel_buf_dst,           // dest buffer
-    nrows_a, ncols_a, nbits           // dimensions
+    nrows_a, ncols_a, nbits,          // dimensions
+    issigned
   );
   uint32_t cycles = acc->p2s_exec_and_wait();
   instrumentationData["run_p2s"] = (float) cycles;
@@ -70,44 +68,47 @@ void p2s(
 
 bool selftest_p2s() {
   bool ret = true;
+  vector<size_t> yesno {0, 1};
   vector<size_t> nbits_alts {1, 2, 3};
   vector<size_t> spatial_alts_r {1, 10, 20};
   vector<size_t> spatial_alts_c {100, 256, 512, 1000};
   for(auto & nbits: nbits_alts) {
     for(auto & nrows: spatial_alts_r) {
       for(auto & ncols: spatial_alts_c) {
-        bool issigned = false;
-        string test_name = "p2s_" + to_string(nrows) + "x" + to_string(ncols) + "_" + to_string(nbits) +"b_" + (issigned ? "s" : "u");
-        cout << "Starting test:" << test_name << endl;
-        uint8_t * mat_bp = new uint8_t[nrows * ncols];
-        gemmbitserial::generateRandomVector(nbits, nrows*ncols, mat_bp);
-        gemmbitserial::BitSerialMatrix mat_bs = gemmbitserial::BitSerialMatrix::alloc(
-          nbits, nrows, ncols, issigned, cfg.dpaDimRHS, cfg.dpaDimCommon
-        );
-        TIMER_SAMPLE();
-        mat_bs.importRegular(mat_bp);
-        TIMER_SAMPLE();
-        TIMER_REPORT("run_p2s_benchmark_sw");
-        size_t nbytes_bitser = mat_bs.wordsPerBitplane() * nbits * sizeof(PackedBitGroupType);
-        uint32_t accel_buf = (uint32_t)(uint64_t)platform->allocAccelBuffer(nbytes_bitser);
-        // call p2s with forced zero-padding and align to cfg.dpaDimRHS
-        p2s(mat_bp, accel_buf, nrows, ncols, nbits, issigned, true, cfg.dpaDimRHS);
-        // copy result back to host
-        uint8_t * accel_mat_bs = new uint8_t[nbytes_bitser];
-        platform->copyBufferAccelToHost((void *)accel_buf, accel_mat_bs, nbytes_bitser);
-        ret &= (memcmp(accel_mat_bs, mat_bs.data, nbytes_bitser) == 0);
-        /*if(!ret) {
-          for(size_t i = 0; i < nbytes_bitser; i++) {
-            if(accel_mat_bs[i] != ((uint8_t*)mat_bs.data)[i]) {
-              cout << i << "\t" <<  hex << (int)accel_mat_bs[i] << "\t" << (int)((uint8_t*)mat_bs.data)[i] << dec << endl;
+        for(auto & sgn: yesno) {
+          bool issigned = (sgn == 1);
+          string test_name = "p2s_" + to_string(nrows) + "x" + to_string(ncols) + "_" + to_string(nbits) +"b_" + (issigned ? "s" : "u");
+          cout << "Starting test:" << test_name << endl;
+          uint8_t * mat_bp = new uint8_t[nrows * ncols];
+          gemmbitserial::generateRandomVector(nbits, nrows*ncols, mat_bp);
+          gemmbitserial::BitSerialMatrix mat_bs = gemmbitserial::BitSerialMatrix::alloc(
+            nbits, nrows, ncols, issigned, cfg.dpaDimRHS, cfg.dpaDimCommon
+          );
+          TIMER_SAMPLE();
+          mat_bs.importRegular(mat_bp);
+          TIMER_SAMPLE();
+          TIMER_REPORT("run_p2s_benchmark_sw");
+          size_t nbytes_bitser = mat_bs.wordsPerBitplane() * nbits * sizeof(PackedBitGroupType);
+          uint32_t accel_buf = (uint32_t)(uint64_t)platform->allocAccelBuffer(nbytes_bitser);
+          // call p2s with forced zero-padding and align to cfg.dpaDimRHS
+          p2s(mat_bp, accel_buf, nrows, ncols, nbits, issigned, true, cfg.dpaDimRHS);
+          // copy result back to host
+          uint8_t * accel_mat_bs = new uint8_t[nbytes_bitser];
+          platform->copyBufferAccelToHost((void *)accel_buf, accel_mat_bs, nbytes_bitser);
+          ret &= (memcmp(accel_mat_bs, mat_bs.data, nbytes_bitser) == 0);
+          /*if(!ret) {
+            for(size_t i = 0; i < nbytes_bitser; i++) {
+              if(accel_mat_bs[i] != ((uint8_t*)mat_bs.data)[i]) {
+                cout << i << "\t" <<  hex << (int)accel_mat_bs[i] << "\t" << (int)((uint8_t*)mat_bs.data)[i] << dec << endl;
+              }
             }
-          }
-        }*/
-        cout << test_name << "\tok? = " << ret << "\tcycles = " << instrumentationData["run_p2s"];
-        cout << " software importRegular us = " << instrumentationData["run_p2s_benchmark_sw"] << endl;
-        platform->deallocAccelBuffer((void *)accel_buf);
-        delete [] accel_mat_bs;
-        delete [] mat_bp;
+          }*/
+          cout << test_name << "\tok? = " << ret << "\tcycles = " << instrumentationData["run_p2s"];
+          cout << " software importRegular us = " << instrumentationData["run_p2s_benchmark_sw"] << endl;
+          platform->deallocAccelBuffer((void *)accel_buf);
+          delete [] accel_mat_bs;
+          delete [] mat_bp;
+        }
       }
     }
   }

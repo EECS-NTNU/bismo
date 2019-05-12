@@ -82,14 +82,16 @@ class P2SCmdIO(myP: P2SKernelParams) extends PrintableBundle {
   val actualPrecision = UInt(width = log2Up(myP.maxInBw) + 1)
   // total size of destination (bit serial) matrix in bytes
   val waitCompleteBytes = UInt(width = 32)
+  // signedness (moves sign bit from maxInBw to actualPrecision)
+  val signed = Bool()
 
   override def cloneType(): this.type =
     new P2SCmdIO(myP).asInstanceOf[this.type]
-  val printfStr = "DRAM {src: %x, dst: %x} matrix {rows %d, colgroups %d, bits %d} waitCompleteBytes %d\n"
+  val printfStr = "DRAM {src: %x, dst: %x} matrix {rows %d, colgroups %d, bits %d} waitCompleteBytes %d signed %d\n"
   val printfElems = { () ⇒
     Seq(
       dramBaseAddrSrc, dramBaseAddrDst, matrixRows, matrixColsGroup,
-      actualPrecision, waitCompleteBytes)
+      actualPrecision, waitCompleteBytes, signed)
   }
 }
 
@@ -196,7 +198,7 @@ class StandAloneP2SAccel(
   io.memPort(0).memRdReq <> readRg.out
   val ssc = Module(new StreamingSignCorrection(myP)).io
   ssc.actualPrecision := regCmd.actualPrecision
-  ssc.signed := Bool(false)
+  ssc.signed := regCmd.signed
 
   FPGAQueue(ReadRespFilter(io.memPort(0).memRdRsp), 4) <> ssc.in
   ssc.out <> p2skrnl.inputStream
