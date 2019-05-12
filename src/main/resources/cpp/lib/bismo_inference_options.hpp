@@ -8,4 +8,4 @@
 //#define BISMORT_MATMUL_VERIFY_AGAINST_CPU
 // number of bytes for the p2s bit-parallel buffer on the accelerator side
 #define BISMORT_P2S_BITPAR_BYTES  (1024*1024)
-#define BISMORT_USE_SW_P2S
+//#define BISMORT_USE_SW_P2S
