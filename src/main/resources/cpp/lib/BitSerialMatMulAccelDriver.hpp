@@ -509,7 +509,7 @@ void setup_p2s(
   uint32_t rows,
   uint32_t cols,
   uint32_t bit_width,
-  bool signed
+  bool issigned
 ) {
   // ensure #cols is divisible by P2S_ALIGN
   assert(cols % P2S_ALIGN == 0);
@@ -522,7 +522,7 @@ void setup_p2s(
   m_accel->set_cmdqueue_bits_matrixColsGroup(col_groups);
   m_accel->set_cmdqueue_bits_actualPrecision(bit_width);
   m_accel->set_cmdqueue_bits_waitCompleteBytes(nbytes);
-  m_accel->set_cmdqueue_bits_signed(signed ? 1 : 0);
+  m_accel->set_cmdqueue_bits_signed(issigned ? 1 : 0);
   // wait until cmdqueue is available
   while(m_accel->get_cmdqueue_ready() != 1);
   // pulse cmdqueue.valid
