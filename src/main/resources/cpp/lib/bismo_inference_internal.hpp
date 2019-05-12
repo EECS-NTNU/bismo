@@ -84,6 +84,7 @@ extern uint32_t weightOCMBase, weightOCMBytesLeft;
 extern uint32_t activationOCMBase, activationOCMBytesLeft;
 extern uint32_t thresholdOCMBase, thresholdOCMBytesLeft;
 extern uint32_t accel_p2s_bitpar_buffer;
+extern uint8_t * host_p2s_bitpar_buffer;
 extern std::vector<InternalLayerDescriptor> registry;
 extern InstrumentationData instrumentationData;
 #ifdef BISMORT_INSTRUMENTATION

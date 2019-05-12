@@ -31,10 +31,12 @@ void init() {
   // TODO set thresholdOCMBytesLeft from hwcfg
   // allocate shared buffer for p2s
   accel_p2s_bitpar_buffer = (uint32_t)(uint64_t) platform->allocAccelBuffer(BISMORT_P2S_BITPAR_BYTES);
+  host_p2s_bitpar_buffer = new uint8_t[BISMORT_P2S_BITPAR_BYTES];
 }
 
 void deinit() {
   delete acc;
+  delete [] host_p2s_bitpar_buffer;
   platform->deallocAccelBuffer((void *) accel_p2s_bitpar_buffer);
   deinitPlatform(platform);
 }

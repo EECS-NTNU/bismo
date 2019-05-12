@@ -3,6 +3,7 @@
 #include <string>
 namespace bismo_inference {
 uint32_t accel_p2s_bitpar_buffer;
+uint8_t * host_p2s_bitpar_buffer;
 
 // hardware-accelerated 8-bit-parallel to bit-serial conversion
 // the 8-bit is only the container datatype, can specify a smaller number
@@ -44,18 +45,17 @@ void p2s(
     throw "P2S accelerator does not yet support signed import";
   }
   // TODO optimization: allocate this only once
-  uint8_t * in_clean = new uint8_t[nbytes_bitpar_aligned];
+  uint8_t * host_p2s_bitpar_buffer = new uint8_t[nbytes_bitpar_aligned];
   // clean the p2s buffer if desired
   if(zeropad) {
     // hand in a "cleanly padded" buffer to p2s
-    memset(in_clean, 0, nbytes_bitpar_aligned);
+    memset(host_p2s_bitpar_buffer, 0, nbytes_bitpar_aligned);
   }
   // aligned copy the bit-parallel matrix into the accelerator
   for(size_t r = 0; r < nrows; r++) {
-    std::memcpy((void *)(in_clean + (r * nbytes_per_aligned_row)), (void *)&host_buf_src[r * nbytes_per_row], nbytes_per_row);
+    std::memcpy((void *)(host_p2s_bitpar_buffer + (r * nbytes_per_aligned_row)), (void *)&host_buf_src[r * nbytes_per_row], nbytes_per_row);
   }
-  platform->copyBufferHostToAccel((void *)in_clean, (void *)accel_p2s_bitpar_buffer, nbytes_bitpar_aligned);
-  delete [] in_clean;
+  platform->copyBufferHostToAccel((void *)host_p2s_bitpar_buffer, (void *)accel_p2s_bitpar_buffer, nbytes_bitpar_aligned);
   // setup and call the p2s hardware accelerator
   acc->setup_p2s(
     (void *)accel_p2s_bitpar_buffer,  // source buffer
