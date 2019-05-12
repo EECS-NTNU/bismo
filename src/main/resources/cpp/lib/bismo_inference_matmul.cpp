@@ -162,7 +162,7 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   } else {
     p2s(
       in, dsc.accel_buf_in, dsc.ctx.rhs.nrows, dsc.ctx.rhs.ncols,
-      dsc.ctx.rhs.nbits, dsc.ctx.rhs.issigned, false
+      dsc.ctx.rhs.nbits, dsc.ctx.rhs.issigned, false, cfg.dpaDimRHS
     );
     execMatMulLayer_Internal_RHSBitSerial(id, out);
   }
