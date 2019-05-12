@@ -46,6 +46,27 @@ class StandAloneP2SParams(
   }
 }
 
+class StreamingSignCorrection(myP: P2SKernelParams) extends Module {
+  val io = new Bundle {
+    val actualPrecision = UInt(width = log2Up(myP.maxInBw) + 1)
+    val signed = Bool(INPUT)
+    val in = Decoupled(UInt(width = myP.outStreamSize)).flip()
+    val out = Decoupled(UInt(width = myP.outStreamSize))
+  }
+
+  // TODO compute the value of the mask for other cases
+  Predef.assert(myP.maxInBw == 8)
+  Predef.assert(myP.nInElemPerWord == 8)
+  val sign_bitmask = UInt("h8080808080808080", width = myP.outStreamSize)
+  val sign_actual_prec = (io.in.bits & sign_bitmask) >> (UInt(myP.maxInBw) - io.actualPrecision)
+  io.out <> io.in
+  // override output bits depending on signedness
+  io.out.bits := Mux(io.signed, io.in.bits | sign_actual_prec, io.in.bits)
+  when(io.out.fire()) {
+    printf("[SignCorrection] signed? %d prec %x in %x out %x\n", io.signed, io.actualPrecision, io.in.bits, io.out.bits)
+  }
+}
+
 class P2SCmdIO(myP: P2SKernelParams) extends PrintableBundle {
   // DRAM base address for source (bit parallel) matrix
   val dramBaseAddrSrc = UInt(width = 32)
