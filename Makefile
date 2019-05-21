@@ -66,6 +66,8 @@ VERILOG_SRC_DIR := $(TOP)/src/main/verilog
 VHDL_SRC_DIR := $(TOP)/src/main/vhdl
 APP_SRC_DIR := $(TOP)/src/main/resources/cpp/app
 INFLIB_SRC_DIR := $(TOP)/src/main/resources/cpp/lib
+HLS_SRC_DIR := $(TOP)/src/main/resources/hls
+HLSTEST_SRC_DIR := $(TOP)/src/main/resources/hls/test
 VIVADO_IN_PATH := $(shell command -v vivado 2> /dev/null)
 CPPTEST_SRC_DIR := $(TOP)/src/test/cosim
 HW_VERILOG := $(BUILD_DIR_VERILOG)/$(PLATFORM)Wrapper.v
@@ -91,6 +93,15 @@ endif
 # run Scala/Chisel tests
 Test%:
 	$(SBT) $(SBT_FLAGS) "test-only $@"
+
+# run HLS (non-synthesis, software only) tests
+HLSTest%:
+	mkdir -p $(BUILD_DIR)/$@; \
+	cd $(BUILD_DIR)/$@; \
+	cp $(HLSTEST_SRC_DIR)/$@.cpp .; \
+	cp $(HLSTEST_SRC_DIR)/$*_TemplateDefs.hpp .; \
+	cp $(HLS_SRC_DIR)/$*.cpp .; \
+	g++ -std=c++11 -I$(INFLIB_SRC_DIR) -I$(HLS_SIM_INCL) *.cpp -o $@
 
 # run resource/Fmax characterization
 Characterize%:

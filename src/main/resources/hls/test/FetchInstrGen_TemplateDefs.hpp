@@ -1,0 +1,6 @@
+#define TEMPLATE_PARAM_M      2
+#define TEMPLATE_PARAM_K      64
+#define TEMPLATE_PARAM_N      2
+#define TEMPLATE_PARAM_ETF_S  1
+#define TEMPLATE_PARAM_LMEM   1024
+#define TEMPLATE_PARAM_RMEM   1024
