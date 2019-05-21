@@ -101,7 +101,9 @@ HLSTest%:
 	cp $(HLSTEST_SRC_DIR)/$@.cpp .; \
 	cp $(HLSTEST_SRC_DIR)/$*_TemplateDefs.hpp .; \
 	cp $(HLS_SRC_DIR)/$*.cpp .; \
-	g++ -std=c++11 -I$(INFLIB_SRC_DIR) -I$(HLS_SIM_INCL) *.cpp -o $@
+	cp $(INFLIB_SRC_DIR)/BISMOInstruction.cpp .; \
+	g++ -std=c++11 -I$(INFLIB_SRC_DIR) -I$(HLS_SIM_INCL) *.cpp -o $@; \
+	./$@
 
 # run resource/Fmax characterization
 Characterize%:
