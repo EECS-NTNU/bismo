@@ -251,7 +251,7 @@ struct SingleMMDescriptor {
   uint32_t dram_rhs;
   uint32_t dram_res;
 
-  ap_uint<BISMO_MMDESCR_BITS> asRaw() {
+  ap_uint<BISMO_MMDESCR_BITS> asRaw() const {
     ap_uint<BISMO_MMDESCR_BITS> raw = 0;
     raw(15, 0) = tiles_m;
     raw(31, 16) = tiles_k;
