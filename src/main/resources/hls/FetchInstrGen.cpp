@@ -71,8 +71,8 @@ io_section:{
   ap_wait();
 
   // mems are divided into regions to provide fetch-exec concurrency
-  const uint8_t rmem_num_regions = (1 << ins_in.nbufs_res);
-  const uint16_t rmem_region_size = (RMEM >> ins_in.nbufs_res);
+  const uint8_t rmem_num_regions = (1 << ins_in.nbufs_fetch_exec_log2);
+  const uint16_t rmem_region_size = (RMEM >> ins_in.nbufs_fetch_exec_log2);
   uint8_t rmem_region = 0;
   uint16_t rmem_region_offset = 0;
 

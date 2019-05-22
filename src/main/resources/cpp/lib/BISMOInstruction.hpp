@@ -245,7 +245,7 @@ struct SingleMMDescriptor {
   uint16_t base_r;
   uint8_t base_res;
   // number of buffers for latency hiding
-  uint8_t nbufs_res;
+  uint8_t nbufs_fetch_exec_log2;
   // base pointers for source and result matrices
   uint32_t dram_lhs;
   uint32_t dram_rhs;
@@ -263,7 +263,7 @@ struct SingleMMDescriptor {
     raw(79, 64) = base_l;
     raw(95, 80) = base_r;
     raw(103, 96) = base_res;
-    raw(111, 104) = nbufs_res;
+    raw(111, 104) = nbufs_fetch_exec_log2;
     raw(143, 112) = dram_lhs;
     raw(175, 144) = dram_rhs;
     raw(207, 176) = dram_res;
@@ -281,7 +281,7 @@ struct SingleMMDescriptor {
     base_l = raw(79, 64);
     base_r = raw(95, 80);
     base_res = raw(103, 96);
-    nbufs_res = raw(111, 104);
+    nbufs_fetch_exec_log2 = raw(111, 104);
     dram_lhs = raw(143, 112);
     dram_rhs = raw(175, 144);
     dram_res = raw(207, 176);

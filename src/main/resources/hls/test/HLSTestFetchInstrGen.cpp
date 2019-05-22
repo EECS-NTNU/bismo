@@ -85,7 +85,7 @@ bool TestFetchInstrGen() {
   desc.bits_r = 3;
   desc.base_l = 0;
   desc.base_r = 0;
-  desc.nbufs_res = 2;
+  desc.nbufs_fetch_exec_log2 = 2;
   desc.dram_lhs = 0;
   desc.dram_rhs = 1000;
   in.write(desc.asRaw());

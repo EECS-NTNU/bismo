@@ -87,7 +87,7 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
     instrgen_dsc.base_l = wbase;
     instrgen_dsc.base_r = abase;
     instrgen_dsc.base_res = 0;
-    instrgen_dsc.nbufs_res = FETCHEXEC_TOKENS_LOG2;
+    instrgen_dsc.nbufs_fetch_exec_log2 = FETCHEXEC_TOKENS_LOG2;
     // LHS already fetched, skip
     instrgen_dsc.dram_lhs = 0xffffffff;
     instrgen_dsc.dram_rhs = idsc.accel_buf_in;
