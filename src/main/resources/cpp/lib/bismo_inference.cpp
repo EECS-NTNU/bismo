@@ -6,9 +6,6 @@ TIMER_INIT();
 WrapperRegDriver * platform;
 BitSerialMatMulAccelDriver * acc;
 HardwareCfg cfg;
-uint32_t weightOCMBase, weightOCMBytesLeft;
-uint32_t activationOCMBase, activationOCMBytesLeft;
-uint32_t thresholdOCMBase, thresholdOCMBytesLeft;
 std::vector<InternalLayerDescriptor> registry;
 std::map<std::string,float> instrumentationData;
 
@@ -22,13 +19,6 @@ void init() {
   acc->init_resource_pools();
   acc->useDirectInstructionFeed();
   cfg = acc->hwcfg();
-  // initialize OCM resource pool from hwcfg
-  weightOCMBase = 0;
-  weightOCMBytesLeft = acc->get_lhs_total_BRAM_bytes();
-  activationOCMBase = 0;
-  activationOCMBytesLeft = acc->get_rhs_total_BRAM_bytes();
-  thresholdOCMBase = 0;
-  // TODO set thresholdOCMBytesLeft from hwcfg
   // allocate shared buffer for p2s
   accel_p2s_bitpar_buffer = (uint32_t)(uint64_t) platform->allocAccelBuffer(BISMORT_P2S_BITPAR_BYTES);
   host_p2s_bitpar_buffer = new uint8_t[BISMORT_P2S_BITPAR_BYTES];
@@ -78,45 +68,6 @@ HardwareConfig getHardwareConfig() {
   ret.rhsEntriesPerMem = cfg.rhsEntriesPerMem;
   ret.writeChanWidth = cfg.writeChanWidth;
   return ret;
-}
-
-uint32_t allocWeightOCM(size_t nbytes) {
-  // check if enough weight OCM is left
-  // TODO: if not enough space, fail gracefully to permit SW execution
-  BISMORT_DEBUG("[allocWeightOCM] alloc " << nbytes << ", available " << weightOCMBytesLeft);
-  if(nbytes > weightOCMBytesLeft) {
-    throw "Not enough LHS OCM bytes for workload";
-  }
-  // increment pointer to next available OCM slot
-  weightOCMBytesLeft -= nbytes;
-  uint32_t ret = weightOCMBase;
-  // convert bytes to LHS mem address
-  const size_t bytesPerWeightOCMEntry = (cfg.dpaDimLHS * cfg.dpaDimCommon) / 8;
-  weightOCMBase += nbytes / bytesPerWeightOCMEntry;
-  // return allocated base address
-  return ret;
-}
-
-uint32_t allocThresOCM(size_t nbytes) {
-  // check if enough threshold OCM is left
-  if(nbytes > thresholdOCMBytesLeft) {
-    throw "Not enough threshold OCM bytes for workload";
-  }
-  thresholdOCMBytesLeft -= nbytes;
-  // TODO implement allocThresOCM
-  // TOOD return allocated base address
-  return 0;
-}
-
-size_t getNumPartitionsForActivationOCM(size_t nbytes) {
-  // since we follow a strictly layer-by-layer strategy where only one
-  // layer executes at a time, we simply use the same OCM buffer for all layers
-  // see how many partitions we need
-  size_t aligned_nbytes = gemmbitserial::alignTo(nbytes, activationOCMBytesLeft);
-  size_t n_partitions = aligned_nbytes / activationOCMBytesLeft;
-  BISMORT_DEBUG("[getNumPartitionsForActivationOCM] alloc " << nbytes << ", available " << activationOCMBytesLeft);
-  BISMORT_DEBUG("[getNumPartitionsForActivationOCM] n_partitions " << n_partitions);
-  return n_partitions;
 }
 
 void genFetchInstrs(

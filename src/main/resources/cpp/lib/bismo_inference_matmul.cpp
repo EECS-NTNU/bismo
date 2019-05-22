@@ -41,7 +41,7 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
     size_t abytes_workload_total = ctx.rhs.wordsPerBitplane() * ctx.rhs.nbits * sizeof(PackedBitGroupType);
     // must have room for at least one stripe per bit position, as this is the
     // granularity we at which we do RHS tiling
-    bool rhs_tile_fits_in_ocm = activationOCMBytesLeft >= FETCHEXEC_TOKENS*(ctx.rhs.nbits * ctx.rhs.wordsPerRow() * cfg.dpaDimRHS * sizeof(PackedBitGroupType));
+    bool rhs_tile_fits_in_ocm = (acc->get_rhs_total_BRAM_bytes()) >= FETCHEXEC_TOKENS*(ctx.rhs.nbits * ctx.rhs.wordsPerRow() * cfg.dpaDimRHS * sizeof(PackedBitGroupType));
     bool rhs_tile_is_one_fetchblock = (ctx.rhs.nbits * ctx.rhs.wordsPerRow() * cfg.dpaDimRHS * sizeof(PackedBitGroupType)) <= FETCH_BLOCK_MAX;
     if(!rhs_tile_is_one_fetchblock || !rhs_tile_fits_in_ocm) {
       throw "RHS tile is too large and not currently supported in current BISMO";

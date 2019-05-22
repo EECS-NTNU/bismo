@@ -78,9 +78,6 @@ typedef struct {
 extern WrapperRegDriver * platform;
 extern BitSerialMatMulAccelDriver * acc;
 extern HardwareCfg cfg;
-extern uint32_t weightOCMBase, weightOCMBytesLeft;
-extern uint32_t activationOCMBase, activationOCMBytesLeft;
-extern uint32_t thresholdOCMBase, thresholdOCMBytesLeft;
 extern uint32_t accel_p2s_bitpar_buffer;
 extern uint8_t * host_p2s_bitpar_buffer;
 extern std::vector<InternalLayerDescriptor> registry;
@@ -89,9 +86,6 @@ extern InstrumentationData instrumentationData;
 extern std::chrono::time_point<std::chrono::high_resolution_clock> time_prev, time_now;
 #endif
 // internal helper functions
-uint32_t allocWeightOCM(size_t nbytes);
-uint32_t allocThresOCM(size_t nbytes);
-size_t getNumPartitionsForActivationOCM(size_t nbytes);
 void genFetchInstrs(
   std::vector<BISMOInstruction> & ins,
   size_t bram_base,
