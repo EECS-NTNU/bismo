@@ -75,6 +75,34 @@ io_section:{
   const uint16_t rmem_region_size = (RMEM >> ins_in.nbufs_fetch_exec_log2);
   uint8_t rmem_region = 0;
   uint16_t rmem_region_offset = 0;
+  const int first_lhs_id = 0;
+  const int first_rhs_id = M;
+  const int bytes_per_rhs_tile = (N * K) / 8;
+  const int bytes_per_lhs_tile = (M * K) / 8;
+
+  // LHS tiling pipe cleaner: assume a single fetch is enough to cover the
+  // entire LHS matrix, no sync
+  // each bit position is one block
+  fetch.dram_block_count = ins_in.bits_l;
+  // each block is a group of Dn rows' worth of bits
+  fetch.dram_block_size_bytes = ins_in.tiles_m * ins_in.tiles_k * bytes_per_lhs_tile;;
+  // block stride/skip is one bit position worth of bits
+  fetch.dram_block_offset_bytes = ins_in.tiles_m * ins_in.tiles_k * bytes_per_lhs_tile;
+  // IMPORTANT TODO: put in SW assertions around sizes of these, especially
+  // dram_block_offset_bytes! other option is to generate one
+  // fetch instruction per bit position...
+  // DRAM base address for LHS
+  fetch.dram_base = ins_in.dram_lhs;
+  fetch.bram_addr_base = ins_in.base_l << ETF_S;
+  fetch.bram_id_start = first_lhs_id;
+  // ID range of BRAM: 0 for LHS, 1 for RHS
+  fetch.bram_id_range = 0;
+  // how many DRAM data words are copied before the
+  // fetch interconnect starts targeting the next BRAM
+  fetch.tiles_per_row = ins_in.tiles_k << ETF_S;
+  // emit fetch instruction for LHS matrix
+  out.write(fetch.asRaw());
+  ap_wait();
 
   for(uint16_t n = 0; n < ins_in.tiles_n; n++) {
     // start by acquiring buffer to fill
@@ -83,14 +111,6 @@ io_section:{
     sync.chanID = 0;
     out.write(sync.asRaw());
     ap_wait();
-
-    // do not fetch LHS; assume already fetched
-    // create fetch instruction for all bit positions of
-    // current RHS slice
-    const int first_lhs_id = 0;
-    const int first_rhs_id = M;
-    const int bytes_per_rhs_tile = (N * K) / 8;
-
     // each bit position is one block
     fetch.dram_block_count = ins_in.bits_r;
     // each block is a group of Dn rows' worth of bits
@@ -102,8 +122,6 @@ io_section:{
     // fetch instruction per bit position...
     // DRAM base address for LHS
     fetch.dram_base = ins_in.dram_rhs + n * ins_in.tiles_k * bytes_per_rhs_tile;
-
-
     fetch.bram_addr_base = (ins_in.base_r + rmem_region_offset) << ETF_S;
     fetch.bram_id_start = first_rhs_id;
     fetch.bram_id_range = 1;
