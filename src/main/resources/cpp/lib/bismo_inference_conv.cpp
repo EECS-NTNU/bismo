@@ -27,12 +27,12 @@ LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights, bo
   idsc.cpu_only = cpu_only;
   idsc.cnv_ctx = ctx;
   idsc.ctx = ctx.gemmctx;
-  idsc.nbytes_buf_in = 0;
+  idsc.nbytes_buf_in_lhs = 0;
+  idsc.nbytes_buf_in_rhs = 0;
   idsc.nbytes_buf_out = 0;
   idsc.cnv_dsc = dsc;
-  idsc.wbase = 0;
-  idsc.abase = 0;
-  idsc.accel_buf_in = 0;
+  idsc.accel_buf_in_lhs = 0;
+  idsc.accel_buf_in_rhs = 0;
   idsc.accel_buf_out = 0;
   if(cpu_only) {
     // no further prep needed for cpu-only bit serial convs

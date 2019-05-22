@@ -30,14 +30,12 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
   idsc.mm_dsc = dsc;
   if(cpu_only) {
     // set unused fields to 0 for cpu only bsmatmul
-    idsc.wbase = 0;
-    idsc.wbytes = 0;
-    idsc.abase = 0;
-    idsc.nbytes_buf_in = 0;
+    idsc.nbytes_buf_in_rhs = 0;
+    idsc.nbytes_buf_in_lhs = 0;
     idsc.nbytes_buf_out = 0;
     idsc.padded_result_host_buffer = 0;
-    idsc.accel_lhs_ptr = 0;
-    idsc.accel_buf_in = 0;
+    idsc.accel_buf_in_lhs = 0;
+    idsc.accel_buf_in_rhs = 0;
     idsc.accel_buf_out = 0;
   } else {
     size_t abytes_workload_total = ctx.rhs.wordsPerBitplane() * ctx.rhs.nbits * sizeof(PackedBitGroupType);
@@ -48,11 +46,10 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
     if(!rhs_tile_is_one_fetchblock || !rhs_tile_fits_in_ocm) {
       throw "RHS tile is too large and not currently supported in current BISMO";
     }
+    // TODO perform size check for LHS tile similar to RHS above
     size_t wbytes = ctx.lhs.wordsPerBitplane() * ctx.lhs.nbits * sizeof(PackedBitGroupType);
     size_t abytes = ctx.rhs.wordsPerBitplane() * ctx.rhs.nbits * sizeof(PackedBitGroupType);
     size_t resbytes = ctx.lhs.nrows_a * ctx.rhs.nrows_a * sizeof(AccumType);
-    uint32_t wbase = allocWeightOCM(wbytes);
-    uint32_t abase = 0; // all activations use the same OCM buffer
     const size_t lhs_tiles = ctx.lhs.nrows_a /  cfg.dpaDimLHS;
     const size_t rhs_tiles = ctx.rhs.nrows_a /  cfg.dpaDimRHS;
     const size_t k_tiles = ctx.rhs.ncols_a /  cfg.dpaDimCommon;
@@ -61,18 +58,15 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
     const bool wsigned = ctx.lhs.issigned;
     const bool asigned = ctx.rhs.issigned;
     // fill out rest of descriptor
-    idsc.wbase = wbase;
-    idsc.wbytes = wbytes;
-    idsc.abase = abase;
-    idsc.nbytes_buf_in = abytes;
+    idsc.nbytes_buf_in_rhs = abytes;
+    idsc.nbytes_buf_in_lhs = wbytes;
     idsc.nbytes_buf_out = ctx.lhs.nrows_a * ctx.rhs.nrows_a * sizeof(AccumType) ;
     idsc.padded_result_host_buffer = new AccumType[ctx.lhs.nrows_a * ctx.rhs.nrows_a];
-    idsc.accel_lhs_ptr = (uint32_t)(uint64_t)platform->allocAccelBuffer(wbytes);
-    idsc.accel_buf_in = (uint32_t)(uint64_t)platform->allocAccelBuffer(abytes);
-    // TODO optimization: can use common buffer for all results, since 1 layer
-    // at a time
+    idsc.accel_buf_in_lhs = (uint32_t)(uint64_t)platform->allocAccelBuffer(wbytes);
+    idsc.accel_buf_in_rhs = (uint32_t)(uint64_t)platform->allocAccelBuffer(abytes);
     idsc.accel_buf_out = (uint32_t)(uint64_t)platform->allocAccelBuffer(resbytes);
-    BISMORT_DEBUG("[initMatMulLayer] accel_buf_in: " << (idsc.accel_buf_in) << " for " << abytes << " bytes");
+    BISMORT_DEBUG("[initMatMulLayer] accel_buf_in_lhs: " << (idsc.accel_buf_in_lhs) << " for " << wbytes << " bytes");
+    BISMORT_DEBUG("[initMatMulLayer] accel_buf_in_rhs: " << (idsc.accel_buf_in_rhs) << " for " << abytes << " bytes");
     BISMORT_DEBUG("[initMatMulLayer] accel_buf_out: " << (idsc.accel_buf_out) << " for " << resbytes << " bytes");
     // fill out descriptor for matmul
     // create an instruction generation descriptor
@@ -84,13 +78,12 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
     instrgen_dsc.bits_r = abits;
     instrgen_dsc.signed_l = wsigned;
     instrgen_dsc.signed_r = asigned;
-    instrgen_dsc.base_l = wbase;
-    instrgen_dsc.base_r = abase;
+    instrgen_dsc.base_l = 0;
+    instrgen_dsc.base_r = 0;
     instrgen_dsc.base_res = 0;
     instrgen_dsc.nbufs_fetch_exec_log2 = FETCHEXEC_TOKENS_LOG2;
-    // LHS already fetched, skip
-    instrgen_dsc.dram_lhs = 0xffffffff;
-    instrgen_dsc.dram_rhs = idsc.accel_buf_in;
+    instrgen_dsc.dram_lhs = idsc.accel_buf_in_lhs;
+    instrgen_dsc.dram_rhs = idsc.accel_buf_in_rhs;
     instrgen_dsc.dram_res = idsc.accel_buf_out;
     idsc.instrgen_dsc = instrgen_dsc;
   }
@@ -116,9 +109,8 @@ void configMatMulLayer_Internal_SetLHS(LayerHandle id, gemmbitserial::BitSerialM
   // allocate DRAM buffer and copy bit-serial weights there
   // TODO optimization: can use a single DRAM buffer whose size is the largest
   // weight buffer since this is done only once per layer
-  uint32_t accel_lhs_ptr = dsc.accel_lhs_ptr;
-  const size_t wbytes = dsc.wbytes;
-  const size_t wbase = dsc.wbase;
+  uint32_t accel_buf_in_lhs = dsc.accel_buf_in_lhs;
+  const size_t wbytes = dsc.nbytes_buf_in_lhs;
 #ifdef DEBUG
   BISMORT_DEBUG("[configMatMulLayer_Internal_SetLHS] Source matrix:");
   mat.printSummary();
@@ -128,10 +120,13 @@ void configMatMulLayer_Internal_SetLHS(LayerHandle id, gemmbitserial::BitSerialM
   if(dsc.ctx.lhs.data != mat.data) {
     dsc.ctx.lhs.copyFrom(mat);
   }
-  platform->copyBufferHostToAccel((void *)dsc.ctx.lhs.data, (void *)accel_lhs_ptr, wbytes);
+  platform->copyBufferHostToAccel((void *)dsc.ctx.lhs.data, (void *)accel_buf_in_lhs, wbytes);
+  // TODO: commented out, matmul won't work properly until LHS tiling is
+  // implemented inside the generators
+  /*
   // create instruction sequence to fetch weights into OCM
   std::vector<BISMOInstruction> instrFetchWeights;
-  genFetchInstrs(instrFetchWeights, wbase, true, accel_lhs_ptr, mat.ncols_a / cfg.dpaDimCommon, wbytes);
+  genFetchInstrs(instrFetchWeights, wbase, true, accel_buf_in_lhs, mat.ncols_a / cfg.dpaDimCommon, wbytes);
   acc->set_stage_enables(0, 0, 0);
   for(auto & fi : instrFetchWeights) {
     acc->pushInstruction(fi);
@@ -143,6 +138,7 @@ void configMatMulLayer_Internal_SetLHS(LayerHandle id, gemmbitserial::BitSerialM
     //BISMORT_DEBUG("[initMatMulLayer] waiting for weight init, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
   };
   acc->set_stage_enables(0, 0, 0);
+  */
   BISMORT_DEBUG("[configMatMulLayer_Internal_SetLHS] weight init done");
   TIMER_SAMPLE();
   TIMER_REPORT("cpu_setLHS");
@@ -161,7 +157,7 @@ void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
     memcpy(out, dsc.ctx.res, sizeof(int32_t)*dsc.ctx.lhs.nrows*dsc.ctx.rhs.nrows);
   } else {
     p2s(
-      in, dsc.accel_buf_in, dsc.ctx.rhs.nrows, dsc.ctx.rhs.ncols,
+      in, dsc.accel_buf_in_rhs, dsc.ctx.rhs.nrows, dsc.ctx.rhs.ncols,
       dsc.ctx.rhs.nbits, dsc.ctx.rhs.issigned, false, cfg.dpaDimRHS
     );
     execMatMulLayer_Internal_RHSBitSerial(id, out);

@@ -34,20 +34,18 @@ typedef enum {layerMatMul, layerConv, layerThres} InternalLayerType;
 typedef int32_t AccumType;
 typedef struct {
   InternalLayerType layerType;
-  uint32_t accel_buf_in;
+  uint32_t accel_buf_in_lhs;
+  uint32_t accel_buf_in_rhs;
   uint32_t accel_buf_out;
-  uint32_t accel_lhs_ptr;
   // actual workload
   gemmbitserial::GEMMContext ctx;
   gemmbitserial::ConvBitSerialContext cnv_ctx;
-  size_t nbytes_buf_in;
+  size_t nbytes_buf_in_lhs;
+  size_t nbytes_buf_in_rhs;
   size_t nbytes_buf_out;
   MatMulLayerDescriptor mm_dsc;
   ConvLayerDescriptor cnv_dsc;
   ThresLayerDescriptor thr_dsc;
-  size_t wbase;
-  size_t wbytes;
-  size_t abase;
   SingleMMDescriptor instrgen_dsc;
   AccumType * padded_result_host_buffer;
   AccumType * transpose_result_host_buffer;

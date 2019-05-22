@@ -184,8 +184,8 @@ void deinitLayer(LayerHandle id) {
       // dealloc associated sw gemmbitserial context
       gemmbitserial::deallocGEMMContext(dsc.ctx);
       if(!dsc.cpu_only) {
-        platform->deallocAccelBuffer((void *) dsc.accel_lhs_ptr);
-        platform->deallocAccelBuffer((void *) dsc.accel_buf_in);
+        platform->deallocAccelBuffer((void *) dsc.accel_buf_in_lhs);
+        platform->deallocAccelBuffer((void *) dsc.accel_buf_in_rhs);
         platform->deallocAccelBuffer((void *) dsc.accel_buf_out);
         delete [] dsc.padded_result_host_buffer;
       }
