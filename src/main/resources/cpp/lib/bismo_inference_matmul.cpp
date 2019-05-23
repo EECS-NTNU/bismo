@@ -38,15 +38,18 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights
     idsc.accel_buf_in_rhs = 0;
     idsc.accel_buf_out = 0;
   } else {
-    size_t abytes_workload_total = ctx.rhs.wordsPerBitplane() * ctx.rhs.nbits * sizeof(PackedBitGroupType);
     // must have room for at least one stripe per bit position, as this is the
     // granularity we at which we do RHS tiling
     bool rhs_tile_fits_in_ocm = (acc->get_rhs_total_BRAM_bytes()) >= FETCHEXEC_TOKENS*(ctx.rhs.nbits * ctx.rhs.wordsPerRow() * cfg.dpaDimRHS * sizeof(PackedBitGroupType));
     bool rhs_tile_is_one_fetchblock = (ctx.rhs.nbits * ctx.rhs.wordsPerRow() * cfg.dpaDimRHS * sizeof(PackedBitGroupType)) <= FETCH_BLOCK_MAX;
     if(!rhs_tile_is_one_fetchblock || !rhs_tile_fits_in_ocm) {
-      throw "RHS tile is too large and not currently supported in current BISMO";
+      throw "RHS tile is too large and not currently supported in runtime library.";
     }
-    // TODO perform size check for LHS tile similar to RHS above
+    bool lhs_tile_fits_in_ocm = (acc->get_lhs_total_BRAM_bytes()) >= FETCHEXEC_TOKENS*(ctx.lhs.nbits * ctx.lhs.wordsPerRow() * cfg.dpaDimLHS * sizeof(PackedBitGroupType));
+    bool lhs_tile_is_one_fetchblock = (ctx.lhs.nbits * ctx.lhs.wordsPerRow() * cfg.dpaDimLHS * sizeof(PackedBitGroupType)) <= FETCH_BLOCK_MAX;
+    if(!lhs_tile_is_one_fetchblock || !lhs_tile_fits_in_ocm) {
+      throw "LHS tile is too large and not currently supported in runtime library.";
+    }
     size_t wbytes = ctx.lhs.wordsPerBitplane() * ctx.lhs.nbits * sizeof(PackedBitGroupType);
     size_t abytes = ctx.rhs.wordsPerBitplane() * ctx.rhs.nbits * sizeof(PackedBitGroupType);
     size_t resbytes = ctx.lhs.nrows_a * ctx.rhs.nrows_a * sizeof(AccumType);
