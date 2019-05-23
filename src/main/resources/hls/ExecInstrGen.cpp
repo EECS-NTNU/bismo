@@ -116,10 +116,7 @@ io_section:{
     const bool neg_r = rbit_last && ins_in.signed_r;
     bool negate = neg_l ^ neg_r;
     // TODO consider removing mults here, use mod counters
-    // TODO tweak base addresses for F-E concurrency
-    const uint16_t offset_l = ins_in.tiles_k * (m + l * ins_in.tiles_m);
-    // note that we don't use tiles_n and n here -- always operate on a single
-    // bit stripe of rhs while on chip
+    const uint16_t offset_l = ins_in.tiles_k * l;
     const uint16_t offset_r = ins_in.tiles_k * r;
     exec.lhsOffset = (ins_in.base_l + lmem_region_offset + offset_l) << ETF_S;
     exec.rhsOffset = (ins_in.base_r + offset_r) << ETF_S;
