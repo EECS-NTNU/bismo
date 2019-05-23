@@ -75,77 +75,111 @@ io_section:{
   const uint16_t lmem_region_size = (LMEM >> ins_in.nbufs_fetch_exec_log2);
   uint8_t lmem_region = 0;
   uint16_t lmem_region_offset = 0;
+
+  const uint8_t rmem_num_regions = (1 << ins_in.nbufs_fetch_exec_log2);
+  const uint16_t rmem_region_size = (RMEM >> ins_in.nbufs_fetch_exec_log2);
+  uint8_t rmem_region = 0;
+  uint16_t rmem_region_offset = 0;
+
   const int first_lhs_id = 0;
   const int first_rhs_id = M;
   const int bytes_per_rhs_tile = (N * K) / 8;
   const int bytes_per_lhs_tile = (M * K) / 8;
 
-  for(uint16_t n = 0; n < ins_in.tiles_n; n++) {
-    // no sync for the outer loop, it's implicit from the inner loop sync
-    // fill RHS buffer
-    // each bit position is one block
-    fetch.dram_block_count = ins_in.bits_r;
-    // each block is a group of Dn rows' worth of bits
-    fetch.dram_block_size_bytes = ins_in.tiles_k * bytes_per_rhs_tile;
-    // block stride/skip is one bit position worth of bits
-    fetch.dram_block_offset_bytes = ins_in.tiles_n * ins_in.tiles_k * bytes_per_rhs_tile;
-    // IMPORTANT TODO: put in SW assertions around sizes of these, especially
-    // dram_block_offset_bytes! other option is to generate one
-    // fetch instruction per bit position...
-    // DRAM base address for LHS
-    fetch.dram_base = ins_in.dram_rhs + n * ins_in.tiles_k * bytes_per_rhs_tile;
-    fetch.bram_addr_base = ins_in.base_r << ETF_S;
-    fetch.bram_id_start = first_rhs_id;
-    // ID range of BRAM: 0 for LHS, 1 for RHS
-    fetch.bram_id_range = 1;
-    // how many DRAM data words are copied before the
-    // fetch interconnect starts targeting the next BRAM
-    fetch.tiles_per_row = ins_in.tiles_k << ETF_S;
-    // emit fetch instruction for RHS matrix
-    out.write(fetch.asRaw());
-    ap_wait();
-    for(uint16_t m = 0; m < ins_in.tiles_m; m++) {
-      // receive token from execute stage
+  // compute the size of the iteration space
+  const size_t total_iters = ins_in.tiles_m * ins_in.tiles_n;
+  uint16_t n = 0, m = 0;
+
+  for(uint16_t i = 0; i < total_iters; i++) {
+    if(m == 0) {
+      // receive token from execute stage representing RHS buf
       sync.isSendToken = 0;
       sync.chanID = 0;
       out.write(sync.asRaw());
       ap_wait();
-
-      // fill LHS buffer
+      // fill RHS buffer
       // each bit position is one block
-      fetch.dram_block_count = ins_in.bits_l;
-      // each block is a group of Dm rows' worth of bits
-      fetch.dram_block_size_bytes = ins_in.tiles_k * bytes_per_lhs_tile;
+      fetch.dram_block_count = ins_in.bits_r;
+      // each block is a group of Dn rows' worth of bits
+      fetch.dram_block_size_bytes = ins_in.tiles_k * bytes_per_rhs_tile;
       // block stride/skip is one bit position worth of bits
-      fetch.dram_block_offset_bytes = ins_in.tiles_m * ins_in.tiles_k * bytes_per_lhs_tile;
+      fetch.dram_block_offset_bytes = ins_in.tiles_n * ins_in.tiles_k * bytes_per_rhs_tile;
       // IMPORTANT TODO: put in SW assertions around sizes of these, especially
       // dram_block_offset_bytes! other option is to generate one
       // fetch instruction per bit position...
       // DRAM base address for LHS
-      fetch.dram_base = ins_in.dram_lhs + m * ins_in.tiles_k * bytes_per_lhs_tile;
-      fetch.bram_addr_base = (ins_in.base_l + lmem_region_offset) << ETF_S;
-      fetch.bram_id_start = first_lhs_id;
+      fetch.dram_base = ins_in.dram_rhs + n * ins_in.tiles_k * bytes_per_rhs_tile;
+      // note: no buffer regions for RHS tiles
+      fetch.bram_addr_base = (ins_in.base_r + rmem_region_offset) << ETF_S;
+      fetch.bram_id_start = first_rhs_id;
       // ID range of BRAM: 0 for LHS, 1 for RHS
-      fetch.bram_id_range = 0;
+      fetch.bram_id_range = 1;
       // how many DRAM data words are copied before the
       // fetch interconnect starts targeting the next BRAM
       fetch.tiles_per_row = ins_in.tiles_k << ETF_S;
       // emit fetch instruction for RHS matrix
       out.write(fetch.asRaw());
       ap_wait();
-
-      // signal that LHS-RHS buffer combo is now filled
+      // signal that RHS buffer now filled
       // send token to execute stage
       sync.isSendToken = 1;
       sync.chanID = 0;
       out.write(sync.asRaw());
+      // use the next rmem region for following fetch
+      rmem_region++;
+      rmem_region_offset += rmem_region_size;
+      if(rmem_region == rmem_num_regions) {
+        rmem_region = 0;
+        rmem_region_offset = 0;
+      }
+    }
+    // receive token from execute stage representing LHS buf
+    sync.isSendToken = 0;
+    sync.chanID = 0;
+    out.write(sync.asRaw());
+    ap_wait();
+    // fill LHS buffer
+    // each bit position is one block
+    fetch.dram_block_count = ins_in.bits_l;
+    // each block is a group of Dm rows' worth of bits
+    fetch.dram_block_size_bytes = ins_in.tiles_k * bytes_per_lhs_tile;
+    // block stride/skip is one bit position worth of bits
+    fetch.dram_block_offset_bytes = ins_in.tiles_m * ins_in.tiles_k * bytes_per_lhs_tile;
+    // IMPORTANT TODO: put in SW assertions around sizes of these, especially
+    // dram_block_offset_bytes! other option is to generate one
+    // fetch instruction per bit position...
+    // DRAM base address for LHS
+    fetch.dram_base = ins_in.dram_lhs + m * ins_in.tiles_k * bytes_per_lhs_tile;
+    fetch.bram_addr_base = (ins_in.base_l + lmem_region_offset) << ETF_S;
+    fetch.bram_id_start = first_lhs_id;
+    // ID range of BRAM: 0 for LHS, 1 for RHS
+    fetch.bram_id_range = 0;
+    // how many DRAM data words are copied before the
+    // fetch interconnect starts targeting the next BRAM
+    fetch.tiles_per_row = ins_in.tiles_k << ETF_S;
+    // emit fetch instruction for RHS matrix
+    out.write(fetch.asRaw());
+    ap_wait();
+    // signal that LHS buffer now filled
+    // send token to execute stage
+    sync.isSendToken = 1;
+    sync.chanID = 0;
+    out.write(sync.asRaw());
 
-      // use the next lmem region for following fetch
-      lmem_region++;
-      lmem_region_offset += lmem_region_size;
-      if(lmem_region == lmem_num_regions) {
-        lmem_region = 0;
-        lmem_region_offset = 0;
+    // use the next lmem region for following fetch
+    lmem_region++;
+    lmem_region_offset += lmem_region_size;
+    if(lmem_region == lmem_num_regions) {
+      lmem_region = 0;
+      lmem_region_offset = 0;
+    }
+    // iteration tracking logic: nested loops over tiles
+    m++;
+    if(m == ins_in.tiles_m) {
+      m = 0;
+      n++;
+      if(n == ins_in.tiles_n) {
+        n = 0;
       }
     }
   }
