@@ -50,7 +50,17 @@ size_t InternalLayerDescriptor::resBytes() const {
 }
 
 size_t InternalLayerDescriptor::getNumBytesToFetch() const {
-  return rhsBytes();
+  // note that the number of bytes to fetch depends on the tiling strategy
+  // our current tiling strategy looks like this:
+  // (see FetchInstrGen.cpp for HLS implementation)
+  // foreach n in n_tiles:
+  //    load slice n into on-chip memory
+  //    foreach m in m_tiles:
+  //      load slice m into on-chip memory
+  //      process the loaded slices
+  // m is slices of the LHS matrix and n is slices of the RHS matrix
+  // thus, RHS gets loaded only once, but LHS is loaded multiple (n_tiles) times
+  return rhsBytes() + (lhsBytes() * instrgen_dsc.tiles_n);
 }
 
 size_t InternalLayerDescriptor::getNumBytesToWrite() const {
