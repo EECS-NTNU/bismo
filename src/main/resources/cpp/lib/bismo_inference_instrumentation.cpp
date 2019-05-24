@@ -92,6 +92,14 @@ float InternalLayerDescriptor::getWorkloadWriteOI() const {
   return getWorkloadBinaryOpCount(true) / (resBytes());
 }
 
+float InternalLayerDescriptor::getActualReadOI() const {
+  return getWorkloadBinaryOpCount(true) / (getNumBytesToFetch());
+}
+
+float InternalLayerDescriptor::getActualWriteOI() const {
+  return getWorkloadBinaryOpCount(true) / (getNumBytesToWrite());
+}
+
 float InternalLayerDescriptor::getWorkloadOI() const {
   return getWorkloadBinaryOpCount(true) / (lhsBytes() + rhsBytes() + resBytes());
 }
@@ -125,6 +133,8 @@ void InternalLayerDescriptor::printPerfSummary() {
   instrumentationData["hw_fclk_mhz"] = acc->fclk_MHz();
   instrumentationData["workload_read_oi"] = getWorkloadReadOI();
   instrumentationData["workload_write_oi"] = getWorkloadWriteOI();
+  instrumentationData["actual_read_oi"] = getActualReadOI();
+  instrumentationData["actual_write_oi"] = getActualWriteOI();
   instrumentationData["hw_peak_read_oi"] = getHWCompBoundReadOI();
   instrumentationData["hw_peak_write_oi"] = getHWCompBoundWriteOI();
   instrumentationData["run_cycles"] = getLastRuntimeCycles();
@@ -132,21 +142,23 @@ void InternalLayerDescriptor::printPerfSummary() {
 #ifdef BISMORT_INSTRUMENTATION_VERBOSE
   std::cout << "Performance Summary ====================================" << std::endl;
   std::cout << "Total workload: " << instrumentationData["workload_total_binops"] << " binary ops" << std::endl;
-  std::cout << "Actual workload: " << instrumentationData["workload_actual_binops"] << " binary ops ";
+  std::cout << "Useful workload: " << instrumentationData["workload_actual_binops"] << " binary ops ";
   std::cout << "(" << 100*instrumentationData["workload_total_binops"]/instrumentationData["workload_actual_binops"] << "%)" << std::endl;
   std::cout << "Input matrix bytes: LHS " << instrumentationData["workload_lhs_bytes"] << " RHS " << instrumentationData["workload_rhs_bytes"] << std::endl;
   std::cout << "Result matrix bytes: " << instrumentationData["workload_res_bytes"] << std::endl;
   std::cout << "HW input matrix buffer bytes: " << instrumentationData["hw_buf_size_bytes"] << std::endl;
   std::cout << "HW peak perf: " << instrumentationData["hw_peak_perf_binops"] << " binary GOPS" << std::endl;
   std::cout << "HW fclk: " << instrumentationData["hw_fclk_mhz"] << " MHz" << std::endl;
-  std::cout << "Runtime: " << instrumentationData["run_cycles"] << " cycles, ";
-  std::cout << getLastRuntimeNanoseconds() << " ns" << std::endl;
-  std::cout << "Achieved: " << instrumentationData["run_achieved_binops"] << " binary GOPS (";
-  std::cout << 100*instrumentationData["run_achieved_binops"] / instrumentationData["hw_peak_perf_binops"] << "%)" << std::endl;
   std::cout << "Workload OI read: " << instrumentationData["workload_read_oi"];
   std::cout << " write: " << instrumentationData["workload_write_oi"] << std::endl;
+  std::cout << "Implementation OI read: " << instrumentationData["actual_read_oi"];
+  std::cout << " write: " << instrumentationData["actual_write_oi"] << std::endl;
   std::cout << "HW comp-bound OI read: " << instrumentationData["hw_peak_read_oi"];
   std::cout << " write: " << instrumentationData["hw_peak_write_oi"] << std::endl;
+  std::cout << "Achieved: " << instrumentationData["run_achieved_binops"] << " binary GOPS (";
+  std::cout << 100*instrumentationData["run_achieved_binops"] / instrumentationData["hw_peak_perf_binops"] << "%)" << std::endl;
+  std::cout << "Runtime: " << instrumentationData["run_cycles"] << " cycles, ";
+  std::cout << getLastRuntimeNanoseconds() << " ns" << std::endl;
   std::cout << "========================================================" << std::endl;
 #endif
 }

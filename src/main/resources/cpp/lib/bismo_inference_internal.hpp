@@ -61,6 +61,8 @@ typedef struct {
   float getWorkloadOpCount(bool inclPadding = true) const;
   float getWorkloadBinaryOpCount(bool inclPadding = true) const;
   float getLastRunBinaryGOPS(bool inclPadding = true) const;
+  float getActualReadOI() const;
+  float getActualWriteOI() const;
   float getWorkloadReadOI() const;
   float getWorkloadWriteOI() const;
   float getWorkloadOI() const;
