@@ -46,7 +46,7 @@
 #define ASSERT_BITS(v,b)  assert(v <= (((uint64_t)1 << b) - 1));
 
 #define CMDFIFO_CAP               16
-#define FETCHEXEC_TOKENS_LOG2     1
+#define FETCHEXEC_TOKENS_LOG2     2
 #define FETCHEXEC_TOKENS          (1 << FETCHEXEC_TOKENS_LOG2)
 #define EXECRES_TOKENS            2
 #define N_CTRL_STATES             4
