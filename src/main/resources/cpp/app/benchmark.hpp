@@ -35,10 +35,12 @@ using namespace std;
 #include "gemmbitserial/test/testhelpers.hpp"
 #include "bismo_inference.hpp"
 
+const char * delimiter = ", ";
+
 void printInstrumentationHeaders(bismo_inference::InstrumentationData & data) {
   bismo_inference::InstrumentationData::iterator it;
   for(it = data.begin(); it != data.end(); it++) {
-    cout << it->first << "\t";
+    cout << it->first << delimiter;
   }
   cout << endl;
 }
@@ -46,7 +48,7 @@ void printInstrumentationHeaders(bismo_inference::InstrumentationData & data) {
 void printInstrumentationData(bismo_inference::InstrumentationData & data) {
   bismo_inference::InstrumentationData::iterator it;
   for(it = data.begin(); it != data.end(); it++) {
-    cout << it->second << "\t";
+    cout << it->second << delimiter;
   }
   cout << endl;
 }
