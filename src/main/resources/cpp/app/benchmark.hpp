@@ -136,3 +136,22 @@ void benchmark_gemm_interactive() {
     printInstrumentationData(ret);
   }
 }
+
+void benchmark_gemm_batch() {
+  bool headers_printed = false;
+  while(1) {
+    int rows, depth, cols, lhsbits, rhsbits;
+    cin >> rows;
+    if(rows == 0) {
+      return;
+    }
+    cin >> depth >> cols;
+    cin >> lhsbits >> rhsbits;
+    bismo_inference::InstrumentationData ret = run_benchmark_matmul(rows, cols, depth, lhsbits, rhsbits);
+    if(!headers_printed) {
+      printInstrumentationHeaders(ret);
+      headers_printed = true;
+    }
+    printInstrumentationData(ret);
+  }
+}

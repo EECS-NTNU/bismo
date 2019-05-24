@@ -35,13 +35,19 @@
 int main(int argc, char const *argv[]) {
   try {
     if(argc != 2) {
-      cout << "Run with cmdline argument c to run CaffeNet benchmarking, i to run interactive benchmarking, t to run tests" << endl;
+      cout << "Run with cmdline argument: " << endl;
+      cout << "t to run tests" << endl;
+      cout << "i to run interactive benchmarking" << endl;
+      cout << "c to run predefined CaffeNet benchmarking" << endl;
+      cout << "b to run batch-mode benchmarking" << endl;
       return -1;
     }
     if(argv[1][0] == 'c') {
       benchmark_caffenet_gemm();
     } else if(argv[1][0] == 'i') {
       benchmark_gemm_interactive();
+    } else if(argv[1][0] == 'b') {
+      benchmark_gemm_batch();
     } else if(argv[1][0] == 't') {
       bool all_OK = true;
       bismo_inference::init();
