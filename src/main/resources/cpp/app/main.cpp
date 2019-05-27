@@ -52,6 +52,7 @@ int main(int argc, char const *argv[]) {
       bool all_OK = true;
       bismo_inference::init();
       bismo_inference::HardwareConfig hwcfg = bismo_inference::getHardwareConfig();
+      all_OK &= bismo_inference::selftest_shared_buffer();
       all_OK &= bismo_inference::selftest_p2s();
       bismo_inference::deinit();
       all_OK &= test_binary_onchip_onetile(hwcfg);

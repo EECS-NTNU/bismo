@@ -27,7 +27,7 @@ public:
       // TODO use coherent allocation
     } else {
       m_hostbuf = new T[n_elems];
-      m_accelbuf = (uint32_t) m_platform->allocAccelBuffer(nbytes());
+      m_accelbuf = (uint32_t)(uint64_t) m_platform->allocAccelBuffer(nbytes());
     }
   };
 
@@ -53,7 +53,7 @@ public:
         // do nothing, already copied
       } else {
         // TODO add instrumentation (measure copy times)
-        m_platform->copyBufferHost2Accel(
+        m_platform->copyBufferHostToAccel(
           (void *) m_hostbuf, (void *) m_accelbuf, nbytes()
         );
         m_is_host_dirty = false;

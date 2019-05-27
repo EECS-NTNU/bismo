@@ -68,6 +68,8 @@ void benchmark_host_accel_transfer();
 InstrumentationData getInstrumentationData();
 // run a small self-test for the p2s accelerator
 bool selftest_p2s();
+// run self-test for buffer copy operations
+bool selftest_shared_buffer();
 
 // retrieve hardware configuration for the instance
 HardwareConfig getHardwareConfig();
