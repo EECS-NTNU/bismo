@@ -55,6 +55,8 @@ public:
     m_needs_padding = (outer() != outer_a()) || (inner() != inner_a());
     if(m_needs_padding) {
       m_unpadded_hostbuf = new T[elems()];
+      // initialize the padded buf to all zeroes
+      memset(padded_hostbuf(), 0, elems_a() * sizeof(T));
     } else {
       m_unpadded_hostbuf = 0;
     }
@@ -69,10 +71,11 @@ public:
 
   void printSummary() {
     std::cout << "Matrix: " << std::endl;
-    std::cout << m_rows << "x" << m_cols << ":" << m_bits << "b" << std::endl;
+    std::cout << m_rows << " x " << m_cols << ":" << m_bits << "b" << std::endl;
     std::cout << "Signed? " << m_is_signed << " transposed? " << m_is_transposed << std::endl;
     std::cout << "Mode: " << m_matrix_type << " padding? " << m_needs_padding << std::endl;
-    std::cout << "Aligned dims: " << outer_a() << "x" << inner_a() << std::endl;
+    std::cout << "Outer x inner: " << outer() << " x " << inner() << std::endl;
+    std::cout << "Aligned outer x inner: " << outer_a() << " x " << inner_a() << std::endl;
   }
 
   const size_t outer() const {
