@@ -116,7 +116,7 @@ public:
       );
       // TODO time measurement for padding
     }
-    m_padded_buf->accel2host();
+    m_padded_buf->host2accel();
   };
 
   // get a host-accessible pointer to the host buffer
