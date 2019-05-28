@@ -101,4 +101,4 @@ protected:
 
 }
 
-#endif BISMORT_SHARED_BUFFER_HPP
+#endif /* BISMORT_SHARED_BUFFER_HPP */ 
