@@ -75,7 +75,7 @@ public:
     if(m_needs_padding) {
       delete [] m_unpadded_hostbuf;
     }
-  }
+  };
 
   void printSummary() {
     std::cout << "Matrix: " << std::endl;
@@ -84,31 +84,39 @@ public:
     std::cout << "Mode: " << m_matrix_type << " padding? " << m_needs_padding << std::endl;
     std::cout << "Outer x inner: " << outer() << " x " << inner() << std::endl;
     std::cout << "Aligned outer x inner: " << outer_a() << " x " << inner_a() << std::endl;
-  }
+  };
+
+  const size_t bits() const {
+    return m_bits;
+  };
+
+  const bool is_signed() const {
+    return m_is_signed;
+  };
 
   const size_t outer() const {
     return m_is_transposed ? m_cols : m_rows;
-  }
+  };
 
   const size_t inner() const {
     return m_is_transposed ? m_rows : m_cols;
-  }
+  };
 
   const size_t outer_a() const {
     return m_outer_a;
-  }
+  };
 
   const size_t inner_a() const {
     return m_inner_a;
-  }
+  };
 
   const size_t elems() const {
     return inner() * outer();
-  }
+  };
 
   const size_t elems_a() const {
     return inner_a() * outer_a();
-  }
+  };
 
   // copy accel buffer to host buffer
   void accel2host() {
