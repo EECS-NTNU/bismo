@@ -70,6 +70,9 @@ InstrumentationData getInstrumentationData();
 bool selftest_p2s();
 // run self-test for buffer copy operations
 bool selftest_shared_buffer();
+// run self-test for matrix pad and copy operations
+bool selftest_matrix();
+
 
 // retrieve hardware configuration for the instance
 HardwareConfig getHardwareConfig();
