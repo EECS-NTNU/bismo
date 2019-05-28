@@ -34,18 +34,26 @@ public:
     m_bits = bits;
     m_is_signed = is_signed;
     m_is_transposed = is_transposed;
-    if(matrix_type == matTypeLHS && is_transposed) {
-      throw "LHS matrix must be non-transposed";
+    /* Summary of alignment, transposition, datatype requirements:
+      MatType   Transpose?  OuterAlign    InnerAlign  Dtype
+      LHS       false       Dm            Dk          u/int8
+      RHS       true        Dn            Dk          u/int8
+      res       true        Dn            Dm          int32
+    */
+    if(matrix_type == matTypeLHS) {
+      if(is_transposed) throw "LHS matrix must be non-transposed";
+      if(sizeof(T) != 1) throw "LHS matrix must use 8-bit datatype";
     }
-    if(matrix_type == matTypeRHS && !is_transposed) {
-      throw "RHS matrix must be transposed";
+    if(matrix_type == matTypeRHS) {
+      if(!is_transposed) throw "RHS matrix must be transposed";
+      if(sizeof(T) != 1) throw "RHS matrix must use 8-bit datatype";
     }
-    // TODO determine alignment based on MatrixType
     if(matrix_type == matTypeRes) {
-      throw "matTypeRes not yet supported, needs correct alignment impl";
+      if(!is_transposed) throw "Result matrix must be transposed";
+      if(sizeof(T) != 4 || !m_is_signed) throw "Result matrix must use int32 datatype";
     }
     const size_t outer_align = is_transposed ? cfg.dpaDimRHS : cfg.dpaDimLHS;
-    const size_t inner_align = cfg.dpaDimCommon;
+    const size_t inner_align = matrix_type == matTypeRes ? cfg.dpaDimLHS : cfg.dpaDimCommon;
     m_outer_a = gemmbitserial::alignTo(outer(), outer_align);
     m_inner_a = gemmbitserial::alignTo(inner(), inner_align);
     // TODO support naming, constant matrices and coherency here
