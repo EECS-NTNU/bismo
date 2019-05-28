@@ -7,7 +7,7 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, bool cpu_only) {
     dsc.M, dsc.K, dsc.wbits, dsc.wsigned, false, matTypeLHS
   );
   Matrix<uint8_t> * rhs = new Matrix<uint8_t>(
-    dsc.N, dsc.K, dsc.ibits, dsc.isigned, true, matTypeRHS
+    dsc.K, dsc.N, dsc.ibits, dsc.isigned, true, matTypeRHS
   );
   Matrix<int32_t> * res = new Matrix<int32_t>(
     dsc.M, dsc.N, 32, true, true, matTypeRes
