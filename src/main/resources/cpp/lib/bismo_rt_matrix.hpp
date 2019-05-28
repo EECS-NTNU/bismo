@@ -34,6 +34,12 @@ public:
     m_bits = bits;
     m_is_signed = is_signed;
     m_is_transposed = is_transposed;
+    if(matrix_type == matTypeLHS && is_transposed) {
+      throw "LHS matrix must be non-transposed";
+    }
+    if(matrix_type == matTypeRHS && !is_transposed) {
+      throw "RHS matrix must be transposed";
+    }
     // TODO determine alignment based on MatrixType
     if(matrix_type == matTypeRes) {
       throw "matTypeRes not yet supported, needs correct alignment impl";
