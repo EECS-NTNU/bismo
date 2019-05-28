@@ -35,6 +35,9 @@ public:
     m_is_signed = is_signed;
     m_is_transposed = is_transposed;
     // TODO determine alignment based on MatrixType
+    if(matrix_type == matTypeRes) {
+      throw "matTypeRes not yet supported, needs correct alignment impl";
+    }
     const size_t outer_align = is_transposed ? cfg.dpaDimRHS : cfg.dpaDimLHS;
     const size_t inner_align = cfg.dpaDimCommon;
     m_outer_a = gemmbitserial::alignTo(outer(), outer_align);
@@ -62,6 +65,7 @@ public:
     std::cout << "Matrix: " << std::endl;
     std::cout << m_rows << "x" << m_cols << ":" << m_bits << "b" << std::endl;
     std::cout << "Signed? " << m_is_signed << " transposed? " << m_is_transposed << std::endl;
+    std::cout << "Mode: " << m_matrix_type << " padding? " << m_needs_padding << std::endl;
     std::cout << "Aligned dims: " << outer_a() << "x" << inner_a() << std::endl;
   }
 
