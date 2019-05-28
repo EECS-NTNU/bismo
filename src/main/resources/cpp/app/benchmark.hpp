@@ -71,10 +71,17 @@ bismo_inference::InstrumentationData run_benchmark_matmul(
   dscr.N = nrows_rhs;
   bismo_inference::init();
   bismo_inference::InstrumentationData ret;
-  int32_t * accel_res = new int32_t[nrows_lhs*nrows_rhs];
   try {
-    bismo_inference::LayerHandle id = bismo_inference::initMatMulLayer(dscr, lhs);
-    bismo_inference::execMatMulLayer(id, rhs, accel_res);
+    bismo_inference::LayerHandle id = bismo_inference::initMatMulLayer(dscr);
+    uint8_t * accel_lhs = bismo_inference::getLayerLHSBuffer(id);
+    uint8_t * accel_rhs = bismo_inference::getLayerRHSBuffer(id);
+    int32_t * accel_res = bismo_inference::getLayerResBuffer(id);
+    memcpy(accel_lhs, lhs, nrows_lhs * ncols);
+    bismo_inference::syncLayerLHSBuffer(id);
+    memcpy(accel_rhs, rhs, nrows_rhs * ncols);
+    bismo_inference::syncLayerRHSBuffer(id);
+    bismo_inference::execMatMulLayer(id);
+    bismo_inference::syncLayerResBuffer(id);
     ret = bismo_inference::getInstrumentationData();
   } catch(const char * e) {
     cout << "Exception: " << e << endl;
@@ -84,7 +91,6 @@ bismo_inference::InstrumentationData run_benchmark_matmul(
 
   delete [] lhs;
   delete [] rhs;
-  delete [] accel_res;
   return ret;
 }
 

@@ -71,12 +71,16 @@ bool test(
   dscr.K = ncols;
   dscr.N = nrows_rhs;
   bismo_inference::init();
-  bismo_inference::LayerHandle id = bismo_inference::initMatMulLayer(dscr, lhs);
-  int32_t * accel_res = new int32_t[nrows_lhs*nrows_rhs];
-  bismo_inference::execMatMulLayer(id, rhs, accel_res);
-  bismo_inference::deinitLayer(id);
-  bismo_inference::deinit();
-
+  bismo_inference::LayerHandle id = bismo_inference::initMatMulLayer(dscr);
+  uint8_t * accel_lhs = bismo_inference::getLayerLHSBuffer(id);
+  uint8_t * accel_rhs = bismo_inference::getLayerRHSBuffer(id);
+  int32_t * accel_res = bismo_inference::getLayerResBuffer(id);
+  memcpy(accel_lhs, lhs, nrows_lhs * ncols);
+  bismo_inference::syncLayerLHSBuffer(id);
+  memcpy(accel_rhs, rhs, nrows_rhs * ncols);
+  bismo_inference::syncLayerRHSBuffer(id);
+  bismo_inference::execMatMulLayer(id);
+  bismo_inference::syncLayerResBuffer(id);
   int res = memcmp(ctx.res, accel_res, nrows_lhs*nrows_rhs*sizeof(int32_t));
 
   if(res == 0) {
@@ -96,15 +100,16 @@ bool test(
     ctx.rhs.printHex();*/
   }
 
+  bismo_inference::deinitLayer(id);
+  bismo_inference::deinit();
   delete [] lhs;
   delete [] rhs;
-  delete [] accel_res;
   gemmbitserial::deallocGEMMContext(ctx);
 
   return res == 0;
 }
 
-bool test_conv(
+/*bool test_conv(
   string testName, bismo_inference::ConvLayerDescriptor & cnv
 ) {
   // calculate some sizes
@@ -208,7 +213,7 @@ bool test_big_conv(bismo_inference::HardwareConfig hwcfg) {
     }
   }
   return all_OK;
-}
+}*/
 
 bool test_binary_onchip_onetile(bismo_inference::HardwareConfig hwcfg) {
   bool all_OK = true;

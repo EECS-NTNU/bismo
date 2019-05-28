@@ -20,9 +20,9 @@ public:
   // does not synchronize input Matrix objects, remember to call host2accel
   void exec();
 
-protected:
   Matrix<uint8_t> * m_lhs, * m_rhs;
   Matrix<int32_t> * m_res;
+protected:
   SingleMMDescriptor m_igen_dsc;
 };
 

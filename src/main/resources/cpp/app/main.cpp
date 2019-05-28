@@ -59,7 +59,7 @@ int main(int argc, char const *argv[]) {
       all_OK &= test_binary_onchip_onetile(hwcfg);
       all_OK &= test_multibit_onchip_onetile(hwcfg);
       all_OK &= test_multibit_multitile(hwcfg);
-      all_OK &= test_small_conv(hwcfg);
+      //all_OK &= test_small_conv(hwcfg);
       if(all_OK) {
         cout << "All tests passed succesfully" << endl;
       } else {

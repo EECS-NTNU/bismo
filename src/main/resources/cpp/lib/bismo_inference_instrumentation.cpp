@@ -1,3 +1,4 @@
+/*
 #include "bismo_inference_internal.hpp"
 
 namespace bismo_inference {
@@ -213,3 +214,4 @@ void InternalLayerDescriptor::printPerfDetails() {
 }
 #endif
 }
+*/

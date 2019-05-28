@@ -30,9 +30,9 @@
 #endif
 
 namespace bismo_inference {
-typedef enum {layerMatMul, layerConv, layerThres} InternalLayerType;
+//typedef enum {layerMatMul, layerConv, layerThres} InternalLayerType;
 typedef int32_t AccumType;
-typedef struct {
+/*typedef struct {
   InternalLayerType layerType;
   uint32_t accel_buf_in_lhs;
   uint32_t accel_buf_in_rhs;
@@ -73,7 +73,7 @@ typedef struct {
   void printPerfSummary();
   void printPerfDetails();
 #endif
-} InternalLayerDescriptor;
+} InternalLayerDescriptor;*/
 
 // internal global variables
 // global handle for the platform and BISMO driver
@@ -82,20 +82,20 @@ extern BitSerialMatMulAccelDriver * acc;
 extern HardwareCfg cfg;
 extern uint32_t accel_p2s_bitpar_buffer;
 extern uint8_t * host_p2s_bitpar_buffer;
-extern std::vector<InternalLayerDescriptor> registry;
+//extern std::vector<InternalLayerDescriptor> registry;
 extern InstrumentationData instrumentationData;
 #ifdef BISMORT_INSTRUMENTATION
 extern std::chrono::time_point<std::chrono::high_resolution_clock> time_prev, time_now;
 #endif
 // internal helper functions
-void genFetchInstrs(
+/*void genFetchInstrs(
   std::vector<BISMOInstruction> & ins,
   size_t bram_base,
   bool lhsNotRhs,
   uint32_t dram_base,
   size_t tiles_per_row,
   size_t nbytes
-);
+);*/
 
 void p2s(
   const uint8_t * host_buf_src,   // input matrix buffer (source)
@@ -107,12 +107,12 @@ void p2s(
   size_t row_align = 1            // align rows to multiple of this
 );
 
-void configMatMulLayer_Internal_SetLHS(LayerHandle id, gemmbitserial::BitSerialMatrix mat);
-void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out);
+/*void configMatMulLayer_Internal_SetLHS(LayerHandle id, gemmbitserial::BitSerialMatrix mat);
+void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out);*/
 
 // utility functions for instrumentation
 // hardware metrics (non-workload-dependent)
-float getHWPeakBinaryOpsPerCycle();
+/*float getHWPeakBinaryOpsPerCycle();
 float getHWPeakBinaryGOPS();
 size_t getHWBufSizeLHS();
 size_t getHWBufSizeRHS();
@@ -126,6 +126,6 @@ void verifyConv(
   gemmbitserial::ConvBitSerialContext ctx,
   const uint8_t * in,
   const int32_t * out
-);
+);*/
 }
 #endif /* end of include guard: BISMORT_INFERENCE_HPP */

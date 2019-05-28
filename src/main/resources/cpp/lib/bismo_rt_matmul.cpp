@@ -2,6 +2,64 @@
 
 namespace bismo_inference {
 
+LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, bool cpu_only) {
+  Matrix<uint8_t> * lhs = new Matrix<uint8_t>(
+    dsc.M, dsc.K, dsc.wbits, dsc.wsigned, false, matTypeLHS
+  );
+  Matrix<uint8_t> * rhs = new Matrix<uint8_t>(
+    dsc.N, dsc.K, dsc.ibits, dsc.isigned, true, matTypeRHS
+  );
+  Matrix<int32_t> * res = new Matrix<int32_t>(
+    dsc.M, dsc.N, 32, true, true, matTypeRes
+  );
+  MatrixMultiply * mm = new MatrixMultiply(lhs, rhs, res);
+
+  return (LayerHandle) mm;
+}
+
+void execMatMulLayer(LayerHandle id) {
+  MatrixMultiply * mm = (MatrixMultiply *) id;
+  mm->exec();
+}
+
+uint8_t * getLayerLHSBuffer(LayerHandle id) {
+  MatrixMultiply * mm = (MatrixMultiply *) id;
+  return mm->m_lhs->hostbuf();
+}
+
+uint8_t * getLayerRHSBuffer(LayerHandle id) {
+  MatrixMultiply * mm = (MatrixMultiply *) id;
+  return mm->m_rhs->hostbuf();
+}
+
+int32_t * getLayerResBuffer(LayerHandle id) {
+  MatrixMultiply * mm = (MatrixMultiply *) id;
+  return mm->m_res->hostbuf();
+}
+
+void syncLayerLHSBuffer(LayerHandle id) {
+  MatrixMultiply * mm = (MatrixMultiply *) id;
+  mm->m_lhs->host2accel();
+}
+
+void syncLayerRHSBuffer(LayerHandle id) {
+  MatrixMultiply * mm = (MatrixMultiply *) id;
+  mm->m_rhs->host2accel();
+}
+
+void syncLayerResBuffer(LayerHandle id) {
+  MatrixMultiply * mm = (MatrixMultiply *) id;
+  mm->m_res->accel2host();
+}
+
+void deinitLayer(LayerHandle id) {
+  MatrixMultiply * mm = (MatrixMultiply *) id;
+  delete mm->m_lhs;
+  delete mm->m_rhs;
+  delete mm->m_res;
+  delete mm;
+}
+
 MatrixMultiply::MatrixMultiply(
   Matrix<uint8_t> * lhs, Matrix<uint8_t> * rhs, Matrix<int32_t> * res
 ) {

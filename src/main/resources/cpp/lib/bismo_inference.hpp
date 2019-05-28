@@ -38,7 +38,7 @@
 namespace bismo_inference {
 // handle representing a particular layer instance that BISMO knows
 // how to execute
-typedef unsigned int LayerHandle;
+typedef uint64_t LayerHandle;
 
 // struct with details of currently instantiated hardware config
 // copied from BitSerialMatMulAccelDriver in order not to have that as a
@@ -92,6 +92,7 @@ typedef struct {
   // note that the right-hand-side matrix is assumed transposed
 } MatMulLayerDescriptor;
 
+/*
 // properties for thresholding layers
 typedef struct {
   uint32_t nchannels;   // number of channels
@@ -113,21 +114,32 @@ typedef struct {
   uint16_t ofm;   // number of output channels
   bool useCPULowering;  // whether to use CPU (software) matmul lowering
 } ConvLayerDescriptor;
+*/
 
 // initialize layer of given type and return handle
 // parameter shape: weights[M][K]
-LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, const uint8_t * weights, bool cpu_only = false);
+LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, bool cpu_only = false);
 // parameter shape: thresholds[nthresholds][nchannels]
-LayerHandle initThresLayer(ThresLayerDescriptor & dsc, const uint8_t * thresholds, bool cpu_only = false);
+//LayerHandle initThresLayer(ThresLayerDescriptor & dsc, const uint8_t * thresholds, bool cpu_only = false);
 // parameter shape: weights[ofm][ifm][ksize][ksize]
-LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights, bool cpu_only = false);
+//LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights, bool cpu_only = false);
+
+// get host-accessible buffers associated with layer
+uint8_t * getLayerLHSBuffer(LayerHandle id);
+uint8_t * getLayerRHSBuffer(LayerHandle id);
+int32_t * getLayerResBuffer(LayerHandle id);
+
+// synchronize buffers associated with layer:
+// ensure that input (LHS/RHS) buffers are up-to-date on the accelerator
+void syncLayerLHSBuffer(LayerHandle id);
+void syncLayerRHSBuffer(LayerHandle id);
+// ensure that result buffer is up-to-date on the host
+void syncLayerResBuffer(LayerHandle id);
 
 // execute layer with given handle
-// in and out are assumed to be preallocated to appropriate buffer sizes,
-// depending on the type of layer
-void execMatMulLayer(LayerHandle id, const uint8_t * in, int32_t * out);
-void execThresLayer(LayerHandle id, const int32_t * in, uint8_t * out);
-void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out);
+void execMatMulLayer(LayerHandle id);
+//void execThresLayer(LayerHandle id, const int32_t * in, uint8_t * out);
+//void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out);
 
 // destroy layer with given handle
 void deinitLayer(LayerHandle id);

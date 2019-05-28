@@ -6,7 +6,7 @@ TIMER_INIT();
 WrapperRegDriver * platform;
 BitSerialMatMulAccelDriver * acc;
 HardwareCfg cfg;
-std::vector<InternalLayerDescriptor> registry;
+//std::vector<InternalLayerDescriptor> registry;
 std::map<std::string,float> instrumentationData;
 
 // global init/deinit for the runtime library
@@ -69,7 +69,7 @@ HardwareConfig getHardwareConfig() {
   ret.writeChanWidth = cfg.writeChanWidth;
   return ret;
 }
-
+/*
 void genFetchInstrs(
   std::vector<BISMOInstruction> & ins,
   size_t bram_base,
@@ -111,8 +111,9 @@ void genFetchInstrs(
     frc.dram_base += last_chunk_bytes;
     frc.bram_addr_base += last_chunk_bytes / bytes_per_addr;
   }
-}
+}*/
 
+/*
 // parameter shape: thresholds[nthresholds][nchannels]
 LayerHandle initThresLayer(ThresLayerDescriptor & dsc, const uint8_t * thresholds, bool cpu_only) {
   // TODO allocate OCM space for thresholds
@@ -126,8 +127,9 @@ LayerHandle initThresLayer(ThresLayerDescriptor & dsc, const uint8_t * threshold
 void execThresLayer(LayerHandle id, const int32_t * in, uint8_t * out) {
   // TODO implement execThresLayer
 }
-
+*/
 // destroy layer with given handle
+/*
 void deinitLayer(LayerHandle id) {
   InternalLayerDescriptor dsc = registry[id];
   switch (dsc.layerType) {
@@ -157,6 +159,6 @@ void deinitLayer(LayerHandle id) {
       throw "Unrecognized layer type in deinitLayer";
   }
   // TODO mark descriptor as invalid or remove from registry
-}
+}*/
 
 }

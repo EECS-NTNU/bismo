@@ -1,3 +1,4 @@
+/*
 #include "bismo_inference_internal.hpp"
 
 namespace bismo_inference {
@@ -124,24 +125,7 @@ void configMatMulLayer_Internal_SetLHS(LayerHandle id, gemmbitserial::BitSerialM
     dsc.ctx.lhs.copyFrom(mat);
   }
   platform->copyBufferHostToAccel((void *)dsc.ctx.lhs.data, (void *)accel_buf_in_lhs, wbytes);
-  // TODO: commented out, matmul won't work properly until LHS tiling is
-  // implemented inside the generators
-  /*
-  // create instruction sequence to fetch weights into OCM
-  std::vector<BISMOInstruction> instrFetchWeights;
-  genFetchInstrs(instrFetchWeights, wbase, true, accel_buf_in_lhs, mat.ncols_a / cfg.dpaDimCommon, wbytes);
-  acc->set_stage_enables(0, 0, 0);
-  for(auto & fi : instrFetchWeights) {
-    acc->pushInstruction(fi);
-  }
-  BISMORT_DEBUG("[configMatMulLayer_Internal_SetLHS] created weight init instructions: " << acc->fetch_opcount());
-  // launch weight fetch and wait until complete
-  acc->set_stage_enables(1, 0, 0);
-  while(acc->fetch_opcount() != 0) {
-    //BISMORT_DEBUG("[initMatMulLayer] waiting for weight init, ops f/e/r: " << acc->fetch_opcount() << " " << acc->exec_opcount() << " " << acc->res_opcount());
-  };
-  acc->set_stage_enables(0, 0, 0);
-  */
+
   BISMORT_DEBUG("[configMatMulLayer_Internal_SetLHS] weight init done");
   TIMER_SAMPLE();
   TIMER_REPORT("cpu_setLHS");
@@ -263,3 +247,4 @@ void execMatMulLayer_Internal_RHSBitSerial(LayerHandle id, int32_t * out) {
 }
 
 }
+*/

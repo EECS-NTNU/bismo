@@ -1,3 +1,4 @@
+/*
 #include "bismo_inference_internal.hpp"
 
 namespace bismo_inference {
@@ -110,3 +111,4 @@ void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out) {
   }
 }
 }
+*/
