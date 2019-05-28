@@ -1,6 +1,7 @@
 #ifndef BISMORT_MATRIX
 #define BISMORT_MATRIX
 
+#include <iostream>
 #include "bismo_inference_internal.hpp"
 #include "bismo_rt_shared_buffer.hpp"
 
@@ -49,6 +50,13 @@ public:
     }
   }
 
+  void printSummary() {
+    std::cout << "Matrix: " << std::endl;
+    std::cout << m_rows << "x" << m_cols << ":" << m_bits << "b" << std::endl;
+    std::cout << "Signed? " << m_is_signed << " transposed? " << m_is_transposed << std::endl;
+    std::cout << "Aligned dims: " << outer_a() << "x" << inner_a() << std::endl;
+  }
+
   const size_t outer() const {
     return m_is_transposed ? m_cols : m_rows;
   }
@@ -62,7 +70,7 @@ public:
   }
 
   const size_t inner_a() const {
-    return m_inner_a();
+    return m_inner_a;
   }
 
   const size_t elems() const {
@@ -75,12 +83,12 @@ public:
 
   // copy accel buffer to host buffer
   void accel2host() {
-    m_padded_buf.accel2host();
+    m_padded_buf->accel2host();
     if(m_needs_padding) {
       // strided copy into m_unpadded_hostbuf
       copy2d(
-        m_padded_buf.hostbuf(), m_unpadded_hostbuf,
-        outer_a(), inner_a(), outer(), inner(),
+        m_padded_buf->hostbuf(), m_unpadded_hostbuf,
+        outer_a(), inner_a(), outer(), inner()
       );
       // TODO time measurement for un-padding
     }
@@ -91,12 +99,12 @@ public:
     if(m_needs_padding) {
       // strided copy from m_unpadded_hostbuf
       copy2d(
-        m_unpadded_hostbuf, m_padded_buf.hostbuf(),
+        m_unpadded_hostbuf, m_padded_buf->hostbuf(),
         outer(), inner(), outer_a(), inner_a()
       );
       // TODO time measurement for padding
     }
-    m_padded_buf.accel2host();
+    m_padded_buf->accel2host();
   };
 
   // get a host-accessible pointer to the host buffer
@@ -104,13 +112,13 @@ public:
     if(m_needs_padding) {
       return m_unpadded_hostbuf;
     } else {
-      return m_padded_buf.hostbuf();
+      return m_padded_buf->hostbuf();
     }
   };
 
   // get an accel-accessible pointer to the accel buffer
   uint32_t accelbuf() {
-    return m_padded_buf.accelbuf();
+    return m_padded_buf->accelbuf();
   };
 
   // two-dimensional memory copy between arrays of different
