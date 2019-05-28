@@ -77,14 +77,24 @@ public:
   void accel2host() {
     m_padded_buf.accel2host();
     if(m_needs_padding) {
-      // TODO strided copy into m_unpadded_hostbuf
+      // strided copy into m_unpadded_hostbuf
+      copy2d(
+        m_padded_buf.hostbuf(), m_unpadded_hostbuf,
+        outer_a(), inner_a(), outer(), inner(),
+      );
+      // TODO time measurement for un-padding
     }
   };
 
   // copy host buffer to accel buffer
   void host2accel() {
     if(m_needs_padding) {
-      // TODO strided copy from m_unpadded_hostbuf
+      // strided copy from m_unpadded_hostbuf
+      copy2d(
+        m_unpadded_hostbuf, m_padded_buf.hostbuf(),
+        outer(), inner(), outer_a(), inner_a()
+      );
+      // TODO time measurement for padding
     }
     m_padded_buf.accel2host();
   };
@@ -94,13 +104,29 @@ public:
     if(m_needs_padding) {
       return m_unpadded_hostbuf;
     } else {
-      return m_needs_padding.hostbuf();
+      return m_padded_buf.hostbuf();
     }
   };
 
   // get an accel-accessible pointer to the accel buffer
   uint32_t accelbuf() {
     return m_padded_buf.accelbuf();
+  };
+
+  // two-dimensional memory copy between arrays of different
+  // dimensions, useful for padding and un-padding
+  static void copy2d(
+    T * src, T * dst, // source and destination host buffers
+    size_t src_n_outer, size_t src_n_inner, // source dims
+    size_t dst_n_outer, size_t dst_n_inner  // destination dims
+  ) {
+    const size_t min_outer = std::min(src_n_outer, dst_n_outer);
+    const size_t min_inner = std::min(src_n_inner, dst_n_inner);
+    for(size_t o = 0; o < min_outer; o++) {
+      memcpy(dst, src, sizeof(T) * min_inner);
+      dst += dst_n_inner;
+      src += src_n_inner;
+    }
   };
 
 protected:
