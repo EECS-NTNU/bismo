@@ -7,6 +7,10 @@
 
 namespace bismo_inference {
 
+typedef enum {
+  matTypeLHS, matTypeRHS, matTypeRes
+} MatrixType;
+
 template<typename T>
 class Matrix {
 public:
@@ -15,18 +19,22 @@ public:
     size_t rows, size_t cols,
     // number of maximum bits that represent each element
     size_t bits,
-    // whether the most significant
+    // whether the number is signed (MSB represents a negative power-of-two)
     bool is_signed,
     // whether the data is stored in col-major order
     // this is required for the rhs and result matrices in a matrix multiply
     // operation, due to the assumptions that BISMO makes
-    bool is_transposed
+    bool is_transposed,
+    // matrix type, needed to align correctly for BISMO hardware
+    MatrixType matrix_type
   ) {
+    m_matrix_type = matrix_type;
     m_rows = rows;
     m_cols = cols;
     m_bits = bits;
     m_is_signed = is_signed;
     m_is_transposed = is_transposed;
+    // TODO determine alignment based on MatrixType
     const size_t outer_align = is_transposed ? cfg.dpaDimRHS : cfg.dpaDimLHS;
     const size_t inner_align = cfg.dpaDimCommon;
     m_outer_a = gemmbitserial::alignTo(outer(), outer_align);
@@ -145,6 +153,7 @@ protected:
   size_t m_inner_a, m_outer_a;
   bool m_is_signed;
   bool m_is_transposed;
+  MatrixType m_matrix_type;
 };
 
 }
