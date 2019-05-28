@@ -68,12 +68,19 @@ public:
     } else {
       m_unpadded_hostbuf = 0;
     }
+    m_is_bitserial = (matrix_type != matTypeRes);
+    if(is_bitserial()) {
+      m_bitserial_accelbuf = platform->allocAccelBuffer(bitserial_nbytes());
+    }
   };
 
   ~Matrix() {
     delete m_padded_buf;
     if(m_needs_padding) {
       delete [] m_unpadded_hostbuf;
+    }
+    if(is_bitserial()) {
+      platform->deallocAccelBuffer(m_bitserial_accelbuf);
     }
   };
 
@@ -85,6 +92,10 @@ public:
     std::cout << "Outer x inner: " << outer() << " x " << inner() << std::endl;
     std::cout << "Aligned outer x inner: " << outer_a() << " x " << inner_a() << std::endl;
   };
+
+  const bool is_bitserial() const {
+    return m_is_bitserial;
+  }
 
   const size_t bits() const {
     return m_bits;
@@ -142,6 +153,10 @@ public:
       // TODO time measurement for padding
     }
     m_padded_buf->host2accel();
+    if(is_bitserial()) {
+      // TODO call only once for const matrices
+      p2s();
+    }
   };
 
   // get a host-accessible pointer to the host buffer
@@ -158,10 +173,44 @@ public:
     return m_padded_buf->hostbuf();
   };
 
-  // get an accel-accessible pointer to the accel buffer
+  // get an accel-accessible pointer to the bit-parallel accel buffer
   uint32_t accelbuf() {
     return m_padded_buf->accelbuf();
   };
+
+  uint32_t bitserial_accelbuf() {
+    if(is_bitserial()) {
+      return m_bitserial_accelbuf;
+    } else {
+      throw "Cannot access bitserial accelbuf for non-bitserial matrix.";
+    }
+  }
+
+  size_t bitserial_nbytes() const {
+    if(is_bitserial()) {
+      return (m_bits * elems_a()) / 8;
+    } else {
+      throw "Cannot get bitserial buffer size for non-bitserial matrix.";
+    }
+  }
+
+  // convert the accelerator bit-parallel buffer to bit-serial
+  void p2s() {
+    if(!m_is_bitserial) {
+      throw "Unsupported matrix type for parallel-to-serial conversion.";
+    }
+    // setup and call the p2s hardware accelerator
+    acc->setup_p2s(
+      (void *) accelbuf(),  // source buffer
+      bitserial_nbytes(),   // num bytes to be written to dest
+      (void *) bitserial_accelbuf(),  // dest buffer
+      outer_a(), inner_a(), bits(),   // dimensions
+      is_signed()
+    );
+    uint32_t cycles = acc->p2s_exec_and_wait();
+    // TODO instrumentation
+    //instrumentationData["run_p2s"] = (float) cycles;
+  }
 
   // two-dimensional memory copy between arrays of different
   // dimensions, useful for padding and un-padding
@@ -181,12 +230,14 @@ public:
 
 protected:
   bool m_needs_padding;
+  uint32_t m_bitserial_accelbuf;
   SharedBuffer<T> * m_padded_buf;
   T * m_unpadded_hostbuf;
   size_t m_rows, m_cols, m_bits;
   size_t m_inner_a, m_outer_a;
   bool m_is_signed;
   bool m_is_transposed;
+  bool m_is_bitserial;
   MatrixType m_matrix_type;
 };
 
