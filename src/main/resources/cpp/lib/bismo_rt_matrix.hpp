@@ -70,7 +70,7 @@ public:
     }
     m_is_bitserial = (matrix_type != matTypeRes);
     if(is_bitserial()) {
-      m_bitserial_accelbuf = platform->allocAccelBuffer(bitserial_nbytes());
+      m_bitserial_accelbuf = (uint32_t)(uint64_t) platform->allocAccelBuffer(bitserial_nbytes());
     }
   };
 
@@ -80,7 +80,7 @@ public:
       delete [] m_unpadded_hostbuf;
     }
     if(is_bitserial()) {
-      platform->deallocAccelBuffer(m_bitserial_accelbuf);
+      platform->deallocAccelBuffer((void *) m_bitserial_accelbuf);
     }
   };
 
