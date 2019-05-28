@@ -128,6 +128,11 @@ public:
     }
   };
 
+  // get a host-accessible pointer to the padded host buffer
+  T * padded_hostbuf() {
+    return m_padded_buf->hostbuf();
+  };
+
   // get an accel-accessible pointer to the accel buffer
   uint32_t accelbuf() {
     return m_padded_buf->accelbuf();
