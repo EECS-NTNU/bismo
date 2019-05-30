@@ -30,6 +30,7 @@ void execMatMulLayer(LayerHandle id) {
 
 InstrumentationData getInstrumentationData(LayerHandle id) {
   MatrixMultiply * mm = (MatrixMultiply *) id;
+  acc->updateStateBreakdown();
   mm->perfSummary();
   mm->perfDetails();
   return instrumentationData;
@@ -124,7 +125,6 @@ MatrixMultiply::MatrixMultiply(
 MatrixMultiply::~MatrixMultiply() {};
 
 void MatrixMultiply::exec() {
-  // TODO instrumentation
   acc->set_stage_enables(0, 0, 0);
   acc->useDescriptors();
   // feed the instrgen descriptor
@@ -132,10 +132,15 @@ void MatrixMultiply::exec() {
   // HACK: make sure at least one op has appeared before checking for completion
   // proper way to fix this is to singal completion from accel explicitly
   while(acc->res_opcount() == 0) {};
+  // start the cycle counter
+  acc->perf_set_cc_enable(1);
   // enable all stages
   acc->set_stage_enables(1, 1, 1);
   // wait until all writes are completed
   while(acc->res_opcount() != 0) {};
+  // stop the cycle counter
+  acc->perf_set_cc_enable(0);
+  acc->set_stage_enables(0, 0, 0);
 };
 
 size_t MatrixMultiply::lhsBytes() const {
