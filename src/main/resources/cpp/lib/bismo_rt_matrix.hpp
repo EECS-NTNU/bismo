@@ -194,6 +194,10 @@ public:
     }
   }
 
+  size_t elem_nbytes() const {
+    return sizeof(T);
+  }
+
   // convert the accelerator bit-parallel buffer to bit-serial
   void p2s() {
     if(!m_is_bitserial) {

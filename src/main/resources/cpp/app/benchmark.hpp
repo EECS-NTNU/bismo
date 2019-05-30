@@ -82,7 +82,7 @@ bismo_rt::InstrumentationData run_benchmark_matmul(
     bismo_rt::syncLayerRHSBuffer(id);
     bismo_rt::execMatMulLayer(id);
     bismo_rt::syncLayerResBuffer(id);
-    ret = bismo_rt::getInstrumentationData();
+    ret = bismo_rt::getInstrumentationData(id);
   } catch(const char * e) {
     cout << "Exception: " << e << endl;
   }

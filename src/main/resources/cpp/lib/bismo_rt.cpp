@@ -30,10 +30,6 @@ void deinit() {
   deinitPlatform(platform);
 }
 
-InstrumentationData getInstrumentationData() {
-  return instrumentationData;
-}
-
 void benchmark_host_accel_transfer() {
   std::vector<size_t> vsize {1, 2, 4, 8, 16, 32};
   for(auto & s : vsize) {

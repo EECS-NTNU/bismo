@@ -67,6 +67,10 @@ void syncLayerRHSBuffer(LayerHandle id);
 void syncLayerResBuffer(LayerHandle id);
 // execute layer with given handle
 void execMatMulLayer(LayerHandle id);
+// struct representing all instrumentation data from the previous run
+typedef std::map<std::string,float> InstrumentationData;
+// retrieve a map of all instrumentation data from the previous run
+InstrumentationData getInstrumentationData(LayerHandle id);
 // destroy layer with given handle
 void deinitLayer(LayerHandle id);
 
@@ -89,10 +93,6 @@ typedef struct {
 HardwareConfig getHardwareConfig();
 // benchmark host<->accel transfer times
 void benchmark_host_accel_transfer();
-// struct representing all instrumentation data from the previous run
-typedef std::map<std::string,float> InstrumentationData;
-// retrieve a map of all instrumentation data from the previous run
-InstrumentationData getInstrumentationData();
 // run a small self-test for the p2s accelerator
 bool selftest_p2s();
 // run self-test for buffer copy operations

@@ -42,6 +42,7 @@ extern InstrumentationData instrumentationData;
 #ifdef BISMORT_INSTRUMENTATION
 extern std::chrono::time_point<std::chrono::high_resolution_clock> time_prev, time_now;
 #endif
+
 // internal helper functions
 void p2s(
   const uint8_t * host_buf_src,   // input matrix buffer (source)
@@ -52,5 +53,20 @@ void p2s(
   bool zeropad = false,           // use zero instead of random padding
   size_t row_align = 1            // align rows to multiple of this
 );
+
+// hardware metrics (non-workload-dependent) for instrumentation
+float getHWPeakBinaryOpsPerCycle();
+float getHWPeakBinaryGOPS();
+size_t getHWBufSizeLHS();
+size_t getHWBufSizeRHS();
+size_t getHWBufSize();
+float getNanosecondsPerCycle();
+float getHWReadBW();
+float getHWWriteBW();
+float getHWCompBoundReadOI();
+float getHWCompBoundWriteOI();
+// these two instrumentation fxns are indirectly workload-dependent
+float getLastRuntimeCycles();
+float getLastRuntimeNanoseconds();
 }
 #endif /* end of include guard: BISMORT_INTERNAL_HPP */

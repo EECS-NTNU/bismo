@@ -22,7 +22,24 @@ public:
   // execute matrix multiply
   // does not synchronize input Matrix objects, remember to call host2accel
   void exec();
-
+  // performance / instrumentation related functions
+  size_t lhsBytes() const;
+  size_t rhsBytes() const;
+  size_t resBytes() const;
+  size_t getNumBytesToFetch() const;
+  size_t getNumBytesToWrite() const;
+  float getWorkloadOpCount(bool inclPadding = true) const;
+  float getWorkloadBinaryOpCount(bool inclPadding = true) const;
+  float getLastRunBinaryGOPS(bool inclPadding = true) const;
+  float getWorkloadReadOI() const;
+  float getWorkloadWriteOI() const;
+  float getActualReadOI() const;
+  float getActualWriteOI() const;
+  float getWorkloadOI() const;
+  // get performance summary and details (saved into bismo_rt::instrumentationData)
+  void perfSummary();
+  void perfDetails();
+  // lhs/rhs/res member matrices, exposed for the sake of the API wrapper
   Matrix<uint8_t> * m_lhs, * m_rhs;
   Matrix<int32_t> * m_res;
 protected:
