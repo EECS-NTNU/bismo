@@ -36,9 +36,39 @@
 #include <string>
 
 namespace bismo_inference {
+// global init/deinit for the runtime library
+void init();
+void deinit();
+
+// descriptor for the shape/size/precision of a matrix multiplication
+typedef struct {
+  uint8_t wbits;  // bits per weight
+  uint8_t ibits;  // bits per input
+  bool wsigned;   // whether weights are signed
+  bool isigned;   // whether inputs are signed
+  uint32_t M;     // rows of left-hand-side (weight) matrix
+  uint32_t K;     // common dimension (columns)
+  uint32_t N;     // rows of right-hand-side (weight) matrix
+} MatMulLayerDescriptor;
 // handle representing a particular layer instance that BISMO knows
 // how to execute
 typedef uint64_t LayerHandle;
+// initialize matrix multiplication and return handle
+LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc);
+// get host-accessible buffers associated with layer
+uint8_t * getLayerLHSBuffer(LayerHandle id);
+uint8_t * getLayerRHSBuffer(LayerHandle id);
+int32_t * getLayerResBuffer(LayerHandle id);
+// synchronize buffers associated with layer:
+// ensure that input (LHS/RHS) buffers are up-to-date on the accelerator
+void syncLayerLHSBuffer(LayerHandle id);
+void syncLayerRHSBuffer(LayerHandle id);
+// ensure that result buffer is up-to-date on the host
+void syncLayerResBuffer(LayerHandle id);
+// execute layer with given handle
+void execMatMulLayer(LayerHandle id);
+// destroy layer with given handle
+void deinitLayer(LayerHandle id);
 
 // struct with details of currently instantiated hardware config
 // copied from BitSerialMatMulAccelDriver in order not to have that as a
@@ -55,15 +85,12 @@ typedef struct {
   uint64_t rhsEntriesPerMem;
   uint64_t writeChanWidth;
 } HardwareConfig;
-
-typedef std::map<std::string,float> InstrumentationData;
-
-// global init/deinit for the runtime library
-void init();
-void deinit();
-
+// retrieve hardware configuration for the instance
+HardwareConfig getHardwareConfig();
 // benchmark host<->accel transfer times
 void benchmark_host_accel_transfer();
+// struct representing all instrumentation data from the previous run
+typedef std::map<std::string,float> InstrumentationData;
 // retrieve a map of all instrumentation data from the previous run
 InstrumentationData getInstrumentationData();
 // run a small self-test for the p2s accelerator
@@ -72,76 +99,5 @@ bool selftest_p2s();
 bool selftest_shared_buffer();
 // run self-test for matrix pad and copy operations
 bool selftest_matrix();
-
-
-// retrieve hardware configuration for the instance
-HardwareConfig getHardwareConfig();
-
-// descriptor structs that contain layer properties for each supported
-// layer type
-
-// properties for matrix multiply (inner product) layers
-typedef struct {
-  uint8_t wbits;  // bits per weight
-  uint8_t ibits;  // bits per input
-  bool wsigned;   // whether weights are signed
-  bool isigned;   // whether inputs are signed
-  uint32_t M;     // rows of left-hand-side (weight) matrix
-  uint32_t K;     // common dimension (columns)
-  uint32_t N;     // rows of right-hand-side (weight) matrix
-  // note that the right-hand-side matrix is assumed transposed
-} MatMulLayerDescriptor;
-
-/*
-// properties for thresholding layers
-typedef struct {
-  uint32_t nchannels;   // number of channels
-  uint8_t nthresholds;  // number of thresholds per channel
-  uint16_t idim;        // input image dimension (assumed width=height)
-} ThresLayerDescriptor;
-
-// properties for convolutional layers
-typedef struct {
-  uint8_t wbits;  // bits per weight
-  uint8_t ibits;  // bits per input
-  bool wsigned;   // whether weights are signed
-  bool isigned;   // whether inputs are signed
-  uint8_t pad;    // zero padding on each side of input image
-  uint8_t ksize;  // convolution kernel size (asssumed width=height)
-  uint8_t stride; // convolution kernel stride (assumed horizontal=vertical)
-  uint16_t idim;  // input image dimension (assumed width=height)
-  uint16_t ifm;   // number of input channels
-  uint16_t ofm;   // number of output channels
-  bool useCPULowering;  // whether to use CPU (software) matmul lowering
-} ConvLayerDescriptor;
-*/
-
-// initialize layer of given type and return handle
-// parameter shape: weights[M][K]
-LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, bool cpu_only = false);
-// parameter shape: thresholds[nthresholds][nchannels]
-//LayerHandle initThresLayer(ThresLayerDescriptor & dsc, const uint8_t * thresholds, bool cpu_only = false);
-// parameter shape: weights[ofm][ifm][ksize][ksize]
-//LayerHandle initConvLayer(ConvLayerDescriptor & dsc, const uint8_t * weights, bool cpu_only = false);
-
-// get host-accessible buffers associated with layer
-uint8_t * getLayerLHSBuffer(LayerHandle id);
-uint8_t * getLayerRHSBuffer(LayerHandle id);
-int32_t * getLayerResBuffer(LayerHandle id);
-
-// synchronize buffers associated with layer:
-// ensure that input (LHS/RHS) buffers are up-to-date on the accelerator
-void syncLayerLHSBuffer(LayerHandle id);
-void syncLayerRHSBuffer(LayerHandle id);
-// ensure that result buffer is up-to-date on the host
-void syncLayerResBuffer(LayerHandle id);
-
-// execute layer with given handle
-void execMatMulLayer(LayerHandle id);
-//void execThresLayer(LayerHandle id, const int32_t * in, uint8_t * out);
-//void execConvLayer(LayerHandle id, const uint8_t * in, int32_t * out);
-
-// destroy layer with given handle
-void deinitLayer(LayerHandle id);
 }
 #endif

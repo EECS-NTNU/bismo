@@ -6,7 +6,6 @@ TIMER_INIT();
 WrapperRegDriver * platform;
 BitSerialMatMulAccelDriver * acc;
 HardwareCfg cfg;
-//std::vector<InternalLayerDescriptor> registry;
 std::map<std::string,float> instrumentationData;
 
 // global init/deinit for the runtime library
@@ -69,96 +68,4 @@ HardwareConfig getHardwareConfig() {
   ret.writeChanWidth = cfg.writeChanWidth;
   return ret;
 }
-/*
-void genFetchInstrs(
-  std::vector<BISMOInstruction> & ins,
-  size_t bram_base,
-  bool lhsNotRhs,
-  uint32_t dram_base,
-  size_t tiles_per_row,
-  size_t nbytes
-) {
-  BISMOFetchRunInstruction frc, frc_ratio_fixed;
-  size_t bram_start = lhsNotRhs ? acc->get_fetch_first_lhs_id() : acc->get_fetch_first_rhs_id();
-  size_t bram_range = (lhsNotRhs ? cfg.dpaDimLHS : cfg.dpaDimRHS) - 1;
-  size_t exec_to_fetch_width_ratio = cfg.dpaDimCommon / cfg.readChanWidth;
-
-  frc.isRunCfg = 1;
-  frc.targetStage = stgFetch;
-  frc.bram_id_start = bram_start;
-  frc.bram_id_range = lhsNotRhs ? 0 : 1;
-  frc.tiles_per_row = tiles_per_row;
-  frc.bram_addr_base = bram_base;
-  frc.dram_base = dram_base;
-  size_t bytes_left = nbytes;
-  const size_t bytes_per_addr = (lhsNotRhs ? cfg.dpaDimLHS : cfg.dpaDimRHS) * (cfg.dpaDimCommon/8);
-  // bram base addr calculations here assume that each non-final packet is
-  // distributed evenly between memories. need a max block size that is divisible
-  // by tiles_per_row * bytes_per_addr for this.
-  const size_t aligned_chunks = FETCH_BLOCK_MAX / (tiles_per_row * bytes_per_addr);
-  const size_t max_block = aligned_chunks * (tiles_per_row * bytes_per_addr);
-  while(bytes_left > 0) {
-    frc.dram_block_size_bytes = std::min(max_block, bytes_left);
-    frc.dram_block_offset_bytes = frc.dram_block_size_bytes;
-    frc.dram_block_count = bytes_left / frc.dram_block_size_bytes;
-    frc_ratio_fixed = frc;
-    frc_ratio_fixed.tiles_per_row *= exec_to_fetch_width_ratio;
-    frc_ratio_fixed.bram_addr_base *= exec_to_fetch_width_ratio;
-    ins.push_back(frc_ratio_fixed.asRaw());
-    BISMORT_DEBUG("[genFetchInstrs] " << frc);
-    size_t last_chunk_bytes = frc.dram_block_count * frc.dram_block_size_bytes;
-    bytes_left -= last_chunk_bytes;
-    frc.dram_base += last_chunk_bytes;
-    frc.bram_addr_base += last_chunk_bytes / bytes_per_addr;
-  }
-}*/
-
-/*
-// parameter shape: thresholds[nthresholds][nchannels]
-LayerHandle initThresLayer(ThresLayerDescriptor & dsc, const uint8_t * thresholds, bool cpu_only) {
-  // TODO allocate OCM space for thresholds
-  // TODO write thresholds into OCM
-  // TODO create instruction sequence for execution, store for later
-  // TODO create entry in layer registry
-  // TODO return layer handle
-  return 0;
-}
-
-void execThresLayer(LayerHandle id, const int32_t * in, uint8_t * out) {
-  // TODO implement execThresLayer
-}
-*/
-// destroy layer with given handle
-/*
-void deinitLayer(LayerHandle id) {
-  InternalLayerDescriptor dsc = registry[id];
-  switch (dsc.layerType) {
-    case layerMatMul:
-      // dealloc associated sw gemmbitserial context
-      gemmbitserial::deallocGEMMContext(dsc.ctx);
-      if(!dsc.cpu_only) {
-        platform->deallocAccelBuffer((void *) dsc.accel_buf_in_lhs);
-        platform->deallocAccelBuffer((void *) dsc.accel_buf_in_rhs);
-        platform->deallocAccelBuffer((void *) dsc.accel_buf_out);
-        delete [] dsc.padded_result_host_buffer;
-      }
-      // TODO free up associated weight OCM
-      break;
-    case layerConv:
-      // deinit sw impl
-      gemmbitserial::deallocConvBitSerialContext(dsc.cnv_ctx);
-      delete [] dsc.cnv_lowering_buf;
-      delete [] dsc.transpose_result_host_buffer;
-      // deinit associated matmul layer
-      deinitLayer(dsc.cnv_matmul_handle);
-      break;
-    case layerThres:
-    // TODO deallocate once we have threshold layers accelerated
-      break;
-    default:
-      throw "Unrecognized layer type in deinitLayer";
-  }
-  // TODO mark descriptor as invalid or remove from registry
-}*/
-
 }
