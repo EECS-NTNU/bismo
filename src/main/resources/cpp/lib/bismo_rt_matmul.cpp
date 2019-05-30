@@ -2,7 +2,7 @@
 
 namespace bismo_inference {
 
-LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc, bool cpu_only) {
+LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc) {
   Matrix<uint8_t> * lhs = new Matrix<uint8_t>(
     dsc.M, dsc.K, dsc.wbits, dsc.wsigned, false, matTypeLHS
   );
