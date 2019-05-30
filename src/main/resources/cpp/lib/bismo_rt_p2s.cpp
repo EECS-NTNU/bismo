@@ -1,7 +1,7 @@
-#include "bismo_inference_internal.hpp"
+#include "bismo_rt_internal.hpp"
 #include "gemmbitserial/test/testhelpers.hpp"
 #include <string>
-namespace bismo_inference {
+namespace bismo_rt {
 uint32_t accel_p2s_bitpar_buffer;
 uint8_t * host_p2s_bitpar_buffer;
 

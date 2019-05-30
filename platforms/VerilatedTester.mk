@@ -16,30 +16,30 @@ sw: $(BUILD_DIR_HWDRV)/$(HW_SW_DRIVER)
 	mkdir -p $(BUILD_DIR_DEPLOY); \
 	mkdir -p $(BUILD_DIR_DEPLOY)/driver; \
 	mkdir -p $(BUILD_DIR_DEPLOY)/test; \
-	mkdir -p $(BUILD_DIR_DEPLOY)/inflib; \
+	mkdir -p $(BUILD_DIR_DEPLOY)/rtlib; \
 	mkdir -p $(BUILD_DIR_DEPLOY)/hls_include; \
 	cp -rf $(BUILD_DIR_HWDRV)/* $(BUILD_DIR_DEPLOY)/driver/; \
 	cp -rf $(APP_SRC_DIR)/* $(BUILD_DIR_DEPLOY)/test/;
-	cp -rf $(INFLIB_SRC_DIR)/* $(BUILD_DIR_DEPLOY)/inflib; \
+	cp -rf $(RTLIB_SRC_DIR)/* $(BUILD_DIR_DEPLOY)/rtlib; \
 	cp -rf $(HLS_SIM_INCL)/* $(BUILD_DIR_DEPLOY)/hls_include;
 
-emu: inflib_emu
+emu: rtlib_emu
 	cd $(BUILD_DIR_DEPLOY); \
 	sh compile_testapp.sh; \
 	LD_LIBRARY_PATH=$(BUILD_DIR_DEPLOY) ./testapp t;
 
-$(BUILD_DIR_DEPLOY)/libbismo_inference.so: hw sw script
+$(BUILD_DIR_DEPLOY)/libbismo_rt.so: hw sw script
 	cd $(BUILD_DIR_DEPLOY); \
-	sh compile_inflib.sh;
+	sh compile_rtlib.sh;
 
-inflib_emu: $(BUILD_DIR_DEPLOY)/libbismo_inference.so
+rtlib_emu: $(BUILD_DIR_DEPLOY)/libbismo_rt.so
 
 # hw-sw cosimulation tests with extra HLS dependencies
 EmuTestVerifyHLSInstrEncoding:
 	mkdir -p $(BUILD_DIR)/$@; \
 	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator $(DEBUG_CHISEL)"; \
 	cp -rf $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; \
-	ln -s $(INFLIB_SRC_DIR)/BISMOInstruction.* $(BUILD_DIR)/$@/; \
+	ln -s $(RTLIB_SRC_DIR)/BISMOInstruction.* $(BUILD_DIR)/$@/; \
 	cd $(BUILD_DIR)/$@; sh verilator-build.sh -I$(HLS_SIM_INCL); ./VerilatedTesterWrapper
 
 #BUILD_DIR_EMU := $(BUILD_DIR)/emu
@@ -50,7 +50,7 @@ EmuTestVerifyHLSInstrEncoding:
 #	mkdir -p $(BUILD_DIR)/$@;
 #	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator $(DEBUG_CHISEL)";
 #	cp -rf $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
-#	ln -s $(INFLIB_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
+#	ln -s $(RTLIB_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
 #	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
 #	cd $(BUILD_DIR)/$@; sh verilator-build.sh -I$(HLS_SIM_INCL); ./VerilatedTesterWrapper
 #
@@ -58,7 +58,7 @@ EmuTestVerifyHLSInstrEncoding:
 #	mkdir -p $(BUILD_DIR)/$@;
 #	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator $(DEBUG_CHISEL)";
 #	cp -rf $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@;
-#	ln -s $(INFLIB_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
+#	ln -s $(RTLIB_SRC_DIR)/*.hpp $(BUILD_DIR)/$@;
 #	ln -s $(APP_SRC_DIR)/gemmbitserial $(BUILD_DIR)/$@;
 #	cd $(BUILD_DIR)/$@; sh verilator-build.sh -I$(HLS_SIM_INCL); ./VerilatedTesterWrapper
 #
@@ -74,7 +74,7 @@ EmuTestVerifyHLSInstrEncoding:
 ## generate emulator executable including software sources
 #emu: $(BUILD_DIR_EMU)/verilator-build.sh
 #	cp -rf $(APP_SRC_DIR)/* $(BUILD_DIR_EMU)/;
-#	cp -rf $(INFLIB_SRC_DIR)/* $(BUILD_DIR_EMU)/; \
+#	cp -rf $(RTLIB_SRC_DIR)/* $(BUILD_DIR_EMU)/; \
 #	cd $(BUILD_DIR_EMU); sh verilator-build.sh -I$(HLS_SIM_INCL); mv VerilatedTesterWrapper emu; ./emu t
 #
 ## generate cycle-accurate C++ emulator for the whole system via Verilator
@@ -86,15 +86,15 @@ EmuTestVerifyHLSInstrEncoding:
 #
 #
 ## generate dynamic lib for inference, emulated hardware
-#inflib_emu: $(BUILD_DIR_EMU)/verilator-build.sh
-#	rm -rf $(BUILD_DIR_INFLIB); \
-#	mkdir -p $(BUILD_DIR_INFLIB); \
-#	cp -rf $(BUILD_DIR_EMU)/* $(BUILD_DIR_INFLIB)/; \
-#	cp -rf $(INFLIB_SRC_DIR)/* $(BUILD_DIR_INFLIB)/; \
-#	cd $(BUILD_DIR_INFLIB); \
+#rtlib_emu: $(BUILD_DIR_EMU)/verilator-build.sh
+#	rm -rf $(BUILD_DIR_RTLIB); \
+#	mkdir -p $(BUILD_DIR_RTLIB); \
+#	cp -rf $(BUILD_DIR_EMU)/* $(BUILD_DIR_RTLIB)/; \
+#	cp -rf $(RTLIB_SRC_DIR)/* $(BUILD_DIR_RTLIB)/; \
+#	cd $(BUILD_DIR_RTLIB); \
 #	verilator -Iother-verilog --cc TesterWrapper.v -Wno-assignin -Wno-fatal -Wno-lint -Wno-style -Wno-COMBDLY -Wno-STMTDLY --Mdir verilated --trace; \
 #	cp -rf $(VERILATOR_SRC_DIR)/verilated.cpp .; \
 #	cp -rf $(VERILATOR_SRC_DIR)/verilated_vcd_c.cpp .; \
-#	g++ -std=c++11 -I$(HLS_SIM_INCL) -I$(BUILD_DIR_EMU) -Iverilated -I$(VERILATOR_SRC_DIR) -I$(APP_SRC_DIR) -fPIC verilated/*.cpp *.cpp -shared -o $(BUILD_DIR_INFLIB)/libbismo_inference.so
+#	g++ -std=c++11 -I$(HLS_SIM_INCL) -I$(BUILD_DIR_EMU) -Iverilated -I$(VERILATOR_SRC_DIR) -I$(APP_SRC_DIR) -fPIC verilated/*.cpp *.cpp -shared -o $(BUILD_DIR_RTLIB)/libbismo_rt.so
 
 #

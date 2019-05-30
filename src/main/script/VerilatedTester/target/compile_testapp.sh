@@ -30,4 +30,4 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #!/bin/sh
 
-g++ -std=c++11 -pthread test/*.cpp -Iinflib -L. -lbismo_inference -o testapp
+g++ -std=c++11 -pthread test/*.cpp -Irtlib -L. -lbismo_rt -o testapp

@@ -1,6 +1,6 @@
 #include "bismo_rt_matmul.hpp"
 
-namespace bismo_inference {
+namespace bismo_rt {
 
 // note that the MatMul calls here simply implement wrappers around the
 // MatrixMultiply class. this is to allow the BISMO RT to be compiled as a

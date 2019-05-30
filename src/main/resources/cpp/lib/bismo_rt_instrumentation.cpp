@@ -1,7 +1,7 @@
 /*
-#include "bismo_inference_internal.hpp"
+#include "bismo_rt_internal.hpp"
 
-namespace bismo_inference {
+namespace bismo_rt {
 
 // hardware metrics (non-workload-dependent)
 float getHWPeakBinaryOpsPerCycle() {

@@ -1,13 +1,13 @@
-#ifndef BISMORT_INFERENCE_HPP
-#define BISMORT_INFERENCE_HPP
-#include "bismo_inference.hpp"
+#ifndef BISMORT_INTERNAL_HPP
+#define BISMORT_INTERNAL_HPP
+#include "bismo_rt.hpp"
 #include "BitSerialMatMulAccelDriver.hpp"
 #include <vector>
 #include <string.h>
 #include <algorithm>
 #include <chrono>
 
-#include "bismo_inference_options.hpp"
+#include "bismo_rt_options.hpp"
 
 #ifdef DEBUG
 #define BISMORT_DEBUG(x) cout << x << endl;
@@ -29,7 +29,7 @@
 #endif
 #endif
 
-namespace bismo_inference {
+namespace bismo_rt {
 // internal global variables
 // global handle for the platform and BISMO driver
 extern WrapperRegDriver * platform;
@@ -53,4 +53,4 @@ void p2s(
   size_t row_align = 1            // align rows to multiple of this
 );
 }
-#endif /* end of include guard: BISMORT_INFERENCE_HPP */
+#endif /* end of include guard: BISMORT_INTERNAL_HPP */

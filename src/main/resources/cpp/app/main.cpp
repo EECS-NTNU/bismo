@@ -50,12 +50,12 @@ int main(int argc, char const *argv[]) {
       benchmark_gemm_batch();
     } else if(argv[1][0] == 't') {
       bool all_OK = true;
-      bismo_inference::init();
-      bismo_inference::HardwareConfig hwcfg = bismo_inference::getHardwareConfig();
-      all_OK &= bismo_inference::selftest_shared_buffer();
-      all_OK &= bismo_inference::selftest_matrix();
-      all_OK &= bismo_inference::selftest_p2s();
-      bismo_inference::deinit();
+      bismo_rt::init();
+      bismo_rt::HardwareConfig hwcfg = bismo_rt::getHardwareConfig();
+      all_OK &= bismo_rt::selftest_shared_buffer();
+      all_OK &= bismo_rt::selftest_matrix();
+      all_OK &= bismo_rt::selftest_p2s();
+      bismo_rt::deinit();
       all_OK &= test_binary_onchip_onetile(hwcfg);
       all_OK &= test_multibit_onchip_onetile(hwcfg);
       all_OK &= test_multibit_multitile(hwcfg);

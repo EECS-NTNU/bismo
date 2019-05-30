@@ -33,27 +33,27 @@
 #include <iostream>
 using namespace std;
 #include "gemmbitserial/test/testhelpers.hpp"
-#include "bismo_inference.hpp"
+#include "bismo_rt.hpp"
 
 const char * delimiter = ", ";
 
-void printInstrumentationHeaders(bismo_inference::InstrumentationData & data) {
-  bismo_inference::InstrumentationData::iterator it;
+void printInstrumentationHeaders(bismo_rt::InstrumentationData & data) {
+  bismo_rt::InstrumentationData::iterator it;
   for(it = data.begin(); it != data.end(); it++) {
     cout << it->first << delimiter;
   }
   cout << endl;
 }
 
-void printInstrumentationData(bismo_inference::InstrumentationData & data) {
-  bismo_inference::InstrumentationData::iterator it;
+void printInstrumentationData(bismo_rt::InstrumentationData & data) {
+  bismo_rt::InstrumentationData::iterator it;
   for(it = data.begin(); it != data.end(); it++) {
     cout << it->second << delimiter;
   }
   cout << endl;
 }
 
-bismo_inference::InstrumentationData run_benchmark_matmul(
+bismo_rt::InstrumentationData run_benchmark_matmul(
   size_t nrows_lhs, size_t nrows_rhs, size_t ncols, size_t nbits_lhs,
   size_t nbits_rhs
 ) {
@@ -61,7 +61,7 @@ bismo_inference::InstrumentationData run_benchmark_matmul(
   uint8_t * rhs = new uint8_t[nrows_rhs * ncols];
   gemmbitserial::generateRandomVector(nbits_lhs, nrows_lhs*ncols, lhs);
   gemmbitserial::generateRandomVector(nbits_rhs, nrows_rhs*ncols, rhs);
-  bismo_inference::MatMulLayerDescriptor dscr;
+  bismo_rt::MatMulLayerDescriptor dscr;
   dscr.wbits = nbits_lhs;
   dscr.ibits = nbits_rhs;
   dscr.wsigned = false;
@@ -69,25 +69,25 @@ bismo_inference::InstrumentationData run_benchmark_matmul(
   dscr.M = nrows_lhs;
   dscr.K = ncols;
   dscr.N = nrows_rhs;
-  bismo_inference::init();
-  bismo_inference::InstrumentationData ret;
+  bismo_rt::init();
+  bismo_rt::InstrumentationData ret;
   try {
-    bismo_inference::LayerHandle id = bismo_inference::initMatMulLayer(dscr);
-    uint8_t * accel_lhs = bismo_inference::getLayerLHSBuffer(id);
-    uint8_t * accel_rhs = bismo_inference::getLayerRHSBuffer(id);
-    int32_t * accel_res = bismo_inference::getLayerResBuffer(id);
+    bismo_rt::LayerHandle id = bismo_rt::initMatMulLayer(dscr);
+    uint8_t * accel_lhs = bismo_rt::getLayerLHSBuffer(id);
+    uint8_t * accel_rhs = bismo_rt::getLayerRHSBuffer(id);
+    int32_t * accel_res = bismo_rt::getLayerResBuffer(id);
     memcpy(accel_lhs, lhs, nrows_lhs * ncols);
-    bismo_inference::syncLayerLHSBuffer(id);
+    bismo_rt::syncLayerLHSBuffer(id);
     memcpy(accel_rhs, rhs, nrows_rhs * ncols);
-    bismo_inference::syncLayerRHSBuffer(id);
-    bismo_inference::execMatMulLayer(id);
-    bismo_inference::syncLayerResBuffer(id);
-    ret = bismo_inference::getInstrumentationData();
+    bismo_rt::syncLayerRHSBuffer(id);
+    bismo_rt::execMatMulLayer(id);
+    bismo_rt::syncLayerResBuffer(id);
+    ret = bismo_rt::getInstrumentationData();
   } catch(const char * e) {
     cout << "Exception: " << e << endl;
   }
 
-  bismo_inference::deinit();
+  bismo_rt::deinit();
 
   delete [] lhs;
   delete [] rhs;
@@ -115,7 +115,7 @@ void benchmark_caffenet_gemm() {
     size_t cols = caffenet_gemm_sizes[3 * i + 2];
     for(auto & lhsbits: bits) {
       for(auto & rhsbits: bits) {
-        bismo_inference::InstrumentationData ret = run_benchmark_matmul(rows, cols, depth, lhsbits, rhsbits);
+        bismo_rt::InstrumentationData ret = run_benchmark_matmul(rows, cols, depth, lhsbits, rhsbits);
         if(!headers_printed) {
           printInstrumentationHeaders(ret);
           headers_printed = true;
@@ -137,7 +137,7 @@ void benchmark_gemm_interactive() {
     cin >> depth >> cols;
     cout << "Enter lhs and rhs bits: " << endl;
     cin >> lhsbits >> rhsbits;
-    bismo_inference::InstrumentationData ret = run_benchmark_matmul(rows, cols, depth, lhsbits, rhsbits);
+    bismo_rt::InstrumentationData ret = run_benchmark_matmul(rows, cols, depth, lhsbits, rhsbits);
     printInstrumentationHeaders(ret);
     printInstrumentationData(ret);
   }
@@ -153,7 +153,7 @@ void benchmark_gemm_batch() {
     }
     cin >> depth >> cols;
     cin >> lhsbits >> rhsbits;
-    bismo_inference::InstrumentationData ret = run_benchmark_matmul(rows, cols, depth, lhsbits, rhsbits);
+    bismo_rt::InstrumentationData ret = run_benchmark_matmul(rows, cols, depth, lhsbits, rhsbits);
     if(!headers_printed) {
       printInstrumentationHeaders(ret);
       headers_printed = true;

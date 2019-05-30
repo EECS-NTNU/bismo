@@ -1,9 +1,9 @@
-#include "bismo_inference_internal.hpp"
+#include "bismo_rt_internal.hpp"
 #include "bismo_rt_matrix.hpp"
 #include "bismo_rt_shared_buffer.hpp"
 #include "gemmbitserial/test/testhelpers.hpp"
 
-namespace bismo_inference {
+namespace bismo_rt {
 
 // run a simple self-test on the SharedBuffer functionality
 bool selftest_shared_buffer() {

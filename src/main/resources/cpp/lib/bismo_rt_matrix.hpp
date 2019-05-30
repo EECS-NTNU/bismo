@@ -1,11 +1,11 @@
-#ifndef BISMORT_MATRIX
-#define BISMORT_MATRIX
+#ifndef BISMORT_MATRIX_HPP
+#define BISMORT_MATRIX_HPP
 
 #include <iostream>
-#include "bismo_inference_internal.hpp"
+#include "bismo_rt_internal.hpp"
 #include "bismo_rt_shared_buffer.hpp"
 
-namespace bismo_inference {
+namespace bismo_rt {
 
 typedef enum {
   matTypeLHS, matTypeRHS, matTypeRes
@@ -242,4 +242,4 @@ protected:
 };
 
 }
-#endif /* end of include guard: BISMORT_MATRIX */
+#endif /* end of include guard: BISMORT_MATRIX_HPP */

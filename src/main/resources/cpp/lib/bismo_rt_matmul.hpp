@@ -1,7 +1,10 @@
-#include "bismo_inference_internal.hpp"
+#ifndef BISMORT_MATMUL_HPP
+#define BISMORT_MATMUL_HPP
+
+#include "bismo_rt_internal.hpp"
 #include "bismo_rt_matrix.hpp"
 
-namespace bismo_inference {
+namespace bismo_rt {
 
 // an executable BISMO matrix multiply operation
 // input and result matrices must be preallocated, see Matrix<>
@@ -27,3 +30,5 @@ protected:
 };
 
 }
+
+#endif /* end of include guard: BISMORT_MATMUL_HPP */

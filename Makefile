@@ -61,11 +61,11 @@ BUILD_DIR_CHARACTERIZE := $(BUILD_DIR)/characterize
 BUILD_DIR_DEPLOY := $(BUILD_DIR)/deploy
 BUILD_DIR_VERILOG := $(BUILD_DIR)/hw/verilog
 BUILD_DIR_HWDRV := $(BUILD_DIR)/hw/driver
-BUILD_DIR_INFLIB := $(BUILD_DIR)/inflib
+BUILD_DIR_RTLIB := $(BUILD_DIR)/rtlib
 VERILOG_SRC_DIR := $(TOP)/src/main/verilog
 VHDL_SRC_DIR := $(TOP)/src/main/vhdl
 APP_SRC_DIR := $(TOP)/src/main/resources/cpp/app
-INFLIB_SRC_DIR := $(TOP)/src/main/resources/cpp/lib
+RTLIB_SRC_DIR := $(TOP)/src/main/resources/cpp/lib
 HLS_SRC_DIR := $(TOP)/src/main/resources/hls
 HLSTEST_SRC_DIR := $(TOP)/src/main/resources/hls/test
 VIVADO_IN_PATH := $(shell command -v vivado 2> /dev/null)
@@ -101,8 +101,8 @@ HLSTest%:
 	cp $(HLSTEST_SRC_DIR)/$@.cpp .; \
 	cp $(HLSTEST_SRC_DIR)/$*_TemplateDefs.hpp .; \
 	cp $(HLS_SRC_DIR)/$*.cpp .; \
-	cp $(INFLIB_SRC_DIR)/BISMOInstruction.cpp .; \
-	g++ -std=c++11 -I$(INFLIB_SRC_DIR) -I$(HLS_SIM_INCL) *.cpp -o $@; \
+	cp $(RTLIB_SRC_DIR)/BISMOInstruction.cpp .; \
+	g++ -std=c++11 -I$(RTLIB_SRC_DIR) -I$(HLS_SIM_INCL) *.cpp -o $@; \
 	./$@
 
 # run resource/Fmax characterization

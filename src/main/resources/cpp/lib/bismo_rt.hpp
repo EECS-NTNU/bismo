@@ -29,13 +29,13 @@
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef BISMO_INFERENCE_HPP
-#define BISMO_INFERENCE_HPP
+#ifndef BISMORT_HPP
+#define BISMORT_HPP
 #include <stdint.h>
 #include <map>
 #include <string>
 
-namespace bismo_inference {
+namespace bismo_rt {
 // global init/deinit for the runtime library
 void init();
 void deinit();

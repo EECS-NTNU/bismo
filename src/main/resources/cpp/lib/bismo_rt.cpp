@@ -1,6 +1,6 @@
-#include "bismo_inference_internal.hpp"
+#include "bismo_rt_internal.hpp"
 
-namespace bismo_inference {
+namespace bismo_rt {
 TIMER_INIT();
 // global handle for the platform and BISMO driver
 WrapperRegDriver * platform;

@@ -38,7 +38,7 @@ using namespace std;
 #include "gemmbitserial/test/testhelpers.hpp"
 #include "gemmbitserial/gemmbitserial.hpp"
 #include "gemmbitserial/convbitserial.hpp"
-#include "bismo_inference.hpp"
+#include "bismo_rt.hpp"
 
 // BISMO top-level tests
 
@@ -62,7 +62,7 @@ bool test(
   cout << " " << nbits_lhs << "bx" << nbits_rhs << "b ";
   cout << "signed? " << sgn_lhs << " " << sgn_rhs << endl;
 
-  bismo_inference::MatMulLayerDescriptor dscr;
+  bismo_rt::MatMulLayerDescriptor dscr;
   dscr.wbits = nbits_lhs;
   dscr.ibits = nbits_rhs;
   dscr.wsigned = sgn_lhs;
@@ -70,17 +70,17 @@ bool test(
   dscr.M = nrows_lhs;
   dscr.K = ncols;
   dscr.N = nrows_rhs;
-  bismo_inference::init();
-  bismo_inference::LayerHandle id = bismo_inference::initMatMulLayer(dscr);
-  uint8_t * accel_lhs = bismo_inference::getLayerLHSBuffer(id);
-  uint8_t * accel_rhs = bismo_inference::getLayerRHSBuffer(id);
-  int32_t * accel_res = bismo_inference::getLayerResBuffer(id);
+  bismo_rt::init();
+  bismo_rt::LayerHandle id = bismo_rt::initMatMulLayer(dscr);
+  uint8_t * accel_lhs = bismo_rt::getLayerLHSBuffer(id);
+  uint8_t * accel_rhs = bismo_rt::getLayerRHSBuffer(id);
+  int32_t * accel_res = bismo_rt::getLayerResBuffer(id);
   memcpy(accel_lhs, lhs, nrows_lhs * ncols);
-  bismo_inference::syncLayerLHSBuffer(id);
+  bismo_rt::syncLayerLHSBuffer(id);
   memcpy(accel_rhs, rhs, nrows_rhs * ncols);
-  bismo_inference::syncLayerRHSBuffer(id);
-  bismo_inference::execMatMulLayer(id);
-  bismo_inference::syncLayerResBuffer(id);
+  bismo_rt::syncLayerRHSBuffer(id);
+  bismo_rt::execMatMulLayer(id);
+  bismo_rt::syncLayerResBuffer(id);
   int res = memcmp(ctx.res, accel_res, nrows_lhs*nrows_rhs*sizeof(int32_t));
 
   if(res == 0) {
@@ -100,8 +100,8 @@ bool test(
     ctx.rhs.printHex();*/
   }
 
-  bismo_inference::deinitLayer(id);
-  bismo_inference::deinit();
+  bismo_rt::deinitLayer(id);
+  bismo_rt::deinit();
   delete [] lhs;
   delete [] rhs;
   gemmbitserial::deallocGEMMContext(ctx);
@@ -110,7 +110,7 @@ bool test(
 }
 
 /*bool test_conv(
-  string testName, bismo_inference::ConvLayerDescriptor & cnv
+  string testName, bismo_rt::ConvLayerDescriptor & cnv
 ) {
   // calculate some sizes
   int depth = cnv.ksize * cnv.ksize * cnv.ifm;
@@ -132,10 +132,10 @@ bool test(
   gemmbitserial::gemmBitSerial(ctx.gemmctx);
 
   int32_t * res_hw = new int32_t[odim * odim * cnv.ofm];
-  bismo_inference::init();
-  bismo_inference::LayerHandle handle = bismo_inference::initConvLayer(cnv, w);
-  bismo_inference::execConvLayer(handle, a, res_hw);
-  bismo_inference::deinit();
+  bismo_rt::init();
+  bismo_rt::LayerHandle handle = bismo_rt::initConvLayer(cnv, w);
+  bismo_rt::execConvLayer(handle, a, res_hw);
+  bismo_rt::deinit();
 
   int res = memcmp(res_hw, ctx.gemmctx.res, sizeof(int32_t)*odim*odim*cnv.ofm);
   cout << "Conv test " << testName << " ";
@@ -154,9 +154,9 @@ bool test(
   return res == 0;
 }
 
-bool test_small_conv(bismo_inference::HardwareConfig hwcfg) {
+bool test_small_conv(bismo_rt::HardwareConfig hwcfg) {
   bool all_OK = true;
-  bismo_inference::ConvLayerDescriptor cnv;
+  bismo_rt::ConvLayerDescriptor cnv;
   cnv.wbits = 1;
   cnv.ibits = 4;
   cnv.wsigned = false;
@@ -173,9 +173,9 @@ bool test_small_conv(bismo_inference::HardwareConfig hwcfg) {
   return all_OK;
 }
 
-bool test_big_conv(bismo_inference::HardwareConfig hwcfg) {
+bool test_big_conv(bismo_rt::HardwareConfig hwcfg) {
   bool all_OK = true;
-  bismo_inference::ConvLayerDescriptor cnv;
+  bismo_rt::ConvLayerDescriptor cnv;
   vector<size_t> bits {2, 3};
   vector<size_t> pad {0, 1};
   vector<size_t> ksize {2, 3};
@@ -215,7 +215,7 @@ bool test_big_conv(bismo_inference::HardwareConfig hwcfg) {
   return all_OK;
 }*/
 
-bool test_binary_onchip_onetile(bismo_inference::HardwareConfig hwcfg) {
+bool test_binary_onchip_onetile(bismo_rt::HardwareConfig hwcfg) {
   bool all_OK = true;
   vector<size_t> k_tiles {1};
   const size_t memsize = min(hwcfg.lhsEntriesPerMem, hwcfg.rhsEntriesPerMem);
@@ -230,7 +230,7 @@ bool test_binary_onchip_onetile(bismo_inference::HardwareConfig hwcfg) {
   return all_OK;
 }
 
-bool test_multibit_onchip_onetile(bismo_inference::HardwareConfig hwcfg) {
+bool test_multibit_onchip_onetile(bismo_rt::HardwareConfig hwcfg) {
   bool all_OK = true;
   vector<size_t> bits {2, 4};
   vector<int> tf {0, 1};
@@ -254,7 +254,7 @@ bool test_multibit_onchip_onetile(bismo_inference::HardwareConfig hwcfg) {
   return all_OK;
 }
 
-bool test_multibit_multitile(bismo_inference::HardwareConfig hwcfg) {
+bool test_multibit_multitile(bismo_rt::HardwareConfig hwcfg) {
   bool all_OK = true;
   all_OK &= test("2*Dm x 1024 x 2*Dn 1b x 1b", 2*hwcfg.dpaDimLHS, 2*hwcfg.dpaDimLHS, 1024, 1, 1);
   all_OK &= test("2*Dm x 1024 x 2*Dn 2b x 2b", 2*hwcfg.dpaDimLHS, 2*hwcfg.dpaDimLHS, 1024, 2, 2);
@@ -268,7 +268,7 @@ bool test_multibit_multitile(bismo_inference::HardwareConfig hwcfg) {
   return all_OK;
 }
 
-bool test_binary_size_independent(bismo_inference::HardwareConfig hwcfg) {
+bool test_binary_size_independent(bismo_rt::HardwareConfig hwcfg) {
   bool all_OK = true;
   all_OK &= test(
     "binary_size_independent_", 17, 7, 11
@@ -277,7 +277,7 @@ bool test_binary_size_independent(bismo_inference::HardwareConfig hwcfg) {
   return all_OK;
 }
 
-bool test_binary_onchip_multitile(bismo_inference::HardwareConfig hwcfg) {
+bool test_binary_onchip_multitile(bismo_rt::HardwareConfig hwcfg) {
   bool all_OK = true;
   vector<size_t> stripes {2, /*3,*/ 4};
   for(auto & lhs_stripes : stripes) {
@@ -295,7 +295,7 @@ bool test_binary_onchip_multitile(bismo_inference::HardwareConfig hwcfg) {
   return all_OK;
 }
 
-bool test_binary_offchip_multitile(bismo_inference::HardwareConfig hwcfg) {
+bool test_binary_offchip_multitile(bismo_rt::HardwareConfig hwcfg) {
   bool all_OK = true;
   vector<size_t> stripes {2, /*3,*/ 4};
   for(auto & lhs_stripes : stripes) {
@@ -313,7 +313,7 @@ bool test_binary_offchip_multitile(bismo_inference::HardwareConfig hwcfg) {
   return all_OK;
 }
 
-bool test_binary_offchip_widerows_multitile(bismo_inference::HardwareConfig hwcfg) {
+bool test_binary_offchip_widerows_multitile(bismo_rt::HardwareConfig hwcfg) {
   bool all_OK = true;
   vector<size_t> lr_stripes {1, 2, 4};
   vector<size_t> z_stripes {2, 4};

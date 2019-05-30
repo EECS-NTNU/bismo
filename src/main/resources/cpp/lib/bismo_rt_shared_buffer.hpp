@@ -4,7 +4,7 @@
 #include <string>
 #include "wrapperregdriver.h"
 
-namespace bismo_inference {
+namespace bismo_rt {
 
 template<typename T>
 class SharedBuffer {
