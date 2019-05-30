@@ -2,6 +2,7 @@
 #define BISMORT_MATRIX_HPP
 
 #include <iostream>
+#include <string>
 #include "bismo_rt_internal.hpp"
 #include "bismo_rt_shared_buffer.hpp"
 
@@ -26,8 +27,11 @@ public:
     // operation, due to the assumptions that BISMO makes
     bool is_transposed,
     // matrix type, needed to align correctly for BISMO hardware
-    MatrixType matrix_type
+    MatrixType matrix_type,
+    // matrix name, useful for debugging and instrumentation
+    std::string name = ""
   ) {
+    m_name = name;
     m_matrix_type = matrix_type;
     m_rows = rows;
     m_cols = cols;
@@ -58,7 +62,7 @@ public:
     m_inner_a = gemmbitserial::alignTo(inner(), inner_align);
     // TODO support naming, constant matrices and coherency here
     m_padded_buf = new SharedBuffer<T>(
-      elems_a(), platform, "", false, false
+      elems_a(), platform, m_name+"_buf", false, false
     );
     m_needs_padding = (outer() != outer_a()) || (inner() != inner_a());
     if(m_needs_padding) {
@@ -243,6 +247,7 @@ protected:
   bool m_is_transposed;
   bool m_is_bitserial;
   MatrixType m_matrix_type;
+  std::string m_name;
 };
 
 }

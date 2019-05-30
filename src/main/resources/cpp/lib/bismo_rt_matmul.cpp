@@ -10,13 +10,13 @@ namespace bismo_rt {
 
 LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc) {
   Matrix<uint8_t> * lhs = new Matrix<uint8_t>(
-    dsc.M, dsc.K, dsc.wbits, dsc.wsigned, false, matTypeLHS
+    dsc.M, dsc.K, dsc.wbits, dsc.wsigned, false, matTypeLHS, "mat_lhs"
   );
   Matrix<uint8_t> * rhs = new Matrix<uint8_t>(
-    dsc.K, dsc.N, dsc.ibits, dsc.isigned, true, matTypeRHS
+    dsc.K, dsc.N, dsc.ibits, dsc.isigned, true, matTypeRHS, "mat_rhs"
   );
   Matrix<int32_t> * res = new Matrix<int32_t>(
-    dsc.M, dsc.N, 32, true, true, matTypeRes
+    dsc.M, dsc.N, 32, true, true, matTypeRes, "mat_res"
   );
   MatrixMultiply * mm = new MatrixMultiply(lhs, rhs, res);
 
