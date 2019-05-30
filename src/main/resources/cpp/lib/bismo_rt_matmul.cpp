@@ -2,6 +2,11 @@
 
 namespace bismo_inference {
 
+// note that the MatMul calls here simply implement wrappers around the
+// MatrixMultiply class. this is to allow the BISMO RT to be compiled as a
+// shared library, also removing the need for the template classes implemented
+// as header files to be included with the rtlib
+
 LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc) {
   Matrix<uint8_t> * lhs = new Matrix<uint8_t>(
     dsc.M, dsc.K, dsc.wbits, dsc.wsigned, false, matTypeLHS
