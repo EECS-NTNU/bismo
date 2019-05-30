@@ -135,7 +135,11 @@ public:
 
   // copy accel buffer to host buffer
   void accel2host() {
+    TIMER_SAMPLE();
     m_padded_buf->accel2host();
+    TIMER_SAMPLE();
+    TIMER_REPORT(m_name + "_accel2host");
+    TIMER_SAMPLE();
     if(m_needs_padding) {
       // strided copy into m_unpadded_hostbuf
       copy2d(
@@ -144,10 +148,13 @@ public:
       );
       // TODO time measurement for un-padding
     }
+    TIMER_SAMPLE();
+    TIMER_REPORT(m_name + "_unpad");
   };
 
   // copy host buffer to accel buffer
   void host2accel() {
+    TIMER_SAMPLE();
     if(m_needs_padding) {
       // strided copy from m_unpadded_hostbuf
       copy2d(
@@ -156,11 +163,19 @@ public:
       );
       // TODO time measurement for padding
     }
+    TIMER_SAMPLE();
+    TIMER_REPORT(m_name + "_pad");
+    TIMER_SAMPLE();
     m_padded_buf->host2accel();
+    TIMER_SAMPLE();
+    TIMER_REPORT(m_name + "_host2accel");
+    TIMER_SAMPLE();
     if(is_bitserial()) {
       // TODO call only once for const matrices
       p2s();
     }
+    TIMER_SAMPLE();
+    TIMER_REPORT(m_name + "_p2s");
   };
 
   // get a host-accessible pointer to the host buffer
@@ -203,7 +218,7 @@ public:
   }
 
   // convert the accelerator bit-parallel buffer to bit-serial
-  void p2s() {
+  uint32_t p2s() {
     if(!m_is_bitserial) {
       throw "Unsupported matrix type for parallel-to-serial conversion.";
     }
@@ -216,8 +231,7 @@ public:
       is_signed()
     );
     uint32_t cycles = acc->p2s_exec_and_wait();
-    // TODO instrumentation
-    //instrumentationData["run_p2s"] = (float) cycles;
+    return cycles;
   }
 
   // two-dimensional memory copy between arrays of different
