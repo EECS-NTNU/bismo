@@ -22,6 +22,12 @@ public:
   // execute matrix multiply
   // does not synchronize input Matrix objects, remember to call host2accel
   void exec();
+  // verify the computed matmul result against a CPU-computed result
+  int verify();
+  // convenience function to get matmul dimensions
+  size_t M() const;
+  size_t K() const;
+  size_t N() const;
   // performance / instrumentation related functions
   size_t lhsBytes() const;
   size_t rhsBytes() const;

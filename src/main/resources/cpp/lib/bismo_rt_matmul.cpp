@@ -26,6 +26,9 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc) {
 void execMatMulLayer(LayerHandle id) {
   MatrixMultiply * mm = (MatrixMultiply *) id;
   mm->exec();
+#ifdef BISMORT_MATMUL_VERIFY_AGAINST_CPU
+  std::cout << "Verification result = " << mm->verify() << std::endl;
+#endif
 }
 
 InstrumentationData getInstrumentationData(LayerHandle id) {
@@ -142,6 +145,49 @@ void MatrixMultiply::exec() {
   acc->perf_set_cc_enable(0);
   acc->set_stage_enables(0, 0, 0);
 };
+
+size_t MatrixMultiply::M() const {
+  return m_lhs->outer();
+}
+
+size_t MatrixMultiply::K() const {
+  return m_lhs->inner();
+}
+
+size_t MatrixMultiply::N() const {
+  return m_rhs->outer();
+}
+
+int MatrixMultiply::verify() {
+  int32_t * cpu_res = new int32_t[M()*N()];
+  memset(cpu_res, 0, sizeof(int32_t)*M()*N());
+  uint8_t * lhs = m_lhs->hostbuf();
+  uint8_t * rhs = m_rhs->hostbuf();
+  for(size_t m = 0; m < M(); m++) {
+    for(size_t n = 0; n < N(); n++) {
+      for(size_t k = 0; k < K(); k++) {
+        int32_t acc = 0;
+        if(!m_lhs->is_signed() && !m_rhs->is_signed()) {
+          acc += lhs[m*K()+k] * rhs[n*K()+k];
+        } else if(!m_lhs->is_signed() && m_rhs->is_signed()) {
+          acc += lhs[m*K()+k] * (int8_t)rhs[n*K()+k];
+        } else if(m_lhs->is_signed() && !m_rhs->is_signed()) {
+          acc += (int8_t)lhs[m*K()+k] * rhs[n*K()+k];
+        } else {
+          acc += (int8_t)lhs[m*K()+k] * (int8_t)rhs[n*K()+k];
+        }
+        cpu_res[n*M() + m] += acc;
+      }
+    }
+  }
+  // ensure m_res is up to date
+  m_res->accel2host();
+  int ret = memcmp(cpu_res, m_res->hostbuf(), sizeof(int32_t)*M()*N());
+  delete [] cpu_res;
+  return ret;
+}
+
+
 
 size_t MatrixMultiply::lhsBytes() const {
   return m_lhs->bitserial_nbytes();
