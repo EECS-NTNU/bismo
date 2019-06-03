@@ -2,81 +2,6 @@
 #include <iostream>
 
 namespace bismo_rt {
-
-// note that the MatMul calls here simply implement wrappers around the
-// MatrixMultiply class. this is to allow the BISMO RT to be compiled as a
-// shared library, also removing the need for the template classes implemented
-// as header files to be included with the rtlib
-
-LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc) {
-  Matrix<uint8_t> * lhs = new Matrix<uint8_t>(
-    dsc.M, dsc.K, dsc.wbits, dsc.wsigned, false, matTypeLHS, "mat_lhs"
-  );
-  Matrix<uint8_t> * rhs = new Matrix<uint8_t>(
-    dsc.K, dsc.N, dsc.ibits, dsc.isigned, true, matTypeRHS, "mat_rhs"
-  );
-  Matrix<int32_t> * res = new Matrix<int32_t>(
-    dsc.M, dsc.N, 32, true, true, matTypeRes, "mat_res"
-  );
-  MatrixMultiply * mm = new MatrixMultiply(lhs, rhs, res);
-
-  return (LayerHandle) mm;
-}
-
-void execMatMulLayer(LayerHandle id) {
-  MatrixMultiply * mm = (MatrixMultiply *) id;
-  mm->exec();
-#ifdef BISMORT_MATMUL_VERIFY_AGAINST_CPU
-  std::cout << "Verification result = " << mm->verify() << std::endl;
-#endif
-}
-
-InstrumentationData getInstrumentationData(LayerHandle id) {
-  MatrixMultiply * mm = (MatrixMultiply *) id;
-  acc->updateStateBreakdown();
-  mm->perfSummary();
-  mm->perfDetails();
-  return instrumentationData;
-}
-
-uint8_t * getLayerLHSBuffer(LayerHandle id) {
-  MatrixMultiply * mm = (MatrixMultiply *) id;
-  return mm->m_lhs->hostbuf();
-}
-
-uint8_t * getLayerRHSBuffer(LayerHandle id) {
-  MatrixMultiply * mm = (MatrixMultiply *) id;
-  return mm->m_rhs->hostbuf();
-}
-
-int32_t * getLayerResBuffer(LayerHandle id) {
-  MatrixMultiply * mm = (MatrixMultiply *) id;
-  return mm->m_res->hostbuf();
-}
-
-void syncLayerLHSBuffer(LayerHandle id) {
-  MatrixMultiply * mm = (MatrixMultiply *) id;
-  mm->m_lhs->host2accel();
-}
-
-void syncLayerRHSBuffer(LayerHandle id) {
-  MatrixMultiply * mm = (MatrixMultiply *) id;
-  mm->m_rhs->host2accel();
-}
-
-void syncLayerResBuffer(LayerHandle id) {
-  MatrixMultiply * mm = (MatrixMultiply *) id;
-  mm->m_res->accel2host();
-}
-
-void deinitLayer(LayerHandle id) {
-  MatrixMultiply * mm = (MatrixMultiply *) id;
-  delete mm->m_lhs;
-  delete mm->m_rhs;
-  delete mm->m_res;
-  delete mm;
-}
-
 MatrixMultiply::MatrixMultiply(
   Matrix<uint8_t> * lhs, Matrix<uint8_t> * rhs, Matrix<int32_t> * res
 ) {
@@ -159,35 +84,23 @@ size_t MatrixMultiply::N() const {
 }
 
 int MatrixMultiply::verify() {
-  int32_t * cpu_res = new int32_t[M()*N()];
-  memset(cpu_res, 0, sizeof(int32_t)*M()*N());
-  uint8_t * lhs = m_lhs->hostbuf();
-  uint8_t * rhs = m_rhs->hostbuf();
-  for(size_t m = 0; m < M(); m++) {
-    for(size_t n = 0; n < N(); n++) {
-      for(size_t k = 0; k < K(); k++) {
-        int32_t acc = 0;
-        if(!m_lhs->is_signed() && !m_rhs->is_signed()) {
-          acc += lhs[m*K()+k] * rhs[n*K()+k];
-        } else if(!m_lhs->is_signed() && m_rhs->is_signed()) {
-          acc += lhs[m*K()+k] * (int8_t)rhs[n*K()+k];
-        } else if(m_lhs->is_signed() && !m_rhs->is_signed()) {
-          acc += (int8_t)lhs[m*K()+k] * rhs[n*K()+k];
-        } else {
-          acc += (int8_t)lhs[m*K()+k] * (int8_t)rhs[n*K()+k];
-        }
-        cpu_res[n*M() + m] += acc;
+  int ret = 0;
+  // TODO use gemmbitserial here for verification, 8-bit CPU mult does not work
+  // correctly for signed numbers (since the sign bit isn't at the 8th bit)
+
+  // ensure m_res is up to date
+  m_res->accel2host();
+  /*int ret = memcmp(cpu_res, m_res->hostbuf(), sizeof(int32_t)*M()*N());
+  if(ret != 0) {
+    for(size_t i = 0; i < M() * N(); i++) {
+      if(cpu_res[i] != m_res->hostbuf()[i]) {
+        std::cout << "CPU = " << cpu_res[i] << " accel = " << m_res->hostbuf()[i] << std::endl;
       }
     }
   }
-  // ensure m_res is up to date
-  m_res->accel2host();
-  int ret = memcmp(cpu_res, m_res->hostbuf(), sizeof(int32_t)*M()*N());
-  delete [] cpu_res;
+  delete [] cpu_res;*/
   return ret;
 }
-
-
 
 size_t MatrixMultiply::lhsBytes() const {
   return m_lhs->bitserial_nbytes();
