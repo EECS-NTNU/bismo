@@ -24,8 +24,8 @@ public:
     m_is_host_dirty = true;
     m_is_const = is_const;
     m_accelbuf = (uint32_t)(uint64_t) m_platform->allocAccelBuffer(nbytes());
-    if(is_coherent) {
-      m_hostbuf = platform->phys2virt((void *) m_accelbuf);
+    if(m_is_coherent) {
+      m_hostbuf = (T *) platform->phys2virt((void *) m_accelbuf);
     } else {
       m_hostbuf = new T[n_elems];
     }
@@ -33,7 +33,7 @@ public:
 
   ~SharedBuffer() {
     m_platform->deallocAccelBuffer((void *) m_accelbuf);
-    if(!is_coherent) {
+    if(!m_is_coherent) {
       delete [] m_hostbuf;
     }
   }
