@@ -3,17 +3,26 @@
 
 namespace bismo_rt {
 MatrixMultiply::MatrixMultiply(
-  Matrix<uint8_t> * lhs, Matrix<uint8_t> * rhs, Matrix<int32_t> * res
+  Matrix<uint8_t> * lhs, Matrix<uint8_t> * rhs, Matrix<int32_t> * res,
+  bool allow_gemmbitserial
 ) {
   m_lhs = lhs;
   m_rhs = rhs;
   m_res = res;
+  m_allow_gemmbitserial = allow_gemmbitserial;
   // ensure sizes are compatible
   if(m_lhs->inner() != m_rhs->inner()) {
     throw "LHS/RHS dimensions are incompatible";
   }
   if((m_lhs->outer() != m_res->inner()) || (m_rhs->outer() != m_res->outer())) {
     throw "Result dimensions are incompatible with input(s)";
+  }
+  // alloc gemmbitserial context if desired
+  if(allow_gemmbitserial) {
+    m_cpu_ctx = gemmbitserial::allocGEMMContext(
+      m_lhs->outer(), m_lhs->inner(), m_rhs->outer(),
+      m_lhs->bits(), m_rhs->bits(), m_lhs->is_signed(), m_rhs->is_signed()
+    );
   }
   const size_t tiles_m = m_lhs->outer_a() / cfg.dpaDimLHS;
   const size_t tiles_k = m_lhs->inner_a() / cfg.dpaDimCommon;
@@ -50,7 +59,23 @@ MatrixMultiply::MatrixMultiply(
 };
 
 // note: deallocation of MatrixMultiply does NOT free the LHS/RHS/res matrices
-MatrixMultiply::~MatrixMultiply() {};
+MatrixMultiply::~MatrixMultiply() {
+  if(m_allow_gemmbitserial) {
+    gemmbitserial::deallocGEMMContext(m_cpu_ctx);
+  }
+};
+
+bool MatrixMultiply::has_cpu_ctx() const {
+  return m_allow_gemmbitserial;
+}
+
+gemmbitserial::GEMMContext MatrixMultiply::getCPUContext() {
+  if(m_allow_gemmbitserial) {
+    return m_cpu_ctx;
+  } else {
+    throw "MatrixMultiply not constructed with allow_gemmbitserial";
+  }
+}
 
 void MatrixMultiply::exec() {
   acc->set_stage_enables(0, 0, 0);
@@ -81,25 +106,6 @@ size_t MatrixMultiply::K() const {
 
 size_t MatrixMultiply::N() const {
   return m_rhs->outer();
-}
-
-int MatrixMultiply::verify() {
-  int ret = 0;
-  // TODO use gemmbitserial here for verification, 8-bit CPU mult does not work
-  // correctly for signed numbers (since the sign bit isn't at the 8th bit)
-
-  // ensure m_res is up to date
-  m_res->accel2host();
-  /*int ret = memcmp(cpu_res, m_res->hostbuf(), sizeof(int32_t)*M()*N());
-  if(ret != 0) {
-    for(size_t i = 0; i < M() * N(); i++) {
-      if(cpu_res[i] != m_res->hostbuf()[i]) {
-        std::cout << "CPU = " << cpu_res[i] << " accel = " << m_res->hostbuf()[i] << std::endl;
-      }
-    }
-  }
-  delete [] cpu_res;*/
-  return ret;
 }
 
 size_t MatrixMultiply::lhsBytes() const {

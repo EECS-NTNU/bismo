@@ -26,9 +26,11 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc) {
 void execMatMulLayer(LayerHandle id) {
   MatrixMultiply * mm = (MatrixMultiply *) id;
   mm->exec();
+  /*
 #ifdef BISMORT_MATMUL_VERIFY_AGAINST_CPU
   std::cout << "Verification result = " << mm->verify() << std::endl;
 #endif
+*/
 }
 
 InstrumentationData getInstrumentationData(LayerHandle id) {

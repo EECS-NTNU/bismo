@@ -14,16 +14,20 @@ public:
   // lhs = left hand side (e.g. MxK)
   // rhs = right hand side (e.g. KxN, must be transposed)
   // res = result (e.g. MxN, must be transposed)
+  // gemmbitserial = allow pure CPU execution using gemmbitserial
   MatrixMultiply(
-    Matrix<uint8_t> * lhs, Matrix<uint8_t> * rhs, Matrix<int32_t> * res
+    Matrix<uint8_t> * lhs, Matrix<uint8_t> * rhs, Matrix<int32_t> * res,
+    bool allow_gemmbitserial = false
   );
   // free matrix multiply operation, does NOT free input/output matrices
   ~MatrixMultiply();
-  // execute matrix multiply
+  // execute matrix multiply on accelerator
   // does not synchronize input Matrix objects, remember to call host2accel
   void exec();
-  // verify the computed matmul result against a CPU-computed result
-  int verify();
+  // whether CPU-only execution is enabled
+  bool has_cpu_ctx() const;
+  // return gemmbitserial handle for CPU-only execution
+  gemmbitserial::GEMMContext getCPUContext();
   // convenience function to get matmul dimensions
   size_t M() const;
   size_t K() const;
@@ -50,6 +54,8 @@ public:
   Matrix<int32_t> * m_res;
 protected:
   SingleMMDescriptor m_igen_dsc;
+  gemmbitserial::GEMMContext m_cpu_ctx;
+  bool m_allow_gemmbitserial;
 };
 
 }
