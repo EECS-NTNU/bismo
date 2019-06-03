@@ -66,8 +66,8 @@ source "${xdc_dir}/ultra96.tcl"
 
 
 # enable AXI HP ports, set target frequency
-set_property -dict [list CONFIG.PSU__USE__M_AXI_GP0 {1} CONFIG.PSU__USE__S_AXI_GP2 {1}] [get_bd_cells zynq_ultra_ps_e_0]
-set_property -dict [list CONFIG.PSU__SAXIGP2__DATA_WIDTH {128}] [get_bd_cells zynq_ultra_ps_e_0]
+set_property -dict [list CONFIG.PSU__USE__M_AXI_GP0 {1} CONFIG.PSU__USE__S_AXI_GP0 {1}] [get_bd_cells zynq_ultra_ps_e_0]
+set_property -dict [list CONFIG.PSU__SAXIGP0__DATA_WIDTH {128}] [get_bd_cells zynq_ultra_ps_e_0]
 # TODO make num mem.ports controllable with cmdline switch
 #set_property -dict [list CONFIG.PSU__USE__S_AXI_GP3 {1} CONFIG.PSU__USE__S_AXI_GP4 {1} CONFIG.PSU__USE__S_AXI_GP5 {1}] [get_bd_cells zynq_ultra_ps_e_0]
 #set_property -dict [list CONFIG.PSU__SAXIGP2__DATA_WIDTH {128} CONFIG.PSU__SAXIGP3__DATA_WIDTH {128} CONFIG.PSU__USE__S_AXI_GP4 {1} CONFIG.PSU__SAXIGP4__DATA_WIDTH {128} CONFIG.PSU__SAXIGP5__DATA_WIDTH {128}] [get_bd_cells zynq_ultra_ps_e_0]
@@ -83,7 +83,7 @@ create_bd_cell -type module -reference PYNQU96CCWrapper PYNQU96CCWrapper_0
 # connect control-status registers
 apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/zynq_ultra_ps_e_0/pl_clk2} Clk_slave {/zynq_ultra_ps_e_0/pl_clk2} Clk_xbar {/zynq_ultra_ps_e_0/pl_clk2} Master {/zynq_ultra_ps_e_0/M_AXI_HPM0_FPD} Slave {/PYNQU96CCWrapper_0/csr} intc_ip {New AXI Interconnect} master_apm {0}}  [get_bd_intf_pins PYNQU96CCWrapper_0/csr]
 # connect AXI master ports
-apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/zynq_ultra_ps_e_0/pl_clk2} Clk_slave {/zynq_ultra_ps_e_0/pl_clk2} Clk_xbar {/zynq_ultra_ps_e_0/pl_clk2} Master {/PYNQU96CCWrapper_0/mem0} Slave {/zynq_ultra_ps_e_0/S_AXI_HP0_FPD} intc_ip {Auto} master_apm {0}}  [get_bd_intf_pins zynq_ultra_ps_e_0/S_AXI_HP0_FPD]
+apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/zynq_ultra_ps_e_0/pl_clk2} Clk_slave {/zynq_ultra_ps_e_0/pl_clk2} Clk_xbar {/zynq_ultra_ps_e_0/pl_clk2} Master {/PYNQU96CCWrapper_0/mem0} Slave {/zynq_ultra_ps_e_0/S_AXI_HPC0_FPD} intc_ip {Auto} master_apm {0}}  [get_bd_intf_pins zynq_ultra_ps_e_0/S_AXI_HPC0_FPD]
 # TODO make num mem.ports controllable with cmdline switch
 #apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/zynq_ultra_ps_e_0/pl_clk2} Clk_slave {/zynq_ultra_ps_e_0/pl_clk2} Clk_xbar {/zynq_ultra_ps_e_0/pl_clk2} Master {/PYNQU96CCWrapper_0/mem1} Slave {/zynq_ultra_ps_e_0/S_AXI_HP1_FPD} intc_ip {Auto} master_apm {0}}  [get_bd_intf_pins zynq_ultra_ps_e_0/S_AXI_HP1_FPD]
 #apply_bd_automation -rule xilinx.com:bd_rule:axi4 -config { Clk_master {/zynq_ultra_ps_e_0/pl_clk2} Clk_slave {/zynq_ultra_ps_e_0/pl_clk2} Clk_xbar {/zynq_ultra_ps_e_0/pl_clk2} Master {/PYNQU96CCWrapper_0/mem2} Slave {/zynq_ultra_ps_e_0/S_AXI_HP2_FPD} intc_ip {Auto} master_apm {0}}  [get_bd_intf_pins zynq_ultra_ps_e_0/S_AXI_HP2_FPD]
