@@ -18,7 +18,12 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc) {
   Matrix<int32_t> * res = new Matrix<int32_t>(
     dsc.M, dsc.N, 32, true, true, matTypeRes, "mat_res"
   );
-  MatrixMultiply * mm = new MatrixMultiply(lhs, rhs, res);
+#ifdef BISMORT_MATMUL_VERIFY_AGAINST_CPU
+  bool allow_gemmbitserial = true;
+#else
+  bool allow_gemmbitserial = false;
+#endif
+  MatrixMultiply * mm = new MatrixMultiply(lhs, rhs, res, allow_gemmbitserial);
 
   return (LayerHandle) mm;
 }
@@ -26,11 +31,16 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc) {
 void execMatMulLayer(LayerHandle id) {
   MatrixMultiply * mm = (MatrixMultiply *) id;
   mm->exec();
-  /*
+  if(mm->has_cpu_ctx()) {
+    gemmbitserial::GEMMContext ctx = mm->getCPUContext();
+    gemmbitserial::gemmBitSerial(ctx);
 #ifdef BISMORT_MATMUL_VERIFY_AGAINST_CPU
-  std::cout << "Verification result = " << mm->verify() << std::endl;
+    mm->m_res->accel2host();
+    size_t nbytes_res = mm->M()*mm->N()*sizeof(int32_t);
+    int verify_res = memcmp(ctx.res, mm->m_res->hostbuf(), nbytes_res);
+    std::cout << "CPU vs accel verification result = " << verify_res << std::endl;
 #endif
-*/
+  }
 }
 
 InstrumentationData getInstrumentationData(LayerHandle id) {
@@ -59,11 +69,19 @@ int32_t * getLayerResBuffer(LayerHandle id) {
 void syncLayerLHSBuffer(LayerHandle id) {
   MatrixMultiply * mm = (MatrixMultiply *) id;
   mm->m_lhs->host2accel();
+  if(mm->has_cpu_ctx()) {
+    gemmbitserial::GEMMContext ctx = mm->getCPUContext();
+    ctx.lhs.importRegular(mm->m_lhs->hostbuf());
+  }
 }
 
 void syncLayerRHSBuffer(LayerHandle id) {
   MatrixMultiply * mm = (MatrixMultiply *) id;
   mm->m_rhs->host2accel();
+  if(mm->has_cpu_ctx()) {
+    gemmbitserial::GEMMContext ctx = mm->getCPUContext();
+    ctx.rhs.importRegular(mm->m_rhs->hostbuf());
+  }
 }
 
 void syncLayerResBuffer(LayerHandle id) {
