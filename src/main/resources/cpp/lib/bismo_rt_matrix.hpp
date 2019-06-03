@@ -29,8 +29,11 @@ public:
     // matrix type, needed to align correctly for BISMO hardware
     MatrixType matrix_type,
     // matrix name, useful for debugging and instrumentation
-    std::string name = ""
+    std::string name = "",
+    // assume cache-coherent memory between CPU and accelerator
+    bool is_coherent = false
   ) {
+    m_is_coherent = is_coherent;
     m_name = name;
     m_matrix_type = matrix_type;
     m_rows = rows;
@@ -60,9 +63,9 @@ public:
     const size_t inner_align = matrix_type == matTypeRes ? cfg.dpaDimLHS : cfg.dpaDimCommon;
     m_outer_a = gemmbitserial::alignTo(outer(), outer_align);
     m_inner_a = gemmbitserial::alignTo(inner(), inner_align);
-    // TODO support naming, constant matrices and coherency here
+    // TODO support constant matrices
     m_padded_buf = new SharedBuffer<T>(
-      elems_a(), platform, m_name+"_buf", false, false
+      elems_a(), platform, m_name+"_buf", false, is_coherent
     );
     m_needs_padding = (outer() != outer_a()) || (inner() != inner_a());
     if(m_needs_padding) {
@@ -262,6 +265,7 @@ protected:
   bool m_is_bitserial;
   MatrixType m_matrix_type;
   std::string m_name;
+  bool m_is_coherent;
 };
 
 }

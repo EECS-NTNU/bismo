@@ -9,14 +9,15 @@ namespace bismo_rt {
 // as header files to be included with the rtlib
 
 LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc) {
+  bool is_coherent = platform->is_coherent();
   Matrix<uint8_t> * lhs = new Matrix<uint8_t>(
-    dsc.M, dsc.K, dsc.wbits, dsc.wsigned, false, matTypeLHS, "mat_lhs"
+    dsc.M, dsc.K, dsc.wbits, dsc.wsigned, false, matTypeLHS, "mat_lhs", is_coherent
   );
   Matrix<uint8_t> * rhs = new Matrix<uint8_t>(
-    dsc.K, dsc.N, dsc.ibits, dsc.isigned, true, matTypeRHS, "mat_rhs"
+    dsc.K, dsc.N, dsc.ibits, dsc.isigned, true, matTypeRHS, "mat_rhs", is_coherent
   );
   Matrix<int32_t> * res = new Matrix<int32_t>(
-    dsc.M, dsc.N, 32, true, true, matTypeRes, "mat_res"
+    dsc.M, dsc.N, 32, true, true, matTypeRes, "mat_res", is_coherent
   );
 #ifdef BISMORT_MATMUL_VERIFY_AGAINST_CPU
   bool allow_gemmbitserial = true;

@@ -23,17 +23,19 @@ public:
     m_name = name;
     m_is_host_dirty = true;
     m_is_const = is_const;
+    m_accelbuf = (uint32_t)(uint64_t) m_platform->allocAccelBuffer(nbytes());
     if(is_coherent) {
-      // TODO use coherent allocation
+      m_hostbuf = platform->phys2virt((void *) m_accelbuf);
     } else {
       m_hostbuf = new T[n_elems];
-      m_accelbuf = (uint32_t)(uint64_t) m_platform->allocAccelBuffer(nbytes());
     }
   };
 
   ~SharedBuffer() {
     m_platform->deallocAccelBuffer((void *) m_accelbuf);
-    delete [] m_hostbuf;
+    if(!is_coherent) {
+      delete [] m_hostbuf;
+    }
   }
 
   // copy accel buffer to host buffer
@@ -101,4 +103,4 @@ protected:
 
 }
 
-#endif /* BISMORT_SHARED_BUFFER_HPP */ 
+#endif /* BISMORT_SHARED_BUFFER_HPP */
