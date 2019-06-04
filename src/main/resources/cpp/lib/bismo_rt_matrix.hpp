@@ -71,7 +71,11 @@ public:
     if(m_needs_padding) {
       m_unpadded_hostbuf = new T[elems()];
       // initialize the padded buf to all zeroes
-      memset(padded_hostbuf(), 0, elems_a() * sizeof(T));
+      // using memset here throws "Bus error" so using a for-loop instead:
+      // memset(padded_hostbuf(), 0, elems_a() * sizeof(T));
+      for(size_t i = 0; i < elems_a(); i++) {
+        padded_hostbuf()[i] = 0;
+      }
     } else {
       m_unpadded_hostbuf = 0;
     }
@@ -247,7 +251,12 @@ public:
     const size_t min_outer = std::min(src_n_outer, dst_n_outer);
     const size_t min_inner = std::min(src_n_inner, dst_n_inner);
     for(size_t o = 0; o < min_outer; o++) {
-      memcpy(dst, src, sizeof(T) * min_inner);
+      // using memcpy here can cause bus errors with coherency enabled,
+      // so opting for a secondary for-loop instead
+      // memcpy(dst, src, sizeof(T) * min_inner);
+      for(size_t i = 0; i < min_inner; i++) {
+        dst[i] = src[i];
+      }
       dst += dst_n_inner;
       src += src_n_inner;
     }
