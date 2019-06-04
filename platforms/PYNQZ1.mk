@@ -8,7 +8,7 @@ VIVADO_SYNTH_SCRIPT := $(TOP)/src/main/script/$(PLATFORM)/host/synth-vivado-proj
 hw_vivadoproj: $(BITFILE_PRJDIR)/bitfile_synth.xpr
 
 $(BITFILE_PRJDIR)/bitfile_synth.xpr: $(HW_TO_SYNTH)
-	vivado -mode $(VIVADO_MODE) -source $(VIVADO_PROJ_SCRIPT) -tclargs $(TOP) $(HW_VERILOG) $(BITFILE_PRJNAME) $(BITFILE_PRJDIR) $(FREQ_MHZ)
+	vivado -mode $(VIVADO_MODE) -source $(VIVADO_PROJ_SCRIPT) -tclargs $(TOP) $(BUILD_DIR_VERILOG) $(BITFILE_PRJNAME) $(BITFILE_PRJDIR) $(FREQ_MHZ)
 
 # launch Vivado in GUI mode with created project
 launch_vivado_gui: $(BITFILE_PRJDIR)/bitfile_synth.xpr
