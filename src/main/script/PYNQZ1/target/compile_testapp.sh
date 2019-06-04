@@ -1,4 +1,4 @@
-# Copyright (c) 2018 Norwegian University of Science and Technology (NTNU)
+# Copyright (c) 2019 Xilinx
 #
 # BSD v3 License
 #
@@ -30,4 +30,4 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #!/bin/sh
 
-g++ -std=c++11 *.cpp -lsds_lib -o app
+g++ -std=c++11 -pthread test/*.cpp -Irtlib -L. -lbismo_rt -lcma -o testapp
