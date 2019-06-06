@@ -72,12 +72,6 @@ object Settings {
     "EmuTestResultStage" -> {p => new EmuTestResultStage(2, emuP)},
     "EmuTestInstrEncoding" -> {p => new EmuTestInstrEncoding(emuP)},
     "EmuTestVerifyHLSInstrEncoding" -> {p => new EmuTestVerifyHLSInstrEncoding(emuP)}
-    /*
-    TODO bring back as needed
-    "EmuTestThrStage" -> {p => new EmuTestThrStage(mRows = 2, mCols = 2, inBits = 32,outBits =  4, thUnroll= 15, emuP)},
-    "EmuTestP2BSStage" -> {p => new EmuTestP2BSStage(2,3,4,1,16,emuP)},
-    "EmuTestP2SAccel" -> { p ⇒ new EmuTestP2SAccel(8, 8, 64, true, emuP) }
-    */
   )
 
   def makeHLSDependencies(
@@ -270,62 +264,6 @@ object CharacterizeMain {
   }
   val instFxn_FetchStage = { p: FetchStageParams ⇒ Module(new FetchDecoupledStage(p)) }
 
-    def makeParamSpace_THU(): Seq[ThresholdingUnitParams] = {
-    return for {
-      inP <- 4 to 4
-      mOutP <- 1 to 1
-      rows <- 2 to 2
-      cols <- 2 to 2
-      unrollBB <- 1 to 1
-      unRows <- 2 to 2
-      unCols <- 2 to 2
-    } yield new ThresholdingUnitParams(
-      thBBParams = new ThresholdingBuildingBlockParams( inPrecision = inP, popcountUnroll = unrollBB,  outPrecision = mOutP),
-      inputBitPrecision = inP, maxOutputBitPrecision = mOutP, matrixRows = rows,
-      matrixColumns = cols, unrollingFactorOutputPrecision = unrollBB,
-      unrollingFactorRows = unRows, unrollingFactorColumns = unCols
-    )
-  }
-
-  val instFxn_THU = {p: ThresholdingUnitParams => Module(new ThresholdingUnit(p))}
-
-
-  def makeParamSpace_TBB(): Seq[ThresholdingBuildingBlockParams] = {
-    return for {
-      m <- 32 to 32
-      k <- 1 to 1
-      n <- 1 to 1
-    } yield new ThresholdingBuildingBlockParams(
-      inPrecision = m, popcountUnroll = k, outPrecision = n
-    )
-  }
-  val instFxn_TBB = {p: ThresholdingBuildingBlockParams => Module(new ThresholdingBuildingBlock(p))}
-
-  def makeParamSpace_thrStage(): Seq[ThrStageParams] = {
-    return for {
-      inP <- Seq(4, 8, 16, 32)
-      mOutP <- Seq(1,2,3,4,8)
-      rows <- Seq(1,2,3,4,6,8)
-      cols <- Seq(1,2,3,4,6,8,32,64)
-      unrollBB <- Seq(1,scala.math.pow(2,mOutP).toInt - 1)
-      //unRows <- 8 to 8
-      //unCols <- 8 to 8
-      resAddr <- 8 to 8
-      inAddr <- 8  to 8
-      thAddr <- 8 to 8
-    } yield new ThrStageParams(
-     thresholdMemDepth = thAddr, inputMemDepth = inAddr, resMemDepth = resAddr,
-      thuParams = new ThresholdingUnitParams(
-        thBBParams = new ThresholdingBuildingBlockParams( inPrecision = inP, popcountUnroll = unrollBB,  outPrecision = mOutP),
-        inputBitPrecision = inP, maxOutputBitPrecision = mOutP, matrixRows = rows,
-        matrixColumns = cols, unrollingFactorOutputPrecision = unrollBB,
-        unrollingFactorRows = rows, unrollingFactorColumns = cols
-      )
-    )
-  }
-
-val instFxn_thrStage = {p: ThrStageParams => Module(new ThrStage(p))}
-
   def makeParamSpace_BlackBoxCompressor(): Seq[BlackBoxCompressorParams] = {
     return for {
       n ← for (i ← 6 to 8) yield 1 << i
@@ -367,29 +305,6 @@ val instFxn_thrStage = {p: ThrStageParams => Module(new ThrStage(p))}
 
   val instFxn_SU = {p: SerializerUnitParams => Module(new SerializerUnit(p))}
 
-  def makeParamSpace_P2BSStage(): Seq[Parallel2BSStageParams] = {
-    return for {
-      inBW <- Seq(4, 8, 16, 32)
-      maxCounterBW <- Seq(inBW, 32)
-      rows <- Seq(2,3,4,8)
-      cols <- Seq(2,3,4,8)
-      static <- Seq(true,false)
-      inMemDepth <- 8 to 8
-      resMemDepth <- Seq(inBW)
-      memAddr <- 0 to 0
-      regLatency <- 1 to 1
-
-
-    } yield new Parallel2BSStageParams(
-      suParams = new SerializerUnitParams ( inPrecision = inBW, matrixRows = rows, matrixCols = cols, staticCounter = static, maxCounterPrec = maxCounterBW),
-      thMemDepth  = inMemDepth, bsMemDepth = resMemDepth,
-      thMemLatency = regLatency, bramInRegs= regLatency, bramOutRegs = regLatency
-    )
-  }
-
-  val instFxn_P2BSStage = {p: Parallel2BSStageParams => Module(new Parallel2BSStage(p))}
-
-
   def main(args: Array[String]): Unit = {
     val chName: String = args(0)
     val chPath: String = args(1)
@@ -411,16 +326,8 @@ val instFxn_thrStage = {p: ThrStageParams => Module(new ThrStage(p))}
       VivadoSynth.characterizeSpace(makeParamSpace_ResultBuf(), instFxn_ResultBuf, chPath, chLog, fpgaPart)
     } else if (chName == "CharacterizeFetchStage") {
       VivadoSynth.characterizeSpace(makeParamSpace_FetchStage(), instFxn_FetchStage, chPath, chLog, fpgaPart)
-    } else if (chName == "CharacterizeTHU") {
-      VivadoSynth.characterizeSpace(makeParamSpace_THU(), instFxn_THU, chPath, chLog, fpgaPart)
-    } else if (chName == "CharacterizeTBB") {
-      VivadoSynth.characterizeSpace(makeParamSpace_TBB(), instFxn_TBB, chPath, chLog, fpgaPart)
-    } else if (chName == "CharacterizeThrStage") {
-      VivadoSynth.characterizeSpace(makeParamSpace_thrStage(), instFxn_thrStage, chPath, chLog, fpgaPart)
     } else if (chName == "CharacterizeSU") {
       VivadoSynth.characterizeSpace(makeParamSpace_SU(), instFxn_SU, chPath, chLog, fpgaPart)
-    } else if (chName == "CharacterizeP2BS") {
-      VivadoSynth.characterizeSpace(makeParamSpace_P2BSStage(), instFxn_P2BSStage, chPath, chLog, fpgaPart)
     } else if (chName == "CharacterizeBBCompressor") {
       VivadoSynth.characterizeSpace(makeParamSpace_BlackBoxCompressor(), instFxn_BlackBoxCompressor, chPath, chLog, fpgaPart)
     }else if (chName == "CharacterizeBBC"){
