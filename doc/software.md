@@ -32,6 +32,7 @@ have to add either `using namespace bismo_rt;` or prefix each call with
 | *InstrumentationData*      | An `std::map<std::string,float>` that contains name-value pairs for instrumentation data. | n/a | n/a |
 | init()      | Initializes the hardware and runtime library | none | none |
 | deinit()      | De-initializes the hardware and runtime library | none | none |
+| initMatMulLayer()      | Create a matrix multiply operation | MatMulLayerDescriptor | LayerHandle |
 | getLayerLHSBuffer()      | Get the host-accessible **row-major** buffer for left-hand-side (LHS) matrix in matrix multiply | LayerHandle | uint8_t * |
 | getLayerRHSBuffer()      | Get the host-accessible **col-major** buffer for right-hand-side (RHS) matrix in matrix multiply | LayerHandle | uint8_t * |
 | getLayerResBuffer()      | Get the host-accessible **col-major** buffer for the result matrix in matrix multiply | LayerHandle | int32_t * |
@@ -43,6 +44,10 @@ have to add either `using namespace bismo_rt;` or prefix each call with
 | getInstrumentationData()      | Get the instrumentation data for the last executed matrix multiply | LayerHandle | InstrumentationData |
 
 **Is there any example code?** Check out the [top-level test](testing.md).
+
+**How do you handle variable-bit datatypes?** To keep the API simple, we
+currently use uint8_t as a container datatype, and specify the actual bitwidths
+in the MatMulLayerDescriptor when creating a matrix multiply operation.
 
 **Is the API thread-safe?** Not at the moment, contributions to fix this are welcome.
 
