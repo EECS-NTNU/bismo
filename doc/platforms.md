@@ -9,9 +9,24 @@ variable e.g. `PLATFORM=PYNQU96 make all`.
 
 | PLATFORM        | Board       | Remarks  | Largest configuration  |
 | ------------- |:-------------:| -----:| -----:|
+| VerilatedTester      | none (emulated) | Emulates 64-bit fixed-latency DRAM | depends on your host system |
 | PYNQZ1      | Xilinx PYNQ-Z1 | Uses 64-bit AXI HP0 port | 8x256x8@200 MHz: 6.5 binary TOPS |
 | PYNQU96      | Avnet Ultra96 |  Uses 64-bit AXI HP0 port | 10x256x10@300 MHz: 15 binary TOPS |
 | PYNQU96CC | Avnet Ultra96 | (experimental) Support for coherent memory using 64-bit HPC0 port | 10x256x10@300 MHz: 15 binary TOPS |
+
+## Using VerilatedTester for emulation
+
+The VerilatedTester is different than other platforms; it does not create an
+FPGA bitfile, but rather an executable that provides a cycle-accurate model of
+BISMO. This is accomplished by using [Verilator](https://www.veripool.org/wiki/verilator)
+to translate the generated Verilog into a cycle-accurate C++ model.
+The hardware/software interface towards BISMO does not change and the same
+runtime is used, although a different register-level driver is used under
+the hood to map register read/writes and host/accel memory copies to C++ model
+calls instead. The resulting emulation can be instrumented to a great level of
+detail, including the monitoring of cycle-by-cycle behavior by waveform
+dumping or adding printf statements inside Chisel. This allows evaluating
+any hardware changes with greater debug capability and rapid design iterations.
 
 ## Adding support for a new platform
 
