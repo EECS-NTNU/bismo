@@ -1,5 +1,7 @@
 # BISMO
 
+<center> <img src="doc/img/pipeline.svg"></center>
+
 BISMO is a programmable FPGA accelerator for few-bit integer matrix multiplication.
 It offers high-performance matrix multiplication for matrices where each
 element is a few-bit integer (e.g. 2, 3, 4 ... bits).
@@ -12,39 +14,33 @@ approaches.
 
 Its key features are:
 * **High performance and energy efficiency.** On the
-  [Xilinx PYNQ-Z1 board](http://www.pynq.io/board.html), BISMO can
-  offer 6.5 TOPS of binary matrix multiplication performance while drawing less
-  than 5 W of power.
+  [Avnet Ultra96 board](http://zedboard.org/product/ultra96), BISMO can
+  offer 15.4 TOPS of binary matrix multiplication performance while drawing less
+  than 8 W of power.
 * **Configurable size.** The hardware can be scaled up for higher performance, or
   down to save on FPGA resources and power consumption.
 * **Runtime scales with precision.** The input matrices can have any number of
   bits specified at runtime. Higher bit-precision will take more time.
-* **Software-programmable.** BISMO is programmable with a simple instruction set to
-  cater for different matrix sizes, precisions.
+* **Software-programmable.** BISMO comes with a runtime library for ease-of-use, and is also programmable with a simple instruction set to
+  cater for more advanced users.
 
-## Paper
-More details on the hardware design and instruction set can be found in the
-BISMO paper. TODO arxiv link.
-If you find BISMO useful, please use the following citation:
-```
-@inproceedings{bismo,
-author = {Umuroglu, Yaman and Rasnayake, Lahiru and Sjalander, Magnus},
-title = {BISMO: A Scalable Bit-Serial Matrix Multiplication Overlay for Reconfigurable Computing},
-booktitle = {Field Programmable Logic and Applications (FPL), 2018 28th International Conference on},
-series = {FPL '18},
-year = {2018}
-}
-```
+## What's New? (2019-06-10)
+* BISMO v2 is now released with many improvements and new features. Here's a brief summary:
+  * Runtime library
+  * Instruction generators with tiling support for large matrices
+  * Improved hardware with smaller resource cost
+  * Hardware-accelerated parallel-to-serial conversion
+  * Support for PYNQ on the Avnet Ultra96 (PYNQU96)
+  * Experimental support for cache coherency on (PYNQU96CC)
 
 ## Requirements
 1. A working [`sbt`](https://www.scala-sbt.org/1.0/docs/Installing-sbt-on-Linux.html) setup for Chisel2
 2. `zsh` e.g. `sudo apt install zsh` on Ubuntu
-3. [Vivado 2017.4](https://www.xilinx.com/support/download.html) (make sure `vivado` is in `PATH`)
+3. [Vivado 2017.4](https://www.xilinx.com/support/download.html) or later (make sure `vivado` is in `PATH`)
 4. `gcc` 4.8 or later
-5. `verilator` e.g. `sudo apt install verilator` on Ubuntu 
+5. `verilator` e.g. `sudo apt install verilator` on Ubuntu
 6. A [Xilinx PYNQ-Z1 board](http://www.pynq.io/board.html) board with the v1.4 image or later, with network access
 
-## Installation
 1. `git clone --recurse-submodules https://github.com/EECS-NTNU/bismo.git`
 
 The `--recurse-submodules` option fetches the git repos that BISMO depends on,
@@ -87,78 +83,24 @@ Afterwards, run the following on a terminal on the PYNQ-Z1:
 4. `sudo ./load_bitfile.sh` to load the BISMO bitfile.
 5. `sudo ./app` to run the BISMO tests.
 
-## Hardware
-BISMO is implemented in [Chisel 2](https://chisel.eecs.berkeley.edu) using
-components from the [fpga-tidbits](https://github.com/maltanar/fpga-tidbits/)
-framework, and targets Xilinx FPGAs.
-The Chisel source code can be found under `src/main/scala`.
-Currently there is no separate documentation available for the hardware design,
-the best sources of information are the paper and the comments in the code.
+## Paper
+More details on the hardware design and instruction set can be found in the
+[BISMO paper](https://arxiv.org/pdf/1901.00370.pdf). If you find BISMO useful, please use the following citation(s):
+```
+article{bismo_trets,
+ author = {Umuroglu, Yaman and Conficconi, Davide and Rasnayake, Lahiru and Preusser, Thomas and Sjalander, Magnus},
+ title = {Optimizing Bit-Serial Matrix Multiplication for
+ Reconfigurable Computing},
+ journal = {ACM Transactions on Reconfigurable Technology and Systems},
+ year = {2019},
+ publisher = {ACM}
+}
 
-### Overlay Configuration
-BISMO is parametrized and can be instantiated in different sizes to generate a
-higher-performance overlay using more FPGA resources.
-
-*Directly in the source code:* The actual instantiaton is carried out in
-`ChiselMain.main` defined in `src/main/scala/Main.scala` which uses the
-`BitSerialMatMulParams` class defined in `src/main/scala/BISMO.scala` to specify
-the overlay configuration.
-You can specify the overlay dimensions directly in `ChiselMain.main`.
-
-*As environment variables (limited):* For quick experimentation, three of the
-overlay dimensions are sourced from environment variables when `make` is called.
-The environment variables are `M (dpaDimLHS)`, `K (dpaDimCommon)` and
-`N (dpaDimRHS)`.
-For instance, `export M=2 K=64 N=2; make all` will generate a 2x64x2 overlay.
-
-*Special note for hardware-software cosimulation:* The overlay configuration for
-hardware-software cosimulation is specified separately in
-`Settings.emuInstParams` under `src/main/scala/Main.scala`.
-Note that running cosimulation for large instances may take a long time.
-
-### Resource Characterization Flow
-You can run the characterization flow to see how the FPGA resource usage
-varies with configuration for different BISMO components.
-To run the characterization, simply use the name defined under
-`CharacterizeMain.main` as a `make` target, e.g. `make CharacterizePC` will
-run the characterization for the PopCountUnit.
-This will produce a file `CharacterizePC.log` with the results.
-Completing the characterization will take some time depending on the range of
-parameters.
-To change the range of parameters for characterization, see the
-`makeParamSpace` functions under `CharacterizeMain`.
-
-## Software
-
-BISMO overlays are programmable via the instructions listed in the paper,
-although full compiler support is lacking at this point.
-A rudimentary software stack can be found under `src/main/cpp/app`, which
-consists of the following:
-
-* `BitSerialMatMulAccelDriver.hpp` is the low-level driver for BISMO, exposing
-function calls to write instructions to BISMO queues, launching the accelerator,
-and reading performance counters.
-One level under this low-level driver is the register driver
-`BitSerialMatMulAccel.hpp` which is generated automatically by
-[fpga-tidbits
-PlatformWrapper](https://github.com/maltanar/fpga-tidbits/wiki/platformwrapper).
-
-* `BitSerialMatMulExecutor.hpp` contains a rudimentary high-level driver,
-exposing function calls to generate instruction sequences corresponding to
-bit-serial matrix multiplication. Currently this is limited to binary matrices,
-you must manually construct the instruction sequences for multi-bit matrices.
-
-* `BISMOTests.hpp` contains the top-level test code, which also serve as
-usage examples. It uses `BitSerialMatMulExecutor` calls.
-
-* `gemmbitserial`: To convert regular int8 matrices into a format suitable for
-bit-serial, we use functions from
-[gemmbitserial](https://github.com/maltanar/gemmbitserial).
-Inputs to `BitSerialMatMulExecutor` must be in this format.
-
-
-## More Tests
-Besides the top-level BISMO test described under Quickstart, there are several
-other tests available for BISMO components under `src/test`.
-See [here](src/test/scala) for more on the pure Scala/Chisel tests, and
-[here](src/test/cosim) for more on the smaller cosimulation tests.
+@inproceedings{bismo,
+author = {Umuroglu, Yaman and Rasnayake, Lahiru and Sjalander, Magnus},
+title = {BISMO: A Scalable Bit-Serial Matrix Multiplication Overlay for Reconfigurable Computing},
+booktitle = {Field Programmable Logic and Applications (FPL), 2018 28th International Conference on},
+series = {FPL '18},
+year = {2018}
+}
+```
