@@ -31,7 +31,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # target frequency for Vivado FPGA synthesis
-FREQ_MHZ ?= 300.0
+FREQ_MHZ ?= 200.0
 # controls whether Vivado will run in command-line or GUI mode
 VIVADO_MODE ?= batch # or gui
 # which C++ compiler to use
