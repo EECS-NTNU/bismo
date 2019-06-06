@@ -78,16 +78,16 @@ void deinitMatMul(LayerHandle id);
 // copied from BitSerialMatMulAccelDriver in order not to have that as a
 // dependency
 typedef struct {
-  uint64_t accWidth;
-  uint64_t cmdQueueEntries;
-  uint64_t dpaDimCommon;
-  uint64_t dpaDimLHS;
-  uint64_t dpaDimRHS;
-  uint64_t lhsEntriesPerMem;
-  uint64_t maxShiftSteps;
-  uint64_t readChanWidth;
-  uint64_t rhsEntriesPerMem;
-  uint64_t writeChanWidth;
+  uint64_t accWidth;          // number of bits in accumulator, 32 for now
+  uint64_t cmdQueueEntries;   // size of the command queue for instructions
+  uint64_t dpaDimCommon;      // Dk
+  uint64_t dpaDimLHS;         // Dm
+  uint64_t dpaDimRHS;         // Dn
+  uint64_t lhsEntriesPerMem;  // number of entries in LHS on-chip memory
+  uint64_t maxShiftSteps;     // obsolete, do not use
+  uint64_t readChanWidth;     // max bits read from DRAM per cycle
+  uint64_t rhsEntriesPerMem;  // number of entries in RHS on-chip memory
+  uint64_t writeChanWidth;    // max bits written to DRAM per cycle
 } HardwareConfig;
 // retrieve hardware configuration for the instance
 HardwareConfig getHardwareConfig();
