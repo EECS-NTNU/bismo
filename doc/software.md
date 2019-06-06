@@ -1,27 +1,87 @@
 # Software
 
-BISMO overlays are programmable via the instructions listed in the paper,
-although full compiler support is lacking at this point.
-A rudimentary software stack can be found under `src/main/cpp/app`, which
-consists of the following:
+## Overview
 
-* `BitSerialMatMulAccelDriver.hpp` is the low-level driver for BISMO, exposing
-function calls to write instructions to BISMO queues, launching the accelerator,
+## The BISMO runtime library and API
+
+The BISMO runtime library is the preferred way of using BISMO. It exposes a
+simple API that enables the user to create matrix multiplication operations
+of specified dimensions and bitwidth, fill the matrices with desired data,
+perform the execution, retrieve the result and read out instrumentation data.
+It abstracts the user from the details of accelerator/host data movement and
+the hardware/software interface.
+
+**How do I use this?**
+Each platform provides a script that compiles the runtime library into a
+shared object `libbismo_rt.so` as part of the deployment folder.
+The public API for the BISMO runtime library can be found in
+`src/main/resources/lib/bismo_rt.hpp`, and is copied to `rtlib/bismo_rt.hpp`
+in the deployment folder. Simply include the header file in your application,
+and link to the shared library.
+
+
+**What is the API?** Here is a brief explanation of what you'll find in the
+BISMO RT. Note that all of this is under the bismo_rt namespace, so you'll
+have to add either `using namespace bismo_rt;` or prefix each call with
+`bismo_rt::`.
+
+| Function() or *Type*      | Description       | Parameters  | Returns |
+| ------------- |:-------------:| -----:| -----:|
+| *MatMulLayerDescriptor*      | A struct that describes the dimensions for a matrix multiply operation | number of bits, signedness, spatial matrix size | n/a |
+| *LayerHandle*      | Identifies an instantiated BISMO matrix multiply operation | n/a | n/a |
+| *InstrumentationData*      | An `std::map<std::string,float>` that contains name-value pairs for instrumentation data. | n/a | n/a |
+| init()      | Initializes the hardware and runtime library | none | none |
+| deinit()      | De-initializes the hardware and runtime library | none | none |
+| getLayerLHSBuffer()      | Get the host-accessible **row-major** buffer for left-hand-side (LHS) matrix in matrix multiply | LayerHandle | uint8_t * |
+| getLayerRHSBuffer()      | Get the host-accessible **col-major** buffer for right-hand-side (RHS) matrix in matrix multiply | LayerHandle | uint8_t * |
+| getLayerResBuffer()      | Get the host-accessible **col-major** buffer for the result matrix in matrix multiply | LayerHandle | int32_t * |
+| syncLayerLHSBuffer()      | Ensure that the accelerator has an up-to-date version of the LHS matrix | LayerHandle | none |
+| syncLayerRHSBuffer()      | Ensure that the accelerator has an up-to-date version of the RHS matrix | LayerHandle | none |
+| syncLayerResBuffer()      | Ensure that the accelerator has an up-to-date version of the result matrix | LayerHandle | none |
+| execMatMulLayer()      | Execute a matrix multiply operation | LayerHandle | none |
+| deinitLayer()      | Free up resources used by a matrix multiply operation | LayerHandle | none |
+| getInstrumentationData()      | Get the instrumentation data for the last executed matrix multiply | LayerHandle | InstrumentationData |
+
+**Is there any example code?** Check out the [top-level test](testing.md).
+
+**Is the API thread-safe?** Not at the moment, contributions to fix this are welcome.
+
+**Are there any limitations on matrix sizes?** Yes, as with any computer system.
+The restrictions you are most likely to run into are 1) bitwidth limitation (max 8 bits)
+due to how the API is structured, and 2) matrix size limitation depending on
+whether one stripe of the matrix fits into on-chip memory (this depends on the
+overlay configuration, see the size checks in `src/main/resources/lib/bismo_rt_matmul.cpp`)
+due to the current tiling strategy.
+Even if you develop your own tiling, the amount of contiguous memory
+available (determined by the platform) will also limit the maximum size.
+
+## Under the Hood
+
+
+
+### The low-level driver
+
+Internally, the runtime library uses the BISMO low-level driver to perform
+various tasks. The low-level driver for BISMO, exposes function calls to write
+instructions or matrix multiply descriptors to BISMO queues, launching the accelerator,
 and reading performance counters.
+The low-level driver can be found in `src/main/resources/lib/BitSerialMatMulAccelDriver.hpp`.
+
+### The register driver
+
 One level under this low-level driver is the register driver
 `BitSerialMatMulAccel.hpp` which is generated automatically by
 [fpga-tidbits
 PlatformWrapper](https://github.com/maltanar/fpga-tidbits/wiki/platformwrapper).
 
-* `BitSerialMatMulExecutor.hpp` contains a rudimentary high-level driver,
-exposing function calls to generate instruction sequences corresponding to
-bit-serial matrix multiplication. Currently this is limited to binary matrices,
-you must manually construct the instruction sequences for multi-bit matrices.
+
+
+BISMO overlays are programmable via the instructions listed in the paper,
+although full compiler support is lacking at this point.
+A rudimentary software stack can be found under `src/main/cpp/app`, which
+consists of the following:
+
+
 
 * `BISMOTests.hpp` contains the top-level test code, which also serve as
 usage examples. It uses `BitSerialMatMulExecutor` calls.
-
-* `gemmbitserial`: To convert regular int8 matrices into a format suitable for
-bit-serial, we use functions from
-[gemmbitserial](https://github.com/maltanar/gemmbitserial).
-Inputs to `BitSerialMatMulExecutor` must be in this format.
