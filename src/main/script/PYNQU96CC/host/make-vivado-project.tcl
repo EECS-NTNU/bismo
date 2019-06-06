@@ -37,7 +37,7 @@ if {$argc != 5} {
 
 # pull cmdline variables to use during setup
 set config_rosetta_root  [lindex $argv 0]
-set config_rosetta_verilog "$config_rosetta_root/src/main/verilog"
+set config_rosetta_verilog "$config_rosetta_root/fpga-tidbits/src/main/resources/verilog"
 set config_rosetta_vhdl "$config_rosetta_root/src/main/vhdl"
 set config_accel_verilog [lindex $argv 1]
 set config_proj_name [lindex $argv 2]
