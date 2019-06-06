@@ -1,20 +1,62 @@
-# Platforms
+# Platforms, Build and Deployment
+
+## Deployment
+
+In general, each supported platform may do deployment slightly differently,
+but all current BISMO platforms do this in a similar manner:
+
+1. All necessary files (including bitfile, software drivers, runtime and top-level test application) are generated and put into a deployment folder.
+2. The deployment folder is copied onto the target device (we assume using `rsync`)
+3. User runs scripts for compiling runtime library and test application on the target device.
+4. User flashes the bitfile
+5. User runs the test application (or their own application)
+
+## Useful Make targets and variables
+
+BISMO involves a somewhat complex hardware-software build, which is currently managed using the top-level `Makefile`. Below are some of the useful variables and targets.
+
+### Variables
+| Variable        | Description  | Default value |
+| ------------- |:-------------:|-------------:|
+| `PLATFORM` | Select the platform to use, see below | `PYNQU96` |
+| `${PLATFORM}_URI` | URI to be used as rsync deployment target | none |
+| `FREQ_MHZ` | Target clock frequency for synthesis | 200.0 |
+| `M` | LHS parallelism for overlay; see Dm in BISMO paper | 2 |
+| `K` | Inner product parallelism for overlay; see Dk in BISMO paper | 64 |
+| `N` | RHS parallelism for overlay; see Dn in BISMO paper | 2 |
+| `LMEM` | Number of entries in LHS memory; see Bm in BISMO paper | 1024 |
+| `RMEM` | Number of entries in RHS memory; see Bn in BISMO paper | 1024 |
+
+### Make targets
+
+| Target        | Description  |
+| ------------- |:-------------:|
+| `all` | Create a deployment package including hardware, software and scripts |
+| `resmodel` | Estimate FPGA resources for current overlay configuration |
+| `report` | Print the resource usage for key FPGA resources after synthesis |
+| `rsync` | Copy generated deployment package to target URI using rsync |
+
+Note that targets can be platform specific. For instance, `report` does not
+exist for the `VerilatedTester` platform.
+
+
+## Platforms
 
 BISMO can be deployed on a variety of boards using Xilinx FPGAs using the
 same hardware and software.
 You can specify which platform to use by using the `PLATFORM` environment
 variable e.g. `PLATFORM=PYNQU96 make all`.
 
-## List of supported platforms
+### Supported platforms
 
 | PLATFORM        | Board       | Remarks  | Largest configuration  |
 | ------------- |:-------------:| -----:| -----:|
-| VerilatedTester      | none (emulated) | Emulates 64-bit fixed-latency DRAM | depends on your host system |
-| PYNQZ1      | Xilinx PYNQ-Z1 | Uses 64-bit AXI HP0 port | 8x256x8@200 MHz: 6.5 binary TOPS |
-| PYNQU96      | Avnet Ultra96 |  Uses 64-bit AXI HP0 port | 10x256x10@300 MHz: 15 binary TOPS |
-| PYNQU96CC | Avnet Ultra96 | (experimental) Support for coherent memory using 64-bit HPC0 port | 10x256x10@300 MHz: 15 binary TOPS |
+| `VerilatedTester`      | none (emulated) | Emulates 64-bit fixed-latency DRAM | depends on your host system |
+| `PYNQZ1`      | Xilinx PYNQ-Z1 | Uses 64-bit AXI HP0 port | 8x256x8@200 MHz: 6.5 binary TOPS |
+| `PYNQU96`      | Avnet Ultra96 |  Uses 64-bit AXI HP0 port | 10x256x10@300 MHz: 15 binary TOPS |
+| `PYNQU96CC` | Avnet Ultra96 | (experimental) Support for coherent memory using 64-bit HPC0 port | 10x256x10@300 MHz: 15 binary TOPS |
 
-## Using VerilatedTester for emulation
+### Using VerilatedTester for emulation
 
 The VerilatedTester is different than other platforms; it does not create an
 FPGA bitfile, but rather an executable that provides a cycle-accurate model of
@@ -28,7 +70,7 @@ detail, including the monitoring of cycle-by-cycle behavior by waveform
 dumping or adding printf statements inside Chisel. This allows evaluating
 any hardware changes with greater debug capability and rapid design iterations.
 
-## Adding support for a new platform
+### Adding support for a new platform
 
 BISMO uses the the [fpga-tidbits
 PlatformWrapper](https://github.com/maltanar/fpga-tidbits/wiki/platformwrapper)
