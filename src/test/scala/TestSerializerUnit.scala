@@ -34,7 +34,7 @@ import bismo._
 
 import org.scalatest.junit.JUnitSuite
 import org.junit.Test
-import RosettaTestHelpers._
+import BISMOTestHelpers._
 class TestSerializerUnit extends JUnitSuite {
   //TODO: Update this test for the unrolled version on the output check
   @Test def SerializerUnitTest {
@@ -61,7 +61,7 @@ class TestSerializerUnit extends JUnitSuite {
         }
 
         val neg = r.nextBoolean()
-        val a = RosettaTestHelpers.randomIntMatrix(rows, cols, in_len, neg)
+        val a = BISMOTestHelpers.randomIntMatrix(rows, cols, in_len, neg)
         println("Matrix a")
         printMatrix(a)
         poke(dut.io.out.ready, false)
@@ -73,7 +73,7 @@ class TestSerializerUnit extends JUnitSuite {
         for (k ← 0 until in_len /*/cycles2Complete*/ ) {
           for (i ← 0 until rows)
             for (j ← 0 until cols)
-              expect(dut.io.out.bits(i)(j)(0), RosettaTestHelpers.extractBitPos(a(i)(j), k, in_len))
+              expect(dut.io.out.bits(i)(j)(0), BISMOTestHelpers.extractBitPos(a(i)(j), k, in_len))
           step(1)
         }
         poke(dut.io.out.ready, true)
@@ -83,7 +83,7 @@ class TestSerializerUnit extends JUnitSuite {
     }
 
     // Chisel arguments to pass to chiselMainTest
-    def testArgs = RosettaTestHelpers.stdArgs
+    def testArgs = BISMOTestHelpers.stdArgs
 
     for {
       inPrecision ← 16 to 16

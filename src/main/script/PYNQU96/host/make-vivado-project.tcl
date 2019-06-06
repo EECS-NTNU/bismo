@@ -31,22 +31,22 @@
 ###############################################################################
 
 if {$argc != 5} {
-  puts "Expected: <rosetta root> <accel verilog> <proj name> <proj dir> <freq>"
+  puts "Expected: <bismo root> <accel verilog> <proj name> <proj dir> <freq>"
   exit
 }
 
 # pull cmdline variables to use during setup
-set config_rosetta_root  [lindex $argv 0]
-set config_rosetta_verilog "$config_rosetta_root/fpga-tidbits/src/main/resources/verilog"
-set config_rosetta_vhdl "$config_rosetta_root/src/main/vhdl"
+set config_bismo_root  [lindex $argv 0]
+set config_bismo_verilog "$config_bismo_root/fpga-tidbits/src/main/resources/verilog"
+set config_bismo_vhdl "$config_bismo_root/src/main/vhdl"
 set config_accel_verilog [lindex $argv 1]
 set config_proj_name [lindex $argv 2]
 set config_proj_dir [lindex $argv 3]
 set config_freq [lindex $argv 4]
-puts $config_rosetta_verilog
+puts $config_bismo_verilog
 # fixed for platform
 set config_proj_part "xczu3eg-sbva484-1-i"
-set xdc_dir "$config_rosetta_root/src/main/script/PYNQU96/host"
+set xdc_dir "$config_bismo_root/src/main/script/PYNQU96/host"
 
 # set up project
 create_project $config_proj_name $config_proj_dir -part $config_proj_part
@@ -54,10 +54,10 @@ update_ip_catalog
 
 # add the Verilog implementation for the accelerator
 add_files -norecurse $config_accel_verilog/
-# add misc verilog files used by fpga-rosetta
-add_files -norecurse $config_rosetta_verilog/Q_srl.v $config_rosetta_verilog/DualPortBRAM.v
-# add vhdl files used by fpga-rosetta
-add_files -norecurse $config_rosetta_vhdl/
+# add misc verilog files used by fpga-bismo
+add_files -norecurse $config_bismo_verilog/Q_srl.v $config_bismo_verilog/DualPortBRAM.v
+# add vhdl files used by fpga-bismo
+add_files -norecurse $config_bismo_vhdl/
 
 # create block design
 create_bd_design "procsys"

@@ -34,7 +34,7 @@ import Chisel._
 import bismo._
 import org.scalatest.junit.JUnitSuite
 import org.junit.Test
-import RosettaTestHelpers._
+import BISMOTestHelpers._
 
 class TestDotProductArray extends JUnitSuite {
   @Test def DotProdArrayTest {
@@ -95,9 +95,9 @@ class TestDotProductArray extends JUnitSuite {
         // produce random binary test vectors and golden result
         val negA = r.nextBoolean
         val negB = r.nextBoolean
-        val a = RosettaTestHelpers.randomIntMatrix(m_test, k_test, precA, negA)
-        val b = RosettaTestHelpers.randomIntMatrix(m_test, k_test, precB, negB)
-        val golden = RosettaTestHelpers.matrixProduct(a, b)
+        val a = BISMOTestHelpers.randomIntMatrix(m_test, k_test, precA, negA)
+        val b = BISMOTestHelpers.randomIntMatrix(m_test, k_test, precB, negB)
+        val golden = BISMOTestHelpers.matrixProduct(a, b)
         // clear the accumulator
         clearAcc(true)
         // iterate over each combination of bit positions for bit serial
@@ -124,13 +124,13 @@ class TestDotProductArray extends JUnitSuite {
               }
               // insert stimulus for left-hand-side matrix tile
               for (i_m ← 0 to m - 1) {
-                val seqA_bs = RosettaTestHelpers.intVectorToBitSerial(a(i_m), precA)
+                val seqA_bs = BISMOTestHelpers.intVectorToBitSerial(a(i_m), precA)
                 val curA = seqA_bs(bitA).slice(s * pc_len, (s + 1) * pc_len)
                 poke(c.io.a(i_m), scala.math.BigInt.apply(curA.mkString, 2))
               }
               // insert stimulus for right-hand-side matrix tile
               for (i_n ← 0 to n - 1) {
-                val seqB_bs = RosettaTestHelpers.intVectorToBitSerial(b(i_n), precB)
+                val seqB_bs = BISMOTestHelpers.intVectorToBitSerial(b(i_n), precB)
                 val curB = seqB_bs(bitB).slice(s * pc_len, (s + 1) * pc_len)
                 poke(c.io.b(i_n), scala.math.BigInt.apply(curB.mkString, 2))
               }
@@ -155,7 +155,7 @@ class TestDotProductArray extends JUnitSuite {
     }
 
     // Chisel arguments to pass to chiselMainTest
-    def testArgs = RosettaTestHelpers.stdArgs
+    def testArgs = BISMOTestHelpers.stdArgs
     // function that instantiates the Module to be tested
     val pDP = new DotProductUnitParams(32, 32)
     val p = new DotProductArrayParams(pDP, 4, 4, 0)

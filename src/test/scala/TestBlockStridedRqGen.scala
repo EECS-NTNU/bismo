@@ -33,7 +33,7 @@ import Chisel._
 import bismo._
 import org.scalatest.junit.JUnitSuite
 import org.junit.Test
-import RosettaTestHelpers._
+import BISMOTestHelpers._
 import fpgatidbits.PlatformWrapper._
 
 // Tester-derived class to give stimulus and observe the outputs for the
@@ -82,7 +82,7 @@ class BlockStridedRqGenTester(c: BlockStridedRqGen) extends Tester(c) {
 class TestBlockStridedRqGen extends JUnitSuite {
   @Test def BlockStridedRqGenModuleTest {
     // Chisel arguments to pass to chiselMainTest
-    def testArgs = RosettaTestHelpers.stdArgs
+    def testArgs = BISMOTestHelpers.stdArgs
     // function that instantiates the Module to be tested
     def testModuleInstFxn = () ⇒ {
       Module(new BlockStridedRqGen(

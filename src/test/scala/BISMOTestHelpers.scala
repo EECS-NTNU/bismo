@@ -31,8 +31,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-// useful definitions for testing Chisel modules inside Rosetta
-object RosettaTestHelpers {
+// useful definitions for testing Chisel modules inside BISMO
+object BISMOTestHelpers {
   // standard arguments to pass to chiselTest
   val stdArgs = Array("--genHarness", "--compile", "--test", "--backend", "c",
     "--targetDir", "build/test", "--vcd")

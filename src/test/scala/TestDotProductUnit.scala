@@ -34,7 +34,7 @@ import Chisel._
 import bismo._
 import org.scalatest.junit.JUnitSuite
 import org.junit.Test
-import RosettaTestHelpers._
+import BISMOTestHelpers._
 
 class TestDotProductUnit extends JUnitSuite {
   // Tester-derived class to give stimulus and observe the outputs for the
@@ -88,9 +88,9 @@ class TestDotProductUnit extends JUnitSuite {
       // clear accumulator between runs
       clearAcc()
       // produce random binary test vectors and golden result
-      val seqA = RosettaTestHelpers.randomIntVector(pc_len, 1, false)
-      val seqB = RosettaTestHelpers.randomIntVector(pc_len, 1, false)
-      val golden = RosettaTestHelpers.dotProduct(seqA, seqB)
+      val seqA = BISMOTestHelpers.randomIntVector(pc_len, 1, false)
+      val seqB = BISMOTestHelpers.randomIntVector(pc_len, 1, false)
+      val golden = BISMOTestHelpers.dotProduct(seqA, seqB)
       poke(c.io.in.bits.a, scala.math.BigInt.apply(seqA.mkString, 2))
       poke(c.io.in.bits.b, scala.math.BigInt.apply(seqB.mkString, 2))
       poke(c.io.in.bits.acc_shift, 0)
@@ -112,9 +112,9 @@ class TestDotProductUnit extends JUnitSuite {
       val seq_len = 1 + r.nextInt(17)
       val bit_len = pc_len * seq_len
       // produce random binary test vectors and golden result
-      val seqA = RosettaTestHelpers.randomIntVector(bit_len, 1, false)
-      val seqB = RosettaTestHelpers.randomIntVector(bit_len, 1, false)
-      val golden = RosettaTestHelpers.dotProduct(seqA, seqB)
+      val seqA = BISMOTestHelpers.randomIntVector(bit_len, 1, false)
+      val seqB = BISMOTestHelpers.randomIntVector(bit_len, 1, false)
+      val golden = BISMOTestHelpers.dotProduct(seqA, seqB)
       // clear accumulator between runs
       clearAcc()
       for(j <- 0 to seq_len-1) {
@@ -152,12 +152,12 @@ class TestDotProductUnit extends JUnitSuite {
       // produce random binary test vectors and golden result
       val negA = r.nextBoolean
       val negB = r.nextBoolean
-      val seqA = RosettaTestHelpers.randomIntVector(bit_len, precA, negA)
-      val seqB = RosettaTestHelpers.randomIntVector(bit_len, precB, negB)
-      val golden = RosettaTestHelpers.dotProduct(seqA, seqB)
+      val seqA = BISMOTestHelpers.randomIntVector(bit_len, precA, negA)
+      val seqB = BISMOTestHelpers.randomIntVector(bit_len, precB, negB)
+      val golden = BISMOTestHelpers.dotProduct(seqA, seqB)
       // convert test vectors to bit serial form
-      val seqA_bs = RosettaTestHelpers.intVectorToBitSerial(seqA, precA)
-      val seqB_bs = RosettaTestHelpers.intVectorToBitSerial(seqB, precB)
+      val seqA_bs = BISMOTestHelpers.intVectorToBitSerial(seqA, precA)
+      val seqB_bs = BISMOTestHelpers.intVectorToBitSerial(seqB, precB)
       // clear accumulator between runs
       clearAcc()
       var golden_acc: Int = 0
@@ -204,7 +204,7 @@ class TestDotProductUnit extends JUnitSuite {
 
   @Test def ChiselDPUTest {
     // Chisel arguments to pass to chiselMainTest
-    def testArgs = RosettaTestHelpers.stdArgs
+    def testArgs = BISMOTestHelpers.stdArgs
 
     for{
       popc_extra_regs <- 0 to 1

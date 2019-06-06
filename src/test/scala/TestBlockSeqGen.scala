@@ -32,7 +32,7 @@
 import Chisel._
 import org.scalatest.junit.JUnitSuite
 import org.junit.Test
-import RosettaTestHelpers._
+import BISMOTestHelpers._
 import fpgatidbits.streams._
 
 // Tester-derived class to give stimulus and observe the outputs for the
@@ -66,7 +66,7 @@ class BlockSeqGenTester(c: BlockSequenceGenerator) extends Tester(c) {
 class TestBlockSeqGen extends JUnitSuite {
   @Test def BlockSeqGenModuleTest {
     // Chisel arguments to pass to chiselMainTest
-    def testArgs = RosettaTestHelpers.stdArgs
+    def testArgs = BISMOTestHelpers.stdArgs
     // function that instantiates the Module to be tested
     def testModuleInstFxn = () => { Module(new BlockSequenceGenerator(
       32

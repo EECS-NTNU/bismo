@@ -34,7 +34,7 @@ import Chisel._
 import bismo._
 import org.scalatest.junit.JUnitSuite
 import org.junit.Test
-import RosettaTestHelpers._
+import BISMOTestHelpers._
 
 // Tester-derived class to give stimulus and observe the outputs for the
 // Module to be tested
@@ -71,7 +71,7 @@ class PopCountUnitTester(c: PopCountUnit) extends Tester(c) {
   cleanTest("1" * seq_len, seq_len)
 
   for (seq_cnq ← 1 to num_seqs) {
-    val test_seq = RosettaTestHelpers.randomIntVector(seq_len, 1, false)
+    val test_seq = BISMOTestHelpers.randomIntVector(seq_len, 1, false)
     cleanTest(test_seq.mkString, test_seq.reduce(_ + _))
   }
 }
@@ -80,7 +80,7 @@ class TestPopCountUnit extends JUnitSuite {
   @Test def PopCountModuleTest {
     for (b ← 4 to 10) {
       // Chisel arguments to pass to chiselMainTest
-      def testArgs = RosettaTestHelpers.stdArgs
+      def testArgs = BISMOTestHelpers.stdArgs
       // function that instantiates the Module to be tested
       def testModuleInstFxn = () ⇒ {
         Module(new PopCountUnit(

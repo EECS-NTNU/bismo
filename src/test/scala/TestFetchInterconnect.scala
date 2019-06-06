@@ -34,7 +34,7 @@ import Chisel._
 import bismo._
 import org.scalatest.junit.JUnitSuite
 import org.junit.Test
-import RosettaTestHelpers._
+import BISMOTestHelpers._
 import fpgatidbits.PlatformWrapper._
 
 // Tester-derived class to give stimulus and observe the outputs for the
@@ -84,7 +84,7 @@ class FetchInterconnectTester(c: FetchInterconnect) extends Tester(c) {
   var exp_data = (1 to num_nodes).map(x ⇒ BigInt(0)).toList
 
   for (i ← 1 to num_writes) {
-    val test_data = RosettaTestHelpers.randomIntVector(dbits, 1, false)
+    val test_data = BISMOTestHelpers.randomIntVector(dbits, 1, false)
     val test_data_bigint = scala.math.BigInt.apply(test_data.mkString, 2)
     val test_id = r.nextInt(num_nodes + 1)
     val test_addr = r.nextInt(maxaddr + 1)
@@ -113,7 +113,7 @@ class FetchInterconnectTester(c: FetchInterconnect) extends Tester(c) {
 class TestFetchInterconnect extends JUnitSuite {
   @Test def FetchInterconnectTest {
     // Chisel arguments to pass to chiselMainTest
-    def testArgs = RosettaTestHelpers.stdArgs
+    def testArgs = BISMOTestHelpers.stdArgs
     // function that instantiates the Module to be tested
     def testModuleInstFxn = () => { Module(new FetchInterconnect(
       new FetchStageParams(

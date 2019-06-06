@@ -34,7 +34,7 @@ import Chisel._
 import bismo._
 import org.scalatest.junit.JUnitSuite
 import org.junit.Test
-import RosettaTestHelpers._
+import BISMOTestHelpers._
 
 // Tester-derived class to give stimulus and observe the outputs for the
 // Module to be tested
@@ -63,7 +63,7 @@ class MultiSeqGenTester(c: MultiSeqGen) extends Tester(c) {
 class TestMultiSeqGen extends JUnitSuite {
   @Test def MultiSeqGenModuleTest {
     // Chisel arguments to pass to chiselMainTest
-    def testArgs = RosettaTestHelpers.stdArgs
+    def testArgs = BISMOTestHelpers.stdArgs
     // function that instantiates the Module to be tested
     def testModuleInstFxn = () ⇒ {
       Module(new MultiSeqGen(
