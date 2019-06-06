@@ -1,6 +1,6 @@
 # Software
 
-## Overview
+BISMO is a hardware-focused project for the most part, but comes with a minimal software stack to make it easier to use.
 
 ## The BISMO runtime library and API
 
