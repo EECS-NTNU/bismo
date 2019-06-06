@@ -1,7 +1,3 @@
-// Author:  Davide Conficconi
-// Date: 17/10/2018
-// Revision: 0
-
 /**
  * Stand Alone Accelerator of P2S component, a single run is assumed to completely serialize matrix of consecutives bytes
  */

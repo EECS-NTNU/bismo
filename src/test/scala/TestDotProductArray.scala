@@ -1,4 +1,5 @@
 // Copyright (c) 2018 Norwegian University of Science and Technology (NTNU)
+// Copyright (c) 2019 Xilinx
 //
 // BSD v3 License
 //

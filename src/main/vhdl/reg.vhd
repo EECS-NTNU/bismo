@@ -1,24 +1,3 @@
-----------------------------------------------------------------------------------
--- Company: Politecnico di Milano
--- Student: Alessandro Comodi
--- Student: Davide Conficconi
---
--- Create Date: 03/21/2017 03:56:02 PM
--- Module Name: Reg - behav
--- Project Name:
--- Target Devices:
--- Tool Versions:
--- Description: This is a register that stores data for one clock cycle.
---				If the reset signal is low the output will be zero.
---
--- Dependencies:
---
--- Revision:
--- Revision 0.01 - File Created
--- Additional Comments:
---
-----------------------------------------------------------------------------------
-
 library ieee;
 use ieee.std_logic_1164.all;
 

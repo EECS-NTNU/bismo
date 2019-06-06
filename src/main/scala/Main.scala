@@ -1,4 +1,5 @@
 // Copyright (c) 2018 Norwegian University of Science and Technology (NTNU)
+// Copyright (c) 2019 Xilinx
 //
 // BSD v3 License
 //
@@ -28,7 +29,6 @@
 // CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 // OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// Modifications: Davide Conficconi for New components Characterization and Cosimulation
 
 package bismo
 

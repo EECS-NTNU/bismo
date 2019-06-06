@@ -1,4 +1,5 @@
 # Copyright (c) 2018 Norwegian University of Science and Technology (NTNU)
+# Copyright (c) 2019 Xilinx
 #
 # BSD v3 License
 #
@@ -62,7 +63,7 @@ BUILD_DIR_DEPLOY := $(BUILD_DIR)/deploy
 BUILD_DIR_VERILOG := $(BUILD_DIR)/hw/verilog
 BUILD_DIR_HWDRV := $(BUILD_DIR)/hw/driver
 BUILD_DIR_RTLIB := $(BUILD_DIR)/rtlib
-VERILOG_SRC_DIR := $(TOP)/src/main/verilog
+VERILOG_SRC_DIR := $(TIDBITS_ROOT)/src/main/resources/verilog
 VHDL_SRC_DIR := $(TOP)/src/main/vhdl
 APP_SRC_DIR := $(TOP)/src/main/resources/cpp/app
 RTLIB_SRC_DIR := $(TOP)/src/main/resources/cpp/lib

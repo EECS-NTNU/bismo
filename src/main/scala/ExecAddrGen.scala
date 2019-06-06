@@ -1,5 +1,5 @@
 // Copyright (c) 2019 Xilinx
-// Author: Yaman Umuroglu
+
 // BSD v3 License
 //
 // All rights reserved.
