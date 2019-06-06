@@ -1,0 +1,5 @@
+* Yaman Umuroglu (main developer)
+* Davide Conficconi (parallel-to-serial, compressor integration, testing)
+* Thomas Preusser (optimized compressor, new DPU ideas)
+* Magnus Sjalander (testing, characterization)
+* Lahiru Rasnayake (testing, runtime)
