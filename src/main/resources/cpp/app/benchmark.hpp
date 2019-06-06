@@ -60,7 +60,7 @@ bismo_rt::InstrumentationData run_benchmark_matmul(
   uint8_t * rhs = new uint8_t[nrows_rhs * ncols];
   gemmbitserial::generateRandomVector(nbits_lhs, nrows_lhs*ncols, lhs);
   gemmbitserial::generateRandomVector(nbits_rhs, nrows_rhs*ncols, rhs);
-  bismo_rt::MatMulLayerDescriptor dscr;
+  bismo_rt::MatMulDescriptor dscr;
   dscr.wbits = nbits_lhs;
   dscr.ibits = nbits_rhs;
   dscr.wsigned = false;
@@ -71,7 +71,7 @@ bismo_rt::InstrumentationData run_benchmark_matmul(
   bismo_rt::init();
   bismo_rt::InstrumentationData ret;
   try {
-    bismo_rt::LayerHandle id = bismo_rt::initMatMulLayer(dscr);
+    bismo_rt::LayerHandle id = bismo_rt::initMatMul(dscr);
     uint8_t * accel_lhs = bismo_rt::getLayerLHSBuffer(id);
     uint8_t * accel_rhs = bismo_rt::getLayerRHSBuffer(id);
     int32_t * accel_res = bismo_rt::getLayerResBuffer(id);
@@ -79,7 +79,7 @@ bismo_rt::InstrumentationData run_benchmark_matmul(
     bismo_rt::syncLayerLHSBuffer(id);
     memcpy(accel_rhs, rhs, nrows_rhs * ncols);
     bismo_rt::syncLayerRHSBuffer(id);
-    bismo_rt::execMatMulLayer(id);
+    bismo_rt::execMatMul(id);
     bismo_rt::syncLayerResBuffer(id);
     ret = bismo_rt::getInstrumentationData(id);
   } catch(const char * e) {

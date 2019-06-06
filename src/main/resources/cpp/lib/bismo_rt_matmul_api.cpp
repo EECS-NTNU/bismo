@@ -39,7 +39,7 @@ namespace bismo_rt {
 // shared library, also removing the need for the template classes implemented
 // as header files to be included with the rtlib
 
-LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc) {
+LayerHandle initMatMul(MatMulDescriptor & dsc) {
   bool is_coherent = platform->is_coherent();
   Matrix<uint8_t> * lhs = new Matrix<uint8_t>(
     dsc.M, dsc.K, dsc.wbits, dsc.wsigned, false, matTypeLHS, "mat_lhs", is_coherent
@@ -60,7 +60,7 @@ LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc) {
   return (LayerHandle) mm;
 }
 
-void execMatMulLayer(LayerHandle id) {
+void execMatMul(LayerHandle id) {
   MatrixMultiply * mm = (MatrixMultiply *) id;
   mm->exec();
   if(mm->has_cpu_ctx()) {
@@ -121,7 +121,7 @@ void syncLayerResBuffer(LayerHandle id) {
   mm->m_res->accel2host();
 }
 
-void deinitLayer(LayerHandle id) {
+void deinitMatMul(LayerHandle id) {
   MatrixMultiply * mm = (MatrixMultiply *) id;
   delete mm->m_lhs;
   delete mm->m_rhs;

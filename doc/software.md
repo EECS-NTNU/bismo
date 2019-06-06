@@ -27,27 +27,27 @@ have to add either `using namespace bismo_rt;` or prefix each call with
 
 | Function() or *Type*      | Description       | Parameters  | Returns |
 | ------------- |:-------------:| -----:| -----:|
-| *MatMulLayerDescriptor*      | A struct that describes the dimensions for a matrix multiply operation | number of bits, signedness, spatial matrix size | n/a |
+| *MatMulDescriptor*      | A struct that describes the dimensions for a matrix multiply operation | number of bits, signedness, spatial matrix size | n/a |
 | *LayerHandle*      | Identifies an instantiated BISMO matrix multiply operation | n/a | n/a |
 | *InstrumentationData*      | An `std::map<std::string,float>` that contains name-value pairs for instrumentation data. | n/a | n/a |
 | init()      | Initializes the hardware and runtime library | none | none |
 | deinit()      | De-initializes the hardware and runtime library | none | none |
-| initMatMulLayer()      | Create a matrix multiply operation | MatMulLayerDescriptor | LayerHandle |
+| initMatMul()      | Create a matrix multiply operation | MatMulDescriptor | LayerHandle |
 | getLayerLHSBuffer()      | Get the host-accessible **row-major** buffer for left-hand-side (LHS) matrix in matrix multiply | LayerHandle | uint8_t * |
 | getLayerRHSBuffer()      | Get the host-accessible **col-major** buffer for right-hand-side (RHS) matrix in matrix multiply | LayerHandle | uint8_t * |
 | getLayerResBuffer()      | Get the host-accessible **col-major** buffer for the result matrix in matrix multiply | LayerHandle | int32_t * |
 | syncLayerLHSBuffer()      | Ensure that the accelerator has an up-to-date version of the LHS matrix | LayerHandle | none |
 | syncLayerRHSBuffer()      | Ensure that the accelerator has an up-to-date version of the RHS matrix | LayerHandle | none |
 | syncLayerResBuffer()      | Ensure that the accelerator has an up-to-date version of the result matrix | LayerHandle | none |
-| execMatMulLayer()      | Execute a matrix multiply operation | LayerHandle | none |
-| deinitLayer()      | Free up resources used by a matrix multiply operation | LayerHandle | none |
+| execMatMul()      | Execute a matrix multiply operation | LayerHandle | none |
+| deinitMatMul()      | Free up resources used by a matrix multiply operation | LayerHandle | none |
 | getInstrumentationData()      | Get the instrumentation data for the last executed matrix multiply | LayerHandle | InstrumentationData |
 
 **Is there any example code?** Check out the [top-level test](testing.md).
 
 **How do you handle variable-bit datatypes?** To keep the API simple, we
 currently use uint8_t as a container datatype, and specify the actual bitwidths
-in the MatMulLayerDescriptor when creating a matrix multiply operation.
+in the MatMulDescriptor when creating a matrix multiply operation.
 
 **Is the API thread-safe?** Not at the moment, contributions to fix this are welcome.
 

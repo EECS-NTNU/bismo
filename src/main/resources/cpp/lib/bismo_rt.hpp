@@ -49,12 +49,12 @@ typedef struct {
   uint32_t M;     // rows of left-hand-side (weight) matrix
   uint32_t K;     // common dimension (columns)
   uint32_t N;     // rows of right-hand-side (weight) matrix
-} MatMulLayerDescriptor;
+} MatMulDescriptor;
 // handle representing a particular layer instance that BISMO knows
 // how to execute
 typedef uint64_t LayerHandle;
 // initialize matrix multiplication and return handle
-LayerHandle initMatMulLayer(MatMulLayerDescriptor & dsc);
+LayerHandle initMatMul(MatMulDescriptor & dsc);
 // get host-accessible buffers associated with layer
 uint8_t * getLayerLHSBuffer(LayerHandle id);
 uint8_t * getLayerRHSBuffer(LayerHandle id);
@@ -66,13 +66,13 @@ void syncLayerRHSBuffer(LayerHandle id);
 // ensure that result buffer is up-to-date on the host
 void syncLayerResBuffer(LayerHandle id);
 // execute layer with given handle
-void execMatMulLayer(LayerHandle id);
+void execMatMul(LayerHandle id);
 // struct representing all instrumentation data from the previous run
 typedef std::map<std::string,float> InstrumentationData;
 // retrieve a map of all instrumentation data from the previous run
 InstrumentationData getInstrumentationData(LayerHandle id);
 // destroy layer with given handle
-void deinitLayer(LayerHandle id);
+void deinitMatMul(LayerHandle id);
 
 // struct with details of currently instantiated hardware config
 // copied from BitSerialMatMulAccelDriver in order not to have that as a

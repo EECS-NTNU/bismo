@@ -63,7 +63,7 @@ bool test(
   cout << " " << nbits_lhs << "bx" << nbits_rhs << "b ";
   cout << "signed? " << sgn_lhs << " " << sgn_rhs << endl;
 
-  bismo_rt::MatMulLayerDescriptor dscr;
+  bismo_rt::MatMulDescriptor dscr;
   dscr.wbits = nbits_lhs;
   dscr.ibits = nbits_rhs;
   dscr.wsigned = sgn_lhs;
@@ -72,7 +72,7 @@ bool test(
   dscr.K = ncols;
   dscr.N = nrows_rhs;
   bismo_rt::init();
-  bismo_rt::LayerHandle id = bismo_rt::initMatMulLayer(dscr);
+  bismo_rt::LayerHandle id = bismo_rt::initMatMul(dscr);
   uint8_t * accel_lhs = bismo_rt::getLayerLHSBuffer(id);
   uint8_t * accel_rhs = bismo_rt::getLayerRHSBuffer(id);
   int32_t * accel_res = bismo_rt::getLayerResBuffer(id);
@@ -80,7 +80,7 @@ bool test(
   bismo_rt::syncLayerLHSBuffer(id);
   memcpy(accel_rhs, rhs, nrows_rhs * ncols);
   bismo_rt::syncLayerRHSBuffer(id);
-  bismo_rt::execMatMulLayer(id);
+  bismo_rt::execMatMul(id);
   bismo_rt::syncLayerResBuffer(id);
   int res = memcmp(ctx.res, accel_res, nrows_lhs*nrows_rhs*sizeof(int32_t));
 
@@ -101,7 +101,7 @@ bool test(
     ctx.rhs.printHex();*/
   }
 
-  bismo_rt::deinitLayer(id);
+  bismo_rt::deinitMatMul(id);
   bismo_rt::deinit();
   delete [] lhs;
   delete [] rhs;
