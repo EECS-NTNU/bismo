@@ -23,15 +23,15 @@ and link to the shared library.
 **What is the API?** Here is a brief explanation of what you'll find in the
 BISMO RT. Note that all of this is under the bismo_rt namespace, so you'll
 have to add either `using namespace bismo_rt;` or prefix each call with
-`bismo_rt::`.
+`bismo_rt::`. You can find more detailed descriptions in `bismo_rt.hpp`.
 
 | Function() or *Type*      | Description       | Parameters  | Returns |
 | ------------- |:-------------:| -----:| -----:|
 | *MatMulDescriptor*      | A struct that describes the dimensions for a matrix multiply operation | number of bits, signedness, spatial matrix size | n/a |
 | *LayerHandle*      | Identifies an instantiated BISMO matrix multiply operation | n/a | n/a |
 | *InstrumentationData*      | An `std::map<std::string,float>` that contains name-value pairs for instrumentation data. | n/a | n/a |
-| init()      | Initializes the hardware and runtime library | none | none |
-| deinit()      | De-initializes the hardware and runtime library | none | none |
+| *HardwareConfig*      | A struct that contains the instantiated BISMO overlay configuration. | n/a | n/a |
+| init()      | Initializes the hardware and runtime library, call this before calling anything else | none | none |
 | initMatMul()      | Create a matrix multiply operation | MatMulDescriptor | LayerHandle |
 | getLayerLHSBuffer()      | Get the host-accessible **row-major** buffer for left-hand-side (LHS) matrix in matrix multiply | LayerHandle | uint8_t * |
 | getLayerRHSBuffer()      | Get the host-accessible **col-major** buffer for right-hand-side (RHS) matrix in matrix multiply | LayerHandle | uint8_t * |
@@ -42,6 +42,10 @@ have to add either `using namespace bismo_rt;` or prefix each call with
 | execMatMul()      | Execute a matrix multiply operation | LayerHandle | none |
 | deinitMatMul()      | Free up resources used by a matrix multiply operation | LayerHandle | none |
 | getInstrumentationData()      | Get the instrumentation data for the last executed matrix multiply | LayerHandle | InstrumentationData |
+| getHardwareConfig()      | Retrieve hardware configuration for the BISMO instance | none | HardwareConfig |
+| benchmark_host_accel_transfer()      | Benchmark host<->accel data transfer times | none | none |
+| selftest_*()      | Various small self-test functions | none | none |
+| deinit()      | De-initializes the hardware and runtime library | none | none |
 
 **Is there any example code?** Check out the [top-level test](testing.md).
 
@@ -49,7 +53,6 @@ have to add either `using namespace bismo_rt;` or prefix each call with
 currently use uint8_t as a container datatype, and specify the actual bitwidths
 in the MatMulDescriptor when creating a matrix multiply operation.
 
-**Is the API thread-safe?** Not at the moment, contributions to fix this are welcome.
 
 **Are there any limitations on matrix sizes?** Yes, as with any computer system.
 The restrictions you are most likely to run into are 1) bitwidth limitation (max 8 bits)
@@ -59,6 +62,8 @@ overlay configuration, see the size checks in `src/main/resources/lib/bismo_rt_m
 due to the current tiling strategy.
 Even if you develop your own tiling, the amount of contiguous memory
 available (determined by the platform) will also limit the maximum size.
+
+**Is the API thread-safe?** Not at the moment, contributions to fix this are welcome.
 
 ## Under the Hood
 
