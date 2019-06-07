@@ -1,6 +1,7 @@
 # BISMO
 
-<center> <img src="doc/img/pipeline.svg"></center>
+<img align="left" src="doc/img/pipeline.svg" alt="drawing" width="300"/>
+
 
 BISMO is a programmable FPGA accelerator for few-bit integer matrix multiplication.
 It offers high-performance matrix multiplication for matrices where each
@@ -10,18 +11,20 @@ This is beneficial for applications like
 and
 [approximate computing](https://en.wikipedia.org/wiki/Approximate_computing)
 approaches.
+It was developed as part of a collaboration between
+[Xilinx Research Labs Ireland](http://www.pynq.io/ml) and the [NTNU Computer Architecture Lab](https://www.ntnu.edu/idi/lab/cal).
 
 
-Its key features are:
+Some of its key features are:
 * **High performance and energy efficiency.** On the
   [Avnet Ultra96 board](http://zedboard.org/product/ultra96), BISMO can
   offer 15.4 TOPS of binary matrix multiplication performance while drawing less
   than 8 W of power.
-* **Configurable size.** The hardware can be scaled up for higher performance, or
+* **Configurable size.** The hardware can be [scaled](doc/hardware.md) up for higher performance, or
   down to save on FPGA resources and power consumption.
 * **Runtime scales with precision.** The input matrices can have any number of
   bits specified at runtime. Higher bit-precision will take more time.
-* **Software-programmable.** BISMO comes with a runtime library for ease-of-use, and is also programmable with a simple instruction set to
+* **Software-programmable.** BISMO comes with a [runtime library](doc/software.md) for ease-of-use, and is also programmable with a simple instruction set to
   cater for more advanced users.
 
 ## What's New in BISMO?
@@ -55,24 +58,27 @@ on a host PC, or on the actual FPGA platform as follows:
 1. `cd bismo`
 2. `PLATFORM=VerilatedTester make emu` to run BISMO tests in hardware-software cosimulation.
 
-### Run Tests on PYNQ-Z1
-BISMO is built on a *host computer* and deployed on a *target board*.
+### Running on the FPGA
+BISMO is built on a *host computer* and deployed on a *target board*. Several [PYNQ boards](doc/platforms.md) are supported, the example below is for the Avnet Ultra96.
+
 On the host computer:
 1. `cd bismo`
-2. `make all` to generate a PYNQ-Z1 deployment package with bitfile and drivers.
+2. `make all` to generate a Ultra96 deployment package with bitfile and drivers.
 This will generate a 2x64x2 array at 200 MHz and will take some time to complete.
-3. Set `PYNQZ1_URI` to point to the `rsync` target, including the username, IP
-address and target directory on the PYNQ-Z1 board.
-For instance `export PYNQZ1_URI=xilinx@192.168.2.10:/home/xilinx/bismo`
-4. `make rsync` to copy deployment package to the PYNQ-Z1. You may be prompted
-for the password for the specified PYNQ-Z1 user.
+3. Set `PYNQU96_URI` to point to the `rsync` target, including the username, IP
+address and target directory on the Ultra96 board.
+For instance `export PYNQU96_URI=xilinx@192.168.2.10:/home/xilinx/bismo`
+4. `make rsync` to copy deployment package to the Ultra96. You may be prompted
+for the password for the specified Ultra96 user.
 
 Afterwards, run the following on a terminal on the target board:
-1. On the PYNQ-Z1, `cd /home/xilinx/bismo` to go into the deployment package.
-2. `./compile_sw.sh` to compile the driver and tests.
-3. `sudo ./setclk.sh 200` to set the clock to 200 MHz.
-4. `sudo ./load_bitfile.sh` to load the BISMO bitfile.
-5. `sudo ./app` to run the BISMO tests.
+1. On the Ultra96, `cd /home/xilinx/bismo/deploy` to go into the deployment package.
+2. `su` to go into superuser mode.
+2. `./compile_rtlib.sh` to compile the driver and runtime library.
+3. `./compile_testapp.sh` to compile the test application.
+3. `./setclk.sh 200` to set the clock to 200 MHz.
+4. `./load_bitfile.sh` to load the BISMO bitfile.
+5. `LD_LIBRARY_PATH=$(pwd) ./testapp t` to run the BISMO tests.
 
 ## Documentation
 You will find more detailed documentation under the [`doc`](doc/README.md) folder.
