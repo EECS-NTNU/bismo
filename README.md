@@ -24,14 +24,15 @@ Its key features are:
 * **Software-programmable.** BISMO comes with a runtime library for ease-of-use, and is also programmable with a simple instruction set to
   cater for more advanced users.
 
-## What's New? (2019-06-10)
-* BISMO v2 is now released with many improvements and new features. Here's a brief summary:
-  * Runtime library
-  * Instruction generators with tiling support for large matrices
-  * Improved hardware with smaller resource cost
-  * Hardware-accelerated parallel-to-serial conversion
-  * Support for PYNQ on the Avnet Ultra96 (PYNQU96)
-  * Experimental support for cache coherency on (PYNQU96CC)
+## What's New in BISMO?
+
+* **2019-06-10:** BISMO v2 is now released with many improvements and new features. Here's a brief summary:
+  - Runtime library
+  - Instruction generators with tiling support for large matrices
+  - Improved hardware with smaller resource cost
+  - Hardware-accelerated parallel-to-serial conversion
+  - Support for PYNQ on the Avnet Ultra96 (PYNQU96)
+  - Experimental support for cache coherency on (PYNQU96CC)
 
 ## Requirements
 1. A working [`sbt`](https://www.scala-sbt.org/1.0/docs/Installing-sbt-on-Linux.html) setup for Chisel2
@@ -39,49 +40,42 @@ Its key features are:
 3. [Vivado 2017.4](https://www.xilinx.com/support/download.html) or later (make sure `vivado` is in `PATH`)
 4. `gcc` 4.8 or later
 5. `verilator` e.g. `sudo apt install verilator` on Ubuntu
-6. A [Xilinx PYNQ-Z1 board](http://www.pynq.io/board.html) board with the v1.4 image or later, with network access
-
-1. `git clone --recurse-submodules https://github.com/EECS-NTNU/bismo.git`
-
-The `--recurse-submodules` option fetches the git repos that BISMO depends on,
-which are `fpga-tidbits`, `oh-my-xilinx` and `gemmbitserial`.
-If you forget to pass this option while cloning, you can `cd` into the repo
-root and run `git submodule init && git submodule update` instead.
+6. A supported [PYNQ board](doc/platforms) board with the v2.4 image or later, with network access
 
 ## Quickstart
 
-BISMO is primarily a "hardware library" in that it generates a bit-serial matrix
-multipliciation accelerator with specified dimensions.
-However, it also contains software code that acts both as a usage example and
-also as a test suite.
-The same software code is used in both cases, using the [fpga-tidbits
-PlatformWrapper](https://github.com/maltanar/fpga-tidbits/wiki/platformwrapper)
-infrastructure.
+Start by cloning BISMO with the `--recurse-submodules` flag:
+
+`git clone --recurse-submodules https://github.com/EECS-NTNU/bismo.git`
 
 You can "run" BISMO with this code either in hardware-software cosimulation
 on a host PC, or on the actual FPGA platform as follows:
 
 ### Running HW-SW Cosimulation
 1. `cd bismo`
-2. `make emu` to run BISMO tests in hardware-software cosimulation.
+2. `PLATFORM=VerilatedTester make emu` to run BISMO tests in hardware-software cosimulation.
 
 ### Run Tests on PYNQ-Z1
+BISMO is built on a *host computer* and deployed on a *target board*.
 On the host computer:
 1. `cd bismo`
 2. `make all` to generate a PYNQ-Z1 deployment package with bitfile and drivers.
-This will generate a 8x256x8 array at 200 MHz and will take some time to complete.
+This will generate a 2x64x2 array at 200 MHz and will take some time to complete.
 3. Set `PYNQZ1_URI` to point to the `rsync` target, including the username, IP
 address and target directory on the PYNQ-Z1 board.
 For instance `export PYNQZ1_URI=xilinx@192.168.2.10:/home/xilinx/bismo`
 4. `make rsync` to copy deployment package to the PYNQ-Z1. You may be prompted
 for the password for the specified PYNQ-Z1 user.
 
-Afterwards, run the following on a terminal on the PYNQ-Z1:
+Afterwards, run the following on a terminal on the target board:
 1. On the PYNQ-Z1, `cd /home/xilinx/bismo` to go into the deployment package.
 2. `./compile_sw.sh` to compile the driver and tests.
 3. `sudo ./setclk.sh 200` to set the clock to 200 MHz.
 4. `sudo ./load_bitfile.sh` to load the BISMO bitfile.
 5. `sudo ./app` to run the BISMO tests.
+
+## Documentation
+You will find more detailed documentation under the [`doc`](doc/README.md) folder.
 
 ## Paper
 More details on the hardware design and instruction set can be found in the
