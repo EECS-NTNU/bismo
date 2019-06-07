@@ -36,27 +36,34 @@ this, we use *instruction generators* in BISMO. These are small pieces of
 hardware that take in the description of the large matrix multiply operation,
 and generate the corresponding instruction stream for each stage.
 
+**How are the instruction generators implemented?**
 The instruction generators are implemented in Vivado HLS since tiled matrix
-multiplication correspond to a well-structured nested loop over
-different tiles and bit positions. The instruction generators can be bypassed
+multiplication corresponds to a well-structured nested loop over
+different tiles and bit positions. You can find the HLS source code under
+`src/main/resources/hls` and the corresponding Chisel `BlackBox` modules under
+`src/main/scala` (using the same names).
+
+**What if I want to use my own instructions?**
+The instruction generators can be bypassed
 using a multiplexer if desired, enabling the user to directly feed BISMO with
-their own instructions.
+their own instructions. Use the
+`BitSerialMatMulAccel::useDirectInstructionFeed()` function to configure the
+instruction mux, then feed your instructions using
+`BitSerialMatMulAccel::pushInstruction()`.
 
 ## Overlay Configuration
 BISMO is parametrized and can be instantiated in different sizes to generate a
 higher-performance overlay using more FPGA resources.
 
-*Directly in the source code:* The actual instantiaton is carried out in
+* *Directly in the source code:* The actual instantiaton is carried out in
 `ChiselMain.main` defined in `src/main/scala/Main.scala` which uses the
 `BitSerialMatMulParams` class defined in `src/main/scala/BISMO.scala` to specify
 the overlay configuration.
 You can specify the overlay dimensions directly in `ChiselMain.main`.
 
-*As environment variables (limited):* For quick experimentation, three of the
+* *As environment variables (limited):* For quick experimentation, some of the
 overlay dimensions are sourced from environment variables when `make` is called.
-The environment variables are `M (dpaDimLHS)`, `K (dpaDimCommon)` and
-`N (dpaDimRHS)`.
-For instance, `export M=2 K=64 N=2; make all` will generate a 2x64x2 overlay.
+See under Makefile variables [here](platforms.md) for more details.
 
 ## Resource Characterization Flow
 You can run the characterization flow to see how the FPGA resource usage
