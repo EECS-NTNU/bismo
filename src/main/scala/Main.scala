@@ -138,6 +138,7 @@ object HLSMain {
   }
 }
 
+// call this object's main method to estimate FPGA resources for overlay config
 object ResModelMain {
   def main(args: Array[String]): Unit = {
     val platformName: String = args(0)
