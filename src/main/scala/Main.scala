@@ -370,36 +370,3 @@ object DriverMain {
     fileCopyBulk(drvSrcDir, targetDir, myModule.platformDriverFiles)
   }
 }
-
-/*
-TODO bring back as needed
-// call this object's main method to generate the register driver for your
-// accelerator for PYNQ. expects the following command line arguments, in order:
-// 1. name of platform (must be supported by fpga-tidbits PlatformWrapper)
-// 2. path to output directory for generated files
-object P2SDriverMain {
-  // utility functions to copy files inside Scala
-  def fileCopy(from: String, to: String) = {
-    s"cp -f $from $to" !
-  }
-
-  def fileCopyBulk(fromDir: String, toDir: String, fileNames: Seq[String]) = {
-    for (f ← fileNames)
-      fileCopy(s"$fromDir/$f", s"$toDir/$f")
-  }
-
-  def main(args: Array[String]): Unit = {
-    val platformName: String = args(0)
-    val targetDir: String = args(1)
-    val drvSrcDir: String = args(2)
-    // instantiate the wrapper accelerator
-    val accInst = Settings.myInstP2S
-    val platformInst = TidbitsMakeUtils.platformMap(platformName)
-    val myModule = Module(platformInst(accInst))
-    // generate the register driver
-    myModule.generateRegDriver(targetDir)
-    // copy additional driver files
-    fileCopyBulk(drvSrcDir, targetDir, myModule.platformDriverFiles)
-  }
-}
-*/
