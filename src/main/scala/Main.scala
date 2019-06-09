@@ -69,8 +69,6 @@ object Settings {
     // HW-SW cosimulation tests
     // for these tests (EmuTest*) the same name is assumed to be the cpp file
     // that defines the software part of the test under test/cosim
-    "EmuTestResultStage" -> {p => new EmuTestResultStage(2, emuP)},
-    "EmuTestInstrEncoding" -> {p => new EmuTestInstrEncoding(emuP)},
     "EmuTestVerifyHLSInstrEncoding" -> {p => new EmuTestVerifyHLSInstrEncoding(emuP)}
   )
 
