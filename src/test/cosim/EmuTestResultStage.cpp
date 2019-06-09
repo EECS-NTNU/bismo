@@ -61,15 +61,13 @@ void do_result_write(void * accel_buf, int ind_rhs, int ind_lhs, int num_rhs, in
   uint64_t base = sizeof(int32_t) * offset2D(ind_rhs, ind_lhs, num_lhs) + (uint64_t) accel_buf;
   dut->set_csr_dram_base(base);
   dut->set_csr_dram_skip(stride);
-  dut->set_csr_waitComplete(0);
   dut->set_csr_waitCompleteBytes(0);
   dut->set_csr_resmem_addr(0);
   exec_and_wait();
 }
 
 void do_result_waitcomplete(size_t nbytes) {
-  dut->set_csr_waitComplete(1);
-  dut->set_csr_waitCompleteBytes(nbytes);
+  dut->set_csr_waitCompleteBytes(1);
   exec_and_wait();
 }
 

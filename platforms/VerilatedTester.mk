@@ -66,7 +66,7 @@ $(BUILD_DIR_DEPLOY)/libbismo_rt.so: hw sw script
 rtlib_emu: $(BUILD_DIR_DEPLOY)/libbismo_rt.so
 
 # hw-sw cosimulation tests with extra HLS dependencies
-EmuTestVerifyHLSInstrEncoding:
+EmuTest%:
 	mkdir -p $(BUILD_DIR)/$@; \
 	$(SBT) $(SBT_FLAGS) "runMain bismo.EmuLibMain $@ $(BUILD_DIR)/$@ verilator $(DEBUG_CHISEL)"; \
 	cp -rf $(CPPTEST_SRC_DIR)/$@.cpp $(BUILD_DIR)/$@; \
