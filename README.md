@@ -38,6 +38,8 @@ Some of its key features are:
   - Experimental support for cache coherency on (PYNQU96CC)
 
 ## Requirements
+
+### Full Setup on Linux
 1. A working [`sbt`](https://www.scala-sbt.org/1.0/docs/Installing-sbt-on-Linux.html) setup for Chisel2
 2. `zsh` e.g. `sudo apt install zsh` on Ubuntu
 3. [Vivado 2017.4](https://www.xilinx.com/support/download.html) or later (make sure `vivado` is in `PATH`)
@@ -85,7 +87,10 @@ You will find more detailed documentation under the [`doc`](doc/README.md) folde
 
 ## Paper
 More details on the hardware design and instruction set can be found in the
-[BISMO paper](https://arxiv.org/pdf/1901.00370.pdf). If you find BISMO useful, please use the following citation(s):
+extended [BISMO paper](https://arxiv.org/pdf/1901.00370.pdf) or the
+[presentation](https://docs.google.com/presentation/d/1cMCzzgi8VESY2O9AJpcU78XG0YmY4yuFbQngI3-Fm10/edit?usp=sharing)
+from FPL'18. If you find BISMO useful, please use the following citation(s):
+
 ```
 article{bismo_trets,
  author = {Umuroglu, Yaman and Conficconi, Davide and Rasnayake, Lahiru and Preusser, Thomas and Sjalander, Magnus},

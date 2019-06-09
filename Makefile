@@ -53,7 +53,7 @@ OVERLAY_CFG = $(M)x$(K)x$(N)
 SBT ?= sbt
 SBT_FLAGS ?= -Dsbt.log.noformat=true
 # internal build dirs and names for the Makefile
-TOP ?= $(shell readlink -f .)
+TOP ?= $(shell dirname $(realpath $(filter %Makefile, $(MAKEFILE_LIST))))
 TIDBITS_ROOT ?= $(TOP)/fpga-tidbits
 TIDBITS_REGDRV_ROOT ?= $(TIDBITS_ROOT)/src/main/resources/cpp/platform-wrapper-regdriver
 BUILD_DIR ?= $(TOP)/build/$(OVERLAY_CFG)/$(PLATFORM)
@@ -86,10 +86,8 @@ include platforms/$(PLATFORM).mk
 .PHONY: hw_verilog hw_driver hw_vivadoproj bitfile hw sw all rsync test
 .PHONY: resmodel characterize check_vivado pretty p2saccel benchmark
 
-check_vivado:
-ifndef VIVADO_IN_PATH
-    $(error "vivado not found in path")
-endif
+# note that all targets are phony targets, no proper dependency tracking
+.PHONY: hw_verilog emulib hw_driver hw_vivadoproj bitfile hw sw all rsync test characterize check_vivado emu emu_cfg
 
 # run Scala/Chisel tests
 Test%:
@@ -114,7 +112,8 @@ Characterize%:
 hw_driver: $(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp
 
 $(BUILD_DIR_HWDRV)/BitSerialMatMulAccel.hpp:
-	mkdir -p "$(BUILD_DIR_HWDRV)"; $(SBT) $(SBT_FLAGS) "runMain bismo.DriverMain $(PLATFORM) $(BUILD_DIR_HWDRV) $(TIDBITS_REGDRV_ROOT)"
+	mkdir -p "$(BUILD_DIR_HWDRV)"
+	$(SBT) $(SBT_FLAGS) "runMain bismo.DriverMain $(PLATFORM) $(BUILD_DIR_HWDRV) $(TIDBITS_REGDRV_ROOT)"
 
 # generate Verilog for the Chisel accelerator
 hw_verilog: $(HW_VERILOG)

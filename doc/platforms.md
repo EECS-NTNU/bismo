@@ -70,6 +70,11 @@ detail, including the monitoring of cycle-by-cycle behavior by waveform
 dumping or adding printf statements inside Chisel. This allows evaluating
 any hardware changes with greater debug capability and rapid design iterations.
 
+For emulation support on mac, try the following:
+1. `brew tap caskroom/versions`
+2. `brew cask install java8`
+3. `brew install sbt@1`
+
 ### Adding support for a new platform
 
 BISMO uses the the [fpga-tidbits
