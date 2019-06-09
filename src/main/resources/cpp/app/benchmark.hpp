@@ -93,38 +93,6 @@ bismo_rt::InstrumentationData run_benchmark_matmul(
   return ret;
 }
 
-void benchmark_caffenet_gemm() {
-  const int caffenet_gemm_sizes[] = {
-      96, 363, 3025,
-      256, 2400, 729,
-      384, 2304, 169,
-      384, 3456, 169,
-      256, 3456, 169,
-      4096, 9216, 1,
-      4096, 4096, 1,
-      1000, 4096, 1
-  };
-  vector<size_t> bits {2, 3, 4};
-  bool headers_printed = false;
-  const std::size_t num_caffenet_gemms =
-      sizeof(caffenet_gemm_sizes) / (3 * sizeof(caffenet_gemm_sizes[0]));
-  for (std::size_t i = 0; i < num_caffenet_gemms; i++) {
-    size_t rows = caffenet_gemm_sizes[3 * i + 0];
-    size_t depth = caffenet_gemm_sizes[3 * i + 1];
-    size_t cols = caffenet_gemm_sizes[3 * i + 2];
-    for(auto & lhsbits: bits) {
-      for(auto & rhsbits: bits) {
-        bismo_rt::InstrumentationData ret = run_benchmark_matmul(rows, cols, depth, lhsbits, rhsbits);
-        if(!headers_printed) {
-          printInstrumentationHeaders(ret);
-          headers_printed = true;
-        }
-        printInstrumentationData(ret);
-      }
-    }
-  }
-}
-
 void benchmark_gemm_interactive() {
   while(1) {
     int rows, depth, cols, lhsbits, rhsbits;

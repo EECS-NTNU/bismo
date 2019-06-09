@@ -39,13 +39,10 @@ int main(int argc, char const *argv[]) {
       cout << "Run with cmdline argument: " << endl;
       cout << "t to run tests" << endl;
       cout << "i to run interactive benchmarking" << endl;
-      cout << "c to run predefined CaffeNet benchmarking" << endl;
       cout << "b to run batch-mode benchmarking" << endl;
       return -1;
     }
-    if(argv[1][0] == 'c') {
-      benchmark_caffenet_gemm();
-    } else if(argv[1][0] == 'i') {
+    if(argv[1][0] == 'i') {
       benchmark_gemm_interactive();
     } else if(argv[1][0] == 'b') {
       benchmark_gemm_batch();
@@ -57,10 +54,10 @@ int main(int argc, char const *argv[]) {
       all_OK &= bismo_rt::selftest_matrix();
       all_OK &= bismo_rt::selftest_p2s();
       bismo_rt::deinit();
+      // following tests call init/deinit themselves
       all_OK &= test_binary_onchip_onetile(hwcfg);
       all_OK &= test_multibit_onchip_onetile(hwcfg);
       all_OK &= test_multibit_multitile(hwcfg);
-      //all_OK &= test_small_conv(hwcfg);
       if(all_OK) {
         cout << "All tests passed succesfully" << endl;
       } else {
