@@ -75,4 +75,4 @@ This will produce a file `CharacterizePC.log` with the results.
 Completing the characterization will take some time depending on the range of
 parameters.
 To change the range of parameters for characterization, see the
-`makeParamSpace` functions under `CharacterizeMain`.
+`makeParamSpace` functions under `CharacterizeMain` in `src/main/scala/MainCharacterize.scala`.

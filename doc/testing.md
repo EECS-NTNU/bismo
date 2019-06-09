@@ -13,7 +13,7 @@ indicating which mode to run in:
 * `i` to run interactive benchmarking
 * `b` to run batch-mode benchmarking
 
-## More (unit) tests
+## Unit tests
 Besides the top-level BISMO test described here, there are several
 other tests available for BISMO components under `src/test`.
 See [here](src/test/scala) for more on the pure Scala/Chisel tests, and

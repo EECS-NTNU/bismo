@@ -1,5 +1,9 @@
 # Platforms, Build and Deployment
 
+BISMO assumes that the hardware design and supporting files are first prepared
+on a *host*, and then deployed on a *target*. These may be the same computer in
+some cases.
+
 ## Deployment
 
 In general, each supported platform may do deployment slightly differently,
@@ -10,6 +14,10 @@ but all current BISMO platforms do this in a similar manner:
 3. User runs scripts for compiling runtime library and test application on the target device.
 4. User flashes the bitfile
 5. User runs the test application (or their own application)
+
+All generated files during build are placed under a directory whose path
+reflects the current platform and configuration, see `BUILD_DIR` in Makefile
+variables below. The deployment folder is generated at `$BUILD_DIR/deploy`.
 
 ## Useful Make targets and variables
 
@@ -26,6 +34,7 @@ BISMO involves a somewhat complex hardware-software build, which is currently ma
 | `N` | RHS parallelism for overlay; see Dn in BISMO paper | 2 |
 | `LMEM` | Number of entries in LHS memory; see Bm in BISMO paper | 1024 |
 | `RMEM` | Number of entries in RHS memory; see Bn in BISMO paper | 1024 |
+| `BUILD_DIR` | Build directory for current BISMO instance | build/$(OVERLAY_CFG)/$(PLATFORM) |
 
 ### Make targets
 

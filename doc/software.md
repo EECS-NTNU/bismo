@@ -67,7 +67,14 @@ available (determined by the platform) will also limit the maximum size.
 
 ## Under the Hood
 
+This section is quite thin on content at the moment, contributions are welcome!
 
+### The runtime
+
+The runtime is spread across several files under
+`src/main/resources/lib/` all prefixed with `bismo_rt_`. Most of the runtime
+is a thin wrapper around the functionality already provided by the low-level
+driver, plus some "added value" for instrumentation and data movement.
 
 ### The low-level driver
 
@@ -83,15 +90,4 @@ One level under this low-level driver is the register driver
 `BitSerialMatMulAccel.hpp` which is generated automatically by
 [fpga-tidbits
 PlatformWrapper](https://github.com/maltanar/fpga-tidbits/wiki/platformwrapper).
-
-
-
-BISMO overlays are programmable via the instructions listed in the paper,
-although full compiler support is lacking at this point.
-A rudimentary software stack can be found under `src/main/cpp/app`, which
-consists of the following:
-
-
-
-* `BISMOTests.hpp` contains the top-level test code, which also serve as
-usage examples. It uses `BitSerialMatMulExecutor` calls.
+You can find this file under `$BUILD_DIR/hw/driver`.
