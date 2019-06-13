@@ -118,13 +118,11 @@ void benchmark_gemm_cpuvsaccel() {
   bool headers_printed = false;
   while(1) {
     int rows, depth, cols, lhsbits, rhsbits;
-    cout << "Enter rows depth cols, 0 to exit " << endl;
     cin >> rows;
     if(rows == 0) {
       return;
     }
     cin >> depth >> cols;
-    cout << "Enter lhs and rhs bits: " << endl;
     cin >> lhsbits >> rhsbits;
     bismo_rt::InstrumentationData ret = run_benchmark_matmul(rows, cols, depth, lhsbits, rhsbits);
     // bismo has quite a few components
