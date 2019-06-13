@@ -110,6 +110,62 @@ void benchmark_gemm_interactive() {
   }
 }
 
+void benchmark_gemm_cpuvsaccel() {
+  cout << "IMPORTANT: Remember to uncomment the following lines in bismo_rt_options.hpp: " << endl;
+  cout << "#define BISMORT_MATMUL_VERIFY_AGAINST_CPU" << endl;
+  cout << "#define BISMORT_BENCHMARK_GEMMLOWP" << endl;
+  cout << "The CPU comparative benchmark will not work until then." << endl;
+  bool headers_printed = false;
+  while(1) {
+    int rows, depth, cols, lhsbits, rhsbits;
+    cout << "Enter rows depth cols, 0 to exit " << endl;
+    cin >> rows;
+    if(rows == 0) {
+      return;
+    }
+    cin >> depth >> cols;
+    cout << "Enter lhs and rhs bits: " << endl;
+    cin >> lhsbits >> rhsbits;
+    bismo_rt::InstrumentationData ret = run_benchmark_matmul(rows, cols, depth, lhsbits, rhsbits);
+    // bismo has quite a few components
+    float total_bismo = ret["run_cycles"];
+    // convert exec cycles to microseconds
+    total_bismo /= ret["hw_fclk_mhz"];
+    // add un/padding costs
+    total_bismo += ret["mat_lhs_pad_us"];
+    total_bismo += ret["mat_rhs_pad_us"];
+    total_bismo += ret["mat_res_unpad_us"];
+    // add p2s costs
+    total_bismo += ret["mat_lhs_p2s_us"];
+    total_bismo += ret["mat_rhs_p2s_us"];
+    // add data movement costs
+    total_bismo += ret["mat_lhs_host2accel_us"];
+    total_bismo += ret["mat_res_accel2host_us"];
+    total_bismo += ret["mat_rhs_host2accel_us"];
+    // gemmbitserial has three components
+    float total_gemmbitserial = ret["cpu_gemmbitserial_exec_us"];
+    total_gemmbitserial += ret["cpu_gemmbitserial_lhs_p2s_us"];
+    total_gemmbitserial += ret["cpu_gemmbitserial_rhs_p2s_us"];
+    // gemmlowp only has a single component
+    float total_gemmlowp = ret["cpu_gemmlowp_exec_us"];
+
+    bismo_rt::InstrumentationData new_ret;
+    new_ret["1_rows_M"] = rows;
+    new_ret["2_depth_K"] = depth;
+    new_ret["3_cols_N"] = cols;
+    new_ret["4_lhsbits"] = lhsbits;
+    new_ret["5_rhsbits"] = rhsbits;
+    new_ret["6_total_bismo_us"] = total_bismo;
+    new_ret["7_total_gemmbitserial_us"] = total_gemmbitserial;
+    new_ret["8_total_gemmlowp_us"] = total_gemmlowp;
+    if(!headers_printed) {
+      printInstrumentationHeaders(new_ret);
+      headers_printed = true;
+    }
+    printInstrumentationData(new_ret);
+  }
+}
+
 void benchmark_gemm_batch() {
   bool headers_printed = false;
   while(1) {

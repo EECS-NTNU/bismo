@@ -40,12 +40,15 @@ int main(int argc, char const *argv[]) {
       cout << "t to run tests" << endl;
       cout << "i to run interactive benchmarking" << endl;
       cout << "b to run batch-mode benchmarking" << endl;
+      cout << "c to run CPU vs accel benchmarking" << endl;
       return -1;
     }
     if(argv[1][0] == 'i') {
       benchmark_gemm_interactive();
     } else if(argv[1][0] == 'b') {
       benchmark_gemm_batch();
+    } else if(argv[1][0] == 'c') {
+      benchmark_gemm_cpuvsaccel();
     } else if(argv[1][0] == 't') {
       bool all_OK = true;
       bismo_rt::init();
