@@ -76,7 +76,9 @@ void execMatMul(LayerHandle id) {
     mm->m_res->accel2host();
     size_t nbytes_res = mm->M()*mm->N()*sizeof(int32_t);
     int verify_res = memcmp(ctx.res, mm->m_res->hostbuf(), nbytes_res);
-    std::cout << "CPU vs accel verification result = " << verify_res << std::endl;
+    if(verify_res != 0) {
+      std::cout << "CPU vs accel verification result = " << verify_res << std::endl;
+    }
 #endif
   }
 #ifdef BISMORT_BENCHMARK_GEMMLOWP
