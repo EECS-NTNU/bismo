@@ -65,7 +65,10 @@ void execMatMul(LayerHandle id) {
   mm->exec();
   if(mm->has_cpu_ctx()) {
     gemmbitserial::GEMMContext ctx = mm->getCPUContext();
+    TIMER_SAMPLE();
     gemmbitserial::gemmBitSerial(ctx);
+    TIMER_SAMPLE();
+    TIMER_REPORT("cpu_gemmbitserial_exec");
 #ifdef BISMORT_MATMUL_VERIFY_AGAINST_CPU
     mm->m_res->accel2host();
     size_t nbytes_res = mm->M()*mm->N()*sizeof(int32_t);
@@ -103,7 +106,10 @@ void syncLayerLHSBuffer(LayerHandle id) {
   mm->m_lhs->host2accel();
   if(mm->has_cpu_ctx()) {
     gemmbitserial::GEMMContext ctx = mm->getCPUContext();
+    TIMER_SAMPLE();
     ctx.lhs.importRegular(mm->m_lhs->hostbuf());
+    TIMER_SAMPLE();
+    TIMER_REPORT("cpu_gemmbitserial_lhs_p2s");
   }
 }
 
@@ -112,7 +118,10 @@ void syncLayerRHSBuffer(LayerHandle id) {
   mm->m_rhs->host2accel();
   if(mm->has_cpu_ctx()) {
     gemmbitserial::GEMMContext ctx = mm->getCPUContext();
+    TIMER_SAMPLE();
     ctx.rhs.importRegular(mm->m_rhs->hostbuf());
+    TIMER_SAMPLE();
+    TIMER_REPORT("cpu_gemmbitserial_rhs_p2s");
   }
 }
 
