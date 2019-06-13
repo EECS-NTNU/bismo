@@ -32,6 +32,9 @@
 #include "bismo_rt_matmul.hpp"
 #include <iostream>
 #include "gemmbitserial/test/testhelpers.hpp"
+#ifdef BISMORT_BENCHMARK_GEMMLOWP
+#include "gemmlowp/public/gemmlowp.h"
+#endif
 
 namespace bismo_rt {
 // note that the MatMul calls here simply implement wrappers around the
@@ -76,6 +79,27 @@ void execMatMul(LayerHandle id) {
     std::cout << "CPU vs accel verification result = " << verify_res << std::endl;
 #endif
   }
+#ifdef BISMORT_BENCHMARK_GEMMLOWP
+  const gemmlowp::MatrixMap<const std::uint8_t, gemmlowp::MapOrder::RowMajor> lhs(
+    mm->m_lhs->hostbuf(), mm->m_lhs->outer(), mm->m_lhs->inner()
+  );
+  const gemmlowp::MatrixMap<const std::uint8_t, gemmlowp::MapOrder::ColMajor> rhs(
+    mm->m_rhs->hostbuf(), mm->m_rhs->inner(), mm->m_rhs->outer()
+  );
+  gemmlowp::MatrixMap<std::int32_t, gemmlowp::MapOrder::ColMajor> resmap(
+    mm->m_res->hostbuf(), mm->m_lhs->outer(), mm->m_rhs->outer()
+  );
+  std::tuple<> output_pipeline;
+  gemmlowp::GemmContext gemm_context;
+  TIMER_SAMPLE();
+  gemmlowp::GemmWithOutputPipeline<
+    std::uint8_t, std::int32_t, gemmlowp::DefaultL8R8BitDepthParams
+  >(
+    &gemm_context, lhs, rhs, &resmap, 0, 0, output_pipeline
+  );
+  TIMER_SAMPLE();
+  TIMER_REPORT("cpu_gemmlowp_exec");
+#endif
 }
 
 InstrumentationData getInstrumentationData(LayerHandle id) {

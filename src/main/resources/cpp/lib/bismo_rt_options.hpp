@@ -35,7 +35,13 @@
 #define BISMORT_INSTRUMENTATION
 //#define BISMORT_INSTRUMENTATION_VERBOSE
 // enable to compare hw-produced results against sw-produced ones
+// this produces additional instrumentation data:
+// cpu_gemmbitserial_lhs_p2s, cpu_gemmbitserial_rhs_p2s, cpu_gemmbitserial_exec
 //#define BISMORT_MATMUL_VERIFY_AGAINST_CPU
+// enable to benchmark against a gemmlowp implementation with each matmul call
+// this produces additional instrumentation data:
+// cpu_gemmlowp_exec
+//#define BISMORT_BENCHMARK_GEMMLOWP
 // number of bytes for the p2s bit-parallel buffer on the accelerator side
 #define BISMORT_P2S_BITPAR_BYTES  (1024*1024)
 //#define BISMORT_USE_SW_P2S

@@ -4,3 +4,6 @@
 [submodule "fpga-tidbits"]
 	path = fpga-tidbits
 	url = https://github.com/maltanar/fpga-tidbits.git
+[submodule "src/main/resources/cpp/app/gemmlowp"]
+	path = src/main/resources/cpp/app/gemmlowp
+	url = https://github.com/google/gemmlowp.git
