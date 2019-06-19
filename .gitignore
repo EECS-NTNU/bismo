@@ -1,5 +1,6 @@
 scalariform.jar
 build/
+deploy/
 *.jou
 ### Project Specific stuff
 test_run_dir/*
