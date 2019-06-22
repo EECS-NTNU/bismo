@@ -43,14 +43,14 @@ Some of its key features are:
 There's a Dockerfile in the repository root, it does not include Vivado as this makes images very large. We recommend using a Docker bind mount to give read-only access to a copy of Vivado installed on the host system. It's important to mount this at the same path inside the container to be able to use the same installation by sourcing the e.g. Vivado settings64.sh file.
 
 1. `git clone --recurse-submodules https://github.com/EECS-NTNU/bismo.git`
-2. `cd bismo` 
-3. `docker build . --tag=bismo` 
+2. `cd bismo`
+3. `docker build . --tag=bismo`
 4. `docker run -it -v <path_to_local_vivado_folder>:<path_to_local_vivado_folder>:ro bismo`
 
 ### Full Setup on Linux
 1. A working [`sbt`](https://www.scala-sbt.org/1.0/docs/Installing-sbt-on-Linux.html) setup for Chisel2
 2. `zsh` e.g. `sudo apt install zsh` on Ubuntu
-3. [Vivado 2017.4](https://www.xilinx.com/support/download.html) or later (make sure `vivado` is in `PATH`)
+3. [Vivado 2018.3](https://www.xilinx.com/support/download.html) or later (make sure `vivado` is in `PATH`)
 4. `gcc` 4.8 or later
 5. `verilator` e.g. `sudo apt install verilator` on Ubuntu
 6. A supported [PYNQ board](doc/platforms) board with the v2.4 image or later, with network access

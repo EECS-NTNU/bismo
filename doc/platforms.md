@@ -64,6 +64,7 @@ variable e.g. `PLATFORM=PYNQU96 make all`.
 | `PYNQZ1`      | Xilinx PYNQ-Z1 | Uses 64-bit AXI HP0 port | 8x256x8@200 MHz: 6.5 binary TOPS |
 | `PYNQU96`      | Avnet Ultra96 |  Uses 64-bit AXI HP0 port | 10x256x10@300 MHz: 15 binary TOPS |
 | `PYNQU96CC` | Avnet Ultra96 | (experimental) Support for coherent memory using 64-bit HPC0 port | 10x256x10@300 MHz: 15 binary TOPS |
+| `PYNQZCU104`      | Xilinx ZCU-104 |  Uses 64-bit AXI HP0 port | TODO |
 
 ### Using VerilatedTester for emulation
 
