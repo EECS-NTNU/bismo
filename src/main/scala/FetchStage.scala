@@ -270,7 +270,8 @@ class FetchDecoupledStage(val myP: FetchStageParams) extends Module {
   }*/
   // instantiate FetchGroup components
   val reader = Module(new BlockStridedRqGen(
-    mrp = myP.mrp, writeEn = false, chanID = BISMOLimits.fetchDRAMChanID
+    mrp = myP.mrp, writeEn = false, chanID = BISMOLimits.fetchDRAMChanID,
+    burstLog2 = BISMOLimits.fetchAutoBurstLog2
   )).io
   val routegen = Module(new FetchRouteGen(myP)).io
   val conn = Module(new FetchInterconnect(myP)).io

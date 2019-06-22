@@ -51,7 +51,7 @@ class BlockStridedRqDescriptor(mrp: MemReqParams) extends Bundle {
 }
 
 class BlockStridedRqGen(
-  mrp: MemReqParams, writeEn: Boolean, chanID: Int = 0) extends Module {
+  mrp: MemReqParams, writeEn: Boolean, chanID: Int = 0, burstLog2: Int = 3) extends Module {
   val io = new Bundle {
     val block_intra_step = UInt(INPUT, width = mrp.addrWidth)
     val block_intra_count = UInt(INPUT, width = mrp.addrWidth)
@@ -67,7 +67,7 @@ class BlockStridedRqGen(
     w = mrp.addrWidth, a = mrp.addrWidth))).io
 
   val inner_sg = Module(new BurstyMultiSeqGen(new BurstyMultiSeqGenParams(
-    w = mrp.addrWidth, a = mrp.addrWidth, burstShift = 3))).io
+    w = mrp.addrWidth, a = mrp.addrWidth, burstShift = burstLog2))).io
 
   outer_sg.in.valid := io.in.valid
   /*when(io.in.valid){
