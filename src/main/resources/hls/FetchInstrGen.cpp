@@ -37,11 +37,11 @@
 
 template <
   // matmul array dimensions: rows, common, cols
-  size_t M, size_t K, size_t N,
+  unsigned int M, unsigned int K, unsigned int N,
   // exec-to-fetch left-shift ratio: log2(K / fetch width)
-  size_t ETF_S,
+  unsigned int ETF_S,
   // capacity of LHS and RHS memories (in elements)
-  size_t LMEM, size_t RMEM
+  unsigned int LMEM, unsigned int RMEM
 >
 void FetchInstrGen_RHSLHSTiling_Templated(
   hls::stream<ap_uint<BISMO_MMDESCR_BITS>> & in,
@@ -83,7 +83,7 @@ io_section:{
   const int bytes_per_lhs_tile = (M * K) / 8;
 
   // compute the size of the iteration space
-  const size_t total_iters = ins_in.tiles_m * ins_in.tiles_n;
+  const unsigned int total_iters = ins_in.tiles_m * ins_in.tiles_n;
   uint16_t n = 0, m = 0;
 
   for(uint16_t i = 0; i < total_iters; i++) {

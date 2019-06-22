@@ -83,9 +83,9 @@ struct ExecAddr {
 };
 
 template <
-  size_t ADDR_UNIT,
-  size_t OUT_ADDR_BITWIDTH,
-  size_t CONSTANT_ADDRESS
+  unsigned int ADDR_UNIT,
+  unsigned int OUT_ADDR_BITWIDTH,
+  unsigned int CONSTANT_ADDRESS
 >
 void ExecAddrGen_Templated(
   hls::stream<ap_uint<BISMO_INSTR_BITS>> & in,  // exec stage instructions

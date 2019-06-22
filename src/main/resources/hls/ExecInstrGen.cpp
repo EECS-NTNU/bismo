@@ -37,9 +37,9 @@
 
 template <
   // capacity of LHS and RHS memories (in elements)
-  size_t LMEM, size_t RMEM,
+  unsigned int LMEM, unsigned int RMEM,
   // exec-to-fetch left-shift ratio: log2(K / fetch width)
-  size_t ETF_S
+  unsigned int ETF_S
 >
 void ExecInstrGen_RHSLHSTiling(
   hls::stream<ap_uint<BISMO_MMDESCR_BITS>> & in,
@@ -64,7 +64,7 @@ io_section:{
   sync.isRunCfg = 0;
 
   // compute the size of the iteration space
-  const size_t total_iters = ins_in.tiles_m * ins_in.tiles_n * ins_in.bits_l * ins_in.bits_r;
+  const unsigned int total_iters = ins_in.tiles_m * ins_in.tiles_n * ins_in.bits_l * ins_in.bits_r;
   /// iteration variables
   uint16_t m = 0, n = 0;
   uint8_t slice = 0;
@@ -84,7 +84,7 @@ io_section:{
   uint8_t rmem_region = 0;
   uint16_t rmem_region_offset = 0;
   // single iteration space for the entire instrgen
-  for(size_t i = 0; i < total_iters; i++) {
+  for(unsigned int i = 0; i < total_iters; i++) {
     #pragma HLS PIPELINE II=1
     // compute l and r from loop indices
     const int l = ins_in.bits_l - j - 1;

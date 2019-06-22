@@ -37,9 +37,9 @@
 
 template <
   // matmul array dimensions: rows, cols (note: no common)
-  size_t M, size_t N,
+  unsigned int M, unsigned int N,
   // bits per accumulator
-  size_t A
+  unsigned int A
 >
 void ResultInstrGen_RHSTiling_Templated(
   hls::stream<ap_uint<BISMO_MMDESCR_BITS>> & in,
@@ -54,8 +54,8 @@ io_section:{
   BISMOResultRunInstruction res;
   BISMOSyncInstruction sync;
 
-  const size_t bytes_per_acc = A / 8;
-  const size_t bytes_per_res_tile = M * N * bytes_per_acc;
+  const unsigned int bytes_per_acc = A / 8;
+  const unsigned int bytes_per_res_tile = M * N * bytes_per_acc;
 
   // set the invariants (values do not depend on loop iter)
   sync.targetStage = stgResult;
@@ -68,14 +68,14 @@ io_section:{
   ap_wait();
 
   // compute the size of the iteration space
-  const size_t total_iters = ins_in.tiles_m * ins_in.tiles_n;
+  const unsigned int total_iters = ins_in.tiles_m * ins_in.tiles_n;
   /// iteration variables
   uint16_t m = 0, n = 0;
   uint8_t offset_res = 0;
-  const size_t lhs_nrows_a = ins_in.tiles_m * M;
-  const size_t dram_skip = bytes_per_acc * lhs_nrows_a;
+  const unsigned int lhs_nrows_a = ins_in.tiles_m * M;
+  const unsigned int dram_skip = bytes_per_acc * lhs_nrows_a;
   // single iteration space for the entire instrgen
-  for(size_t i = 0; i < total_iters; i++) {
+  for(unsigned int i = 0; i < total_iters; i++) {
     // start by acquiring buffer from execute stage
     // receive token from execute stage
     sync.isSendToken = 0;
@@ -86,7 +86,7 @@ io_section:{
     // TODO optimize resource usage here by using adds inside iter. tracking
     uint32_t lhs_ind = M * m;
     uint32_t rhs_ind = N * n;
-    size_t ind = rhs_ind * lhs_nrows_a + lhs_ind;
+    unsigned int ind = rhs_ind * lhs_nrows_a + lhs_ind;
     res.dram_base = ins_in.dram_res + (ind * bytes_per_acc);
     res.resmem_addr = offset_res;
     res.dram_skip = dram_skip;
