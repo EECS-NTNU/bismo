@@ -36,8 +36,7 @@ import Chisel._
 
 object BISMOLimits {
   val fetchAutoBurstLog2 = 3
-  // TODO this is only band-aid for the result autoburst problem...
-  val resultAutoBurstLog2 = 8
+  val resultAutoBurstLog2 = 3
   val fetchIDBits = 9
   val fetchBurstBeats = 1
   val inpBufAddrBits = 16
