@@ -65,6 +65,9 @@ variable e.g. `PLATFORM=PYNQU96 make all`.
 | `PYNQU96`      | Avnet Ultra96 |  Uses 64-bit AXI HP0 port | 10x256x10@300 MHz: 15 binary TOPS |
 | `PYNQU96CC` | Avnet Ultra96 | (experimental) Support for coherent memory using 64-bit HPC0 port | 10x256x10@300 MHz: 15 binary TOPS |
 | `PYNQZCU104`      | Xilinx ZCU-104 |  Uses 64-bit AXI HP0 port | TODO |
+| `PYNQZCU104CC`      | Xilinx ZCU-104 |  (experimental) Support for coherent memory using 64-bit HPC0 port | TODO |
+
+**Important note regarding cache-coherent platforms:** There is currently an unresolved bug for cache-coherent platform variants for matarices that require padding, giving rise to "Bus Error" exceptions. The workaround for this is to ensure that all workload matrix sizes used are multiples of BISMO overlay dimensions.
 
 ### Using VerilatedTester for emulation
 
