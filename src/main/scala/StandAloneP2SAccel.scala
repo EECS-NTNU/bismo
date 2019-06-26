@@ -107,7 +107,8 @@ class StandAloneP2SAccel(
     mrp = myP.mrp, writeEn = false, chanID = BISMOLimits.p2sDRAMChanID
   )).io
   val writeRg = Module(new BlockStridedRqGen(
-    mrp = myP.mrp, writeEn = true, chanID = BISMOLimits.p2sDRAMChanID
+    mrp = myP.mrp, writeEn = true, chanID = BISMOLimits.p2sDRAMChanID,
+    burstLog2 = 0 // can't use write bursts due to scatter
   )).io
   val p2skrnl = Module(
     if (myP.fastMode) { new P2SKernel_Fast(myP.p2sparams) }

@@ -100,7 +100,7 @@ void p2s(
 bool selftest_p2s() {
   bool ret = true;
   vector<size_t> yesno {0, 1};
-  vector<size_t> nbits_alts {1, 2, 3};
+  vector<size_t> nbits_alts {1, 2, 3, 8};
   vector<size_t> spatial_alts_r {1, 10, 20};
   vector<size_t> spatial_alts_c {100, 256, 512, 1000};
   for(auto & nbits: nbits_alts) {

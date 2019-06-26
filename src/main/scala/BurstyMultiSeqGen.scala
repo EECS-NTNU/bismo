@@ -79,29 +79,40 @@ class BurstyMultiSeqGen(p: BurstyMultiSeqGenParams) extends Module {
     is(sIdle) {
       io.in.ready := Bool(true)
       when(io.in.valid) {
-        regState := sBurst
         regCounter := UInt(0)
         regSeqElem := io.in.bits.init
         regMaxCount := io.in.bits.count
-        // calculate the max count we can reach with bursts
-        regMaxCountWithBurst := Cat((io.in.bits.count >> p.burstShift), UInt(0, width=p.burstShift))
-        // start by using burst step size
-        regStep := io.in.bits.step << p.burstShift
+        if(p.burstShift == 0) {
+          // dont' use bursts
+          regState := sRun
+          regStep := io.in.bits.step
+        } else {
+          regState := sBurst
+          // calculate the max count we can reach with bursts
+          regMaxCountWithBurst := Cat((io.in.bits.count >> p.burstShift), UInt(0, width=p.burstShift))
+          // start by using burst step size
+          regStep := io.in.bits.step << p.burstShift
+        }
       }
     }
 
     is(sBurst) {
-      // produce burst-sized steps
-      when(regCounter === regMaxCountWithBurst) {
-        regState := sRun
-        // switch back to unit step size
-        regStep := regStep >> p.burstShift
-      }.otherwise {
-        io.out.valid := Bool(true)
-        when(io.out.ready) {
-          regCounter := regCounter + (UInt(1) << p.burstShift)
-          regSeqElem := regSeqElem + regStep
+      if(p.burstShift != 0) {
+        // produce burst-sized steps
+        when(regCounter === regMaxCountWithBurst) {
+          regState := sRun
+          // switch back to unit step size
+          regStep := regStep >> p.burstShift
+        }.otherwise {
+          io.out.valid := Bool(true)
+          when(io.out.ready) {
+            regCounter := regCounter + (UInt(1) << p.burstShift)
+            regSeqElem := regSeqElem + regStep
+          }
         }
+      } else {
+        // unused state, should never get here
+        regState := sRun
       }
     }
 
