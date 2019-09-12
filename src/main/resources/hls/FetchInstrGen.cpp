@@ -50,17 +50,23 @@ void FetchInstrGen_RHSLHSTiling_Templated(
   #pragma HLS INTERFACE ap_ctrl_none port=return
   #pragma HLS INTERFACE axis port=out
   #pragma HLS INTERFACE axis port=in
-io_section:{
-  #pragma HLS protocol fixed
 
   BISMOFetchRunInstruction fetch;
   BISMOSyncInstruction sync;
 
   // set the invariants (values do not depend on loop iter)
-  sync.targetStage = stgFetch;
+  sync_rec.targetStage = stgFetch;
+  sync_rec.isRunCfg = 0;
+  sync_rec.isSendToken = 0;
+  sync_rec.chanID = 0;
+
+  sync_send.targetStage = stgFetch;
+  sync_send.isRunCfg = 0;
+  sync_send.isSendToken = 1;
+  sync_send.chanID = 0;
+
   fetch.targetStage = stgFetch;
   fetch.isRunCfg = 1;
-  sync.isRunCfg = 0;
   // read the descriptor
   SingleMMDescriptor ins_in;
   ins_in.fromRaw(in.read());
@@ -88,11 +94,6 @@ io_section:{
 
   for(uint16_t i = 0; i < total_iters; i++) {
     if(m == 0) {
-      // receive token from execute stage representing RHS buf
-      sync.isSendToken = 0;
-      sync.chanID = 0;
-      out.write(sync.asRaw());
-      ap_wait();
       // fill RHS buffer
       // each bit position is one block
       fetch.dram_block_count = ins_in.bits_r;
@@ -113,14 +114,18 @@ io_section:{
       // how many DRAM data words are copied before the
       // fetch interconnect starts targeting the next BRAM
       fetch.tiles_per_row = ins_in.tiles_k << ETF_S;
-      // emit fetch instruction for RHS matrix
-      out.write(fetch.asRaw());
-      ap_wait();
-      // signal that RHS buffer now filled
-      // send token to execute stage
-      sync.isSendToken = 1;
-      sync.chanID = 0;
-      out.write(sync.asRaw());
+      io_section_0:{
+        #pragma HLS protocol fixed
+        // receive token from execute stage representing RHS buf
+        out.write(sync_rec.asRaw());
+        ap_wait();
+        // emit fetch instruction for RHS matrix
+        out.write(fetch.asRaw());
+        ap_wait();
+        // signal that RHS buffer now filled
+        // send token to execute stage
+        out.write(sync_send.asRaw());
+      }
       // use the next rmem region for following fetch
       rmem_region++;
       rmem_region_offset += rmem_region_size;
@@ -129,11 +134,6 @@ io_section:{
         rmem_region_offset = 0;
       }
     }
-    // receive token from execute stage representing LHS buf
-    sync.isSendToken = 0;
-    sync.chanID = 0;
-    out.write(sync.asRaw());
-    ap_wait();
     // fill LHS buffer
     // each bit position is one block
     fetch.dram_block_count = ins_in.bits_l;
@@ -154,14 +154,17 @@ io_section:{
     // fetch interconnect starts targeting the next BRAM
     fetch.tiles_per_row = ins_in.tiles_k << ETF_S;
     // emit fetch instruction for RHS matrix
-    out.write(fetch.asRaw());
-    ap_wait();
-    // signal that LHS buffer now filled
-    // send token to execute stage
-    sync.isSendToken = 1;
-    sync.chanID = 0;
-    out.write(sync.asRaw());
-
+    io_section_1:{
+      #pragma HLS protocol fixed
+      // receive token from execute stage representing LHS buf
+      out.write(sync_rec.asRaw());
+      ap_wait();
+      out.write(fetch.asRaw());
+      ap_wait();
+      // signal that RHS buffer now filled
+      // send token to execute stage
+      out.write(sync_send.asRaw());
+      }
     // use the next lmem region for following fetch
     lmem_region++;
     lmem_region_offset += lmem_region_size;
@@ -180,7 +183,7 @@ io_section:{
     }
   }
 }
-}
+
 
 #include "FetchInstrGen_TemplateDefs.hpp"
 void FetchInstrGen(
