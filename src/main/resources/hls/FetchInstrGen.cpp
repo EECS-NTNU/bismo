@@ -52,7 +52,8 @@ void FetchInstrGen_RHSLHSTiling_Templated(
   #pragma HLS INTERFACE axis port=in
 
   BISMOFetchRunInstruction fetch;
-  BISMOSyncInstruction sync;
+  BISMOSyncInstruction sync_rec;
+  BISMOSyncInstruction sync_send;
 
   // set the invariants (values do not depend on loop iter)
   sync_rec.targetStage = stgFetch;
