@@ -63,12 +63,14 @@ MatrixMultiply::MatrixMultiply(
   // must have room for at least one stripe per bit position, as this is the
   // granularity we at which we do RHS tiling
   const bool rhs_tile_fits_in_ocm = (acc->get_rhs_total_BRAM_bytes()) >= FETCHEXEC_TOKENS*rhs_stripe_nbytes;
-  const bool rhs_tile_is_one_fetchblock = (rhs_stripe_nbytes <= FETCH_BLOCK_MAX);
+  // must be able to encode a fetchblock in the space defined by a fetch instruction
+  // there is a separate fetchblock for every bit-position
+  const bool rhs_tile_is_one_fetchblock = (rhs_stripe_nbytes / m_rhs->bits())<= FETCH_BLOCK_MAX;
   if(!rhs_tile_is_one_fetchblock || !rhs_tile_fits_in_ocm) {
     throw "RHS is too large and not currently supported in runtime library.";
   }
   const bool lhs_tile_fits_in_ocm = (acc->get_lhs_total_BRAM_bytes()) >= FETCHEXEC_TOKENS*lhs_stripe_nbytes;
-  const bool lhs_tile_is_one_fetchblock = lhs_stripe_nbytes <= FETCH_BLOCK_MAX;
+  const bool lhs_tile_is_one_fetchblock = (lhs_stripe_nbytes / m_lhs->bits()) <= FETCH_BLOCK_MAX;
   if(!lhs_tile_is_one_fetchblock || !lhs_tile_fits_in_ocm) {
     throw "LHS is too large and not currently supported in runtime library.";
   }

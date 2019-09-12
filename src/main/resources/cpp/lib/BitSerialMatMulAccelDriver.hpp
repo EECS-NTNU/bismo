@@ -53,7 +53,7 @@
 #define N_STAGES                  3
 #define FETCH_ADDRALIGN           8
 #define FETCH_SIZEALIGN           8
-#define FETCH_BLOCK_MAX           (1 << (BISMO_LIMIT_DRAM_BSIZE_BITS-1))
+#define FETCH_BLOCK_MAX           ((1 << BISMO_LIMIT_DRAM_BSIZE_BITS)-1)
 
 #define max_local(x,y)                  (x > y ? x : y)
 #define FETCH_ALIGN               max_local(FETCH_ADDRALIGN, FETCH_SIZEALIGN)
