@@ -99,7 +99,9 @@ void FetchInstrGen_RHSLHSTiling_Templated(
       // each bit position is one block
       fetch.dram_block_count = ins_in.bits_r;
       // each block is a group of Dn rows' worth of bits
-      fetch.dram_block_size_bytes = ins_in.tiles_k * bytes_per_rhs_tile;
+      // to save space and since the smallest unit of data handled by any part of the hardware is a octet (8 bytes)
+      // this variable is right-shiftet by three to encode it as an octet
+      fetch.dram_block_size_bytes = ins_in.tiles_k * bytes_per_rhs_tile >> 3;
       // block stride/skip is one bit position worth of bits
       fetch.dram_block_offset_bytes = ins_in.tiles_n * ins_in.tiles_k * bytes_per_rhs_tile;
       // IMPORTANT TODO: put in SW assertions around sizes of these, especially
