@@ -365,7 +365,8 @@ class FetchDecoupledStage(val myP: FetchStageParams) extends Module {
         regBlockBytesReceived := UInt(0)
         regBlocksReceived := UInt(0)
         regWaitInterconnect := UInt(0)
-        regBlockBytesAlmostFinished := io.stage_run.bits.dram_block_size_bytes - UInt(bytesPerBeat)
+        // this is right shifted by three since dram_block_size_bytes is actually encoded in octets (8 Bytes)
+        regBlockBytesAlmostFinished := (io.stage_run.bits.dram_block_size_bytes << 3)- UInt(bytesPerBeat)
       }
     }
     is(sGenReq) {
