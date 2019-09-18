@@ -48,20 +48,38 @@ void ExecInstrGen_RHSLHSTiling(
   #pragma HLS INTERFACE ap_ctrl_none port=return
   #pragma HLS INTERFACE axis port=out
   #pragma HLS INTERFACE axis port=in
-io_section:{
-  #pragma HLS protocol fixed
+
 
   BISMOExecRunInstruction exec;
-  BISMOSyncInstruction sync;
+  BISMOSyncInstruction sync_rec_fetch;
+  BISMOSyncInstruction sync_send_fetch;
+  BISMOSyncInstruction sync_rec_res;
+  BISMOSyncInstruction sync_send_res;
+  
+  sync_rec_fetch.targetStage = stgExec;
+  sync_send_fetch.targetStage = stgExec;
+  sync_rec_res.targetStage = stgExec;
+  sync_send_res.targetStage = stgExec;
+  sync_rec_fetch.isRunCfg = 0;
+  sync_send_fetch.isRunCfg = 0;
+  sync_rec_res.isRunCfg = 0;
+  sync_send_res.isRunCfg = 0;
+  sync_rec_fetch.isSendToken = 0;
+  sync_rec_fetch.chanID = 0;
+  sync_send_fetch.isSendToken = 1;
+  sync_send_fetch.chanID = 0;
+  sync_rec_res.isSendToken = 0;
+  sync_rec_res.chanID = 1;
+  sync_send_res.isSendToken = 1;
+  sync_send_res.chanID = 1;
+
 
   // read the descriptor
   SingleMMDescriptor ins_in;
   ins_in.fromRaw(in.read());
   ap_wait();
-  sync.targetStage = stgExec;
   exec.targetStage = stgExec;
   exec.isRunCfg = 1;
-  sync.isRunCfg = 0;
 
   // compute the size of the iteration space
   const unsigned int total_iters = ins_in.tiles_m * ins_in.tiles_n * ins_in.bits_l * ins_in.bits_r;
@@ -94,27 +112,7 @@ io_section:{
     const bool tile_last = (slice == (ins_in.bits_l + ins_in.bits_r - 2));
     const bool rhstile_first = tile_first && (m == 0);
     const bool rhstile_last = tile_last && (m == ins_in.tiles_m-1);
-    if(rhstile_first) {
-      // when starting a new tile, wait for fetch stage to signal
-      sync.isSendToken = 0;
-      sync.chanID = 0;
-      out.write(sync.asRaw());
-      ap_wait();
-    }
-    if(tile_first) {
-      // when starting a new tile, wait for fetch stage to signal
-      sync.isSendToken = 0;
-      sync.chanID = 0;
-      out.write(sync.asRaw());
-      ap_wait();
-      // starting a new result tile:
-      // acquire a result buffer
-      sync.isRunCfg = 0;
-      sync.isSendToken = 0;
-      sync.chanID = 1;
-      out.write(sync.asRaw());
-      ap_wait();
-    }
+    
     // whether the current bit position is negative for
     // the input matrices
     const bool lbit_last = (l == ins_in.bits_l-1);
@@ -137,14 +135,28 @@ io_section:{
     // write result on first iteration of this result tile
     exec.writeEn = tile_last ? 1 : 0;
     exec.writeAddr = ins_in.base_res + offset_res;
+io_section_1:{
+#pragma HLS protocol fixed
+    if(rhstile_first) {
+      // when starting a new tile, wait for fetch stage to signal
+      out.write(sync_rec_fetch.asRaw());
+      ap_wait();
+    }
+    if(tile_first) {
+      // when starting a new tile, wait for fetch stage to signal
+      out.write(sync_rec_fetch.asRaw());
+      ap_wait();
+      // starting a new result tile:
+      // acquire a result buffer
+      out.write(sync_rec_res.asRaw());
+      ap_wait();
+    }
     out.write(exec.asRaw());
     ap_wait();
     if(tile_last) {
       // finished computing result tile
       // release the result buffer
-      sync.isSendToken = 1;
-      sync.chanID = 1;
-      out.write(sync.asRaw());
+      out.write(sync_send_res.asRaw());
       ap_wait();
       // iteration tracking logic: result buffer offset
       offset_res++;
@@ -153,9 +165,7 @@ io_section:{
       }
       // when finishing with rhs tile, signal fetch stage to release buffer
       // release the input buffers
-      sync.isSendToken = 1;
-      sync.chanID = 0;
-      out.write(sync.asRaw());
+      out.write(sync_send_fetch.asRaw());
       ap_wait();
       // use the next rmem region for following fetch
       lmem_region++;
@@ -167,9 +177,7 @@ io_section:{
     }
     if(rhstile_last) {
       // release buffer to fetch stage
-      sync.isSendToken = 1;
-      sync.chanID = 0;
-      out.write(sync.asRaw());
+      out.write(sync_send_fetch.asRaw());
       ap_wait();
       // use the next rmem region for following execution
       rmem_region++;
@@ -179,6 +187,7 @@ io_section:{
         rmem_region_offset = 0;
       }
     }
+}
 
     // iteration tracking logic: nested loops over tiles and bits
     j--;
@@ -203,7 +212,6 @@ io_section:{
       }
     }
   }
-}
 }
 
 #include "ExecInstrGen_TemplateDefs.hpp"

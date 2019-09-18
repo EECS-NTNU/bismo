@@ -48,8 +48,8 @@ void ResultInstrGen_RHSTiling_Templated(
   #pragma HLS INTERFACE ap_ctrl_none port=return
   #pragma HLS INTERFACE axis port=out
   #pragma HLS INTERFACE axis port=in
-io_section:{
-  #pragma HLS protocol fixed
+
+  
 
   BISMOResultRunInstruction res;
   BISMOSyncInstruction sync;
@@ -78,10 +78,7 @@ io_section:{
   for(unsigned int i = 0; i < total_iters; i++) {
     // start by acquiring buffer from execute stage
     // receive token from execute stage
-    sync.isSendToken = 0;
-    sync.chanID = 0;
-    out.write(sync.asRaw());
-    ap_wait();
+    
     // calculate the write offset
     // TODO optimize resource usage here by using adds inside iter. tracking
     uint32_t lhs_ind = M * m;
@@ -93,20 +90,28 @@ io_section:{
     res.nop = 0;
     res.waitCompleteBytes = 0;
     // emit res instruction
-    out.write(res.asRaw());
-    ap_wait();
+    
     // update the result buffer offset
     offset_res++;
     // TODO: pass #exec-res buffers as template parameter as well
     if(offset_res == 2) {
       offset_res = 0;
     }
+io_section_1:{
+#pragma HLS protocol fixed
+    sync.isSendToken = 0;
+    sync.chanID = 0;
+    out.write(sync.asRaw());
+    ap_wait();
     // signal that res buffer is now free to be recycled
     // send token to execute stage
+    out.write(res.asRaw());
+    ap_wait();
     sync.isSendToken = 1;
     sync.chanID = 0;
     out.write(sync.asRaw());
     ap_wait();
+}
     // iteration tracking logic: nested loops over tiles
     m++;
     if(m == ins_in.tiles_m) {
@@ -123,6 +128,8 @@ io_section:{
   res.dram_base = 0;
   res.dram_skip = 0;
   res.resmem_addr = 0;
+io_section_2:{
+#pragma HLS protocol fixed
   out.write(res.asRaw());
 }
 }
