@@ -1,5 +1,5 @@
 # BISMO Dockerfile
-FROM hseeberger/scala-sbt
+FROM hseeberger/scala-sbt:8u222_1.3.2_2.13.1
 WORKDIR /app
 RUN sed -Ei 's/^# deb-src /deb-src /' /etc/apt/sources.list
 RUN apt-get -y update && apt-get -y upgrade
