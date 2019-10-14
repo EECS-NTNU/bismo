@@ -105,7 +105,7 @@ struct BISMOFetchRunInstruction {
   ap_uint<1> bram_id_range;
   ap_uint<16> bram_addr_base;
   ap_uint<32> dram_base;
-  ap_uint<16> dram_block_size_bytes;
+  ap_uint<16> dram_block_size_qword;
   ap_uint<24> dram_block_offset_bytes;
   ap_uint<8> dram_block_count;
   ap_uint<16> tiles_per_row;
@@ -119,7 +119,7 @@ struct BISMOFetchRunInstruction {
     ret(15, 15) = bram_id_range;
     ret(31, 16) = bram_addr_base;
     ret(63, 32) = dram_base;
-    ret(79, 64) = dram_block_size_bytes;
+    ret(79, 64) = dram_block_size_qword;
     ret(103, 80) = dram_block_offset_bytes;
     ret(111, 104) = dram_block_count;
     ret(127, 112) = tiles_per_row;
@@ -134,7 +134,7 @@ struct BISMOFetchRunInstruction {
     bram_id_range = ret(15, 15);
     bram_addr_base = ret(31, 16);
     dram_base = ret(63, 32);
-    dram_block_size_bytes = ret(79, 64);
+    dram_block_size_qword = ret(79, 64);
     dram_block_offset_bytes = ret(103, 80);
     dram_block_count = ret(111, 104);
     tiles_per_row = ret(127, 112);
@@ -148,7 +148,7 @@ struct BISMOFetchRunInstruction {
     bram_id_range = 0;
     bram_addr_base = 0;
     dram_base = 0;
-    dram_block_size_bytes = 0;
+    dram_block_size_qword = 0;
     dram_block_offset_bytes = 0;
     dram_block_count = 0;
     tiles_per_row = 0;

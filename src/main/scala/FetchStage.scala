@@ -155,7 +155,7 @@ class FetchStageCtrlIO() extends PrintableBundle {
   // offset (in bytes) to start of next block in DRAM
   val dram_block_offset_bytes = UInt(width = BISMOLimits.dramBlockOffsBits)
   // size of each block (contiguous read) from DRAM
-  val dram_block_size_bytes = UInt(width = BISMOLimits.dramBlockSizeBits)
+  val dram_block_size_qword = UInt(width = BISMOLimits.dramBlockSizeBits)
   // DRAM base address for all fetch groups
   val dram_base = UInt(width = BISMOLimits.dramAddrBits)
 
@@ -170,7 +170,7 @@ class FetchStageCtrlIO() extends PrintableBundle {
     new FetchStageCtrlIO().asInstanceOf[this.type]
 
   val printfStr = "(dram (base = %x, bsize = %d, boffs = %d, bcnt = %d), bram (idstart = %d, idrange = %d, base = %d), tiles = %d)\n"
-  val printfElems = { () ⇒ Seq(dram_base, dram_block_size_bytes, dram_block_offset_bytes, dram_block_count, bram_id_start, bram_id_range, bram_addr_base, tiles_per_row) }
+  val printfElems = { () ⇒ Seq(dram_base, dram_block_size_qword, dram_block_offset_bytes, dram_block_count, bram_id_start, bram_id_range, bram_addr_base, tiles_per_row) }
 }
 
 // fetch stage IO: BRAM writes
@@ -297,8 +297,9 @@ class FetchDecoupledStage(val myP: FetchStageParams) extends Module {
   val bytesToBurstsRightShift = log2Up(bytesPerBurst)
   reader.block_intra_step := UInt(bytesPerBurst)
   // #beats for each block
-  // this is right shifted by three since dram_block_size_bytes is actually encoded in octets (8 Bytes)
-  reader.block_intra_count := (current_runcfg.dram_block_size_bytes  << 3) >> bytesToBurstsRightShift
+  // this is right shifted by three since dram_block_size_qword is encoded as 8 bytes
+  // the order of these shifts should not be changed
+  reader.block_intra_count := (current_runcfg.dram_block_size_qword  << 3) >> bytesToBurstsRightShift
 
   // supply read requests to DRAM from BlockStridedRqGen
   reader.out <> io.dram.rd_req
@@ -365,8 +366,8 @@ class FetchDecoupledStage(val myP: FetchStageParams) extends Module {
         regBlockBytesReceived := UInt(0)
         regBlocksReceived := UInt(0)
         regWaitInterconnect := UInt(0)
-        // this is right shifted by three since dram_block_size_bytes is actually encoded in octets (8 Bytes)
-        regBlockBytesAlmostFinished := (io.stage_run.bits.dram_block_size_bytes << 3)- UInt(bytesPerBeat)
+        // this is right shifted by three since dram_block_size_qword is encoded in 8 bytes
+        regBlockBytesAlmostFinished := (io.stage_run.bits.dram_block_size_qword << 3)- UInt(bytesPerBeat)
       }
     }
     is(sGenReq) {

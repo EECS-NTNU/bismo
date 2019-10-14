@@ -99,9 +99,9 @@ void FetchInstrGen_RHSLHSTiling_Templated(
       // each bit position is one block
       fetch.dram_block_count = ins_in.bits_r;
       // each block is a group of Dn rows' worth of bits
-      // to save space and since the smallest unit of data handled by any part of the hardware is a octet (8 bytes)
-      // this variable is right-shiftet by three to encode it as an octet
-      fetch.dram_block_size_bytes = ins_in.tiles_k * bytes_per_rhs_tile >> 3;
+      // to save space and since the smallest unit of data handled by any part of the hardware is a qword (8 bytes)
+      // this variable is right-shiftet by three to encode it as a qword
+      fetch.dram_block_size_qword = ins_in.tiles_k * bytes_per_rhs_tile >> 3;
       // block stride/skip is one bit position worth of bits
       fetch.dram_block_offset_bytes = ins_in.tiles_n * ins_in.tiles_k * bytes_per_rhs_tile;
       // IMPORTANT TODO: put in SW assertions around sizes of these, especially
@@ -141,8 +141,8 @@ void FetchInstrGen_RHSLHSTiling_Templated(
     // each bit position is one block
     fetch.dram_block_count = ins_in.bits_l;
     // each block is a group of Dm rows' worth of bits
-    // this variable is right-shiftet by three to encode it as an octet
-    fetch.dram_block_size_bytes = ins_in.tiles_k * bytes_per_lhs_tile >> 3;
+    // this variable is right-shiftet by three to encode it as a qword
+    fetch.dram_block_size_qword = ins_in.tiles_k * bytes_per_lhs_tile >> 3;
     // block stride/skip is one bit position worth of bits
     fetch.dram_block_offset_bytes = ins_in.tiles_m * ins_in.tiles_k * bytes_per_lhs_tile;
     // IMPORTANT TODO: put in SW assertions around sizes of these, especially

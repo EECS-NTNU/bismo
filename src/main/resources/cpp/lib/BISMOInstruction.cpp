@@ -51,7 +51,7 @@ std::ostream& operator<<(std::ostream& os, const BISMOFetchRunInstruction& r)
   os << "tiles_per_row: " << r.tiles_per_row << std::endl;
   os << "dram_base: " << (uint64_t) r.dram_base << std::endl;
   os << "dram_block_offset_bytes: " << r.dram_block_offset_bytes << std::endl;
-  os << "dram_block_size_bytes: " << r.dram_block_size_bytes << std::endl;
+  os << "dram_block_size_qword: " << r.dram_block_size_qword << std::endl;
   os << "dram_block_count: " << r.dram_block_count << std::endl;
   os << "========================================" << std::endl;
   return os;
