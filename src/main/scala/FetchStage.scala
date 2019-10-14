@@ -298,7 +298,7 @@ class FetchDecoupledStage(val myP: FetchStageParams) extends Module {
   reader.block_intra_step := UInt(bytesPerBurst)
   // #beats for each block
   // this is right shifted by three since dram_block_size_bytes is actually encoded in octets (8 Bytes)
-  reader.block_intra_count := (current_runcfg.dram_block_size_bytes >> bytesToBurstsRightShift) << 3
+  reader.block_intra_count := (current_runcfg.dram_block_size_bytes  << 3) >> bytesToBurstsRightShift
 
   // supply read requests to DRAM from BlockStridedRqGen
   reader.out <> io.dram.rd_req
