@@ -30,9 +30,12 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <iostream>
+#include <string>
 using namespace std;
 #include "gemmbitserial/test/testhelpers.hpp"
 #include "bismo_rt.hpp"
+#include <math.h>
+#include <fstream>
 
 const char * delimiter = ", ";
 
@@ -51,6 +54,15 @@ void printInstrumentationData(bismo_rt::InstrumentationData & data) {
   }
   cout << endl;
 }
+
+void printInstrumentationDataToFile(bismo_rt::InstrumentationData & data, std::ofstream & file) {
+  bismo_rt::InstrumentationData::iterator it;
+  for(it = data.begin(); it != data.end(); it++) {
+    file << it->second << delimiter;
+  }
+  file << endl;
+}
+
 
 bismo_rt::InstrumentationData run_benchmark_matmul(
   size_t nrows_lhs, size_t nrows_rhs, size_t ncols, size_t nbits_lhs,
@@ -110,20 +122,9 @@ void benchmark_gemm_interactive() {
   }
 }
 
-void benchmark_gemm_cpuvsaccel() {
-  cout << "IMPORTANT: Remember to uncomment the following lines in bismo_rt_options.hpp: " << endl;
-  cout << "#define BISMORT_MATMUL_VERIFY_AGAINST_CPU" << endl;
-  cout << "#define BISMORT_BENCHMARK_GEMMLOWP" << endl;
-  cout << "The CPU comparative benchmark will not work until then." << endl;
-  bool headers_printed = false;
-  while(1) {
-    int rows, depth, cols, lhsbits, rhsbits;
-    cin >> rows;
-    if(rows == 0) {
-      return;
-    }
-    cin >> depth >> cols;
-    cin >> lhsbits >> rhsbits;
+bismo_rt::InstrumentationData benchmark_vs_cpu(
+  size_t rows, size_t cols, size_t depth, size_t lhsbits, size_t rhsbits
+) {
     bismo_rt::InstrumentationData ret = run_benchmark_matmul(rows, cols, depth, lhsbits, rhsbits);
     // bismo has quite a few components
     float total_bismo = ret["run_cycles"];
@@ -134,16 +135,19 @@ void benchmark_gemm_cpuvsaccel() {
     total_bismo += ret["mat_rhs_pad_us"];
     total_bismo += ret["mat_res_unpad_us"];
     // add p2s costs
-    total_bismo += ret["mat_lhs_p2s_us"];
+    // total_bismo += ret["mat_lhs_p2s_us"];
     total_bismo += ret["mat_rhs_p2s_us"];
     // add data movement costs
     total_bismo += ret["mat_lhs_host2accel_us"];
     total_bismo += ret["mat_res_accel2host_us"];
     total_bismo += ret["mat_rhs_host2accel_us"];
-    // gemmbitserial has three components
-    float total_gemmbitserial = ret["cpu_gemmbitserial_exec_us"];
-    total_gemmbitserial += ret["cpu_gemmbitserial_lhs_p2s_us"];
-    total_gemmbitserial += ret["cpu_gemmbitserial_rhs_p2s_us"];
+    //calculating runs vs run+wait in percent
+    float fetch_utilize = ret["stg_fetch_run"];
+    fetch_utilize = (fetch_utilize / (fetch_utilize + ret["stg_fetch_rcv"]))*100;
+    float exec_utilize = ret["stg_exec_run"];
+    exec_utilize = (exec_utilize / (exec_utilize + ret["stg_exec_rcv"]))*100;
+    float result_utilize = ret["stg_result_run"];
+    result_utilize = (result_utilize / (result_utilize + ret["stg_result_rcv"]))*100;
     // gemmlowp only has a single component
     float total_gemmlowp = ret["cpu_gemmlowp_exec_us"];
 
@@ -153,15 +157,91 @@ void benchmark_gemm_cpuvsaccel() {
     new_ret["3_cols_N"] = cols;
     new_ret["4_lhsbits"] = lhsbits;
     new_ret["5_rhsbits"] = rhsbits;
-    new_ret["6_total_bismo_us"] = total_bismo;
-    new_ret["7_total_gemmbitserial_us"] = total_gemmbitserial;
-    new_ret["8_total_gemmlowp_us"] = total_gemmlowp;
-    if(!headers_printed) {
-      printInstrumentationHeaders(new_ret);
-      headers_printed = true;
-    }
-    printInstrumentationData(new_ret);
+    new_ret["6_fetch_utilize"] = fetch_utilize;
+    new_ret["7_exec_utilize"] = exec_utilize;
+    new_ret["8_result_utilize"] = result_utilize;
+    new_ret["91_total_bismo_us"] = total_bismo;
+    new_ret["92_total_gemmlowp_us"] = total_gemmlowp;
+    
+    return new_ret;
   }
+
+void benchmark_gemm_cpuvsaccel(string & input) {
+  cout << "IMPORTANT: Remember to uncomment the following lines in bismo_rt_options.hpp: " << endl;
+  cout << "#define BISMORT_MATMUL_VERIFY_AGAINST_CPU" << endl;
+  cout << "#define BISMORT_BENCHMARK_GEMMLOWP" << endl;
+  cout << "The CPU comparative benchmark will not work until then." << endl;
+  bool headers_printed = false;
+  cout << "reading wl from file " << input << endl;
+  string layer_file;
+  layer_file.append(input);
+  layer_file.append("_layers.csv");
+  string sum_file;
+  sum_file.append(input);
+  sum_file.append("_sum.csv");	
+  std::ofstream layer_out (layer_file);
+  std::ofstream sum_out (sum_file);
+  layer_out << "rows" << delimiter << "depth" << delimiter << "cols" << delimiter << "lhsbits" << delimiter << "rhsbits" << delimiter;
+  layer_out << "fetch_utilize[%]" << delimiter << "exec_utilize[%]" << delimiter << "result_utilize[%]" << delimiter  << "total_bismo[um]" << delimiter << "total_gemmlowp[um]" << endl;
+  sum_out << "bits" << delimiter << "batch" << delimiter << "bismo[um]" << delimiter << "gemmlowp[um]" << endl;
+  cout << "bits" << delimiter << "batch" << delimiter << "bismo[um]" << delimiter << "gemmlowp[um]" << endl;
+    int rows, depth, cols, lhsbits, rhsbits;
+    for(int bits = 1; bits <= 4; bits+=1){
+    	for(int log_batch = 0; log_batch <= 7; log_batch++){
+    		int batch = pow(2 ,log_batch);
+  			std::ifstream infile(input);
+  			//vector<bismo_rt::InstrumentationData> ret_vector;
+  			int bismo_sum = 0, gemmlowp_sum = 0;
+  			while(infile >> rows >> depth >> cols){
+  					cols= cols * batch;
+					bismo_rt::InstrumentationData ret = benchmark_vs_cpu(rows, cols, depth, bits, bits);
+					//printInstrumentationHeaders(ret);
+					printInstrumentationDataToFile(ret, layer_out);
+					bismo_sum += ret["91_total_bismo_us"];
+					gemmlowp_sum += ret["92_total_gemmlowp_us"];
+				}
+				//vector<bismo_rt::InstrumentationData>::iterator ptr;
+				//for(ptr = ret_vector.begin(); ptr < ret_vector.end(); ptr++){
+					//printInstrumentationData(*ptr);
+				//}
+				sum_out << bits << delimiter << batch << delimiter << bismo_sum << delimiter << gemmlowp_sum << endl;
+				cout << bits << delimiter << batch << delimiter << bismo_sum << delimiter << gemmlowp_sum << endl;
+			}
+  	}
+  layer_out.close();
+  sum_out.close();  
+}
+
+void benchmark_gemm_cpuvsaccel_traverse() {
+  cout << "IMPORTANT: Remember to uncomment the following lines in bismo_rt_options.hpp: " << endl;
+  cout << "#define BISMORT_MATMUL_VERIFY_AGAINST_CPU" << endl;
+  cout << "#define BISMORT_BENCHMARK_GEMMLOWP" << endl;
+  cout << "The CPU comparative benchmark will not work until then." << endl;
+  bool headers_printed = false;
+  string layer_file;
+  layer_file.append("traversal.csv");
+  std::ofstream layer_out (layer_file);
+  layer_out << "rows" << delimiter << "depth" << delimiter << "cols" << delimiter << "lhsbits" << delimiter << "rhsbits" << delimiter;
+  layer_out << "fetch_utilize[%]" << delimiter << "exec_utilize[%]" << delimiter << "result_utilize[%]" << delimiter  << "total_bismo[um]" << delimiter << "total_gemmlowp[um]" << endl;
+  cout << "bits" << delimiter << "batch" << delimiter << "bismo[um]" << delimiter << "gemmlowp[um]" << endl;
+    int rows = 1, depth = 1, cols = 1, lhsbits, rhsbits;
+    for(int bits = 1; bits <= 4; bits++){
+    	for(int log_batch = 8; log_batch <= 14; log_batch++){
+    		depth = pow(2 ,log_batch);
+		//cout << bits << delimiter << rows << delimiter << cols << delimiter << depth << endl;
+  		for(int i = 1; i <= 100; i++){
+			cols = i * 320;
+			for(int j = 1; j <= 100; j++){
+				rows = j * 320;
+				cout << bits << delimiter << rows << delimiter << cols << delimiter << depth << endl;
+				bismo_rt::InstrumentationData ret = benchmark_vs_cpu(rows, cols, depth, bits, bits);
+				//printInstrumentationHeaders(ret);
+				printInstrumentationDataToFile(ret, layer_out);
+			}
+		}
+	}
+    }		
+  layer_out.close();
 }
 
 void benchmark_gemm_batch() {

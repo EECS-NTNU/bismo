@@ -68,7 +68,7 @@ MatrixMultiply::MatrixMultiply(
   // there is a separate fetchblock for every bit-position
   const bool rhs_tile_is_one_fetchblock = (rhs_stripe_nbytes / m_rhs->bits())<= FETCH_BLOCK_MAX;
   if(!rhs_tile_fits_in_ocm) {
-    throw "RHS is too large and not currently supported in runtime library. \n\nA single RHS stripe (D_n * K * lhs-bits) does not fit into On-Chip-Memory";
+    throw "RHS is too large and not currently supported in runtime library. \n\nA single RHS stripe (D_n * K * rhs-bits) does not fit into On-Chip-Memory";
   }
   if(!rhs_tile_is_one_fetchblock) {
     throw "RHS is too large and not currently supported in runtime library. \n\nA single fetchblock in bytes (D_n * K / 8) is to large to be encoded internaly";
@@ -81,6 +81,11 @@ MatrixMultiply::MatrixMultiply(
   }
   if(!lhs_tile_is_one_fetchblock) {
     throw "LHS is too large and not currently supported in runtime library. \n\nA single fetchblock in bytes (D_m * K / 8) is to large to be encoded internaly";
+  }
+
+  const bool lhs_all_tiles_fit_in_ocm = (acc->get_lhs_total_BRAM_bytes()) >= m_lhs->bitserial_nbytes();
+  if(!lhs_all_tiles_fit_in_ocm){
+    std::cout << "LHS tiles don't fit entirely into On-Chip-Memory. Doing refetches." << std::endl;
   }
   
   // create and fill in the descriptor
@@ -163,17 +168,24 @@ size_t MatrixMultiply::resBytes() const {
 }
 
 size_t MatrixMultiply::getNumBytesToFetch() const {
-  // note that the number of bytes to fetch depends on the tiling strategy
-  // our current tiling strategy looks like this:
-  // (see FetchInstrGen.cpp for HLS implementation)
-  // foreach n in n_tiles:
-  //    load slice n into on-chip memory
-  //    foreach m in m_tiles:
-  //      load slice m into on-chip memory
-  //      process the loaded slices
+  // 	note that the number of bytes to fetch depends on the tiling strategy
+  //	our current tiling strategy looks like this:
+  //	(see FetchInstrGen.cpp for HLS implementation)
+  // 	separate m_tiles into l fetch-sections, each of which fit entirely into on-chip memory
+  // 	foreach l in fetch-sections:
+  // 		foreach n in n_tiles:
+  //  	  load slice n into on-chip memory
+  //  	  foreach m in m_tiles:
+  //				if m not fetched yet (n == 0):
+  //      		load slice m into on-chip memory
+  //      	process the loaded slices
   // m is slices of the LHS matrix and n is slices of the RHS matrix
   // thus, RHS gets loaded only once, but LHS is loaded multiple (n_tiles) times
-  return rhsBytes() + (lhsBytes() * m_igen_dsc.tiles_n);
+  unsigned int fetch_sections = lhsBytes()/getHWBufSizeLHS();
+  if(lhsBytes()%getHWBufSizeLHS() != 0){
+  	fetch_sections++;
+  }
+  return rhsBytes()*fetch_sections + lhsBytes();
 }
 
 size_t MatrixMultiply::getNumBytesToWrite() const {

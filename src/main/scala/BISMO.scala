@@ -318,7 +318,7 @@ class BitSerialMatMulAccel(
     )))).io
     val igRes = Module(HLSBlackBox(new ResultInstrGen(new ResultInstrGenParams(
       dpaDimLHS = myP.dpaDimLHS, dpaDimRHS = myP.dpaDimRHS,
-      accWidthBits = myP.accWidth
+      accWidthBits = myP.accWidth, lhsEntriesPerMem = myP.lhsEntriesPerMem
     )))).io
     // wire up reset differently (Vivado HLS BlackBox)
     igExec.rst_n := !this.reset

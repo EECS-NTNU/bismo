@@ -41,43 +41,16 @@ void FetchInstrGen(
   hls::stream<ap_uint<BISMO_INSTR_BITS>> & out
 );
 
-void make_golden(hls::stream<ap_uint<BISMO_INSTR_BITS>> & out) {
-  out.write(ap_uint<BISMO_INSTR_BITS>("0", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("08030002000040000003E800008084", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("08", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("0", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("080300020000400000042802008084", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("08", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("0", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("080300020000400000046804008084", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("08", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("0", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("08030002000040000004A806008084", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("08", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("0", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("08030002000040000004E800008084", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("08", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("0", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("080300020000400000052802008084", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("08", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("0", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("080300020000400000056804008084", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("08", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("0", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("08030002000040000005A806008084", 16));
-  out.write(ap_uint<BISMO_INSTR_BITS>("08", 16));
-}
 
 bool TestFetchInstrGen() {
   cout << "Now running HLS Test for FetchInstrGen" << endl;
   hls::stream<ap_uint<BISMO_MMDESCR_BITS>> in;
   hls::stream<ap_uint<BISMO_INSTR_BITS>> out;
-  hls::stream<ap_uint<BISMO_INSTR_BITS>> golden;
   SingleMMDescriptor desc;
-  BISMOInstruction ins, golden_ins;
-  desc.tiles_m = 10;
+  BISMOInstruction ins;
+  desc.tiles_m = 6;
   desc.tiles_k = 4;
-  desc.tiles_n = 8;
+  desc.tiles_n = 12;
   desc.bits_l = 2;
   desc.bits_r = 3;
   desc.base_l = 0;
@@ -86,23 +59,20 @@ bool TestFetchInstrGen() {
   desc.dram_lhs = 0;
   desc.dram_rhs = 1000;
   in.write(desc.asRaw());
-  make_golden(golden);
   FetchInstrGen(in, out);
 
   bool all_OK = true;
-  if(out.size() != golden.size()) {
+  int correct_size = desc.tiles_m * 3 + (desc.tiles_n - 1) * 2 * desc.tiles_m + desc.tiles_n * 3 ;
+  if(out.size() != correct_size) {
     cout << "ERROR: Incorrect number of fetch instructions produced!" << endl;
+    cout << "Expected" << correct_size << endl;
+    cout << "Found" << out.size() << endl;
     all_OK = false;
   }
 
   while(!out.empty()) {
     ins = out.read();
-    golden_ins = golden.read();
-    all_OK &= (ins == golden_ins);
-    if(ins != golden_ins) {
-      cout << "ERROR: Mismatch found. Expected: " << golden_ins << endl;
-      cout << "Found: " << ins << endl;
-    }
+    cout << "Found: " << ins << endl;
   }
   return all_OK;
 }

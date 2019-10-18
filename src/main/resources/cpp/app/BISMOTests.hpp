@@ -125,6 +125,23 @@ bool test_binary_onchip_onetile(bismo_rt::HardwareConfig hwcfg) {
   return all_OK;
 }
 
+bool test_specified(bismo_rt::HardwareConfig hwcfg) {
+	bool all_OK = true;
+	int rows, depth, cols, lhsbits, rhsbits;
+    cout << "Enter rows depth cols lhsbits rhsbits, 0 to exit " << endl;
+    cin >> rows;
+    if(rows == 0) {
+      return false;
+    }
+    cin >> depth >> cols;
+    cin >> lhsbits >> rhsbits;
+    all_OK &= test(
+      "Testing workload " + to_string(rows) + to_string(depth) + to_string(cols) + to_string(lhsbits) + to_string(rhsbits),
+      rows, cols, depth, lhsbits, rhsbits
+    );
+	return all_OK;
+}
+
 bool test_multibit_onchip_onetile(bismo_rt::HardwareConfig hwcfg) {
   bool all_OK = true;
   vector<size_t> bits {2, 4};

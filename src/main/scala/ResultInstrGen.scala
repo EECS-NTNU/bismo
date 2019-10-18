@@ -47,7 +47,8 @@ import fpgatidbits.hlstools.TemplatedHLSBlackBox
 class ResultInstrGenParams(
   val dpaDimLHS: Int,
   val dpaDimRHS: Int,
-  val accWidthBits: Int
+  val accWidthBits: Int,
+  val lhsEntriesPerMem: Int 
 )
 
 class ResultInstrGen(val p: ResultInstrGenParams) extends TemplatedHLSBlackBox {
@@ -70,6 +71,7 @@ class ResultInstrGen(val p: ResultInstrGenParams) extends TemplatedHLSBlackBox {
   val hlsTemplateParams: Map[String, String] = Map(
     "M" -> p.dpaDimLHS.toString,
     "N" -> p.dpaDimRHS.toString,
-    "A" -> p.accWidthBits.toString
+    "A" -> p.accWidthBits.toString,
+    "LMEM" -> p.lhsEntriesPerMem.toString
   )
 }

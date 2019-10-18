@@ -37,7 +37,7 @@
 
 template <
   // matmul array dimensions: rows, cols (note: no common)
-  unsigned int M, unsigned int N,
+  unsigned int M, unsigned int N, unsigned int LMEM,
   // bits per accumulator
   unsigned int A
 >
@@ -67,10 +67,29 @@ void ResultInstrGen_RHSTiling_Templated(
   ins_in.fromRaw(in.read());
   ap_wait();
 
+	//see FetchInstrGen for more details
+  //variables for iterating over memory and computing bram addresses
+  uint16_t lmem_region = 0;
+  uint16_t lmem_region_offset = 0;
+  //how many tiles fit into one bram
+  const uint16_t lmem_num_regions = LMEM/(ins_in.tiles_k * ins_in.bits_l);
+  const uint16_t lmem_region_size = (ins_in.tiles_k * ins_in.bits_l);
+  //into how many fetch sections do we need to separate workload to fetch all tiles_m
+  uint16_t lhs_fetches = ins_in.tiles_m / lmem_num_regions;
+  if(ins_in.tiles_m % lmem_num_regions != 0){
+  	lhs_fetches++;
+  }
+  //if tiles_m is not evenly divisible by number of fetch sections, the last fetch section contains the remainder of tiles to be fetched
+  const uint16_t last_iter_m = ins_in.tiles_m % lmem_num_regions;
+  unsigned int total_iters = 0;
   // compute the size of the iteration space
-  const unsigned int total_iters = ins_in.tiles_m * ins_in.tiles_n;
-  /// iteration variables
-  uint16_t m = 0, n = 0;
+  if(last_iter_m != 0){
+    total_iters = lmem_num_regions * ins_in.tiles_n * (lhs_fetches - 1) + last_iter_m * ins_in.tiles_n;
+  }else{
+    total_iters = lmem_num_regions * ins_in.tiles_n * lhs_fetches;
+  }
+  uint16_t n = 0, m = 0, lf = 0;
+
   uint8_t offset_res = 0;
   const unsigned int lhs_nrows_a = ins_in.tiles_m * M;
   const unsigned int dram_skip = bytes_per_acc * lhs_nrows_a;
@@ -113,12 +132,20 @@ io_section_1:{
     ap_wait();
 }
     // iteration tracking logic: nested loops over tiles
+    //std::cout << "        m " << m << std::endl;
     m++;
-    if(m == ins_in.tiles_m) {
-      m = 0;
+    if(m == lmem_num_regions * (lf+1) || ((m == last_iter_m + lmem_num_regions * lf) && (lf == (lhs_fetches - 1)))){
+      m = lmem_num_regions * lf;
+      //std::cout << "    n " << n << std::endl;
       n++;
       if(n == ins_in.tiles_n) {
         n = 0;
+        //std::cout << "lf " << lf << std::endl;
+        lf++;
+        m = lmem_num_regions * lf;
+        if(lf == lhs_fetches) {
+          lf = 0;
+        }
       }
     }
   }
@@ -144,7 +171,7 @@ void ResultInstrGen(
   #pragma HLS INTERFACE axis port=in
 
   ResultInstrGen_RHSTiling_Templated<
-    TEMPLATE_PARAM_M, TEMPLATE_PARAM_N, TEMPLATE_PARAM_A
+    TEMPLATE_PARAM_M, TEMPLATE_PARAM_N, TEMPLATE_PARAM_LMEM, TEMPLATE_PARAM_A
   >(
     in, out
   );

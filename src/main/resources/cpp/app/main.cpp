@@ -32,15 +32,17 @@
 
 #include "BISMOTests.hpp"
 #include "benchmark.hpp"
+#include <string>
 
 int main(int argc, char const *argv[]) {
   try {
-    if(argc != 2) {
+    if(argc != 2 && argc !=3 ) {
       cout << "Run with cmdline argument: " << endl;
       cout << "t to run tests" << endl;
       cout << "i to run interactive benchmarking" << endl;
       cout << "b to run batch-mode benchmarking" << endl;
       cout << "c to run CPU vs accel benchmarking" << endl;
+      cout << "m to run CPU vs accel benchmarking with automatic workload traversal" << endl;
       return -1;
     }
     if(argv[1][0] == 'i') {
@@ -48,7 +50,10 @@ int main(int argc, char const *argv[]) {
     } else if(argv[1][0] == 'b') {
       benchmark_gemm_batch();
     } else if(argv[1][0] == 'c') {
-      benchmark_gemm_cpuvsaccel();
+    	string path = argv[2];
+      benchmark_gemm_cpuvsaccel( path);
+    } else if(argv[1][0] == 'm') {
+      benchmark_gemm_cpuvsaccel_traverse();
     } else if(argv[1][0] == 't') {
       bool all_OK = true;
       bismo_rt::init();
@@ -59,8 +64,8 @@ int main(int argc, char const *argv[]) {
       bismo_rt::deinit();
       // following tests call init/deinit themselves
       all_OK &= test_binary_onchip_onetile(hwcfg);
-      all_OK &= test_multibit_onchip_onetile(hwcfg);
       all_OK &= test_multibit_multitile(hwcfg);
+      all_OK &= test_multibit_onchip_onetile(hwcfg);
       if(all_OK) {
         cout << "All tests passed succesfully" << endl;
       } else {

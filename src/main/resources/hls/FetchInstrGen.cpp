@@ -73,12 +73,7 @@ void FetchInstrGen_RHSLHSTiling_Templated(
   ins_in.fromRaw(in.read());
   ap_wait();
 
-  // mems are divided into regions to provide fetch-exec concurrency
-  const uint8_t lmem_num_regions = (1 << ins_in.nbufs_fetch_exec_log2);
-  const uint16_t lmem_region_size = (LMEM >> ins_in.nbufs_fetch_exec_log2);
-  uint8_t lmem_region = 0;
-  uint16_t lmem_region_offset = 0;
-
+  // right hand side memory is divided into regions to provide fetch-exec concurrency
   const uint8_t rmem_num_regions = (1 << ins_in.nbufs_fetch_exec_log2);
   const uint16_t rmem_region_size = (RMEM >> ins_in.nbufs_fetch_exec_log2);
   uint8_t rmem_region = 0;
@@ -89,12 +84,32 @@ void FetchInstrGen_RHSLHSTiling_Templated(
   const int bytes_per_rhs_tile = (N * K) / 8;
   const int bytes_per_lhs_tile = (M * K) / 8;
 
+  //variables for iterating over memory and computing bram addresses
+  uint16_t lmem_region = 0;
+  uint16_t lmem_region_offset = 0;
+  //how many tiles fit into one bram
+  const uint16_t lmem_num_regions = LMEM/(ins_in.tiles_k * ins_in.bits_l);
+  const uint16_t lmem_region_size = (ins_in.tiles_k * ins_in.bits_l);
+  //into how many fetch sections do we need to separate workload to fetch all tiles_m
+  //every fetch section is sized to fit as many tiles into BRAM-buffers at once as possible
+  uint16_t lhs_fetches = ins_in.tiles_m / lmem_num_regions;
+  if(ins_in.tiles_m % lmem_num_regions != 0){
+  	lhs_fetches++;
+  }
+  //if tiles_m is not evenly divisible by number of fetch sections, the last fetch section contains the remainder of tiles to be fetched
+  const uint16_t last_iter_m = ins_in.tiles_m % lmem_num_regions;
+  unsigned int total_iters = 0;
   // compute the size of the iteration space
-  const unsigned int total_iters = ins_in.tiles_m * ins_in.tiles_n;
-  uint16_t n = 0, m = 0;
+  if(last_iter_m != 0){
+    total_iters = lmem_num_regions * ins_in.tiles_n * (lhs_fetches - 1) + last_iter_m * ins_in.tiles_n;
+  }else{
+    total_iters = lmem_num_regions * ins_in.tiles_n * lhs_fetches;
+  }
+  uint16_t n = 0, m = 0, lf = 0;
 
-  for(uint16_t i = 0; i < total_iters; i++) {
-    if(m == 0) {
+  for(unsigned int i = 0; i < total_iters; i++) {
+  	//fetch next rhs tile at beginning of every fetch-section
+    if(m == lmem_num_regions * lf) {
       // fill RHS buffer
       // each bit position is one block
       fetch.dram_block_count = ins_in.bits_r;
@@ -137,6 +152,9 @@ void FetchInstrGen_RHSLHSTiling_Templated(
         rmem_region_offset = 0;
       }
     }
+    //only generate fetch instructions if the fetch section is at the very beginning and this is the first iteration over these lhs tiles
+    //otherwise just generate the necessary synchronisation instructions
+    if(n == 0){
     // fill LHS buffer
     // each bit position is one block
     fetch.dram_block_count = ins_in.bits_l;
@@ -169,20 +187,41 @@ void FetchInstrGen_RHSLHSTiling_Templated(
       // send token to execute stage
       out.write(sync_send.asRaw());
       }
+    }else{
+      io_section_2:{
+      #pragma HLS protocol fixed
+      // receive token from execute stage representing LHS buf
+      out.write(sync_rec.asRaw());
+      ap_wait();
+      // signal that RHS buffer now filled
+      // send token to execute stage
+      out.write(sync_send.asRaw());
+      }
+    }
     // use the next lmem region for following fetch
     lmem_region++;
     lmem_region_offset += lmem_region_size;
     if(lmem_region == lmem_num_regions) {
       lmem_region = 0;
       lmem_region_offset = 0;
+    }else if((lmem_region == last_iter_m) && (lf == (lhs_fetches - 1))){
+      lmem_region = 0;
+      lmem_region_offset = 0;
     }
     // iteration tracking logic: nested loops over tiles
     m++;
-    if(m == ins_in.tiles_m) {
-      m = 0;
+    //m has reached end of fetch section or m has reached the end of the last fetch section
+    if(m == lmem_num_regions * (lf+1) || ((m == last_iter_m + lmem_num_regions * lf) && (lf == (lhs_fetches - 1)))){
+      m = lmem_num_regions * lf;
       n++;
       if(n == ins_in.tiles_n) {
         n = 0;
+        lf++;
+        //if lf gets updated, m needs to be updated again
+        m = lmem_num_regions * lf;
+        if(lf == lhs_fetches) {
+          lf = 0;
+        }
       }
     }
   }
