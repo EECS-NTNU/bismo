@@ -60,18 +60,29 @@ MatrixMultiply::MatrixMultiply(
   const size_t tiles_n = m_rhs->outer_a() / cfg.dpaDimRHS;
   const size_t lhs_stripe_nbytes = m_lhs->bitserial_nbytes() / tiles_m;
   const size_t rhs_stripe_nbytes = m_rhs->bitserial_nbytes() / tiles_n;
+
   // must have room for at least one stripe per bit position, as this is the
-  // granularity we at which we do RHS tiling
+  // granularity at which we do RHS tiling
   const bool rhs_tile_fits_in_ocm = (acc->get_rhs_total_BRAM_bytes()) >= FETCHEXEC_TOKENS*rhs_stripe_nbytes;
-  const bool rhs_tile_is_one_fetchblock = (rhs_stripe_nbytes <= FETCH_BLOCK_MAX);
-  if(!rhs_tile_is_one_fetchblock || !rhs_tile_fits_in_ocm) {
-    throw "RHS is too large and not currently supported in runtime library.";
+  // must be able to encode a fetchblock in the space defined by a fetch instruction
+  // there is a separate fetchblock for every bit-position
+  const bool rhs_tile_is_one_fetchblock = (rhs_stripe_nbytes / m_rhs->bits())<= FETCH_BLOCK_MAX;
+  if(!rhs_tile_fits_in_ocm) {
+    throw "RHS is too large and not currently supported in runtime library. \n\nA single RHS stripe (D_n * K * lhs-bits) does not fit into On-Chip-Memory";
   }
+  if(!rhs_tile_is_one_fetchblock) {
+    throw "RHS is too large and not currently supported in runtime library. \n\nA single fetchblock in bytes (D_n * K / 8) is to large to be encoded internaly";
+  }
+
   const bool lhs_tile_fits_in_ocm = (acc->get_lhs_total_BRAM_bytes()) >= FETCHEXEC_TOKENS*lhs_stripe_nbytes;
-  const bool lhs_tile_is_one_fetchblock = lhs_stripe_nbytes <= FETCH_BLOCK_MAX;
-  if(!lhs_tile_is_one_fetchblock || !lhs_tile_fits_in_ocm) {
-    throw "LHS is too large and not currently supported in runtime library.";
+  const bool lhs_tile_is_one_fetchblock = (lhs_stripe_nbytes / m_lhs->bits()) <= FETCH_BLOCK_MAX;
+  if(!lhs_tile_fits_in_ocm) {
+    throw "LHS is too large and not currently supported in runtime library. \n\nA single LHS stripe (D_m * K * lhs-bits) does not fit into On-Chip-Memory";
   }
+  if(!lhs_tile_is_one_fetchblock) {
+    throw "LHS is too large and not currently supported in runtime library. \n\nA single fetchblock in bytes (D_m * K / 8) is to large to be encoded internaly";
+  }
+  
   // create and fill in the descriptor
   m_igen_dsc.tiles_m = tiles_m;
   m_igen_dsc.tiles_k = tiles_k;

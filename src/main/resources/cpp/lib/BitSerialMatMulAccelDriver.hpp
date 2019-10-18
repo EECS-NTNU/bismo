@@ -53,7 +53,7 @@
 #define N_STAGES                  3
 #define FETCH_ADDRALIGN           8
 #define FETCH_SIZEALIGN           8
-#define FETCH_BLOCK_MAX           (1 << (BISMO_LIMIT_DRAM_BSIZE_BITS-1))
+#define FETCH_BLOCK_MAX           ((1 << BISMO_LIMIT_DRAM_BSIZE_BITS + 3)-1)
 
 #define max_local(x,y)                  (x > y ? x : y)
 #define FETCH_ALIGN               max_local(FETCH_ADDRALIGN, FETCH_SIZEALIGN)
@@ -252,18 +252,18 @@ public:
       ASSERT_BITS(f.bram_id_range, 1);
       ASSERT_BITS(f.bram_addr_base, BISMO_LIMIT_INBUFADDR_BITS);
       ASSERT_BITS(f.dram_base, BISMO_LIMIT_DRAMADDR_BITS);
-      ASSERT_BITS(f.dram_block_size_bytes, BISMO_LIMIT_DRAM_BSIZE_BITS);
+      ASSERT_BITS(f.dram_block_size_qword, BISMO_LIMIT_DRAM_BSIZE_BITS);
       ASSERT_BITS(f.dram_block_offset_bytes, BISMO_LIMIT_DRAM_BOFF_BITS);
       ASSERT_BITS(f.dram_block_count, BISMO_LIMIT_DRAM_BCNT_BITS);
       ASSERT_BITS(f.tiles_per_row, BISMO_LIMIT_INBUFADDR_BITS);
       // catch 0-sized transfers, may be due to overflow
-      assert(f.dram_block_size_bytes != 0);
+      assert(f.dram_block_size_qword != 0);
 
       const size_t exec_to_fetch_width_ratio = m_cfg.dpaDimCommon / m_cfg.readChanWidth;
       // ensure all DRAM accesses are aligned
       assert(((uint64_t) f.dram_base) % FETCH_ADDRALIGN == 0);
       assert(f.dram_block_offset_bytes % FETCH_ADDRALIGN == 0);
-      assert(f.dram_block_size_bytes % FETCH_SIZEALIGN == 0);
+      assert(f.dram_block_size_qword % FETCH_SIZEALIGN == 0);
       // ensure that BRAM accesses are within existing range
       assert(f.bram_id_start < get_num_fetch_nodes());
       //assert(f.bram_id_start + f.bram_id_range < get_num_fetch_nodes());
