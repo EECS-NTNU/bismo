@@ -29,7 +29,7 @@
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-VERILATOR_SRC_DIR = /usr/share/verilator/include
+VERILATOR_SRC_DIR ?= /usr/share/verilator/include
 
 $(BUILD_DIR_DEPLOY)/verilog/verilated: $(HW_TO_SYNTH)
 	mkdir -p $(BUILD_DIR_DEPLOY)/verilog; \
@@ -57,7 +57,7 @@ sw: $(BUILD_DIR_HWDRV)/$(HW_SW_DRIVER)
 emu: rtlib_emu
 	cd $(BUILD_DIR_DEPLOY); \
 	sh compile_testapp.sh; \
-	LD_LIBRARY_PATH=$(BUILD_DIR_DEPLOY) ./testapp t;
+	LD_LIBRARY_PATH=$(BUILD_DIR_DEPLOY):$(LD_LIBRARY_PATH) ./testapp t;
 
 $(BUILD_DIR_DEPLOY)/libbismo_rt.so: hw sw script
 	cd $(BUILD_DIR_DEPLOY); \
